@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gemini Chat</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+Thai:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --bg:#0a0a0f;--surface:rgba(17,17,24,0.82);--surface2:rgba(26,26,36,0.85);--surface3:#22222f;
+  --border:rgba(60,60,90,0.7);--accent:#4f8cff;--accent2:#a78bfa;
+  --text:#e8e8f0;--text2:#8888a8;
+  --user-bg:rgba(30,42,74,0.9);--ai-bg:rgba(20,20,32,0.88);
+  --error:#ff5566;--success:#44cc88;--radius:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  font-family:'Noto Sans Thai',sans-serif;
+  background:var(--bg);color:var(--text);
+  height:100dvh;display:flex;flex-direction:column;overflow:hidden;
+  position:relative;
+}
+
+body>*:not(#bgLayer):not(#bgOverlay){position:relative;z-index:2;}
+
+/* HEADER */
+.header{
+  padding:10px 14px;
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:8px;flex-shrink:0;
+  backdrop-filter:blur(16px);
+}
+.logo{
+  width:32px;height:32px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  border-radius:9px;display:flex;align-items:center;justify-content:center;
+  font-size:16px;flex-shrink:0;
+}
+.header-title{font-size:15px;font-weight:600;flex:1;}
+.hbtn{
+  background:rgba(255,255,255,.07);border:1px solid var(--border);
+  color:var(--text2);padding:5px 10px;border-radius:8px;
+  cursor:pointer;font-size:12px;font-family:inherit;transition:all .2s;white-space:nowrap;
+}
+.hbtn:hover{border-color:var(--accent);color:var(--accent);}
+
+/* SETTINGS */
+.settings-panel{
+  background:var(--surface);border-bottom:1px solid var(--border);
+  padding:12px 14px;display:none;flex-direction:column;gap:10px;
+  flex-shrink:0;max-height:75vh;overflow-y:auto;
+  backdrop-filter:blur(16px);
+}
+.settings-panel.open{display:flex;}
+.settings-panel::-webkit-scrollbar{width:3px;}
+.settings-panel::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+.srow{display:flex;gap:8px;align-items:center;}
+.slabel{font-size:11px;color:var(--text2);white-space:nowrap;min-width:58px;}
+input[type=text],input[type=password],select,textarea.sys{
+  flex:1;background:rgba(26,26,36,.9);border:1px solid var(--border);
+  color:var(--text);padding:7px 10px;border-radius:8px;
+  font-size:12px;font-family:'JetBrains Mono',monospace;outline:none;transition:border-color .2s;
+}
+input:focus,select:focus,textarea.sys:focus{border-color:var(--accent);}
+select{font-family:'Noto Sans Thai',sans-serif;cursor:pointer;}
+select option{background:#1a1a24;}
+textarea.sys{resize:vertical;min-height:55px;max-height:160px;line-height:1.5;font-size:11px;}
+
+.bg-controls{display:flex;flex-direction:column;gap:4px;flex:1;}
+.bg-slider-row{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);}
+input[type=range]{flex:1;accent-color:var(--accent);}
+
+.sys-block{border:1px solid var(--border);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:6px;background:rgba(26,26,36,.7);}
+.sys-block-header{display:flex;align-items:center;justify-content:space-between;}
+.sys-block-title{font-size:11px;font-weight:600;color:var(--accent2);display:flex;align-items:center;gap:5px;}
+.sys-tag{font-size:10px;background:var(--surface3);color:var(--text2);padding:1px 6px;border-radius:4px;}
+.toggle-switch{position:relative;width:34px;height:18px;flex-shrink:0;}
+.toggle-switch input{opacity:0;width:0;height:0;}
+.toggle-slider{position:absolute;inset:0;background:var(--border);border-radius:9px;cursor:pointer;transition:.2s;}
+.toggle-slider:before{content:'';position:absolute;width:12px;height:12px;left:3px;top:3px;background:white;border-radius:50%;transition:.2s;}
+input:checked+.toggle-slider{background:var(--accent);}
+input:checked+.toggle-slider:before{transform:translateX(16px);}
+
+.divider{font-size:11px;color:var(--text2);text-align:center;padding:4px 0;border-top:1px solid var(--border);margin-top:2px;}
+
+/* Thinking bar */
+.thinking-bar{display:flex;align-items:center;gap:8px;}
+.thinking-bar label{font-size:11px;color:var(--text2);white-space:nowrap;}
+.tl-btns{display:flex;gap:4px;flex:1;}
+.tl-btn{flex:1;padding:5px 2px;background:rgba(34,34,47,.8);border:1px solid var(--border);color:var(--text2);border-radius:6px;cursor:pointer;font-size:10px;font-family:inherit;transition:all .2s;text-align:center;}
+.tl-btn.active{background:linear-gradient(135deg,var(--accent),var(--accent2));border-color:transparent;color:white;font-weight:700;}
+.tl-off{padding:5px 8px;background:rgba(34,34,47,.8);border:1px solid var(--border);color:var(--text2);border-radius:6px;cursor:pointer;font-size:11px;font-family:inherit;transition:all .2s;}
+.tl-off.active{border-color:var(--error);color:var(--error);}
+
+.btn-save{background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:white;padding:8px 18px;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;font-weight:600;transition:opacity .2s;}
+.btn-save:hover{opacity:.85;}
+.save-bar{position:sticky;bottom:-12px;background:var(--surface);padding:10px 0 2px;margin-top:2px;border-top:1px solid var(--border);backdrop-filter:blur(16px);z-index:3;}
+.btn-ghost{background:rgba(34,34,47,.8);border:1px solid var(--border);color:var(--text2);padding:8px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit;transition:all .2s;}
+.btn-ghost:hover{border-color:var(--error);color:var(--error);}
+
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--border);flex-shrink:0;transition:background .3s;}
+.status-dot.ok{background:var(--success);box-shadow:0 0 6px var(--success);}
+.status-dot.err{background:var(--error);box-shadow:0 0 6px var(--error);}
+
+/* CHAT */
+.chat-area{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth;}
+.chat-area::-webkit-scrollbar{width:3px;}
+.chat-area::-webkit-scrollbar-thumb{background:rgba(80,80,120,.5);border-radius:3px;}
+.empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--text2);text-align:center;}
+.empty-state .icon{font-size:44px;opacity:.3;}
+.empty-state p{font-size:13px;line-height:1.7;}
+
+/* MESSAGE */
+.message{display:flex;flex-direction:column;gap:3px;animation:fadeUp .25s ease;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(7px);}to{opacity:1;transform:translateY(0);}}
+.msg-row{display:flex;gap:9px;align-items:flex-end;}
+.message.user .msg-row{flex-direction:row-reverse;}
+
+/* Avatar */
+.msg-avatar{
+  width:34px;height:34px;border-radius:50%;
+  flex-shrink:0;overflow:hidden;
+  border:2px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;background:var(--surface2);
+}
+.msg-avatar img{width:100%;height:100%;object-fit:cover;}
+.user .msg-avatar{border-color:rgba(79,140,255,.5);}
+.ai .msg-avatar{border-color:rgba(167,139,250,.5);}
+
+.bubble{
+  max-width:calc(100% - 52px);
+  padding:10px 14px;border-radius:var(--radius);
+  font-size:14px;line-height:1.75;
+  white-space:pre-wrap;word-break:break-word;
+  backdrop-filter:blur(8px);
+}
+.user .bubble{
+  background:var(--user-bg);
+  border:1px solid rgba(79,140,255,.25);
+  border-bottom-right-radius:4px;
+}
+.ai .bubble{
+  background:var(--ai-bg);
+  border:1px solid var(--border);
+  border-bottom-left-radius:4px;
+}
+
+/* Thinking panel */
+.thinking-panel{
+  max-width:calc(100% - 52px);
+  margin-left:43px;
+  border:1px solid rgba(167,139,250,.3);
+  border-left:3px solid var(--accent2);
+  border-radius:8px;
+  background:rgba(20,15,35,.7);
+  backdrop-filter:blur(8px);
+  overflow:hidden;
+  margin-bottom:4px;
+}
+.thinking-toggle{
+  display:flex;align-items:center;gap:6px;
+  padding:7px 12px;cursor:pointer;
+  font-size:12px;color:var(--accent2);font-weight:600;
+  user-select:none;
+}
+.thinking-toggle .t-arrow{transition:transform .2s;font-size:10px;}
+.thinking-toggle.open .t-arrow{transform:rotate(90deg);}
+.thinking-body{
+  display:none;padding:8px 12px 10px;
+  font-size:12px;color:var(--text2);
+  line-height:1.7;white-space:pre-wrap;word-break:break-word;
+  font-style:italic;border-top:1px solid rgba(167,139,250,.2);
+  max-height:200px;overflow-y:auto;
+}
+.thinking-body.open{display:block;}
+
+/* Cursor blink */
+.cursor{display:inline-block;width:2px;height:1em;background:var(--accent);margin-left:1px;vertical-align:middle;animation:blink .7s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0;}}
+
+/* Image in bubble */
+.bubble img.chat-img{max-width:100%;border-radius:8px;margin-top:6px;display:block;}
+.file-chip{display:inline-flex;align-items:center;gap:5px;background:var(--surface3);border:1px solid var(--border);padding:4px 10px;border-radius:20px;font-size:12px;color:var(--text2);margin-top:4px;}
+
+/* Edit */
+.bubble.editing{padding:0;background:transparent;border:none;backdrop-filter:none;}
+.edit-textarea{width:100%;background:rgba(26,26,36,.95);border:1px solid var(--accent);color:var(--text);padding:10px 13px;border-radius:var(--radius);font-size:14px;font-family:'Noto Sans Thai',sans-serif;line-height:1.7;resize:none;outline:none;min-height:60px;}
+.edit-actions{display:flex;gap:6px;justify-content:flex-end;margin-top:4px;}
+.edit-btn{background:rgba(26,26,36,.9);border:1px solid var(--border);color:var(--text2);padding:4px 13px;border-radius:6px;cursor:pointer;font-size:12px;font-family:inherit;transition:all .2s;}
+.edit-btn.confirm{border-color:var(--accent);color:var(--accent);}
+
+/* Actions */
+.msg-actions{display:flex;gap:4px;padding:2px 43px;opacity:0;transition:opacity .2s;}
+.message:hover .msg-actions{opacity:1;}
+.message.user .msg-actions{justify-content:flex-end;}
+.act-btn{background:rgba(26,26,36,.85);border:1px solid var(--border);color:var(--text2);padding:3px 9px;border-radius:5px;cursor:pointer;font-size:11px;font-family:inherit;transition:all .15s;backdrop-filter:blur(4px);}
+.act-btn:hover{border-color:var(--accent);color:var(--accent);}
+.act-btn.copied{border-color:var(--success);color:var(--success);}
+
+/* Toast */
+.toast{position:fixed;bottom:85px;left:50%;transform:translateX(-50%) translateY(10px);background:rgba(26,26,36,.95);border:1px solid var(--border);color:var(--text);padding:8px 18px;border-radius:20px;font-size:13px;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap;z-index:999;backdrop-filter:blur(12px);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+.token-count{font-size:10px;color:var(--text2);font-family:'JetBrains Mono',monospace;text-align:right;padding:2px 14px;flex-shrink:0;}
+
+/* Attach preview */
+.attach-preview{padding:6px 14px;display:none;flex-wrap:wrap;gap:6px;flex-shrink:0;background:var(--surface);border-top:1px solid var(--border);backdrop-filter:blur(12px);}
+.attach-preview.has-items{display:flex;}
+.attach-chip{display:flex;align-items:center;gap:5px;background:rgba(34,34,47,.8);border:1px solid var(--border);padding:4px 8px;border-radius:8px;font-size:11px;color:var(--text2);max-width:140px;}
+.attach-chip img{width:24px;height:24px;object-fit:cover;border-radius:4px;}
+.attach-chip span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.attach-chip .rm{background:none;border:none;color:var(--text2);cursor:pointer;font-size:14px;padding:0 2px;flex-shrink:0;}
+.attach-chip .rm:hover{color:var(--error);}
+
+/* Input */
+.input-area{padding:10px 14px;background:var(--surface);border-top:1px solid var(--border);display:flex;gap:7px;align-items:flex-end;flex-shrink:0;backdrop-filter:blur(16px);}
+.ibtn{background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text2);width:36px;height:36px;border-radius:9px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0;}
+.ibtn:hover{border-color:var(--accent);color:var(--accent);}
+.ibtn.del:hover{border-color:var(--error);color:var(--error);}
+textarea#msgInput{flex:1;background:rgba(26,26,36,.85);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:10px;font-size:14px;font-family:'Noto Sans Thai',sans-serif;resize:none;outline:none;min-height:38px;max-height:110px;line-height:1.5;transition:border-color .2s;backdrop-filter:blur(8px);}
+textarea#msgInput:focus{border-color:var(--accent);}
+textarea#msgInput::placeholder{color:var(--text2);}
+.send-btn{background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:white;width:36px;height:36px;border-radius:9px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:opacity .2s,transform .1s;flex-shrink:0;}
+.send-btn:hover{opacity:.85;}
+.send-btn:active{transform:scale(.95);}
+.send-btn:disabled{opacity:.35;cursor:not-allowed;}
+</style>
+</head>
+<body>
+
+
+
+
+
+
+
+<div class="header">
+  <div class="logo">✦</div>
+  <div class="header-title">Gemini Chat</div>
+  <button class="hbtn" onclick="saveChat()">💾 บันทึกแชท</button>
+  <button class="hbtn" onclick="toggleSettings()">⚙ ตั้งค่า</button>
+</div>
+
+<div class="settings-panel" id="settingsPanel">
+
+  <!-- Supabase (proxy) + Model -->
+  <div class="srow">
+    <span class="slabel">Supabase URL</span>
+    <input type="text" id="supaUrl" placeholder="https://xxxx.supabase.co"/>
+    <div class="status-dot" id="statusDot"></div>
+  </div>
+  <div class="srow">
+    <span class="slabel">Anon Key</span>
+    <input type="password" id="supaAnon" placeholder="eyJ... (public anon key)"/>
+  </div>
+  <div class="srow">
+    <span class="slabel">Model</span>
+    <select id="modelSelect">
+      <option value="gemini-3-flash-preview">Gemini 3 Flash Preview</option>
+      <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview</option>
+      <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+      <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+      <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash-Lite</option>
+    </select>
+  </div>
+
+  <!-- Thinking -->
+  <div class="thinking-bar">
+    <label>🧠 Thinking</label>
+    <div class="tl-btns">
+      <button class="tl-btn" data-level="minimal" onclick="setThinking('minimal')">Minimal</button>
+      <button class="tl-btn" data-level="low" onclick="setThinking('low')">Low</button>
+      <button class="tl-btn" data-level="medium" onclick="setThinking('medium')">Medium</button>
+      <button class="tl-btn" data-level="high" onclick="setThinking('high')">High</button>
+      <button class="tl-btn" data-level="max" onclick="setThinking('max')">Max</button>
+    </div>
+    <button class="tl-off active" id="thinkOffBtn" onclick="setThinking('off')">Off</button>
+  </div>
+
+
+  <div class="divider">── ความจำ & Auto-Save ──</div>
+
+  <div class="sys-block">
+    <div class="sys-block-header">
+      <div class="sys-block-title">🧠 สรุปอัตโนมัติ <span class="sys-tag">ลด token</span></div>
+      <label class="toggle-switch"><input type="checkbox" id="togSum" checked><span class="toggle-slider"></span></label>
+    </div>
+    <div class="srow">
+      <span class="slabel">สรุปทุก</span>
+      <input type="text" id="sumN" inputmode="numeric" style="max-width:64px" value="10"/>
+      <span class="slabel" style="min-width:auto">เทิร์น · เก็บสด</span>
+      <input type="text" id="keepN" inputmode="numeric" style="max-width:64px" value="4"/>
+      <span class="slabel" style="min-width:auto">เทิร์น</span>
+    </div>
+    <textarea class="sys" id="summaryBox" placeholder="สรุปเรื่องราว — ระบบเขียนให้อัตโนมัติ (แก้ไขได้)" rows="3"></textarea>
+    <div id="memStatus" style="font-size:10px;color:var(--text2);font-family:'JetBrains Mono',monospace;"></div>
+  </div>
+
+  <div class="divider">── System Prompts ──</div>
+
+  <div class="sys-block">
+    <div class="sys-block-header">
+      <div class="sys-block-title">📋 Main Prompt <span class="sys-tag">หลัก</span></div>
+      <label class="toggle-switch"><input type="checkbox" id="tog1" checked><span class="toggle-slider"></span></label>
+    </div>
+    <textarea class="sys" id="sys1" placeholder="System prompt หลัก..." rows="3"></textarea>
+  </div>
+  <div class="sys-block">
+    <div class="sys-block-header">
+      <div class="sys-block-title">📜 Chat History <span class="sys-tag">ประวัติแชท</span></div>
+      <label class="toggle-switch"><input type="checkbox" id="tog2" checked><span class="toggle-slider"></span></label>
+    </div>
+    <textarea class="sys" id="sys2" placeholder="ประวัติแชทก่อนหน้า..." rows="3"></textarea>
+  </div>
+  <div class="sys-block">
+    <div class="sys-block-header">
+      <div class="sys-block-title">🗂 Session Log <span class="sys-tag">บันทึก session</span></div>
+      <label class="toggle-switch"><input type="checkbox" id="tog3" checked><span class="toggle-slider"></span></label>
+    </div>
+    <textarea class="sys" id="sys3" placeholder="บันทึก session ปัจจุบัน..." rows="3"></textarea>
+  </div>
+  <div class="sys-block">
+    <div class="sys-block-header">
+      <div class="sys-block-title">⚔️ Character Data <span class="sys-tag">ข้อมูลตัวละคร</span></div>
+      <label class="toggle-switch"><input type="checkbox" id="tog4" checked><span class="toggle-slider"></span></label>
+    </div>
+    <textarea class="sys" id="sys4" placeholder="ข้อมูลตัวละคร..." rows="3"></textarea>
+  </div>
+  <div class="sys-block">
+    <div class="sys-block-header">
+      <div class="sys-block-title">📎 Extra Info <span class="sys-tag">ข้อมูลเสริม</span></div>
+      <label class="toggle-switch"><input type="checkbox" id="tog5" checked><span class="toggle-slider"></span></label>
+    </div>
+    <textarea class="sys" id="sys5" placeholder="ข้อมูลเสริมอื่นๆ..." rows="3"></textarea>
+  </div>
+
+  <div class="srow save-bar" style="justify-content:flex-end;gap:8px;">
+    <button class="btn-ghost" onclick="clearAllSys()">ล้าง Prompt</button>
+    <button class="btn-save" onclick="saveSettings()">💾 บันทึกการตั้งค่า</button>
+  </div>
+</div>
+
+<div class="chat-area" id="chatArea">
+  <div class="empty-state" id="emptyState">
+    <div class="icon">✦</div>
+    <p>กด ⚙ ตั้งค่า ใส่ Anon Key<br>แล้วเริ่มแชทได้เลย</p>
+  </div>
+</div>
+
+<div class="token-count" id="tokenCount"></div>
+<div class="attach-preview" id="attachPreview"></div>
+
+<div class="input-area">
+  <button class="ibtn del" onclick="clearChat()" title="ล้างแชท">🗑</button>
+  <div class="ibtn" style="position:relative;overflow:hidden;cursor:pointer;" title="แนบไฟล์/รูป">📎<input type="file" multiple accept="image/*,.pdf,.txt,.md,.json,.csv" onchange="handleFiles(event)" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:0;"></div>
+  <textarea id="msgInput" placeholder="พิมพ์ข้อความ..." rows="1"
+    onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+  <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── STATE ───
+let history = [];
+let attachments = [];
+let thinkingLevel = localStorage.getItem('gtl') || 'off';
+let config = {
+  supaUrl: localStorage.getItem('gSupaUrl')||'https://caxksvqlgrvwnjynbbye.supabase.co',
+  supaAnon: localStorage.getItem('gSupaAnon')||'',
+  model:  localStorage.getItem('gm')||'gemini-3-flash-preview',
+  sys1: localStorage.getItem('gs1')||'', tog1: localStorage.getItem('gt1')!=='false',
+  sys2: localStorage.getItem('gs2')||'', tog2: localStorage.getItem('gt2')!=='false',
+  sys3: localStorage.getItem('gs3')||'', tog3: localStorage.getItem('gt3')!=='false',
+  sys4: localStorage.getItem('gs4')||'', tog4: localStorage.getItem('gt4')!=='false',
+  sys5: localStorage.getItem('gs5')||'', tog5: localStorage.getItem('gt5')!=='false',
+  summaryEnabled: localStorage.getItem('gSumOn')!=='false',
+  summaryEveryN: parseInt(localStorage.getItem('gSumN'))||10,
+  keepRecentN: parseInt(localStorage.getItem('gKeepN'))||4,
+};
+const thinkingBudgets = {minimal:512, low:2048, medium:8192, high:24576, max:32768};
+
+// ─── SUPABASE PROXY (key อยู่ฝั่งเซิร์ฟเวอร์) ───
+let supa=null, supaSession=null;
+const PROXY_FN = 'dynamic-task';  // ชื่อ Edge Function (ใช้ตัวเดียว ลบที่เหลือทิ้ง)
+function proxyUrl(){ return `${config.supaUrl.replace(/\/$/,'')}/functions/v1/${PROXY_FN}`; }
+async function connectSupabase(){
+  const dot=document.getElementById('statusDot');
+  if(!config.supaUrl||!config.supaAnon||!window.supabase){ if(dot) dot.className='status-dot'; return; }
+  try{
+    supa=window.supabase.createClient(config.supaUrl, config.supaAnon);
+    let { data:{ session } } = await supa.auth.getSession();
+    if(!session){ const r=await supa.auth.signInAnonymously(); session=r.data?.session; if(r.error) throw r.error; }
+    supaSession=session;
+    if(dot) dot.className=supaSession?'status-dot ok':'status-dot err';
+  }catch(e){ console.warn('supabase connect failed',e); supa=null; supaSession=null; if(dot) dot.className='status-dot err'; }
+}
+async function freshToken(){  // ดึง token ใหม่ (supabase-js refresh ให้อัตโนมัติถ้าหมดอายุ)
+  if(!supa) return null;
+  try{ const { data:{ session } }=await supa.auth.getSession(); supaSession=session; }catch(e){}
+  return supaSession?.access_token||null;
+}
+// ยิงผ่าน proxy แทนการเรียก Gemini ตรงๆ (ไม่มี key ใน client เลย)
+// proxy ตรวจ JWT เอง (Verify JWT ของ function ตั้ง OFF เพื่อให้ CORS preflight ผ่าน)
+// ถ้ามี campaignId ให้ส่งไปด้วย → proxy จะเช็คว่า user เป็นสมาชิกจริง
+let currentCampaignId = null;  // เซ็ตตอนเข้าแคมเปญ (เฟส 3+)
+async function callGemini(model, body, stream){
+  const token = await freshToken();
+  if(!token) throw new Error('ยังไม่ได้ล็อกอิน Supabase — กดเชื่อมต่อก่อน');
+  const payload = { model, stream:!!stream, body };
+  if(currentCampaignId) payload.campaign_id = currentCampaignId;
+  return fetch(proxyUrl(),{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'Authorization':`Bearer ${token}`,
+    },
+    body:JSON.stringify(payload)
+  });
+}
+
+// ─── MEMORY: IndexedDB + Auto-summary ───
+let summaryText = '';
+let summarizedCount = 0;   // จำนวน history entries ที่สรุปไปแล้ว
+let isSummarizing = false;
+const SUMMARY_MODEL = 'gemini-2.5-flash-lite';  // โมเดลราคาถูกสำหรับสรุป (แก้ได้)
+const DB_NAME='gemini-ttrpg', DB_STORE='sessions', SESSION_KEY='current';
+
+function idbOpen(){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open(DB_NAME,1);
+    r.onupgradeneeded=()=>{ if(!r.result.objectStoreNames.contains(DB_STORE)) r.result.createObjectStore(DB_STORE); };
+    r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
+  });
+}
+async function idbSet(k,v){ const db=await idbOpen(); return new Promise((res,rej)=>{ const tx=db.transaction(DB_STORE,'readwrite'); tx.objectStore(DB_STORE).put(v,k); tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error); }); }
+async function idbGet(k){ const db=await idbOpen(); return new Promise((res,rej)=>{ const tx=db.transaction(DB_STORE,'readonly'); const q=tx.objectStore(DB_STORE).get(k); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); }); }
+async function idbDel(k){ const db=await idbOpen(); return new Promise((res,rej)=>{ const tx=db.transaction(DB_STORE,'readwrite'); tx.objectStore(DB_STORE).delete(k); tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error); }); }
+
+async function persistSession(){
+  try{ await idbSet(SESSION_KEY,{history,summary:summaryText,summarizedCount,model:config.model,ts:Date.now()}); updateMemStatus(); }
+  catch(e){ console.warn('persistSession failed',e); }
+}
+async function loadSession(){
+  try{
+    const s=await idbGet(SESSION_KEY);
+    if(s&&Array.isArray(s.history)&&s.history.length){
+      history=s.history; summaryText=s.summary||''; summarizedCount=s.summarizedCount||0;
+      renderHistory();
+    }
+  }catch(e){ console.warn('loadSession failed',e); }
+  const box=document.getElementById('summaryBox'); if(box) box.value=summaryText;
+  updateMemStatus();
+}
+function renderHistory(){
+  const area=document.getElementById('chatArea'); area.innerHTML='';
+  history.forEach((h,i)=>{
+    const text=h.parts.filter(p=>p.text).map(p=>p.text).join('\n');
+    if(h.role==='user'){
+      const imgs=[],files=[];
+      h.parts.forEach(p=>{ if(p.inlineData){ (p.inlineData.mimeType||'').startsWith('image/')
+        ? imgs.push(`data:${p.inlineData.mimeType};base64,${p.inlineData.data}`) : files.push('ไฟล์แนบ'); }});
+      addMessage('user',text,imgs,files,i);
+    } else { addMessage('ai',text,[],[],i); }
+  });
+  area.scrollTop=area.scrollHeight;
+}
+function updateMemStatus(){
+  const el=document.getElementById('memStatus'); if(!el) return;
+  if(isSummarizing){ el.textContent='🧠 กำลังสรุปเรื่องราว...'; return; }
+  const turns=Math.floor(history.length/2), sumT=Math.floor(summarizedCount/2);
+  el.textContent = config.summaryEnabled
+    ? `💾 บันทึกอัตโนมัติ · สรุปแล้ว ${sumT}/${turns} เทิร์น · ส่งสด ${turns-sumT} เทิร์น`
+    : `💾 บันทึกอัตโนมัติ · ${turns} เทิร์น (สรุปปิดอยู่)`;
+}
+async function maybeSummarize(){
+  if(!config.summaryEnabled||isSummarizing||!config.supaUrl) return;
+  const keep=config.keepRecentN*2, upTo=history.length-keep;
+  const pending=Math.floor((upTo-summarizedCount)/2);
+  if(pending<config.summaryEveryN) return;
+  const chunk=history.slice(summarizedCount,upTo);
+  if(!chunk.length) return;
+  isSummarizing=true; updateMemStatus();
+  try{
+    const ns=await summarizeChunk(chunk,summaryText);
+    if(ns){
+      summaryText=ns; summarizedCount=upTo;
+      const box=document.getElementById('summaryBox'); if(box) box.value=summaryText;
+      await persistSession(); showToast('สรุปเรื่องราวแล้ว ✓');
+    }
+  }catch(e){ console.warn('summary failed',e); }
+  finally{ isSummarizing=false; updateMemStatus(); }
+}
+async function summarizeChunk(chunk,prev){
+  const transcript=chunk.map(h=>{
+    const who=h.role==='user'?'ผู้เล่น':'GM';
+    const t=h.parts.filter(p=>p.text).map(p=>p.text).join('\n');
+    return t?`${who}: ${t}`:'';
+  }).filter(Boolean).join('\n\n');
+  const prompt=`คุณเป็นผู้ช่วยจดบันทึกแคมเปญ TTRPG หน้าที่คือรวม "สรุปเดิม" กับ "เหตุการณ์ใหม่" ให้เป็นบันทึกเดียวที่กระชับแต่ครบ เก็บเฉพาะสิ่งที่ต้องจำเพื่อเล่นต่อ: ชื่อ/สถานะตัวละคร, ความสัมพันธ์, ไอเทม/รางวัลสำคัญ, การตัดสินใจที่ส่งผลต่อเนื้อเรื่อง, สถานที่ปัจจุบัน, และภารกิจที่ค้างอยู่ ตัดบทสนทนาที่ไม่สำคัญทิ้ง เขียนภาษาไทยเป็นหัวข้อสั้นๆ ตอบกลับเฉพาะเนื้อสรุปเท่านั้น ห้ามมีคำนำ\n\n[สรุปเดิม]\n${prev||'(ยังไม่มี)'}\n\n[เหตุการณ์ใหม่]\n${transcript}`;
+  const body={contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:2048,temperature:0.3}};
+  const res=await callGemini(SUMMARY_MODEL, body, false);
+  if(!res.ok) return null;
+  const data=await res.json();
+  return (data.candidates?.[0]?.content?.parts||[]).filter(p=>p.text).map(p=>p.text).join('').trim()||null;
+}
+
+// ─── INIT ───
+function initUI() {
+  document.getElementById('supaUrl').value = config.supaUrl;
+  document.getElementById('supaAnon').value = config.supaAnon;
+  document.getElementById('modelSelect').value = config.model;
+  for(let i=1;i<=5;i++){
+    document.getElementById('sys'+i).value = config['sys'+i];
+    document.getElementById('tog'+i).checked = config['tog'+i];
+  }
+  document.getElementById('togSum').checked = config.summaryEnabled;
+  document.getElementById('sumN').value = config.summaryEveryN;
+  document.getElementById('keepN').value = config.keepRecentN;
+  setThinking(thinkingLevel, true);
+  connectSupabase();
+  loadSession();
+}
+initUI();
+
+// ─── THINKING ───
+function setThinking(level, silent) {
+  thinkingLevel = level;
+  if(!silent) localStorage.setItem('gtl', level);
+  document.querySelectorAll('.tl-btn').forEach(b=>b.classList.toggle('active', b.dataset.level===level));
+  document.getElementById('thinkOffBtn').classList.toggle('active', level==='off');
+}
+
+function getAvatarEl(role) {
+  const el = document.createElement('div');
+  el.className = 'msg-avatar';
+  el.textContent = role==='user'?'👤':'✦';
+  return el;
+}
+
+// ─── SETTINGS ───
+function toggleSettings(){document.getElementById('settingsPanel').classList.toggle('open');}
+function saveSettings(){
+  config={
+    supaUrl:document.getElementById('supaUrl').value.trim(), supaAnon:document.getElementById('supaAnon').value.trim(),
+    model:document.getElementById('modelSelect').value,
+    sys1:document.getElementById('sys1').value, tog1:document.getElementById('tog1').checked,
+    sys2:document.getElementById('sys2').value, tog2:document.getElementById('tog2').checked,
+    sys3:document.getElementById('sys3').value, tog3:document.getElementById('tog3').checked,
+    sys4:document.getElementById('sys4').value, tog4:document.getElementById('tog4').checked,
+    sys5:document.getElementById('sys5').value, tog5:document.getElementById('tog5').checked,
+    summaryEnabled:document.getElementById('togSum').checked,
+    summaryEveryN:Math.max(1,parseInt(document.getElementById('sumN').value)||10),
+    keepRecentN:Math.max(1,parseInt(document.getElementById('keepN').value)||4),
+  };
+  localStorage.setItem('gSupaUrl',config.supaUrl); localStorage.setItem('gSupaAnon',config.supaAnon);
+  localStorage.setItem('gm',config.model);
+  for(let i=1;i<=5;i++){localStorage.setItem('gs'+i,config['sys'+i]);localStorage.setItem('gt'+i,config['tog'+i]);}
+  localStorage.setItem('gSumOn',config.summaryEnabled);
+  localStorage.setItem('gSumN',config.summaryEveryN);
+  localStorage.setItem('gKeepN',config.keepRecentN);
+  summaryText=document.getElementById('summaryBox').value;
+  persistSession();
+  connectSupabase();
+  document.getElementById('settingsPanel').classList.remove('open');
+  showToast('บันทึกแล้ว ✓');
+}
+function clearAllSys(){for(let i=1;i<=5;i++) document.getElementById('sys'+i).value='';}
+function buildSystemPrompt(){
+  const slots=[{id:'sys1'},{id:'sys2'},{id:'sys3'},{id:'sys4'},{id:'sys5'}];
+  const labels=['Main Prompt','Chat History','Session Log','Character Data','Extra Info'];
+  const blocks=slots.map((s,i)=>config['tog'+(i+1)]&&config[s.id]?`[${labels[i]}]\n${config[s.id]}`:'').filter(Boolean);
+  if(config.summaryEnabled && summaryText.trim())
+    blocks.unshift(`[สรุปเรื่องราวที่ผ่านมา / Story So Far]\n${summaryText.trim()}`);
+  return blocks.join('\n\n---\n\n');
+}
+
+// ─── FILES ───
+async function handleFiles(e) {
+  for(const f of Array.from(e.target.files)) {
+    const b64 = await toBase64(f);
+    const isImg = f.type.startsWith('image/');
+    attachments.push({type:isImg?'image':'file', name:f.name, base64:b64, mimeType:f.type||'application/octet-stream', dataUrl:isImg?`data:${f.type};base64,${b64}`:null});
+  }
+  e.target.value=''; renderAttachPreview();
+}
+function toBase64(file){return new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result.split(',')[1]);fr.readAsDataURL(file);});}
+function renderAttachPreview(){
+  const c=document.getElementById('attachPreview'); c.innerHTML='';
+  attachments.forEach((a,i)=>{
+    const chip=document.createElement('div'); chip.className='attach-chip';
+    if(a.type==='image'){const img=document.createElement('img');img.src=a.dataUrl;chip.appendChild(img);}
+    else{const ic=document.createElement('span');ic.textContent='📄';chip.appendChild(ic);}
+    const nm=document.createElement('span'); nm.textContent=a.name;
+    const rm=document.createElement('button'); rm.className='rm'; rm.textContent='×';
+    rm.onclick=()=>{attachments.splice(i,1);renderAttachPreview();};
+    chip.appendChild(nm); chip.appendChild(rm); c.appendChild(chip);
+  });
+  c.classList.toggle('has-items',attachments.length>0);
+}
+
+// ─── SAVE ───
+function saveChat(){
+  const lines=['# Gemini Chat Export',`Model: ${config.model}`,`Date: ${new Date().toLocaleString('th-TH')}`,'---\n'];
+  history.forEach(h=>{
+    const role=h.role==='user'?'👤 User':'✦ AI';
+    const text=h.parts.filter(p=>p.text).map(p=>p.text).join('\n');
+    if(text) lines.push(`**${role}**\n${text}\n`);
+  });
+  const blob=new Blob([lines.join('\n')],{type:'text/markdown'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=`gemini-chat-${Date.now()}.md`; a.click();
+  URL.revokeObjectURL(url); showToast('บันทึกแชทแล้ว ✓');
+}
+
+// ─── HELPERS ───
+function showToast(msg,d=2000){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),d);}
+function handleKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}}
+function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,110)+'px';}
+function clearChat(){history=[];summaryText='';summarizedCount=0;idbDel(SESSION_KEY);const sb=document.getElementById('summaryBox');if(sb)sb.value='';document.getElementById('chatArea').innerHTML='<div class="empty-state" id="emptyState"><div class="icon">✦</div><p>กด ⚙ ตั้งค่า ใส่ Anon Key<br>แล้วเริ่มแชทได้เลย</p></div>';document.getElementById('tokenCount').textContent='';updateMemStatus();showToast('ล้างแชทแล้ว');}
+function copyText(text,btn){
+  const done=()=>{btn.classList.add('copied');btn.innerHTML='✓ คัดลอก';setTimeout(()=>{btn.classList.remove('copied');btn.innerHTML='📋 คัดลอก';},1800);};
+  if(navigator.clipboard&&window.isSecureContext){
+    navigator.clipboard.writeText(text).then(done).catch(()=>fallbackCopy(text,done));
+  } else { fallbackCopy(text,done); }
+}
+function fallbackCopy(text,done){
+  const ta=document.createElement('textarea');
+  ta.value=text; ta.style.cssText='position:fixed;top:0;left:0;opacity:0;';
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  try{ document.execCommand('copy'); done(); }catch(e){ showToast('คัดลอกแล้ว ✓'); }
+  document.body.removeChild(ta);
+}
+
+// ─── ADD MESSAGE ───
+function addMessage(role, text, imgDataUrls, fileNames, msgIndex) {
+  document.getElementById('emptyState')?.remove();
+  const area=document.getElementById('chatArea');
+  const wrapper=document.createElement('div');
+  wrapper.className='message '+role; wrapper.dataset.index=msgIndex;
+
+  const msgRow=document.createElement('div'); msgRow.className='msg-row';
+  msgRow.appendChild(getAvatarEl(role));
+
+  const bubble=document.createElement('div'); bubble.className='bubble';
+  if(imgDataUrls) imgDataUrls.forEach(src=>{const img=document.createElement('img');img.className='chat-img';img.src=src;bubble.appendChild(img);});
+  if(fileNames) fileNames.forEach(n=>{const c=document.createElement('div');c.className='file-chip';c.textContent='📄 '+n;bubble.appendChild(c);});
+  if(text){const d=document.createElement('div');d.textContent=text;bubble.appendChild(d);}
+  msgRow.appendChild(bubble);
+
+  const actions=document.createElement('div'); actions.className='msg-actions';
+  if(role==='user'){
+    const eb=document.createElement('button'); eb.className='act-btn'; eb.innerHTML='✏️ แก้ไข';
+    eb.onclick=()=>startEdit(wrapper,bubble,msgIndex); actions.appendChild(eb);
+  }
+  const cb=document.createElement('button'); cb.className='act-btn'; cb.innerHTML='📋 คัดลอก';
+  cb.onclick=()=>copyText(bubble.querySelector('div')?.textContent||text||'',cb); actions.appendChild(cb);
+
+  wrapper.appendChild(msgRow); wrapper.appendChild(actions);
+  area.appendChild(wrapper); area.scrollTop=area.scrollHeight;
+  return bubble;
+}
+
+// ─── ADD STREAMING AI MESSAGE ───
+function addStreamingMessage(msgIndex) {
+  document.getElementById('emptyState')?.remove();
+  const area=document.getElementById('chatArea');
+
+  // Thinking panel (hidden until content)
+  const thinkPanel=document.createElement('div'); thinkPanel.className='thinking-panel'; thinkPanel.style.display='none';
+  const thinkToggle=document.createElement('div'); thinkToggle.className='thinking-toggle';
+  thinkToggle.innerHTML='🧠 <span>กำลังคิด...</span><span class="t-arrow">▶</span>';
+  thinkToggle.onclick=()=>{
+    thinkToggle.classList.toggle('open');
+    thinkBody.classList.toggle('open');
+  };
+  const thinkBody=document.createElement('div'); thinkBody.className='thinking-body';
+  thinkPanel.appendChild(thinkToggle); thinkPanel.appendChild(thinkBody);
+  area.appendChild(thinkPanel);
+
+  const wrapper=document.createElement('div'); wrapper.className='message ai'; wrapper.dataset.index=msgIndex;
+  const msgRow=document.createElement('div'); msgRow.className='msg-row';
+  msgRow.appendChild(getAvatarEl('ai'));
+  const bubble=document.createElement('div'); bubble.className='bubble';
+  const textDiv=document.createElement('div');
+  const cursor=document.createElement('span'); cursor.className='cursor';
+  textDiv.appendChild(cursor);
+  bubble.appendChild(textDiv); msgRow.appendChild(bubble);
+
+  const actions=document.createElement('div'); actions.className='msg-actions';
+  const cb=document.createElement('button'); cb.className='act-btn'; cb.innerHTML='📋 คัดลอก';
+  cb.onclick=()=>copyText(textDiv.innerText.replace(/[\u{1F}]/gu,'')||'',cb); actions.appendChild(cb);
+
+  wrapper.appendChild(msgRow); wrapper.appendChild(actions);
+  area.appendChild(wrapper); area.scrollTop=area.scrollHeight;
+
+  return {
+    appendThink(chunk){
+      thinkPanel.style.display='';
+      thinkBody.textContent += chunk;
+      const span=thinkToggle.querySelector('span:first-of-type');
+      if(span) span.textContent='ความคิดเบื้องหลัง';
+      area.scrollTop=area.scrollHeight;
+    },
+    appendText(chunk){
+      cursor.remove();
+      textDiv.textContent += chunk;
+      textDiv.appendChild(cursor);
+      area.scrollTop=area.scrollHeight;
+    },
+    finish(fullText){
+      cursor.remove();
+      textDiv.textContent=fullText;
+      cb.onclick=()=>copyText(fullText,cb);
+    }
+  };
+}
+
+function startEdit(wrapper,bubble,msgIndex){
+  const originalText=bubble.querySelector('div')?.textContent||'';
+  bubble.classList.add('editing');
+  const ta=document.createElement('textarea'); ta.className='edit-textarea'; ta.value=originalText;
+  setTimeout(()=>{ta.style.height=ta.scrollHeight+'px';},0);
+  ta.oninput=()=>{ta.style.height='auto';ta.style.height=ta.scrollHeight+'px';};
+  bubble.innerHTML=''; bubble.appendChild(ta);
+  const ea=document.createElement('div'); ea.className='edit-actions';
+  const cancelBtn=document.createElement('button'); cancelBtn.className='edit-btn'; cancelBtn.textContent='ยกเลิก';
+  cancelBtn.onclick=()=>{bubble.classList.remove('editing');bubble.innerHTML='';const d=document.createElement('div');d.textContent=originalText;bubble.appendChild(d);ea.remove();};
+  const confirmBtn=document.createElement('button'); confirmBtn.className='edit-btn confirm'; confirmBtn.textContent='ส่งใหม่';
+  confirmBtn.onclick=async()=>{
+    const newText=ta.value.trim(); if(!newText) return;
+    bubble.classList.remove('editing'); bubble.innerHTML=''; const d=document.createElement('div');d.textContent=newText;bubble.appendChild(d); ea.remove();
+    history[msgIndex].parts=history[msgIndex].parts.map(p=>p.text?{text:newText}:p);
+    history=history.slice(0,msgIndex+1);
+    if(msgIndex<summarizedCount){ summarizedCount=0; summaryText=''; const sb=document.getElementById('summaryBox'); if(sb) sb.value=''; }
+    document.getElementById('chatArea').querySelectorAll('.message,.thinking-panel').forEach(m=>{if(parseInt(m.dataset.index)>msgIndex||(!m.dataset.index&&m.classList.contains('thinking-panel')))m.remove();});
+    await persistSession();
+    await sendFromHistory();
+  };
+  ea.appendChild(cancelBtn); ea.appendChild(confirmBtn); wrapper.appendChild(ea); ta.focus();
+}
+
+// ─── SEND ───
+async function sendMessage(){
+  const input=document.getElementById('msgInput');
+  const text=input.value.trim();
+  if(!text&&attachments.length===0) return;
+  if(!config.supaUrl){showError('ยังไม่ได้ตั้งค่า Supabase URL — กด ⚙ ตั้งค่า');toggleSettings();return;}
+  input.value=''; input.style.height='auto';
+  document.getElementById('sendBtn').disabled=true;
+
+  const parts=[];
+  const imgDataUrls=[]; const fileNames=[];
+  attachments.forEach(a=>{
+    parts.push({inlineData:{mimeType:a.mimeType,data:a.base64}});
+    if(a.type==='image') imgDataUrls.push(a.dataUrl);
+    else fileNames.push(a.name);
+  });
+  if(text) parts.push({text});
+
+  const msgIndex=history.length;
+  addMessage('user',text,imgDataUrls,fileNames,msgIndex);
+  history.push({role:'user',parts});
+  attachments=[]; renderAttachPreview();
+  persistSession();
+
+  await sendFromHistory();
+}
+
+async function sendFromHistory(){
+  document.getElementById('sendBtn').disabled=true;
+  const aiIndex=history.length;
+  const streamer=addStreamingMessage(aiIndex);
+
+  try {
+    const systemPrompt=buildSystemPrompt();
+    let sent=history.slice(summarizedCount);
+    while(sent.length&&sent[0].role!=='user') sent=sent.slice(1);  // contents ต้องเริ่มด้วย user
+    const body={contents:sent, generationConfig:{maxOutputTokens:8192}};
+    if(systemPrompt) body.systemInstruction={parts:[{text:systemPrompt}]};
+    if(thinkingLevel!=='off'){
+      const tc={includeThoughts:true};
+      if(config.model.startsWith('gemini-3')){
+        const lv={minimal:'LOW',low:'LOW',medium:'MEDIUM',high:'HIGH',max:'HIGH'};
+        tc.thinkingLevel=lv[thinkingLevel]||'MEDIUM';   // Gemini 3 ใช้ thinkingLevel
+      } else {
+        tc.thinkingBudget=thinkingBudgets[thinkingLevel]; // Gemini 2.5 ใช้ thinkingBudget
+      }
+      body.generationConfig.thinkingConfig=tc;
+    }
+
+    const res=await callGemini(config.model, body, true);
+
+    if(!res.ok){
+      const data=await res.json();
+      streamer.finish('');
+      showError(data?.error?.message||'เกิดข้อผิดพลาด');
+      return;
+    }
+
+    const reader=res.body.getReader();
+    const decoder=new TextDecoder();
+    let buffer=''; let fullText=''; let fullThink='';
+    let inputT=0; let outputT=0; let thinkT=0;
+
+    while(true){
+      const {done,value}=await reader.read();
+      if(done) break;
+      buffer+=decoder.decode(value,{stream:true});
+      const lines=buffer.split('\n');
+      buffer=lines.pop()||'';
+      for(const line of lines){
+        if(!line.startsWith('data:')) continue;
+        const jsonStr=line.slice(5).trim();
+        if(!jsonStr||jsonStr==='[DONE]') continue;
+        try{
+          const obj=JSON.parse(jsonStr);
+          const parts=obj.candidates?.[0]?.content?.parts||[];
+          for(const p of parts){
+            if(p.thought){ fullThink+=p.text||''; streamer.appendThink(p.text||''); }
+            else if(p.text){ fullText+=p.text; streamer.appendText(p.text); }
+          }
+          const u=obj.usageMetadata;
+          if(u){inputT=u.promptTokenCount||inputT;outputT=u.candidatesTokenCount||outputT;thinkT=u.thoughtsTokenCount||thinkT;}
+        }catch(e){}
+      }
+    }
+
+    streamer.finish(fullText);
+    history.push({role:'model',parts:[{text:fullText}]});
+    document.getElementById('tokenCount').textContent=
+      `input: ${inputT.toLocaleString()} | output: ${outputT.toLocaleString()}${thinkingLevel!=='off'?` | thinking: ${thinkT.toLocaleString()}`:''} tokens`;
+    await persistSession();
+    maybeSummarize();
+
+  } catch(err){
+    streamer.finish('');
+    showError('เชื่อมต่อไม่ได้: '+err.message);
+  } finally {
+    document.getElementById('sendBtn').disabled=false;
+    document.getElementById('msgInput').focus();
+  }
+}
+
+function showError(msg){
+  const area=document.getElementById('chatArea');
+  const d=document.createElement('div'); d.className='error-msg'; d.textContent='⚠ '+msg;
+  d.style.cssText='transition:opacity 1s ease;cursor:pointer;';
+  d.onclick=()=>d.remove();
+  area.appendChild(d); area.scrollTop=area.scrollHeight;
+  setTimeout(()=>{ d.style.opacity='0'; setTimeout(()=>d.remove(), 1000); }, 6000);
+}
+</script>
+</body>
+</html>
