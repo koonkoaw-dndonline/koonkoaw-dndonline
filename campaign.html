@@ -1078,8 +1078,8 @@ async function renderMe(){
       immA.map(x=>`<span class="chip imm"><span class="t">IMM</span>${esc(x)}</span>`).join('')+
       vulA.map(x=>`<span class="chip vuln"><span class="t">VUL</span>${esc(x)}</span>`).join('')+'</div>';
   }
-  const prof=sheet.skill_proficiencies||[];
-  if(prof.length){ h+='<div class="sectitle" style="margin-top:10px">PROFICIENT SKILLS</div><div class="chips">'+prof.map(s=>`<span class="chip">${esc(s)}</span>`).join('')+'</div>'; }
+  const profSk=sheet.skill_proficiencies||[];
+  if(profSk.length){ h+='<div class="sectitle" style="margin-top:10px">PROFICIENT SKILLS</div><div class="chips">'+profSk.map(s=>`<span class="chip">${esc(s)}</span>`).join('')+'</div>'; }
   w3.innerHTML=h; p.appendChild(w3);
 
   // private notes editor
