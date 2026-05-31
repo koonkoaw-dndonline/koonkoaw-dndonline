@@ -456,7 +456,12 @@ body.role-player .dm-only{display:none!important;}
 
 <script>
 // ───────── config / state ─────────
-const SUPA_URL = localStorage.getItem('gSupaUrl') || 'https://caxksvqlgrvwnjynbbye.supabase.co';
+const SUPA_URL = 'https://caxksvqlgrvwnjynbbye.supabase.co';
+// ▼▼▼ วาง anon/publishable key ของคุณระหว่างเครื่องหมายคำพูดด้านล่าง ▼▼▼
+//   (key นี้เป็นสาธารณะ ปลอดภัยที่จะฝังใน client — ความปลอดภัยจริงอยู่ที่ RLS)
+//   หาได้ที่ Supabase Dashboard → Project Settings → API → "anon public" หรือ "publishable key"
+const SUPA_ANON = 'sb_publishable_kODadNf7PNUWJr_ZTViABw_IsP6ggJ6';
+// ▲▲▲ key สาธารณะ (publishable) — ปลอดภัยที่จะฝัง ความปลอดภัยจริงอยู่ที่ RLS ▲▲▲
 const RESOLVE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/resolve-round';
 let supa=null, session=null, me=null;            // me = auth user
 let campaign=null, members=[], myChar=null, characters=[], curRound=null, narrative=[];
@@ -471,8 +476,8 @@ function show(id){['authScreen','lobbyScreen','charScreen'].forEach(s=>$(s).clas
 
 // ───────── init ─────────
 (async function init(){
-  let anon = localStorage.getItem('gSupaAnon')||'';
-  if(!anon){ $('anonFld').classList.remove('hidden'); }   // ขอ key ถ้ายังไม่เคยตั้ง
+  let anon = SUPA_ANON || localStorage.getItem('gSupaAnon')||'';
+  if(!anon){ $('anonFld').classList.remove('hidden'); }   // ถ้ายังไม่ได้ฮาร์ดโค้ด/เคยตั้ง ค่อยขอกรอก
   else { initClient(anon); }
   // ถ้ามี key แล้ว เช็ค session (รวมถึง magic-link ที่เพิ่งกลับมา)
   if(supa){ await afterAuthChange(); }
