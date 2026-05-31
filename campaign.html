@@ -23,11 +23,23 @@ html{background:#000;}
 :root{color-scheme:dark;}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{
-  font-family:'Noto Sans Thai',sans-serif;
+  font-family:'VT323','Noto Sans Thai',monospace;   /* อังกฤษ=พิกเซล, ไทย=fallback อ่านง่าย */
   background:var(--black);color:var(--white);
   height:100dvh;display:flex;flex-direction:column;overflow:hidden;
   -webkit-font-smoothing:none;
 }
+/* เนื้อหาภาษาไทยยาวๆ ใช้ฟอนต์อ่านง่าย (ไม่บังคับพิกเซล) */
+.narr,.chron-text,.actionlog,.item .sub,.card p.sub,.npc-detail,.muted,.note{font-family:'Noto Sans Thai',sans-serif;}
+/* VT323 เล็กกว่าปกติ → ขยายองค์ประกอบ UI อังกฤษให้อ่านง่าย */
+.btn{font-size:16px;letter-spacing:.5px;}
+.tab .tlab{font-size:14px;}
+label.fld{font-size:13px;}
+input[type=text],input[type=email],input[type=password],input[type=number],textarea,select{font-size:17px;}
+.card h2{font-size:21px;}
+.pill{font-size:13px;}
+.hd .ttl{font-size:18px;}
+.statusline{font-size:14px;}
+.kv .k{font-size:15px;}
 .hidden{display:none!important;}
 button{font-family:inherit;cursor:pointer;}
 input,textarea,select{font-family:inherit;}
@@ -366,7 +378,7 @@ body.role-player .dm-only{display:none!important;}
 .wh svg{width:14px;height:14px;display:block;image-rendering:pixelated;}
 .wh b{color:#fff;font-family:'VT323',monospace;font-size:15px;font-weight:400;letter-spacing:.5px;}
 @media (min-width:1300px){
-  .worldhud{position:fixed;top:60px;right:16px;width:220px;z-index:6;}
+  .worldhud{position:fixed;top:104px;left:16px;width:208px;z-index:6;}  /* ฝั่งซ้าย ใต้แท็บ ไม่ขวาง */
 }
 /* สีเน้นคำสำคัญในเนื้อเรื่อง (place / npc / item) */
 .hl-place{color:#6cc0ff;font-weight:600;}
@@ -479,9 +491,10 @@ body.role-player .dm-only{display:none!important;}
     </div>
     <div class="note">งบ 27 แต้ม · ค่า 8–15 (ก่อนโบนัสเผ่า) · 14–15 ใช้แต้มแพงขึ้น</div>
     <div class="srow2">
-      <label class="fld">Max HP<input type="number" id="cHp" placeholder="auto จากอาชีพ" min="1" oninput="hpManual=true"/></label>
+      <label class="fld">Max HP (auto ตามกฎ)<input type="number" id="cHp" readonly style="color:#9a9a9a"/></label>
       <label class="fld">Starting weapon<input type="text" id="cWeapon" list="basicWeapons" placeholder="เลือกหรือพิมพ์เอง"/></label>
     </div>
+    <div class="note">HP เลเวล 1 = Hit Die สูงสุดของคลาส + CON modifier (custom class = d8) — เปลี่ยนคลาส/CON แล้วคำนวณให้อัตโนมัติ</div>
     <datalist id="basicWeapons">
       <option value="Dagger (1d4 piercing)"></option><option value="Club (1d4 bludgeoning)"></option>
       <option value="Quarterstaff (1d6 bludgeoning)"></option><option value="Spear (1d6 piercing)"></option>
@@ -709,10 +722,12 @@ async function loadState(){
 const ICONS={date:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#f5b942" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="1" height="1"/><rect x="1" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="7" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="0" y="6" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/><rect x="7" y="6" width="1" height="1"/></svg>',time:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#5ad7e0" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="0" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/></svg>',weather:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#cfd6e6" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="7" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="7" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/></svg>',moon:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#e9e6a8" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/></svg>',season:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#7ad17a" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="0" width="1" height="1"/><rect x="6" y="0" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="0" y="6" width="1" height="1"/></svg>',loc:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#ff6b6b" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/></svg>'};
 // แปลงมาร์กเกอร์ [ชื่อ|ประเภท] → สปแอนสี + ใส่วงเล็บ (escape ส่วนอื่นกัน XSS)
 function colorizeNarr(text){
-  let out='', last=0; const re=/\[([^\]|]+)\|(place|npc|item)\]/g; let m;
+  let out='', last=0; const re=/\[([^\]|]+)\|([a-zA-Z]+)\]/g; let m;
+  const known={place:1,npc:1,item:1};
   while((m=re.exec(text))){
     out+=escapeHtml(text.slice(last,m.index));
-    out+=`<span class="hl-${m[2]}">[${escapeHtml(m[1])}]</span>`;
+    const name=escapeHtml(m[1]), type=m[2].toLowerCase();
+    out+= known[type] ? `<span class="hl-${type}">[${name}]</span>` : `[${name}]`;
     last=m.index+m[0].length;
   }
   out+=escapeHtml(text.slice(last));
@@ -744,7 +759,6 @@ function renderClock(){
 // ───────── character ─────────
 // HP เลเวล 1 ตามคลาส (Hit Die + CON mod) — กฎ D&D 5e
 const HITDIE={barbarian:12,fighter:10,paladin:10,ranger:10,bard:8,cleric:8,druid:8,monk:8,rogue:8,warlock:8,artificer:8,sorcerer:6,wizard:6};
-let hpManual=false;
 // ── Point Buy (กฎ D&D 5e: งบ 27, ค่า 8–15) ──
 const PB_COST={8:0,9:1,10:2,11:3,12:4,13:5,14:7,15:9}, PB_BUDGET=27;
 let pb={str:8,dex:8,con:8,int:8,wis:8,cha:8};
@@ -764,17 +778,17 @@ function renderPB(){
   const info=$('pbInfo'); if(info) info.textContent='Points left: '+(PB_BUDGET-pbSpent())+' / '+PB_BUDGET;
 }
 function suggestHP(){
-  const hpEl=$('cHp'); if(!hpEl) return; if(hpManual && hpEl.value) return;
+  const hpEl=$('cHp'); if(!hpEl) return;
   const cls=($('cClass').value||'').toLowerCase().trim();
   let die=8; for(const k in HITDIE){ if(cls.includes(k)){ die=HITDIE[k]; break; } }
   const mod=Math.floor((pb.con-10)/2);
-  hpEl.value=Math.max(1, die+mod);
+  hpEl.value=Math.max(1, die+mod);   // fixed ตามกฎ แก้เองไม่ได้
 }
 async function createCharacter(){
   const name=$('cName').value.trim(); if(!name){toast('Name your character first',true);return;}
   $('charBtn').disabled=true;
   try{
-    const hpv=parseInt($('cHp').value); const maxhp=isNaN(hpv)?null:Math.max(1,hpv);
+    suggestHP(); const hpv=parseInt($('cHp').value); const maxhp=isNaN(hpv)?null:Math.max(1,hpv);
     const { data:ch, error } = await supa.from('characters').insert({
       campaign_id:campaign.id, user_id:me.id, name, class:$('cClass').value.trim()||null,
       public_status:{ hp: maxhp?`${maxhp}/${maxhp}`:'100%' }
@@ -853,7 +867,7 @@ async function renderRoundbar(){
   // STAGE 2: อ่านปูมหลังแล้ว แต่ยังไม่มีตัวละคร → สร้างตัวละคร
   if(!myChar){
     bar.innerHTML='<div class="statusline">อ่านปูมหลังโลกด้านบนก่อน แล้วสร้างตัวละครของคุณให้เข้ากับโลกนี้</div>';
-    const b=document.createElement('button'); b.className='btn'; b.textContent='📝 Create your character'; b.onclick=()=>{ show('charScreen'); renderPB(); }; bar.appendChild(b);
+    const b=document.createElement('button'); b.className='btn'; b.textContent='📝 Create your character'; b.onclick=()=>{ show('charScreen'); renderPB(); suggestHP(); }; bar.appendChild(b);
     return;
   }
   // STAGE 3: มีตัวละครแล้ว แต่ยังไม่เปิดฉาก → host เริ่มฉากแรก
