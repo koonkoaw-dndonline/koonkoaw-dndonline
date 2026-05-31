@@ -1040,7 +1040,7 @@ async function resolveRound(force, mode){
     const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
       body:JSON.stringify(body)});
     const j=await r.json();
-    if(!r.ok){ toast(j.error||'Resolve failed',true); }
+    if(!r.ok){ toast((j.error||'Resolve failed')+(j.detail?(' — '+String(j.detail).slice(0,140)):''),true); }
     else if(j.status==='waiting'){ toast(`Waiting for everyone (${j.submitted}/${j.total})`); }
     else if(j.status==='busy'){ /* someone else is resolving */ }
     else if(j.status==='intro'){ toast('โลกถูกสร้างแล้ว — สร้างตัวละครได้เลย!'); }
