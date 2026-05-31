@@ -358,16 +358,34 @@ body.role-player .dm-only{display:none!important;}
 /* ไอคอน Monster กระพริบเมื่อกำลังต่อสู้ */
 @keyframes combatblink{50%{opacity:.18;}}
 .tab[data-tab="mon"].combat .tico{animation:combatblink .7s steps(1) infinite;}
-/* World Clock window (Resolver v2) บนแท็บ Story */
-.clockwin{border:var(--px) solid #fff;border-radius:8px;padding:8px 11px;background:#000;display:flex;flex-wrap:wrap;gap:7px 14px;align-items:center;box-shadow:0 0 0 var(--px) #000,inset 0 0 0 2px #000;}
-.clockwin .cwlabel{font-family:'Press Start 2P',monospace;font-size:7px;color:#fff;border:2px solid #fff;padding:4px 6px;border-radius:2px;letter-spacing:1px;}
-.clockwin .cw{display:flex;align-items:center;gap:5px;font-size:12px;color:#9a9a9a;}
-.clockwin .cw b{color:#fff;font-family:'VT323',monospace;font-size:17px;font-weight:400;letter-spacing:.5px;}
+/* World HUD (clock + location) — ติดอยู่เห็นตลอด, มือถือ=แถบบน, จอใหญ่=ลอยขวา */
+.worldhud{position:sticky;top:0;z-index:5;display:flex;flex-direction:column;gap:6px;}
+.whbox{border:var(--px) solid #fff;border-radius:8px;padding:6px 9px;background:#000;display:flex;flex-wrap:wrap;gap:5px 12px;align-items:center;box-shadow:0 0 0 var(--px) #000;}
+.whlabel{font-family:'Press Start 2P',monospace;font-size:7px;color:#fff;letter-spacing:1px;}
+.wh{display:flex;align-items:center;gap:5px;font-size:11px;color:#9a9a9a;}
+.wh svg{width:14px;height:14px;display:block;image-rendering:pixelated;}
+.wh b{color:#fff;font-family:'VT323',monospace;font-size:15px;font-weight:400;letter-spacing:.5px;}
+@media (min-width:1300px){
+  .worldhud{position:fixed;top:60px;right:16px;width:220px;z-index:6;}
+}
+/* สีเน้นคำสำคัญในเนื้อเรื่อง (place / npc / item) */
+.hl-place{color:#6cc0ff;font-weight:600;}
+.hl-npc{color:#ffcf5a;font-weight:600;}
+.hl-item{color:#8ee88e;font-weight:600;}
 /* ฟอร์มสร้างตัวละคร */
 .srow2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .srow3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
 .grid3 .fld,.srow3 .fld,.srow2 .fld{font-size:11px;}
+/* Point Buy widget */
+.pbgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;}
+.pbrow{display:flex;align-items:center;gap:7px;border:2px solid #fff;border-radius:6px;padding:5px 8px;background:#000;}
+.pbrow .pblab{font-family:'Press Start 2P',monospace;font-size:8px;color:#fff;width:30px;}
+.pbrow .pbval{font-family:'VT323',monospace;font-size:20px;color:#fff;width:22px;text-align:center;}
+.pbrow .pbmod{font-family:'VT323',monospace;font-size:15px;color:#9a9a9a;margin-left:auto;}
+.pbbtn{width:24px;height:24px;border:2px solid #fff;background:#000;color:#fff;border-radius:4px;font-size:15px;line-height:1;font-weight:700;flex-shrink:0;}
+.pbbtn:hover{background:#fff;color:#000;}
+@media(max-width:560px){ .pbgrid{grid-template-columns:1fr;} }
 @media (min-width:900px){
   .panel[data-tab="items"].active,.panel[data-tab="skills"].active,
   .panel[data-tab="npc"].active,.panel[data-tab="mon"].active,.panel[data-tab="files"].active{
@@ -435,22 +453,33 @@ body.role-player .dm-only{display:none!important;}
     <p class="sub">อ่านปูมหลังโลกที่ DM เล่าก่อน แล้วสร้างตัวละครให้เข้ากับโลกนี้ — ตั้งค่าตามกฎ D&D หรือจะนอกกฎให้ DM improvise ก็ได้ (ข้อมูลพื้นฐานทุกคนเห็น · แผ่นเต็มเห็นเฉพาะคุณ)</p>
     <label class="fld">Name<input type="text" id="cName" placeholder="e.g. Kael"/></label>
     <div class="srow3">
-      <label class="fld">Race<input type="text" id="cRace" placeholder="Human, Elf…"/></label>
+      <label class="fld">Race<input type="text" id="cRace" list="raceList" placeholder="เลือก/พิมพ์เอง"/></label>
       <label class="fld">Sex<input type="text" id="cSex" placeholder="M / F / …"/></label>
       <label class="fld">Age<input type="text" id="cAge" placeholder="e.g. 24"/></label>
     </div>
-    <label class="fld">Class<input type="text" id="cClass" placeholder="Fighter, Wizard, … (นอกกฎได้)"/></label>
-    <div class="sectitle" style="margin-top:4px">ABILITY SCORES <span style="font-family:'Noto Sans Thai';font-size:10px;color:#9a9a9a;font-weight:400">· standard array 15,14,13,12,10,8</span></div>
-    <div class="grid3">
-      <label class="fld">STR<input type="number" id="aStr" value="10" min="1" max="30"/></label>
-      <label class="fld">DEX<input type="number" id="aDex" value="10" min="1" max="30"/></label>
-      <label class="fld">CON<input type="number" id="aCon" value="10" min="1" max="30"/></label>
-      <label class="fld">INT<input type="number" id="aInt" value="10" min="1" max="30"/></label>
-      <label class="fld">WIS<input type="number" id="aWis" value="10" min="1" max="30"/></label>
-      <label class="fld">CHA<input type="number" id="aCha" value="10" min="1" max="30"/></label>
+    <datalist id="raceList">
+      <option value="Human"></option><option value="Elf"></option><option value="Dwarf"></option>
+      <option value="Halfling"></option><option value="Half-Elf"></option><option value="Half-Orc"></option>
+      <option value="Tiefling"></option><option value="Dragonborn"></option><option value="Gnome"></option>
+      <option value="Aasimar"></option><option value="Goliath"></option><option value="Orc"></option>
+    </datalist>
+    <label class="fld">Class<input type="text" id="cClass" list="classList" oninput="suggestHP()" placeholder="Fighter, Wizard, … (นอกกฎได้)"/></label>
+    <datalist id="classList">
+      <option value="Barbarian"></option><option value="Bard"></option><option value="Cleric"></option>
+      <option value="Druid"></option><option value="Fighter"></option><option value="Monk"></option>
+      <option value="Paladin"></option><option value="Ranger"></option><option value="Rogue"></option>
+      <option value="Sorcerer"></option><option value="Warlock"></option><option value="Wizard"></option><option value="Artificer"></option>
+    </datalist>
+    <div class="sectitle" style="margin-top:4px">ABILITY SCORES · POINT BUY</div>
+    <div id="pbInfo" class="note" style="text-align:center;font-family:'VT323',monospace;font-size:18px;color:#fff;margin:2px 0"></div>
+    <div id="pbWrap" class="pbgrid"></div>
+    <div class="srow2" style="margin-top:4px">
+      <button type="button" class="btn ghost sm" onclick="pbStandard()">Standard Array</button>
+      <button type="button" class="btn ghost sm" onclick="pbReset()">Reset (all 8)</button>
     </div>
+    <div class="note">งบ 27 แต้ม · ค่า 8–15 (ก่อนโบนัสเผ่า) · 14–15 ใช้แต้มแพงขึ้น</div>
     <div class="srow2">
-      <label class="fld">Max HP<input type="number" id="cHp" placeholder="e.g. 12" min="1"/></label>
+      <label class="fld">Max HP<input type="number" id="cHp" placeholder="auto จากอาชีพ" min="1" oninput="hpManual=true"/></label>
       <label class="fld">Starting weapon<input type="text" id="cWeapon" list="basicWeapons" placeholder="เลือกหรือพิมพ์เอง"/></label>
     </div>
     <datalist id="basicWeapons">
@@ -484,7 +513,7 @@ body.role-player .dm-only{display:none!important;}
 </div>
 
 <div class="panel active" id="panel-story" data-tab="story">
-  <div id="worldClock" class="clockwin hidden"></div>
+  <div id="worldClock" class="worldhud hidden"></div>
   <div id="narrFeed" style="display:flex;flex-direction:column;gap:12px;"></div>
   <div class="roundbar" id="roundbar"></div>
 </div>
@@ -670,33 +699,82 @@ async function loadNarrative(){
   const { data } = await supa.from('narrative').select('*').eq('campaign_id',campaign.id)
     .order('created_at',{ascending:true});
   narrative = data||[];
+  try{ localStorage.setItem('ttrpg_chron_'+campaign.id, JSON.stringify(narrative.map(n=>n.content))); }catch(e){}
 }
 async function loadState(){
   try{ const r=await supa.from('campaign_state').select('*').eq('campaign_id',campaign.id).maybeSingle(); worldState=r.error?null:r.data; }
   catch(e){ worldState=null; }
 }
-// หน้าต่างนาฬิกาโลกบนแท็บ Story (DM อัปเดตผ่าน resolver v2)
+// ไอคอนพิกเซลสีสำหรับ HUD
+const ICONS={date:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#f5b942" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="1" height="1"/><rect x="1" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="7" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="0" y="6" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/><rect x="7" y="6" width="1" height="1"/></svg>',time:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#5ad7e0" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="0" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/></svg>',weather:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#cfd6e6" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="7" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="7" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/></svg>',moon:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#e9e6a8" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/></svg>',season:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#7ad17a" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="0" width="1" height="1"/><rect x="6" y="0" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="0" y="6" width="1" height="1"/></svg>',loc:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#ff6b6b" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/></svg>'};
+// แปลงมาร์กเกอร์ [ชื่อ|ประเภท] → สปแอนสี + ใส่วงเล็บ (escape ส่วนอื่นกัน XSS)
+function colorizeNarr(text){
+  let out='', last=0; const re=/\[([^\]|]+)\|(place|npc|item)\]/g; let m;
+  while((m=re.exec(text))){
+    out+=escapeHtml(text.slice(last,m.index));
+    out+=`<span class="hl-${m[2]}">[${escapeHtml(m[1])}]</span>`;
+    last=m.index+m[0].length;
+  }
+  out+=escapeHtml(text.slice(last));
+  return out;
+}
+// หน้าต่าง World HUD (clock + location) บนแท็บ Story
 function renderClock(){
   const el=$('worldClock'); if(!el) return;
-  const c=(worldState&&worldState.clock)||{};
-  if(!c||!Object.keys(c).length){ el.classList.add('hidden'); return; }
-  const E=escapeHtml;
-  let h='<span class="cwlabel">WORLD</span>';
-  if(c.date) h+=`<span class="cw">📅 <b>${E(c.date)}/${E(c.month||'-')}/${E(c.year||'-')}</b></span>`;
-  if(c.time) h+=`<span class="cw">🕐 <b>${E(c.time)}</b></span>`;
-  if(c.season) h+=`<span class="cw">🍂 <b>${E(c.season)}</b></span>`;
-  if(c.weather) h+=`<span class="cw">☁️ <b>${E(c.weather)}</b></span>`;
-  if(c.moon) h+=`<span class="cw">🌙 <b>${E(c.moon)}</b></span>`;
+  const st=worldState||{}; const c=st.clock||{}; const L=st.location||{};
+  const hasClock=c&&Object.keys(c).length;
+  const locParts=[L.site,L.settlement,L.region,L.kingdom].filter(Boolean);
+  if(!hasClock && !locParts.length){ el.classList.add('hidden'); return; }
+  const E=escapeHtml; let h='';
+  if(hasClock){
+    h+='<div class="whbox"><span class="whlabel">WORLD</span>';
+    if(c.date) h+=`<span class="wh">${ICONS.date}<b>${E(c.date)}/${E(c.month||'-')}/${E(c.year||'-')}</b></span>`;
+    if(c.time) h+=`<span class="wh">${ICONS.time}<b>${E(c.time)}</b></span>`;
+    if(c.season) h+=`<span class="wh">${ICONS.season}<b>${E(c.season)}</b></span>`;
+    if(c.weather) h+=`<span class="wh">${ICONS.weather}<b>${E(c.weather)}</b></span>`;
+    if(c.moon) h+=`<span class="wh">${ICONS.moon}<b>${E(c.moon)}</b></span>`;
+    h+='</div>';
+  }
+  if(locParts.length){
+    h+=`<div class="whbox"><span class="whlabel">LOCATION</span><span class="wh">${ICONS.loc}<b>${locParts.map(E).join(' · ')}</b></span></div>`;
+  }
   el.innerHTML=h; el.classList.remove('hidden');
 }
 
 // ───────── character ─────────
+// HP เลเวล 1 ตามคลาส (Hit Die + CON mod) — กฎ D&D 5e
+const HITDIE={barbarian:12,fighter:10,paladin:10,ranger:10,bard:8,cleric:8,druid:8,monk:8,rogue:8,warlock:8,artificer:8,sorcerer:6,wizard:6};
+let hpManual=false;
+// ── Point Buy (กฎ D&D 5e: งบ 27, ค่า 8–15) ──
+const PB_COST={8:0,9:1,10:2,11:3,12:4,13:5,14:7,15:9}, PB_BUDGET=27;
+let pb={str:8,dex:8,con:8,int:8,wis:8,cha:8};
+function pbSpent(){ let s=0; for(const k in pb) s+=PB_COST[pb[k]]; return s; }
+function abMod(v){ const m=Math.floor((v-10)/2); return (m>=0?'+':'−')+Math.abs(m); }
+function pbAdj(ab,d){
+  const nv=pb[ab]+d; if(nv<8||nv>15) return;
+  if(d>0){ const extra=PB_COST[nv]-PB_COST[pb[ab]]; if(extra>(PB_BUDGET-pbSpent())){ toast('แต้มไม่พอ — ลดค่าอื่นก่อน',true); return; } }
+  pb[ab]=nv; renderPB(); suggestHP();
+}
+function pbStandard(){ pb={str:15,dex:14,con:13,int:12,wis:10,cha:8}; renderPB(); suggestHP(); }
+function pbReset(){ pb={str:8,dex:8,con:8,int:8,wis:8,cha:8}; renderPB(); suggestHP(); }
+function renderPB(){
+  const w=$('pbWrap'); if(!w) return;
+  const order=[['str','STR'],['dex','DEX'],['con','CON'],['int','INT'],['wis','WIS'],['cha','CHA']];
+  w.innerHTML=order.map(([k,lab])=>`<div class="pbrow"><span class="pblab">${lab}</span><button type="button" class="pbbtn" onclick="pbAdj('${k}',-1)">−</button><span class="pbval">${pb[k]}</span><button type="button" class="pbbtn" onclick="pbAdj('${k}',1)">+</button><span class="pbmod">${abMod(pb[k])}</span></div>`).join('');
+  const info=$('pbInfo'); if(info) info.textContent='Points left: '+(PB_BUDGET-pbSpent())+' / '+PB_BUDGET;
+}
+function suggestHP(){
+  const hpEl=$('cHp'); if(!hpEl) return; if(hpManual && hpEl.value) return;
+  const cls=($('cClass').value||'').toLowerCase().trim();
+  let die=8; for(const k in HITDIE){ if(cls.includes(k)){ die=HITDIE[k]; break; } }
+  const mod=Math.floor((pb.con-10)/2);
+  hpEl.value=Math.max(1, die+mod);
+}
 async function createCharacter(){
   const name=$('cName').value.trim(); if(!name){toast('Name your character first',true);return;}
   $('charBtn').disabled=true;
   try{
-    const A=id=>{ const v=parseInt($(id).value); return isNaN(v)?10:v; };
-    const hpv=parseInt($('cHp').value); const maxhp=isNaN(hpv)?null:hpv;
+    const hpv=parseInt($('cHp').value); const maxhp=isNaN(hpv)?null:Math.max(1,hpv);
     const { data:ch, error } = await supa.from('characters').insert({
       campaign_id:campaign.id, user_id:me.id, name, class:$('cClass').value.trim()||null,
       public_status:{ hp: maxhp?`${maxhp}/${maxhp}`:'100%' }
@@ -704,7 +782,7 @@ async function createCharacter(){
     if(error) throw error;
     const sheet={
       race:$('cRace').value.trim(), sex:$('cSex').value.trim(), age:$('cAge').value.trim(),
-      abilities:{ str:A('aStr'), dex:A('aDex'), con:A('aCon'), int:A('aInt'), wis:A('aWis'), cha:A('aCha') },
+      abilities:{ str:pb.str, dex:pb.dex, con:pb.con, int:pb.int, wis:pb.wis, cha:pb.cha },
       combat:{ hp:maxhp, maxhp:maxhp, hitdice:'' },
       equipment:{ weapon:$('cWeapon').value.trim(), offhand:'', armor:'', shield:'', accessory:'' },
       inventory:[], wallet:{gp:0,sp:0,cp:0}, exp:{current:0,next:300},
@@ -712,6 +790,7 @@ async function createCharacter(){
       notes:$('cNotes').value.trim()
     };
     await supa.from('character_sheets').insert({ character_id:ch.id, sheet });
+    try{ localStorage.setItem('ttrpg_bg_'+campaign.id, sheet.notes||''); }catch(e){}
     myChar=ch; mySheet=sheet; await refreshAll(); show('campaign'); switchTab('story');
   }catch(e){ toast(e.message||'Failed to create character',true); }
   finally{ $('charBtn').disabled=false; }
@@ -745,7 +824,7 @@ async function renderStory(){
   if(!narrative.length){ feed.innerHTML='<div class="muted">No story yet '+(campaign.host_id===me.id?'— press "Begin Adventure" below':'— waiting for the host to begin')+'</div>'; }
   narrative.forEach(n=>{
     const d=document.createElement('div'); d.className='narr';
-    d.innerHTML='<div class="meta">🎲 DM</div>'; const c=document.createElement('div'); c.textContent=n.content; d.appendChild(c);
+    d.innerHTML='<div class="meta">🎲 DM</div>'; const c=document.createElement('div'); c.innerHTML=colorizeNarr(n.content); d.appendChild(c);
     feed.appendChild(d);
   });
   // ถ้ารอบจบแล้ว แสดง action ของทุกคน (RLS เปิดให้เห็นหลัง done)
@@ -774,7 +853,7 @@ async function renderRoundbar(){
   // STAGE 2: อ่านปูมหลังแล้ว แต่ยังไม่มีตัวละคร → สร้างตัวละคร
   if(!myChar){
     bar.innerHTML='<div class="statusline">อ่านปูมหลังโลกด้านบนก่อน แล้วสร้างตัวละครของคุณให้เข้ากับโลกนี้</div>';
-    const b=document.createElement('button'); b.className='btn'; b.textContent='📝 Create your character'; b.onclick=()=>show('charScreen'); bar.appendChild(b);
+    const b=document.createElement('button'); b.className='btn'; b.textContent='📝 Create your character'; b.onclick=()=>{ show('charScreen'); renderPB(); }; bar.appendChild(b);
     return;
   }
   // STAGE 3: มีตัวละครแล้ว แต่ยังไม่เปิดฉาก → host เริ่มฉากแรก
@@ -919,7 +998,7 @@ async function renderMe(){
   const ta=document.createElement('textarea'); ta.id='meNotes'; ta.value=sheet.notes||''; notes.appendChild(ta);
   it4.appendChild(notes);
   const save=document.createElement('button'); save.className='btn sm'; save.textContent='Save Sheet';
-  save.onclick=async()=>{ sheet.notes=$('meNotes').value; await supa.from('character_sheets').update({sheet,updated_at:new Date().toISOString()}).eq('character_id',myChar.id); toast('Saved ✓'); };
+  save.onclick=async()=>{ sheet.notes=$('meNotes').value; await supa.from('character_sheets').update({sheet,updated_at:new Date().toISOString()}).eq('character_id',myChar.id); try{ localStorage.setItem('ttrpg_bg_'+campaign.id, sheet.notes||''); }catch(e){} toast('Saved ✓'); };
   it4.appendChild(save); p.appendChild(it4);
 }
 function renderParty(){
@@ -1054,7 +1133,7 @@ async function renderChronicle(){
   head.appendChild(exp); p.appendChild(head);
   const log=document.createElement('div'); log.className='item';
   if(!narrative.length){ log.innerHTML='<div class="muted">No story yet</div>'; }
-  else narrative.forEach((n,i)=>{ const m=document.createElement('div'); m.className='chron-meta'; m.textContent='Entry '+(i+1)+' · DM'; const t=document.createElement('div'); t.className='chron-text'; t.textContent=n.content; log.appendChild(m); log.appendChild(t); });
+  else narrative.forEach((n,i)=>{ const m=document.createElement('div'); m.className='chron-meta'; m.textContent='Entry '+(i+1)+' · DM'; const t=document.createElement('div'); t.className='chron-text'; t.innerHTML=colorizeNarr(n.content); log.appendChild(m); log.appendChild(t); });
   p.appendChild(log);
 }
 function exportChronicle(){
