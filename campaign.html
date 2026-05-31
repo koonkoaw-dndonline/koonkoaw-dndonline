@@ -406,9 +406,12 @@ body.role-player .dm-only{display:none!important;}
 .pbbtn{width:24px;height:24px;border:2px solid #fff;background:#000;color:#fff;border-radius:4px;font-size:15px;line-height:1;font-weight:700;flex-shrink:0;}
 .pbbtn:hover{background:#fff;color:#000;}
 @media(max-width:560px){ .pbgrid{grid-template-columns:1fr;} }
-/* dice roll helper ในช่อง action */
-.dicerow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+/* dice / combat / interact helpers ในช่อง action */
+.dicerow,.optrow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
 .dicelbl{color:#9a9a9a;font-size:15px;}
+.combatbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.cbtag{font-family:'Press Start 2P',monospace;font-size:8px;color:#fff;border:2px solid #fff;padding:4px 6px;border-radius:3px;letter-spacing:1px;}
+.cbrange{color:#9a9a9a;font-size:15px;}
 /* Skill proficiency picker */
 .skgrid{display:flex;flex-wrap:wrap;gap:6px;}
 .skbtn{border:2px solid #fff;background:#000;color:#9a9a9a;border-radius:5px;padding:5px 9px;font-size:14px;font-family:'VT323',monospace;letter-spacing:.3px;}
@@ -430,7 +433,6 @@ body.role-player .dm-only{display:none!important;}
   <span class="code hidden" id="hdCode" title="Click to copy invite code"></span>
   <span class="who" id="hdWho"></span>
   <div class="dot" id="hdDot"></div>
-  <a class="btn ghost sm" href="index.html" style="text-decoration:none;">Solo</a>
   <button class="btn ghost sm hidden" id="hdEnd"></button>
   <button class="btn ghost sm hidden" id="hdLogout" onclick="doLogout()">Logout</button>
 </div>
@@ -944,20 +946,63 @@ async function renderRoundbar(){
   list.forEach(a=>{ html+=`<div class="actionlog"><b>${escapeHtml(nameFor(a))}</b> ${escapeHtml(a.action_text)}</div>`; });
   bar.innerHTML=html;   // สร้างทีเดียว (synchronous ต่อจากนี้ ไม่มี await)
   if(!mine){
+    const meta=curRound.meta||{};
+    const cb=meta.combat||{}, rr=meta.roll_request||{}, inter=meta.interactables||[];
+    // D: คอมแบต — แสดงระยะ + 3 ทางเลือก (เลือกอื่นได้)
+    if(cb.active){
+      const ci=document.createElement('div'); ci.className='combatbar';
+      ci.innerHTML='<span class="cbtag">⚔ COMBAT</span>'+(cb.range?`<span class="cbrange">ระยะ: ${escapeHtml(cb.range)}</span>`:'');
+      bar.appendChild(ci);
+      if(Array.isArray(cb.options)&&cb.options.length){
+        const opts=document.createElement('div'); opts.className='optrow';
+        cb.options.slice(0,3).forEach(o=>{ const ob=document.createElement('button'); ob.className='btn ghost sm'; ob.textContent=o; ob.onclick=()=>appendAct(o); opts.appendChild(ob); });
+        bar.appendChild(opts);
+      }
+    }
     const ta=document.createElement('textarea'); ta.id='actInput'; ta.placeholder='What will your character do?'; bar.appendChild(ta);
-    const dice=document.createElement('div'); dice.className='dicerow'; dice.innerHTML='<span class="dicelbl">🎲 d20:</span>';
-    const dm=document.createElement('button'); dm.className='btn ghost sm'; dm.textContent='DM ทอยให้'; dm.onclick=rollDM; dice.appendChild(dm);
-    const sf=document.createElement('button'); sf.className='btn ghost sm'; sf.textContent='ทอยเอง'; sf.onclick=rollSelf; dice.appendChild(sf);
-    bar.appendChild(dice);
+    // E: ปุ่มปฏิสัมพันธ์สิ่งแวดล้อม
+    if(Array.isArray(inter)&&inter.length){
+      const ir=document.createElement('div'); ir.className='optrow'; ir.innerHTML='<span class="dicelbl">🛠 ใช้:</span>';
+      inter.forEach(it=>{ const ib=document.createElement('button'); ib.className='btn ghost sm'; ib.title=it.desc||''; ib.textContent=it.label; ib.onclick=()=>appendAct('ใช้ '+it.label+(it.desc?` (${it.desc})`:'')); ir.appendChild(ib); });
+      bar.appendChild(ir);
+    }
+    // เต๋า — โผล่เฉพาะตอน DM เรียก หรือ อยู่ในคอมแบต
+    if(rr.needed || cb.active){
+      const dice=document.createElement('div'); dice.className='dicerow';
+      dice.innerHTML='<span class="dicelbl">🎲'+(rr.reason?(' '+escapeHtml(rr.reason)):' ทอยเต๋า')+':</span>';
+      const dm=document.createElement('button'); dm.className='btn ghost sm'; dm.textContent='DM ทอยให้'; dm.onclick=()=>rollDM(rr.items); dice.appendChild(dm);
+      const sf=document.createElement('button'); sf.className='btn ghost sm'; sf.textContent='ทอยเอง'; sf.onclick=rollSelf; dice.appendChild(sf);
+      bar.appendChild(dice);
+    }
     const b=document.createElement('button'); b.className='btn'; b.textContent='Submit Action'; b.onclick=submitAction; bar.appendChild(b);
   }
   if(isHost){ const f=document.createElement('button'); f.className='btn warn sm'; f.textContent=resolving?'Resolving…':'⚡ Force Resolve'; f.disabled=resolving; f.onclick=()=>resolveRound(true); bar.appendChild(f); }
 }
 
 // ── ทอยเต๋า: DM ทอยให้ (server สุ่มจริง) / ทอยเอง (ใส่เลขดิบ) ──
-async function rollDM(){
-  try{ const { data, error }=await supa.rpc('roll_d20'); if(error) throw error; insertRoll(data,'DM'); }
-  catch(e){ toast('ทอยไม่สำเร็จ (รัน migration 0008?)',true); }
+function appendAct(t){ const ta=$('actInput'); if(!ta) return; ta.value=(ta.value?ta.value.trim()+'\n':'')+t; ta.focus(); }
+// DM ทอยให้ — ถ้ามีหลายเต๋า (combat) ทอยรวดเดียวทั้งหมดผ่าน server
+async function rollDM(items){
+  try{
+    if(Array.isArray(items)&&items.length){
+      const parts=[];
+      for(const it of items){
+        const f=(it.formula||'1d20').toLowerCase(); const m=f.match(/(\d*)d(\d+)/);
+        let n;
+        if(m){ const cnt=parseInt(m[1]||'1'), sides=parseInt(m[2]); const r=await supa.rpc('roll_dice',{sides,dice:cnt}); n=r.error?'?':r.data; }
+        else { const r=await supa.rpc('roll_d20'); n=r.error?'?':r.data; }
+        parts.push(`${it.label||'Roll'} ${it.formula||'1d20'}=${n}${it.ability?(' +'+it.ability):''}`);
+      }
+      insertRollMulti(parts.join(' · '),'DM');
+    } else {
+      const { data, error }=await supa.rpc('roll_d20'); if(error) throw error; insertRoll(data,'DM');
+    }
+  }catch(e){ toast('ทอยไม่สำเร็จ (รัน migration?)',true); }
+}
+function insertRollMulti(text,who){
+  const ta=$('actInput'); if(!ta) return;
+  ta.value=(ta.value?ta.value.trim()+'\n':'')+`[ทอย (${who}): ${text}]`;
+  toast('🎲 ทอยแล้ว');
 }
 function rollSelf(){
   const v=prompt('ใส่เลขที่ทอยได้จาก d20 (1-20):'); if(v===null) return;
