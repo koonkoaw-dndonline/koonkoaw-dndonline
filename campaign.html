@@ -24,22 +24,25 @@ html{background:#000;}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{
   font-family:'VT323','Noto Sans Thai',monospace;   /* อังกฤษ=พิกเซล, ไทย=fallback อ่านง่าย */
-  background:var(--black);color:var(--white);
+  background:var(--black);color:var(--white);font-size:18px;
   height:100dvh;display:flex;flex-direction:column;overflow:hidden;
   -webkit-font-smoothing:none;
 }
 /* เนื้อหาภาษาไทยยาวๆ ใช้ฟอนต์อ่านง่าย (ไม่บังคับพิกเซล) */
 .narr,.chron-text,.actionlog,.item .sub,.card p.sub,.npc-detail,.muted,.note{font-family:'Noto Sans Thai',sans-serif;}
-/* VT323 เล็กกว่าปกติ → ขยายองค์ประกอบ UI อังกฤษให้อ่านง่าย */
-.btn{font-size:16px;letter-spacing:.5px;}
-.tab .tlab{font-size:14px;}
-label.fld{font-size:13px;}
-input[type=text],input[type=email],input[type=password],input[type=number],textarea,select{font-size:17px;}
-.card h2{font-size:21px;}
-.pill{font-size:13px;}
-.hd .ttl{font-size:18px;}
-.statusline{font-size:14px;}
-.kv .k{font-size:15px;}
+/* VT323 เล็กกว่าปกติ → ขยายองค์ประกอบ UI อังกฤษให้อ่านง่าย (อิงขนาดหน้า Stat ~19px) */
+.btn{font-size:19px;letter-spacing:.5px;}
+.tab .tlab{font-size:16px;}
+label.fld{font-size:15px;}
+input[type=text],input[type=email],input[type=password],input[type=number],textarea,select{font-size:19px;}
+.card h2{font-size:25px;}
+.pill{font-size:15px;}
+.hd .ttl{font-size:22px;}
+.hd .who,.hd .code{font-size:16px;}
+.statusline{font-size:17px;}
+.kv .k{font-size:16px;}
+.item .nm{font-size:19px;}
+.empty,.divider{font-size:14px;}
 .hidden{display:none!important;}
 button{font-family:inherit;cursor:pointer;}
 input,textarea,select{font-family:inherit;}
@@ -398,6 +401,13 @@ body.role-player .dm-only{display:none!important;}
 .pbbtn{width:24px;height:24px;border:2px solid #fff;background:#000;color:#fff;border-radius:4px;font-size:15px;line-height:1;font-weight:700;flex-shrink:0;}
 .pbbtn:hover{background:#fff;color:#000;}
 @media(max-width:560px){ .pbgrid{grid-template-columns:1fr;} }
+/* dice roll helper ในช่อง action */
+.dicerow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.dicelbl{color:#9a9a9a;font-size:15px;}
+/* Skill proficiency picker */
+.skgrid{display:flex;flex-wrap:wrap;gap:6px;}
+.skbtn{border:2px solid #fff;background:#000;color:#9a9a9a;border-radius:5px;padding:5px 9px;font-size:14px;font-family:'VT323',monospace;letter-spacing:.3px;}
+.skbtn.on{background:#fff;color:#000;font-weight:700;}
 @media (min-width:900px){
   .panel[data-tab="items"].active,.panel[data-tab="skills"].active,
   .panel[data-tab="npc"].active,.panel[data-tab="mon"].active,.panel[data-tab="files"].active{
@@ -475,7 +485,7 @@ body.role-player .dm-only{display:none!important;}
       <option value="Tiefling"></option><option value="Dragonborn"></option><option value="Gnome"></option>
       <option value="Aasimar"></option><option value="Goliath"></option><option value="Orc"></option>
     </datalist>
-    <label class="fld">Class<input type="text" id="cClass" list="classList" oninput="suggestHP()" placeholder="Fighter, Wizard, … (นอกกฎได้)"/></label>
+    <label class="fld">Class<input type="text" id="cClass" list="classList" oninput="suggestHP();renderSkillPick()" placeholder="Fighter, Wizard, … (นอกกฎได้)"/></label>
     <datalist id="classList">
       <option value="Barbarian"></option><option value="Bard"></option><option value="Cleric"></option>
       <option value="Druid"></option><option value="Fighter"></option><option value="Monk"></option>
@@ -505,6 +515,9 @@ body.role-player .dm-only{display:none!important;}
       <option value="Longbow (1d8 piercing)"></option><option value="Light Crossbow (1d8 piercing)"></option>
       <option value="Greatsword (2d6 slashing)"></option><option value="Greataxe (1d12 slashing)"></option>
     </datalist>
+    <div class="sectitle" style="margin-top:4px">SKILL PROFICIENCIES</div>
+    <div id="skillInfo" class="note"></div>
+    <div id="skillWrap" class="skgrid"></div>
     <label class="fld">Background / notes (private)<textarea id="cNotes" placeholder="ภูมิหลัง ความลับ ฯลฯ (เห็นเฉพาะคุณ)"></textarea></label>
     <button class="btn" id="charBtn" onclick="createCharacter()">Enter the World</button>
   </div>
@@ -784,6 +797,39 @@ function suggestHP(){
   const mod=Math.floor((pb.con-10)/2);
   hpEl.value=Math.max(1, die+mod);   // fixed ตามกฎ แก้เองไม่ได้
 }
+// ── สกิลถนัดเริ่มต้นตามคลาส (กฎ D&D 5e) ──
+const ALL_SKILLS=['Acrobatics','Animal Handling','Arcana','Athletics','Deception','History','Insight','Intimidation','Investigation','Medicine','Nature','Perception','Performance','Persuasion','Religion','Sleight of Hand','Stealth','Survival'];
+const CLASS_SKILLS={
+  barbarian:{n:2,list:['Animal Handling','Athletics','Intimidation','Nature','Perception','Survival']},
+  bard:{n:3,list:'ALL'},
+  cleric:{n:2,list:['History','Insight','Medicine','Persuasion','Religion']},
+  druid:{n:2,list:['Arcana','Animal Handling','Insight','Medicine','Nature','Perception','Religion','Survival']},
+  fighter:{n:2,list:['Acrobatics','Animal Handling','Athletics','History','Insight','Intimidation','Perception','Survival']},
+  monk:{n:2,list:['Acrobatics','Athletics','History','Insight','Religion','Stealth']},
+  paladin:{n:2,list:['Athletics','Insight','Intimidation','Medicine','Persuasion','Religion']},
+  ranger:{n:3,list:['Animal Handling','Athletics','Insight','Investigation','Nature','Perception','Stealth','Survival']},
+  rogue:{n:4,list:['Acrobatics','Athletics','Deception','Insight','Intimidation','Investigation','Perception','Performance','Persuasion','Sleight of Hand','Stealth']},
+  sorcerer:{n:2,list:['Arcana','Deception','Insight','Intimidation','Persuasion','Religion']},
+  warlock:{n:2,list:['Arcana','Deception','History','Intimidation','Investigation','Nature','Religion']},
+  wizard:{n:2,list:['Arcana','History','Insight','Investigation','Medicine','Religion']},
+  artificer:{n:2,list:['Arcana','History','Investigation','Medicine','Nature','Perception','Sleight of Hand']},
+};
+let chosenSkills=[];
+function classKey(){ const c=($('cClass').value||'').toLowerCase(); for(const k in CLASS_SKILLS){ if(c.includes(k)) return k; } return null; }
+function skillDef(){ const k=classKey(); return k? CLASS_SKILLS[k] : {n:2,list:'ALL'}; }
+function renderSkillPick(){
+  const wrap=$('skillWrap'); if(!wrap) return;
+  const def=skillDef(); const list=def.list==='ALL'?ALL_SKILLS:def.list;
+  chosenSkills=chosenSkills.filter(s=>list.includes(s));
+  const info=$('skillInfo'); if(info) info.textContent=`เลือก ${def.n} สกิล (${chosenSkills.length}/${def.n})`+(classKey()?'':' · คลาสนอกกฎ → เลือกได้ 2 จากทั้งหมด');
+  wrap.innerHTML=list.map(s=>`<button type="button" class="skbtn${chosenSkills.includes(s)?' on':''}" onclick="toggleSkill('${s}')">${s}</button>`).join('');
+}
+function toggleSkill(s){
+  const def=skillDef(); const i=chosenSkills.indexOf(s);
+  if(i>=0) chosenSkills.splice(i,1);
+  else { if(chosenSkills.length>=def.n){ toast(`เลือกได้ ${def.n} สกิลตามคลาส`,true); return; } chosenSkills.push(s); }
+  renderSkillPick();
+}
 async function createCharacter(){
   const name=$('cName').value.trim(); if(!name){toast('Name your character first',true);return;}
   $('charBtn').disabled=true;
@@ -797,6 +843,7 @@ async function createCharacter(){
     const sheet={
       race:$('cRace').value.trim(), sex:$('cSex').value.trim(), age:$('cAge').value.trim(),
       abilities:{ str:pb.str, dex:pb.dex, con:pb.con, int:pb.int, wis:pb.wis, cha:pb.cha },
+      skill_proficiencies: chosenSkills.slice(),
       combat:{ hp:maxhp, maxhp:maxhp, hitdice:'' },
       equipment:{ weapon:$('cWeapon').value.trim(), offhand:'', armor:'', shield:'', accessory:'' },
       inventory:[], wallet:{gp:0,sp:0,cp:0}, exp:{current:0,next:300},
@@ -867,7 +914,7 @@ async function renderRoundbar(){
   // STAGE 2: อ่านปูมหลังแล้ว แต่ยังไม่มีตัวละคร → สร้างตัวละคร
   if(!myChar){
     bar.innerHTML='<div class="statusline">อ่านปูมหลังโลกด้านบนก่อน แล้วสร้างตัวละครของคุณให้เข้ากับโลกนี้</div>';
-    const b=document.createElement('button'); b.className='btn'; b.textContent='📝 Create your character'; b.onclick=()=>{ show('charScreen'); renderPB(); suggestHP(); }; bar.appendChild(b);
+    const b=document.createElement('button'); b.className='btn'; b.textContent='📝 Create your character'; b.onclick=()=>{ chosenSkills=[]; show('charScreen'); renderPB(); suggestHP(); renderSkillPick(); }; bar.appendChild(b);
     return;
   }
   // STAGE 3: มีตัวละครแล้ว แต่ยังไม่เปิดฉาก → host เริ่มฉากแรก
@@ -891,11 +938,30 @@ async function renderRoundbar(){
   bar.innerHTML=html;   // สร้างทีเดียว (synchronous ต่อจากนี้ ไม่มี await)
   if(!mine){
     const ta=document.createElement('textarea'); ta.id='actInput'; ta.placeholder='What will your character do?'; bar.appendChild(ta);
+    const dice=document.createElement('div'); dice.className='dicerow'; dice.innerHTML='<span class="dicelbl">🎲 d20:</span>';
+    const dm=document.createElement('button'); dm.className='btn ghost sm'; dm.textContent='DM ทอยให้'; dm.onclick=rollDM; dice.appendChild(dm);
+    const sf=document.createElement('button'); sf.className='btn ghost sm'; sf.textContent='ทอยเอง'; sf.onclick=rollSelf; dice.appendChild(sf);
+    bar.appendChild(dice);
     const b=document.createElement('button'); b.className='btn'; b.textContent='Submit Action'; b.onclick=submitAction; bar.appendChild(b);
   }
   if(isHost){ const f=document.createElement('button'); f.className='btn warn sm'; f.textContent=resolving?'Resolving…':'⚡ Force Resolve'; f.disabled=resolving; f.onclick=()=>resolveRound(true); bar.appendChild(f); }
 }
 
+// ── ทอยเต๋า: DM ทอยให้ (server สุ่มจริง) / ทอยเอง (ใส่เลขดิบ) ──
+async function rollDM(){
+  try{ const { data, error }=await supa.rpc('roll_d20'); if(error) throw error; insertRoll(data,'DM'); }
+  catch(e){ toast('ทอยไม่สำเร็จ (รัน migration 0008?)',true); }
+}
+function rollSelf(){
+  const v=prompt('ใส่เลขที่ทอยได้จาก d20 (1-20):'); if(v===null) return;
+  const n=parseInt(v); if(isNaN(n)||n<1||n>20){ toast('ใส่เลข 1-20',true); return; }
+  insertRoll(n,'ทอยเอง');
+}
+function insertRoll(n,who){
+  const ta=$('actInput'); if(!ta) return;
+  ta.value=(ta.value?ta.value.trim()+'\n':'')+`[ทอย d20 = ${n} (${who})]`;
+  toast(`🎲 d20 = ${n}`);
+}
 async function submitAction(){
   const txt=$('actInput')?.value.trim(); if(!txt){toast('Type your action first',true);return;}
   try{
@@ -1003,6 +1069,8 @@ async function renderMe(){
       immA.map(x=>`<span class="chip imm"><span class="t">IMM</span>${esc(x)}</span>`).join('')+
       vulA.map(x=>`<span class="chip vuln"><span class="t">VUL</span>${esc(x)}</span>`).join('')+'</div>';
   }
+  const prof=sheet.skill_proficiencies||[];
+  if(prof.length){ h+='<div class="sectitle" style="margin-top:10px">PROFICIENT SKILLS</div><div class="chips">'+prof.map(s=>`<span class="chip">${esc(s)}</span>`).join('')+'</div>'; }
   w3.innerHTML=h; p.appendChild(w3);
 
   // private notes editor
