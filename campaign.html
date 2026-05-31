@@ -386,6 +386,7 @@ body.role-player .dm-only{display:none!important;}
   <span class="who" id="hdWho"></span>
   <div class="dot" id="hdDot"></div>
   <a class="btn ghost sm" href="index.html" style="text-decoration:none;">Solo</a>
+  <button class="btn ghost sm hidden" id="hdEnd"></button>
   <button class="btn ghost sm hidden" id="hdLogout" onclick="doLogout()">Logout</button>
 </div>
 
@@ -411,7 +412,11 @@ body.role-player .dm-only{display:none!important;}
     <h2>New Campaign</h2>
     <p class="sub">You'll be the host (DM) of this world — up to 4 players.</p>
     <label class="fld">Campaign name<input type="text" id="newName" placeholder="e.g. Legend of Eldraria"/></label>
-    <label class="fld">Rules / tone (optional)<textarea id="newRules" placeholder="Summarize the rules or tone you want the DM to follow"></textarea></label>
+    <label class="fld">Rules / tone (optional)<textarea id="newRules" placeholder="พิมพ์กติกา/โทนเพิ่มเอง หรือปล่อยว่างถ้าจะอัปไฟล์ด้านล่าง"></textarea></label>
+    <label class="fld">📎 ไฟล์กฎ DM (.md/.txt — เลือกได้หลายไฟล์พร้อมกัน)
+      <input type="file" id="rulesFiles" multiple accept=".md,.txt,text/markdown,text/plain" onchange="onRulesFiles(this.files)"/>
+    </label>
+    <div class="note" id="rulesFilesInfo">เลือกไฟล์กฎ DM (เช่น 14 ไฟล์ฉบับสะอาด) → ระบบจะฝังเป็นกติกาของ DM ตอนสร้างโลก</div>
     <button class="btn" id="createBtn" onclick="createCampaign()">Create Campaign</button>
   </div>
   <div class="divider">OR</div>
@@ -563,6 +568,16 @@ async function sendMagicLink(){
   finally{ $('loginBtn').disabled=false; }
 }
 async function doLogout(){ await supa.auth.signOut(); location.reload(); }
+async function endCampaign(){
+  if(!confirm('ลบแคมเปญนี้ถาวร? โลกทั้งหมด (เนื้อเรื่อง/ตัวละคร/ทุกอย่าง) จะหายไปกู้คืนไม่ได้')) return;
+  try{ const { error } = await supa.rpc('end_campaign',{ p_campaign:campaign.id }); if(error) throw error; toast('ลบแคมเปญแล้ว'); setTimeout(()=>location.reload(),500); }
+  catch(e){ toast(e.message||'ลบไม่สำเร็จ',true); }
+}
+async function leaveCampaign(){
+  if(!confirm('ออกจากแคมเปญนี้?')) return;
+  try{ const { error } = await supa.rpc('leave_campaign',{ p_campaign:campaign.id }); if(error) throw error; toast('ออกจากแคมเปญแล้ว'); setTimeout(()=>location.reload(),500); }
+  catch(e){ toast(e.message||'ออกไม่สำเร็จ',true); }
+}
 
 // ───────── campaign membership ─────────
 async function loadMyCampaign(){
@@ -576,11 +591,21 @@ async function loadMyCampaign(){
   await enterCampaign();
 }
 
+let rulesFromFiles='';
+async function onRulesFiles(files){
+  const parts=[]; let total=0;
+  for(const f of files){ try{ const t=await f.text(); parts.push(`\n\n===== ${f.name} =====\n${t}`); total+=t.length; }catch(e){} }
+  rulesFromFiles=parts.join('');
+  const info=$('rulesFilesInfo');
+  if(info) info.textContent = files.length? `โหลด ${files.length} ไฟล์ · ~${Math.round(total/1024)} KB → จะฝังเป็นกติกา DM ตอนสร้างโลก` : 'ยังไม่ได้เลือกไฟล์';
+}
 async function createCampaign(){
   const name=$('newName').value.trim(); if(!name){toast('Name your campaign first',true);return;}
   $('createBtn').disabled=true;
   try{
-    const { data, error } = await supa.rpc('create_campaign',{ p_name:name, p_rules:$('newRules').value.trim() });
+    const manual=$('newRules').value.trim();
+    const combined=[rulesFromFiles, manual].filter(Boolean).join('\n\n').trim();
+    const { data, error } = await supa.rpc('create_campaign',{ p_name:name, p_rules:combined });
     if(error) throw error;
     campaign = Array.isArray(data)?data[0]:data;
     await enterCampaign();
@@ -606,6 +631,10 @@ async function enterCampaign(){
     $('hdCode').textContent='Code: '+campaign.join_code; $('hdCode').classList.remove('hidden');
     $('hdCode').onclick=()=>{navigator.clipboard?.writeText(campaign.join_code);toast('Code copied');};
   }
+  const endBtn=$('hdEnd');
+  if(campaign.host_id===me.id){ endBtn.textContent='✕ End World'; endBtn.onclick=endCampaign; }
+  else { endBtn.textContent='Leave'; endBtn.onclick=leaveCampaign; }
+  endBtn.classList.remove('hidden');
   await refreshAll();
   show('campaign');
   subscribeRealtime();
