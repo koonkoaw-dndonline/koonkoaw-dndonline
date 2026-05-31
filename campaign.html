@@ -257,6 +257,104 @@ a.link:hover{background:var(--white);color:var(--black);}
 @media (min-width:1500px){
   .panel{max-width:1500px;}
 }
+
+/* ===== Phase 5 components ===== */
+.mapbox{border:2px solid #fff;background:#000;width:100%;aspect-ratio:10/7;display:block;}
+.mapbox svg{width:100%;height:100%;display:block;}
+.capbtn{width:100%;margin-top:12px;}
+.capframe{border:3px solid #fff;border-radius:8px;padding:8px;background:#000;}
+.capimg{border:2px solid #fff;width:100%;aspect-ratio:16/10;overflow:hidden;display:block;background:#000;}
+.capimg svg{display:block;width:100%;height:100%;}
+.capframe figcaption{font-size:12px;color:#9a9a9a;margin-top:7px;line-height:1.5;}
+.chron-meta{font-family:'Press Start 2P',monospace;font-size:7px;letter-spacing:1px;color:#9a9a9a;margin:12px 0 4px;}
+.chron-text{font-size:13.5px;line-height:1.8;color:#e6e6e6;white-space:pre-wrap;}
+.wcard{border:2px solid #fff;border-radius:6px;padding:9px 11px;display:flex;flex-direction:column;gap:7px;background:#000;}
+/* tabs: horizontal scroll for many tabs */
+.tabs{overflow-x:auto;scrollbar-width:none;}
+.tabs::-webkit-scrollbar{display:none;}
+.tab{flex:0 0 auto;padding:11px 14px;white-space:nowrap;border-right:2px solid #1c1c1c;}
+.winhead{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.lvbadge{font-family:'VT323',monospace;font-size:26px;line-height:1;border:3px solid #fff;border-radius:6px;padding:5px 11px;color:#fff;}
+.coins{display:flex;gap:16px;flex-wrap:wrap;margin-top:4px;}
+.coin{display:flex;align-items:center;gap:8px;}
+.coin .ico{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:2px solid #fff;flex-shrink:0;}
+.coin.g .ico{background:#fff;color:#000;}
+.coin.s .ico{background:#000;color:#fff;}
+.coin.c .ico{background:#000;color:#9a9a9a;border-color:#9a9a9a;}
+.coin .v{font-family:'VT323',monospace;font-size:21px;color:#fff;line-height:1;}
+.coin .lab{font-size:10px;color:#9a9a9a;letter-spacing:1px;}
+.barwrap{display:flex;flex-direction:column;gap:5px;margin-top:6px;}
+.barlabel{display:flex;justify-content:space-between;font-size:12px;color:#9a9a9a;}
+.barlabel .num{font-family:'VT323',monospace;font-size:16px;color:#fff;}
+.bar{height:15px;border:2px solid #fff;background:#000;border-radius:3px;overflow:hidden;}
+.bar .fill{height:100%;background:#fff;}
+.bar.unknown{background:#3a3a3a;}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;}
+.chip{font-size:12px;font-weight:700;padding:5px 9px;border:2px solid #fff;border-radius:4px;letter-spacing:.3px;color:#fff;background:#000;white-space:nowrap;}
+.chip.imm{background:#fff;color:#000;}
+.chip.vuln{border-style:dashed;}
+.chip.cond{border-style:dotted;}
+.chip .t{font-family:'VT323',monospace;font-size:14px;opacity:.8;margin-right:5px;}
+.fx{display:flex;align-items:center;gap:9px;border:2px solid #fff;border-radius:6px;padding:8px 11px;font-size:13px;color:#fff;}
+.fx.down{border-style:dashed;}
+.fx .ar{font-size:11px;}
+.fx.up .ar::before{content:"\25B2";}
+.fx.down .ar::before{content:"\25BC";}
+.fx .dur{margin-left:auto;font-family:'VT323',monospace;font-size:15px;color:#9a9a9a;}
+.skill{border:2px solid #fff;border-radius:7px;padding:11px 12px;display:flex;flex-direction:column;gap:7px;}
+.skill .top{display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
+.skill .nm{font-weight:700;font-size:14px;border:0;padding:0;}
+.skill .rech{margin-left:auto;font-family:'Press Start 2P',monospace;font-size:7px;border:2px solid #fff;padding:4px 6px;border-radius:3px;letter-spacing:1px;}
+.skill .rech.at{background:#fff;color:#000;}
+.pips{display:flex;gap:6px;align-items:center;}
+.pip{width:14px;height:14px;border:2px solid #fff;border-radius:50%;background:#fff;}
+.pip.spent{background:#000;}
+.pips .cnt{font-family:'VT323',monospace;font-size:15px;color:#9a9a9a;margin-left:4px;}
+.skill .desc{font-size:12px;color:#9a9a9a;line-height:1.55;}
+.acc{border:3px solid #fff;border-radius:8px;overflow:hidden;}
+.acc > .acc-head{width:100%;text-align:left;background:#000;color:#fff;border:0;padding:12px 13px;font-weight:700;font-size:14px;display:flex;align-items:center;gap:9px;}
+.acc > .acc-head::before{content:"\25B6";font-size:10px;}
+.acc > .acc-head .cnt{margin-left:auto;font-family:'VT323',monospace;font-size:16px;color:#9a9a9a;}
+.acc.open > .acc-head{border-bottom:2px solid #fff;}
+.acc.open > .acc-head::before{content:"\25BC";}
+.acc-body{display:none;padding:9px 10px 11px;flex-direction:column;gap:9px;}
+.acc.open > .acc-body{display:flex;}
+.npc{border:2px solid #fff;border-radius:6px;overflow:hidden;}
+.npc-head{width:100%;text-align:left;background:#000;color:#fff;border:0;padding:9px 11px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;}
+.npc-head::before{content:"\25B8";}
+.npc-head .rel{margin-left:auto;font-size:10px;border:2px solid #fff;padding:2px 6px;border-radius:3px;letter-spacing:.5px;color:#9a9a9a;}
+.npc.open .npc-head::before{content:"\25BE";}
+.npc-detail{display:none;padding:2px 12px 11px;font-size:12.5px;color:#cfcfcf;line-height:1.65;}
+.npc.open .npc-detail{display:block;}
+.npc-detail .kv2{display:flex;gap:8px;margin:2px 0;}
+.npc-detail .kv2 b{color:#fff;min-width:74px;font-weight:600;}
+.mon{border:3px solid #fff;border-radius:8px;padding:11px 13px;display:flex;flex-direction:column;gap:9px;}
+.mon .top{display:flex;align-items:center;gap:11px;}
+.mon .nm{font-weight:700;font-size:15px;letter-spacing:.3px;border:0;padding:0;}
+.mon .meta{font-size:11px;color:#9a9a9a;font-family:inherit;background:none;border:0;padding:0;}
+.mon .abil{font-size:12px;color:#cfcfcf;line-height:1.5;}
+.mon .abil b{color:#fff;}
+.mon.unknown{border-style:dashed;}
+.mon.unknown .nm,.mon.unknown .meta,.mon.unknown .abil{color:#9a9a9a;}
+.upload{border:3px dashed #fff;border-radius:10px;padding:26px 16px;text-align:center;color:#9a9a9a;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;}
+.upload:hover{color:#fff;border-color:#fff;}
+.upload .big{font-size:34px;line-height:1;}
+.upload .t1{font-size:14px;font-weight:700;color:#fff;letter-spacing:.3px;}
+.upload .t2{font-size:11.5px;}
+.fileitem{border:2px solid #fff;border-radius:6px;padding:10px 12px;display:flex;align-items:center;gap:11px;}
+.fileitem .ic{width:30px;height:30px;border:2px solid #fff;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;filter:grayscale(1);}
+.fileitem .info{display:flex;flex-direction:column;gap:3px;min-width:0;}
+.fileitem .nm2{font-size:13px;font-weight:600;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.fileitem .tag{font-size:9px;border:2px solid #fff;padding:2px 6px;border-radius:3px;letter-spacing:.5px;color:#9a9a9a;width:max-content;}
+.fileitem .sz{margin-left:auto;font-family:'VT323',monospace;font-size:15px;color:#9a9a9a;flex-shrink:0;}
+body.role-player .dm-only{display:none!important;}
+@media (min-width:900px){
+  .panel[data-tab="items"].active,.panel[data-tab="skills"].active,
+  .panel[data-tab="npc"].active,.panel[data-tab="mon"].active,.panel[data-tab="files"].active{
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:16px;align-items:start;align-content:start;
+  }
+  .panel[data-tab="chron"]{max-width:820px;}
+}
 </style>
 </head>
 <body>
@@ -320,9 +418,16 @@ a.link:hover{background:var(--white);color:var(--black);}
 <!-- CAMPAIGN -->
 <div class="tabs hidden" id="tabs">
   <button class="tab active" data-tab="story" onclick="switchTab('story')"><span class="tico">📖</span><span class="tlab">เรื่องราว</span></button>
-  <button class="tab" data-tab="me" onclick="switchTab('me')"><span class="tico">⚔️</span><span class="tlab">ตัวเรา</span></button>
+  <button class="tab" data-tab="me" onclick="switchTab('me')"><span class="tico">📊</span><span class="tlab">สเตตัส</span></button>
+  <button class="tab" data-tab="items" onclick="switchTab('items')"><span class="tico">🎒</span><span class="tlab">ไอเทม</span></button>
+  <button class="tab" data-tab="skills" onclick="switchTab('skills')"><span class="tico">✨</span><span class="tlab">สกิล</span></button>
   <button class="tab" data-tab="party" onclick="switchTab('party')"><span class="tico">👥</span><span class="tlab">ปาร์ตี้</span></button>
+  <button class="tab" data-tab="npc" onclick="switchTab('npc')"><span class="tico">🧑</span><span class="tlab">NPC</span></button>
+  <button class="tab" data-tab="mon" onclick="switchTab('mon')"><span class="tico">👹</span><span class="tlab">มอนสเตอร์</span></button>
+  <button class="tab" data-tab="map" onclick="switchTab('map')"><span class="tico">🗺️</span><span class="tlab">แผนที่</span></button>
   <button class="tab" data-tab="quest" onclick="switchTab('quest')"><span class="tico">🎯</span><span class="tlab">เควส</span></button>
+  <button class="tab" data-tab="files" onclick="switchTab('files')"><span class="tico">📁</span><span class="tlab">ไฟล์</span></button>
+  <button class="tab" data-tab="chron" onclick="switchTab('chron')"><span class="tico">📜</span><span class="tlab">พงศาวดาร</span></button>
 </div>
 
 <div class="panel active" id="panel-story" data-tab="story">
@@ -330,8 +435,15 @@ a.link:hover{background:var(--white);color:var(--black);}
   <div class="roundbar" id="roundbar"></div>
 </div>
 <div class="panel" id="panel-me" data-tab="me"></div>
+<div class="panel" id="panel-items" data-tab="items"></div>
+<div class="panel" id="panel-skills" data-tab="skills"></div>
 <div class="panel" id="panel-party" data-tab="party"></div>
+<div class="panel" id="panel-npc" data-tab="npc"></div>
+<div class="panel" id="panel-mon" data-tab="mon"></div>
+<div class="panel" id="panel-map" data-tab="map"></div>
 <div class="panel" id="panel-quest" data-tab="quest"></div>
+<div class="panel" id="panel-files" data-tab="files"></div>
+<div class="panel" id="panel-chron" data-tab="chron"></div>
 
 <div class="toast" id="toast"></div>
 
@@ -489,13 +601,24 @@ async function createCharacter(){
 
 // ───────── tabs ─────────
 function switchTab(t){
+  tick();
   document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));
   document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.dataset.tab===t));
   if(t==='story') renderStory();
-  if(t==='me') renderMe();
-  if(t==='party') renderParty();
-  if(t==='quest') renderQuest();
+  else if(t==='me') renderMe();
+  else if(t==='items') renderItems();
+  else if(t==='skills') renderSkills();
+  else if(t==='party') renderParty();
+  else if(t==='npc') renderNPCs();
+  else if(t==='mon') renderCombat();
+  else if(t==='map') renderMap();
+  else if(t==='quest') renderQuest();
+  else if(t==='files') renderFiles();
+  else if(t==='chron') renderChronicle();
 }
+// เสียงคลิกแบบ retro (Web Audio — ไม่ต้องโหลดไฟล์)
+let _actx=null;
+function tick(){ try{ _actx=_actx||new (window.AudioContext||window.webkitAudioContext)(); const o=_actx.createOscillator(),g=_actx.createGain(); o.type='square'; o.frequency.value=1180; g.gain.value=0.04; o.connect(g); g.connect(_actx.destination); o.start(); o.stop(_actx.currentTime+0.05); }catch(e){} }
 
 // ───────── render: story ─────────
 async function renderStory(){
@@ -578,16 +701,86 @@ async function renderMe(){
   if(!myChar){ p.innerHTML='<div class="muted">ยังไม่มีตัวละคร</div>'; return; }
   const { data:sheetRow } = await supa.from('character_sheets').select('sheet').eq('character_id',myChar.id).maybeSingle();
   const sheet=sheetRow?.sheet||{};
+  const ab=sheet.abilities||{}, cb=sheet.combat||{}, w=sheet.wallet||{}, ex=sheet.exp||{};
+  const esc=v=>escapeHtml(String(v)); const dash='—';
+  const mod=s=>{ if(s==null||isNaN(s)) return null; return Math.floor((s-10)/2); };
+  const sign=m=>(m==null?null:(m>=0?'+':'−')+Math.abs(m));
+  const cap=s=>s.replace(/\b\w/g,c=>c.toUpperCase());
+  const num=(k,v)=>`<div class="kv"><span class="k">${k}</span><span class="dots"></span><span class="num">${v==null||v===''?dash:esc(v)}</span></div>`;
+  const abil=(k,s)=>{ const m=sign(mod(s)); const v=(s==null?dash:`${s}`)+(m?`  (${m})`:''); return num(k,v); };
+  const ARMORS={'padded':{b:11,t:'light'},'leather':{b:11,t:'light'},'studded leather':{b:12,t:'light'},'hide':{b:12,t:'medium'},'chain shirt':{b:13,t:'medium'},'scale mail':{b:14,t:'medium'},'breastplate':{b:14,t:'medium'},'half plate':{b:15,t:'medium'},'ring mail':{b:14,t:'heavy'},'chain mail':{b:16,t:'heavy'},'splint':{b:17,t:'heavy'},'plate':{b:18,t:'heavy'}};
+  function computeAC(){
+    if(cb.acOverride!=null) return { ac:cb.acOverride, label:'manual override' };
+    const dex=mod(ab.dex)||0, con=mod(ab.con)||0, wis=mod(ab.wis)||0;
+    const cls=(myChar.class||'').toLowerCase(); const eq=sheet.equipment||{};
+    const a=(eq.armor||'').toLowerCase().trim();
+    const unarmored=!a||/^(none|no armor|unarmored|-|—)$/.test(a)||a.includes('unarmored');
+    let base,label;
+    if(unarmored){
+      if(cls.includes('barbarian')){ base=10+dex+con; label='Unarmored Defense (10 + DEX + CON)'; }
+      else if(cls.includes('monk')){ base=10+dex+wis; label='Unarmored Defense (10 + DEX + WIS)'; }
+      else { base=10+dex; label='Unarmored (10 + DEX)'; }
+    } else {
+      let e=null,key=null;
+      for(const k of Object.keys(ARMORS).sort((x,y)=>y.length-x.length)){ if(a.includes(k)){ e=ARMORS[k]; key=k; break; } }
+      if(!e){ base=10+dex; label='Unknown armor → 10 + DEX'; }
+      else if(e.t==='light'){ base=e.b+dex; label=`${cap(key)} (${e.b} + DEX)`; }
+      else if(e.t==='medium'){ base=e.b+Math.min(dex,2); label=`${cap(key)} (${e.b} + DEX, max 2)`; }
+      else { base=e.b; label=`${cap(key)} (${e.b}, no DEX)`; }
+    }
+    const eq2=sheet.equipment||{}; const sh=(eq2.shield||'').toLowerCase().trim();
+    const hasShield=sh&&!/^(none|no shield|-|—)$/.test(sh);
+    return { ac:base+(hasShield?2:0), label:label+(hasShield?' + Shield (2)':'') };
+  }
+  const acRes=computeAC();
+  const prof=2+Math.floor(((myChar.level||1)-1)/4);
+  const initv=sign(mod(ab.dex));
+  const hp=(cb.maxhp!=null)?`${cb.hp??cb.maxhp}/${cb.maxhp}`:((myChar.public_status||{}).hp||dash);
+  const sub=[sheet.race, myChar.class||'นักผจญภัย','Lv.'+myChar.level].filter(Boolean).join(' · ');
+
+  // window 1: abilities + combat
   const it=document.createElement('div'); it.className='item';
-  it.innerHTML=`<div class="nm">${escapeHtml(myChar.name)}</div><div class="sub">${escapeHtml(myChar.class||'-')} · Lv.${myChar.level}</div>`;
-  const notes=document.createElement('label'); notes.className='fld'; notes.style.marginTop='6px';
-  notes.innerHTML='บันทึกส่วนตัว (เห็นเฉพาะคุณ)';
+  it.innerHTML=`<div class="nm">${esc(myChar.name)} <span class="meta-inline">${esc(sub)}</span></div>`+
+    `<div class="sectitle">ABILITY SCORES</div><div class="grid2">`+abil('STR',ab.str)+abil('DEX',ab.dex)+abil('CON',ab.con)+abil('INT',ab.int)+abil('WIS',ab.wis)+abil('CHA',ab.cha)+`</div>`+
+    `<div class="sectitle">COMBAT</div>`+num('Armor Class (AC)',acRes.ac)+
+    `<div class="note" style="margin:-2px 0 4px;">AC = ${esc(acRes.label)}</div>`+
+    num('Hit Points (HP)',hp)+num('Hit Dice',cb.hitdice)+num('Initiative',initv)+num('Speed (ft)',cb.speed)+num('Proficiency',sign(prof));
+  p.appendChild(it);
+
+  // window 2: level + exp + wallet
+  const w2=document.createElement('div'); w2.className='item';
+  const cur=ex.current||0, nxt=ex.next||0; const pct=nxt?Math.min(100,Math.round(cur/nxt*100)):0;
+  w2.innerHTML=`<div class="winhead"><div class="sectitle" style="margin:0">LEVEL & EXP</div><div class="lvbadge">Lv ${myChar.level}</div></div>`+
+    `<div class="barwrap"><div class="barlabel"><span>Experience</span><span class="num">${cur} / ${nxt||dash}</span></div><div class="bar"><div class="fill" style="width:${pct}%"></div></div></div>`+
+    `<div class="sectitle" style="margin-top:10px">WALLET</div><div class="coins"><div class="coin g"><span class="ico">G</span><span><span class="v">${w.gp||0}</span> <span class="lab">GOLD</span></span></div><div class="coin s"><span class="ico">S</span><span><span class="v">${w.sp||0}</span> <span class="lab">SILVER</span></span></div><div class="coin c"><span class="ico">C</span><span><span class="v">${w.cp||0}</span> <span class="lab">COPPER</span></span></div></div>`;
+  p.appendChild(w2);
+
+  // window 3: status / conditions / resistances
+  const eff=sheet.effects||[], conds=sheet.conditions||[], res=sheet.resistances||{};
+  const w3=document.createElement('div'); w3.className='item';
+  let h='<div class="sectitle">STATUS & EFFECTS</div>';
+  if(eff.length) eff.forEach(e=>{ const dir=(e.kind==='debuff'||e.kind==='down')?'down':'up'; h+=`<div class="fx ${dir}"><span class="ar"></span><b>${esc(e.name||'')}</b> ${esc(e.desc||'')} <span class="dur">${esc(e.dur||'')}</span></div>`; });
+  else h+='<div class="note">ไม่มีเอฟเฟกต์</div>';
+  h+='<div class="sectitle" style="margin-top:10px">CONDITIONS</div>';
+  h+= conds.length? '<div class="chips">'+conds.map(c=>`<span class="chip cond">${esc(c)}</span>`).join('')+'</div>' : '<div class="note">ปกติ</div>';
+  const resA=res.resist||[], immA=res.immune||[], vulA=res.vulnerable||[];
+  if(resA.length||immA.length||vulA.length){
+    h+='<div class="sectitle" style="margin-top:10px">RESISTANCES</div><div class="chips">'+
+      resA.map(x=>`<span class="chip"><span class="t">RES</span>${esc(x)}</span>`).join('')+
+      immA.map(x=>`<span class="chip imm"><span class="t">IMM</span>${esc(x)}</span>`).join('')+
+      vulA.map(x=>`<span class="chip vuln"><span class="t">VUL</span>${esc(x)}</span>`).join('')+'</div>';
+  }
+  w3.innerHTML=h; p.appendChild(w3);
+
+  // private notes editor
+  const it4=document.createElement('div'); it4.className='item';
+  const notes=document.createElement('label'); notes.className='fld';
+  notes.innerHTML='<div class="sectitle" style="margin-top:0">NOTES (ส่วนตัว)</div>';
   const ta=document.createElement('textarea'); ta.id='meNotes'; ta.value=sheet.notes||''; notes.appendChild(ta);
-  it.appendChild(notes);
+  it4.appendChild(notes);
   const save=document.createElement('button'); save.className='btn sm'; save.textContent='บันทึกแผ่นตัวละคร';
   save.onclick=async()=>{ sheet.notes=$('meNotes').value; await supa.from('character_sheets').update({sheet,updated_at:new Date().toISOString()}).eq('character_id',myChar.id); toast('บันทึกแล้ว ✓'); };
-  it.appendChild(save);
-  p.appendChild(it);
+  it4.appendChild(save); p.appendChild(it4);
 }
 function renderParty(){
   const p=$('panel-party'); p.innerHTML='';
@@ -613,6 +806,124 @@ async function renderQuest(){
     it.innerHTML=`<div class="nm">🎯 ${escapeHtml(q.title)}</div><div class="sub">${escapeHtml(q.description||'')}</div>`;
     p.appendChild(it);
   });
+}
+
+// ───────── render: items (อิง sheet) ─────────
+async function renderItems(){
+  const p=$('panel-items'); p.innerHTML='';
+  if(!myChar){ p.innerHTML='<div class="muted">ยังไม่มีตัวละคร</div>'; return; }
+  const { data:sheetRow } = await supa.from('character_sheets').select('sheet').eq('character_id',myChar.id).maybeSingle();
+  const sheet=sheetRow?.sheet||{}; const eq=sheet.equipment||{}; const inv=sheet.inventory||[];
+  const tv=(k,v)=>`<div class="kv"><span class="k">${k}</span><span class="dots"></span><span class="num" style="font-family:'Noto Sans Thai';font-size:13px;color:#fff;">${v?escapeHtml(v):'—'}</span></div>`;
+  const eqc=document.createElement('div'); eqc.className='item';
+  eqc.innerHTML='<div class="sectitle">EQUIPPED</div>'+tv('Weapon',eq.weapon)+tv('Off-hand',eq.offhand)+tv('Armor',eq.armor)+tv('Shield',eq.shield)+tv('Accessory',eq.accessory);
+  p.appendChild(eqc);
+  const bag=document.createElement('div'); bag.className='item';
+  bag.innerHTML=`<div class="winhead"><div class="sectitle" style="margin:0">BACKPACK</div><span class="chip">${inv.length} ชิ้น</span></div>`+
+    (inv.length? inv.map(i=>`<div class="kv"><span class="k">▸ ${escapeHtml(typeof i==='string'?i:(i.name||'')+(i.qty?` x${i.qty}`:''))}</span></div>`).join('') : '<div class="kv"><span class="k">— ว่าง —</span></div>');
+  p.appendChild(bag);
+}
+
+// ───────── render: skills (ตาราง skills + fallback) ─────────
+async function renderSkills(){
+  const p=$('panel-skills'); p.innerHTML='';
+  if(!myChar){ p.innerHTML='<div class="muted">ยังไม่มีตัวละคร</div>'; return; }
+  let rows=null;
+  try{ const r=await supa.from('skills').select('*').eq('character_id',myChar.id).order('sort'); if(!r.error) rows=r.data||[]; }catch(e){}
+  if(rows===null){ p.innerHTML='<div class="muted">ยังไม่ได้เปิดระบบสกิล<br>รัน migration.sql เพื่อเพิ่มตาราง skills</div>'; return; }
+  if(!rows.length){ p.innerHTML='<div class="muted">ยังไม่มีสกิล</div>'; return; }
+  const card=document.createElement('div'); card.className='item'; card.innerHTML='<div class="sectitle">SKILLS</div>';
+  rows.forEach(s=>{
+    const rech=s.recharge||'long';
+    const lab={long:'LONG REST',short:'SHORT REST',atwill:'AT WILL',passive:'PASSIVE'}[rech]||rech.toUpperCase();
+    const at=(rech==='atwill'||rech==='passive')?' at':'';
+    let pips='';
+    if(s.max_uses>0){ for(let i=0;i<s.max_uses;i++) pips+=`<span class="pip${i<s.used?' spent':''}"></span>`; pips=`<div class="pips">${pips}<span class="cnt">${s.max_uses-s.used}/${s.max_uses} left</span></div>`; }
+    const d=document.createElement('div'); d.className='skill';
+    d.innerHTML=`<div class="top"><span class="nm">${escapeHtml(s.name)}</span><span class="rech${at}">${lab}</span></div>${pips}<div class="desc">${escapeHtml(s.description||'')}</div>`;
+    card.appendChild(d);
+  });
+  p.appendChild(card);
+}
+
+// ───────── render: NPC (ตาราง npcs + accordion) ─────────
+async function renderNPCs(){
+  const p=$('panel-npc'); p.innerHTML='';
+  let rows=null;
+  try{ const r=await supa.from('npcs').select('*').eq('campaign_id',campaign.id).order('city'); if(!r.error) rows=(r.data||[]).filter(n=>n.discovered!==false); }catch(e){}
+  if(rows===null){ p.innerHTML='<div class="muted">ยังไม่ได้เปิดระบบ NPC<br>รัน migration.sql</div>'; return; }
+  if(!rows.length){ p.innerHTML='<div class="muted">ยังไม่พบ NPC</div>'; return; }
+  const byCity={}; rows.forEach(n=>{ const c=n.city||'ไม่ระบุ'; (byCity[c]=byCity[c]||[]).push(n); });
+  Object.keys(byCity).forEach((city,idx)=>{
+    const list=byCity[city];
+    let body='';
+    list.forEach(n=>{ body+=`<div class="npc"><button class="npc-head" onclick="tick();this.parentElement.classList.toggle('open')">${escapeHtml(n.name)}<span class="rel">${escapeHtml(n.relationship||'-')}</span></button><div class="npc-detail"><div class="kv2"><b>บทบาท</b><span>${escapeHtml(n.role||'-')}</span></div><div class="kv2"><b>บันทึก</b><span>${escapeHtml(n.notes||'-')}</span></div></div></div>`; });
+    const acc=document.createElement('div'); acc.className='acc'+(idx===0?' open':'');
+    acc.innerHTML=`<button class="acc-head" onclick="tick();this.parentElement.classList.toggle('open')">${escapeHtml(city)}<span class="cnt">${list.length}</span></button><div class="acc-body">${body}</div>`;
+    p.appendChild(acc);
+  });
+}
+
+// ───────── render: monster (combat_state + fog-of-war) ─────────
+async function renderCombat(){
+  const p=$('panel-mon'); p.innerHTML='';
+  let cs=null;
+  try{ const r=await supa.from('combat_state').select('*, monsters(*)').eq('campaign_id',campaign.id).eq('active',true); if(!r.error) cs=r.data||[]; }catch(e){}
+  if(cs===null){ p.innerHTML='<div class="muted">ยังไม่ได้เปิดระบบมอนสเตอร์<br>รัน migration.sql</div>'; return; }
+  if(!cs.length){ p.innerHTML='<div class="muted">ตอนนี้ไม่มีการต่อสู้</div>'; return; }
+  let disc=new Set();
+  try{ const b=await supa.from('bestiary').select('monster_id').eq('campaign_id',campaign.id); (b.data||[]).forEach(x=>disc.add(x.monster_id)); }catch(e){}
+  const note=document.createElement('div'); note.className='note'; note.style.cssText='text-align:left;padding:4px 2px 8px'; note.textContent='⚔ กำลังต่อสู้'; p.appendChild(note);
+  cs.forEach(c=>{
+    const m=c.monsters||{}; const known=disc.has(c.monster_id);
+    const d=document.createElement('div'); d.className='mon'+(known?'':' unknown');
+    if(known){
+      const pct=m.max_hp?Math.round((c.cur_hp/m.max_hp)*100):0;
+      d.innerHTML=`<div class="top"><div><div class="nm">${escapeHtml(m.name)}</div><div class="meta">${escapeHtml(m.type||'')} · เคยพบ ✓</div></div></div><div class="barwrap"><div class="barlabel"><span>HP</span><span class="num">${c.cur_hp} / ${m.max_hp}</span></div><div class="bar"><div class="fill" style="width:${pct}%"></div></div></div><div class="abil"><b>Abilities:</b> ${escapeHtml((m.abilities||[]).join(', ')||'-')}</div>`;
+    } else {
+      d.innerHTML=`<div class="top"><div><div class="nm">ศัตรูปริศนา</div><div class="meta">ยังไม่เคยพบในแคมเปญนี้</div></div></div><div class="barwrap"><div class="barlabel"><span>HP</span><span class="num">??? / ???</span></div><div class="bar unknown"></div></div><div class="abil"><b>Abilities:</b> ??? — ต้องเผชิญหน้าก่อนจึงเปิดเผย</div>`;
+    }
+    p.appendChild(d);
+  });
+}
+
+// ───────── render: map (campaign_state) ─────────
+async function renderMap(){
+  const p=$('panel-map'); p.innerHTML='';
+  let st=null;
+  try{ const r=await supa.from('campaign_state').select('*').eq('campaign_id',campaign.id).maybeSingle(); if(!r.error) st=r.data; }catch(e){}
+  if(st===null){ p.innerHTML='<div class="muted">ยังไม่ได้เปิดระบบแผนที่<br>รัน migration.sql</div>'; return; }
+  if(!st||!st.current_map){ p.innerHTML='<div class="muted">ยังไม่ได้เข้าดันเจียน<br>DM จะเผยแผนที่เมื่อถึงเวลา</div>'; return; }
+  const it=document.createElement('div'); it.className='item';
+  it.innerHTML=`<div class="nm">แผนที่ดันเจียน</div><div class="note" style="text-align:left;padding:4px 2px">ห้องปัจจุบัน: ${escapeHtml(st.current_room||'-')}</div>`;
+  p.appendChild(it);
+}
+
+// ───────── render: files (placeholder — เปิดเต็มในขั้น RAG) ─────────
+async function renderFiles(){
+  const p=$('panel-files'); p.innerHTML='';
+  const it=document.createElement('div'); it.className='item';
+  it.innerHTML='<div class="sectitle">ไฟล์อ้างอิง / เพลง / ดันเจียน / ปริศนา</div><div class="note">ส่วนนี้ (อัปไฟล์ + RAG + เพลงตามฉาก) จะเปิดในขั้นถัดไป หลังตั้ง Supabase Storage และรัน migration.sql</div>';
+  p.appendChild(it);
+}
+
+// ───────── render: chronicle (จาก narrative เต็ม) ─────────
+async function renderChronicle(){
+  const p=$('panel-chron'); p.innerHTML='';
+  const head=document.createElement('div'); head.className='item';
+  head.innerHTML='<div class="nm">บันทึกการผจญภัย <span class="meta-inline">'+narrative.length+' ตอน</span></div>';
+  const exp=document.createElement('button'); exp.className='btn ghost sm'; exp.style.marginTop='9px'; exp.textContent='บันทึกเป็นไฟล์ (HTML)'; exp.onclick=exportChronicle;
+  head.appendChild(exp); p.appendChild(head);
+  const log=document.createElement('div'); log.className='item';
+  if(!narrative.length){ log.innerHTML='<div class="muted">ยังไม่มีเรื่องราว</div>'; }
+  else narrative.forEach((n,i)=>{ const m=document.createElement('div'); m.className='chron-meta'; m.textContent='ตอนที่ '+(i+1)+' · DM'; const t=document.createElement('div'); t.className='chron-text'; t.textContent=n.content; log.appendChild(m); log.appendChild(t); });
+  p.appendChild(log);
+}
+function exportChronicle(){
+  const body=narrative.map((n,i)=>'<h3>ตอนที่ '+(i+1)+'</h3><p>'+escapeHtml(n.content).replace(/\n/g,'<br>')+'</p>').join('');
+  const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>'+escapeHtml(campaign.name)+'</title></head><body style="font-family:sans-serif;max-width:720px;margin:auto;padding:24px;line-height:1.8;background:#fff;color:#111"><h1>'+escapeHtml(campaign.name)+'</h1>'+body+'</body></html>';
+  const blob=new Blob([html],{type:'text/html'}); const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='chronicle.html'; a.click(); URL.revokeObjectURL(url); toast('บันทึกแล้ว ✓');
 }
 
 // ───────── realtime ─────────
