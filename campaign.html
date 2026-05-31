@@ -65,7 +65,7 @@ input,textarea,select{font-family:inherit;}
   width:100%;max-width:430px;background:var(--black);
   border:var(--px) solid var(--white);border-radius:10px;padding:22px 20px;
   box-shadow:0 0 0 var(--px) var(--black),inset 0 0 0 2px var(--black),6px 6px 0 rgba(255,255,255,.10);
-  display:flex;flex-direction:column;gap:13px;animation:popIn .2s steps(2) both;
+  display:flex;flex-direction:column;gap:13px;animation:popIn .09s steps(2) both;
 }
 .card h2{font-size:18px;font-weight:700;color:var(--white);letter-spacing:.5px;display:flex;align-items:center;gap:8px;}
 .card h2::before{content:"▶";font-size:13px;color:var(--white);}
@@ -117,7 +117,7 @@ a.link:hover{background:var(--white);color:var(--black);}
 .tab:hover{color:var(--white);}
 .tab.active{color:var(--black);background:var(--white);font-weight:700;}
 .tab.active::before{content:"▶";margin-right:4px;font-size:10px;}
-.tab.active::after{content:"▼";position:absolute;left:50%;bottom:0;transform:translateX(-50%);font-size:9px;line-height:1;color:#000;}
+.tab.active::after{content:none;}
 .tab .tico{display:inline-flex;align-items:center;vertical-align:middle;}
 .tab .tico svg{width:16px;height:16px;display:block;}
 .tab .tlab{margin-left:6px;vertical-align:middle;}
@@ -132,7 +132,7 @@ a.link:hover{background:var(--white);color:var(--black);}
   border:var(--px) solid var(--white);border-radius:10px;padding:14px 16px 20px;
   font-size:17px;line-height:2;white-space:pre-wrap;word-break:break-word;color:var(--white);
   box-shadow:0 0 0 var(--px) var(--black),inset 0 0 0 2px var(--black);
-  animation:popIn .2s steps(2) both;
+  animation:popIn .09s steps(2) both;
 }
 .narr .meta{
   font-family:'Press Start 2P',monospace;font-size:8px;line-height:1;
@@ -170,7 +170,7 @@ a.link:hover{background:var(--white);color:var(--black);}
   background:var(--black);border:var(--px) solid var(--white);border-radius:10px;
   padding:14px;display:flex;flex-direction:column;gap:8px;
   box-shadow:0 0 0 var(--px) var(--black),inset 0 0 0 2px var(--black);
-  animation:popIn .2s steps(2) both;
+  animation:popIn .09s steps(2) both;
 }
 .item .nm{font-size:16px;font-weight:700;color:var(--white);letter-spacing:.5px;border-bottom:2px solid var(--white);padding-bottom:7px;}
 .item .nm .meta-inline{font-size:12px;font-weight:400;color:var(--gray);letter-spacing:0;text-shadow:none;margin-left:8px;white-space:normal;}
@@ -275,11 +275,10 @@ a.link:hover{background:var(--white);color:var(--black);}
 .tab{flex:1 1 0;min-width:0;padding:11px 2px;white-space:nowrap;border-right:2px solid #1c1c1c;}
 .tab .tico svg{width:17px;height:17px;}
 .tabs .tab .tlab{display:none;}                 /* มือถือ/แท็บเล็ต: ไอคอนล้วน */
-.tabs .tab.active::before{display:none;}        /* เหลือ ▼ ใต้แท็บพอ */
+.tabs .tab.active::before{display:inline;}      /* เหลือลูกศร ▶ ฝั่งซ้ายอย่างเดียว */
 @media (min-width:860px){
   .tab{padding:11px 6px;}
   .tabs .tab .tlab{display:inline;margin-left:6px;font-size:12px;}
-  .tabs .tab.active::before{display:inline;}
 }
 .winhead{display:flex;align-items:center;justify-content:space-between;gap:10px;}
 .lvbadge{font-family:'VT323',monospace;font-size:26px;line-height:1;border:3px solid #fff;border-radius:6px;padding:5px 11px;color:#fff;}
@@ -359,6 +358,16 @@ body.role-player .dm-only{display:none!important;}
 /* ไอคอน Monster กระพริบเมื่อกำลังต่อสู้ */
 @keyframes combatblink{50%{opacity:.18;}}
 .tab[data-tab="mon"].combat .tico{animation:combatblink .7s steps(1) infinite;}
+/* World Clock window (Resolver v2) บนแท็บ Story */
+.clockwin{border:var(--px) solid #fff;border-radius:8px;padding:8px 11px;background:#000;display:flex;flex-wrap:wrap;gap:7px 14px;align-items:center;box-shadow:0 0 0 var(--px) #000,inset 0 0 0 2px #000;}
+.clockwin .cwlabel{font-family:'Press Start 2P',monospace;font-size:7px;color:#fff;border:2px solid #fff;padding:4px 6px;border-radius:2px;letter-spacing:1px;}
+.clockwin .cw{display:flex;align-items:center;gap:5px;font-size:12px;color:#9a9a9a;}
+.clockwin .cw b{color:#fff;font-family:'VT323',monospace;font-size:17px;font-weight:400;letter-spacing:.5px;}
+/* ฟอร์มสร้างตัวละคร */
+.srow2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.srow3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.grid3 .fld,.srow3 .fld,.srow2 .fld{font-size:11px;}
 @media (min-width:900px){
   .panel[data-tab="items"].active,.panel[data-tab="skills"].active,
   .panel[data-tab="npc"].active,.panel[data-tab="mon"].active,.panel[data-tab="files"].active{
@@ -416,13 +425,41 @@ body.role-player .dm-only{display:none!important;}
 
 <!-- CHARACTER CREATE -->
 <div class="center hidden" id="charScreen">
-  <div class="card">
+  <div class="card" style="max-width:480px">
     <h2>Create Character</h2>
-    <p class="sub">Basic info is visible to all party members; your full sheet is private to you.</p>
-    <label class="fld">Character name<input type="text" id="cName" placeholder="e.g. Kael"/></label>
-    <label class="fld">Class<input type="text" id="cClass" placeholder="e.g. Warrior, Wizard"/></label>
-    <label class="fld">Notes / background (private)<textarea id="cNotes" placeholder="Backstory, secrets, belongings, etc. (visible only to you)"></textarea></label>
-    <button class="btn" id="charBtn" onclick="createCharacter()">Let's Go!</button>
+    <p class="sub">อ่านปูมหลังโลกที่ DM เล่าก่อน แล้วสร้างตัวละครให้เข้ากับโลกนี้ — ตั้งค่าตามกฎ D&D หรือจะนอกกฎให้ DM improvise ก็ได้ (ข้อมูลพื้นฐานทุกคนเห็น · แผ่นเต็มเห็นเฉพาะคุณ)</p>
+    <label class="fld">Name<input type="text" id="cName" placeholder="e.g. Kael"/></label>
+    <div class="srow3">
+      <label class="fld">Race<input type="text" id="cRace" placeholder="Human, Elf…"/></label>
+      <label class="fld">Sex<input type="text" id="cSex" placeholder="M / F / …"/></label>
+      <label class="fld">Age<input type="text" id="cAge" placeholder="e.g. 24"/></label>
+    </div>
+    <label class="fld">Class<input type="text" id="cClass" placeholder="Fighter, Wizard, … (นอกกฎได้)"/></label>
+    <div class="sectitle" style="margin-top:4px">ABILITY SCORES <span style="font-family:'Noto Sans Thai';font-size:10px;color:#9a9a9a;font-weight:400">· standard array 15,14,13,12,10,8</span></div>
+    <div class="grid3">
+      <label class="fld">STR<input type="number" id="aStr" value="10" min="1" max="30"/></label>
+      <label class="fld">DEX<input type="number" id="aDex" value="10" min="1" max="30"/></label>
+      <label class="fld">CON<input type="number" id="aCon" value="10" min="1" max="30"/></label>
+      <label class="fld">INT<input type="number" id="aInt" value="10" min="1" max="30"/></label>
+      <label class="fld">WIS<input type="number" id="aWis" value="10" min="1" max="30"/></label>
+      <label class="fld">CHA<input type="number" id="aCha" value="10" min="1" max="30"/></label>
+    </div>
+    <div class="srow2">
+      <label class="fld">Max HP<input type="number" id="cHp" placeholder="e.g. 12" min="1"/></label>
+      <label class="fld">Starting weapon<input type="text" id="cWeapon" list="basicWeapons" placeholder="เลือกหรือพิมพ์เอง"/></label>
+    </div>
+    <datalist id="basicWeapons">
+      <option value="Dagger (1d4 piercing)"></option><option value="Club (1d4 bludgeoning)"></option>
+      <option value="Quarterstaff (1d6 bludgeoning)"></option><option value="Spear (1d6 piercing)"></option>
+      <option value="Handaxe (1d6 slashing)"></option><option value="Mace (1d6 bludgeoning)"></option>
+      <option value="Shortsword (1d6 piercing)"></option><option value="Rapier (1d8 piercing)"></option>
+      <option value="Longsword (1d8 slashing)"></option><option value="Warhammer (1d8 bludgeoning)"></option>
+      <option value="Battleaxe (1d8 slashing)"></option><option value="Shortbow (1d6 piercing)"></option>
+      <option value="Longbow (1d8 piercing)"></option><option value="Light Crossbow (1d8 piercing)"></option>
+      <option value="Greatsword (2d6 slashing)"></option><option value="Greataxe (1d12 slashing)"></option>
+    </datalist>
+    <label class="fld">Background / notes (private)<textarea id="cNotes" placeholder="ภูมิหลัง ความลับ ฯลฯ (เห็นเฉพาะคุณ)"></textarea></label>
+    <button class="btn" id="charBtn" onclick="createCharacter()">Enter the World</button>
   </div>
 </div>
 
@@ -442,6 +479,7 @@ body.role-player .dm-only{display:none!important;}
 </div>
 
 <div class="panel active" id="panel-story" data-tab="story">
+  <div id="worldClock" class="clockwin hidden"></div>
   <div id="narrFeed" style="display:flex;flex-direction:column;gap:12px;"></div>
   <div class="roundbar" id="roundbar"></div>
 </div>
@@ -468,7 +506,7 @@ const SUPA_ANON = 'sb_publishable_kODadNf7PNUWJr_ZTViABw_IsP6ggJ6';
 // ▲▲▲ key สาธารณะ (publishable) — ปลอดภัยที่จะฝัง ความปลอดภัยจริงอยู่ที่ RLS ▲▲▲
 const RESOLVE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/resolve-round';
 let supa=null, session=null, me=null;            // me = auth user
-let campaign=null, members=[], myChar=null, characters=[], curRound=null, narrative=[];
+let campaign=null, members=[], myChar=null, characters=[], curRound=null, narrative=[], mySheet={}, worldState=null;
 let rtChannel=null, resolving=false;
 
 function $(id){return document.getElementById(id);}
@@ -569,15 +607,14 @@ async function enterCampaign(){
     $('hdCode').onclick=()=>{navigator.clipboard?.writeText(campaign.join_code);toast('Code copied');};
   }
   await refreshAll();
-  // ต้องมีตัวละครก่อนเล่น
-  if(!myChar){ show('charScreen'); return; }
   show('campaign');
   subscribeRealtime();
 }
 
 async function refreshAll(){
-  await Promise.all([loadMembers(), loadCharacters(), loadRound(), loadNarrative()]);
+  await Promise.all([loadMembers(), loadCharacters(), loadRound(), loadNarrative(), loadState()]);
   myChar = characters.find(c=>c.user_id===me.id) || null;
+  if(myChar){ try{ const r=await supa.from('character_sheets').select('sheet').eq('character_id',myChar.id).maybeSingle(); mySheet=r.data?.sheet||{}; }catch(e){ mySheet={}; } }
   updateCombatBadge();
 }
 // ไอคอน Monster กระพริบเมื่อมี combat active (combat_state) — เงียบถ้ายังไม่ได้รัน migration
@@ -605,19 +642,48 @@ async function loadNarrative(){
     .order('created_at',{ascending:true});
   narrative = data||[];
 }
+async function loadState(){
+  try{ const r=await supa.from('campaign_state').select('*').eq('campaign_id',campaign.id).maybeSingle(); worldState=r.error?null:r.data; }
+  catch(e){ worldState=null; }
+}
+// หน้าต่างนาฬิกาโลกบนแท็บ Story (DM อัปเดตผ่าน resolver v2)
+function renderClock(){
+  const el=$('worldClock'); if(!el) return;
+  const c=(worldState&&worldState.clock)||{};
+  if(!c||!Object.keys(c).length){ el.classList.add('hidden'); return; }
+  const E=escapeHtml;
+  let h='<span class="cwlabel">WORLD</span>';
+  if(c.date) h+=`<span class="cw">📅 <b>${E(c.date)}/${E(c.month||'-')}/${E(c.year||'-')}</b></span>`;
+  if(c.time) h+=`<span class="cw">🕐 <b>${E(c.time)}</b></span>`;
+  if(c.season) h+=`<span class="cw">🍂 <b>${E(c.season)}</b></span>`;
+  if(c.weather) h+=`<span class="cw">☁️ <b>${E(c.weather)}</b></span>`;
+  if(c.moon) h+=`<span class="cw">🌙 <b>${E(c.moon)}</b></span>`;
+  el.innerHTML=h; el.classList.remove('hidden');
+}
 
 // ───────── character ─────────
 async function createCharacter(){
   const name=$('cName').value.trim(); if(!name){toast('Name your character first',true);return;}
   $('charBtn').disabled=true;
   try{
+    const A=id=>{ const v=parseInt($(id).value); return isNaN(v)?10:v; };
+    const hpv=parseInt($('cHp').value); const maxhp=isNaN(hpv)?null:hpv;
     const { data:ch, error } = await supa.from('characters').insert({
       campaign_id:campaign.id, user_id:me.id, name, class:$('cClass').value.trim()||null,
-      public_status:{ hp:'100%' }
+      public_status:{ hp: maxhp?`${maxhp}/${maxhp}`:'100%' }
     }).select().single();
     if(error) throw error;
-    await supa.from('character_sheets').insert({ character_id:ch.id, sheet:{ notes:$('cNotes').value.trim(), inventory:[], stats:{} } });
-    myChar=ch; await refreshAll(); show('campaign'); subscribeRealtime();
+    const sheet={
+      race:$('cRace').value.trim(), sex:$('cSex').value.trim(), age:$('cAge').value.trim(),
+      abilities:{ str:A('aStr'), dex:A('aDex'), con:A('aCon'), int:A('aInt'), wis:A('aWis'), cha:A('aCha') },
+      combat:{ hp:maxhp, maxhp:maxhp, hitdice:'' },
+      equipment:{ weapon:$('cWeapon').value.trim(), offhand:'', armor:'', shield:'', accessory:'' },
+      inventory:[], wallet:{gp:0,sp:0,cp:0}, exp:{current:0,next:300},
+      conditions:[], resistances:{resist:[],immune:[],vulnerable:[]}, effects:[],
+      notes:$('cNotes').value.trim()
+    };
+    await supa.from('character_sheets').insert({ character_id:ch.id, sheet });
+    myChar=ch; mySheet=sheet; await refreshAll(); show('campaign'); switchTab('story');
   }catch(e){ toast(e.message||'Failed to create character',true); }
   finally{ $('charBtn').disabled=false; }
 }
@@ -645,6 +711,7 @@ function tick(){ try{ _actx=_actx||new (window.AudioContext||window.webkitAudioC
 
 // ───────── render: story ─────────
 async function renderStory(){
+  renderClock();
   const feed=$('narrFeed'); feed.innerHTML='';
   if(!narrative.length){ feed.innerHTML='<div class="muted">No story yet '+(campaign.host_id===me.id?'— press "Begin Adventure" below':'— waiting for the host to begin')+'</div>'; }
   narrative.forEach(n=>{
@@ -657,35 +724,54 @@ async function renderStory(){
   const sp=$('panel-story'); sp.scrollTop=sp.scrollHeight;
 }
 
+let roundbarSeq=0;
+function nameFor(a){
+  const c=characters.find(x=>(a.character_id&&x.id===a.character_id)||x.user_id===a.user_id);
+  if(c) return c.name;
+  const m=members.find(m=>m.user_id===a.user_id);
+  return (m&&m.profiles&&m.profiles.display_name)||'Player';
+}
 async function renderRoundbar(){
-  const bar=$('roundbar'); bar.innerHTML='';
+  const myseq=++roundbarSeq;            // กัน render ซ้อน (ต้นเหตุกล่องตอบซ้ำ)
+  const bar=$('roundbar');
   const isHost = campaign.host_id===me.id;
-
-  if(!curRound){
-    if(isHost){ const b=document.createElement('button'); b.className='btn'; b.textContent='✨ Begin Adventure'; b.onclick=startAdventure; bar.appendChild(b); }
-    else { bar.innerHTML='<div class="statusline">Waiting for the host to begin…</div>'; }
+  // STAGE 1: ยังไม่มีปูมหลังโลก → host เริ่ม intro
+  if(!narrative.length){
+    bar.innerHTML='';
+    if(isHost){ const b=document.createElement('button'); b.className='btn'; b.textContent='✨ Begin Adventure (สร้างปูมหลังโลก)'; b.disabled=resolving; b.onclick=introAdventure; bar.appendChild(b); }
+    else bar.innerHTML='<div class="statusline">Waiting for the host to begin…</div>';
     return;
   }
-  if(curRound.phase==='awaiting_actions'){
-    const { data:myAct } = await supa.from('actions').select('id, action_text').eq('round_id',curRound.id).eq('user_id',me.id).maybeSingle();
-    // นับผ่าน RPC (RLS ซ่อน action คนอื่นจนรอบ done — ใช้ security definer นับแทน)
-    let submitted=0, total=members.length;
-    try{ const { data:prog } = await supa.rpc('round_progress',{p_round:curRound.id});
-      const row=Array.isArray(prog)?prog[0]:prog; if(row){ submitted=row.submitted; total=row.total; } }catch(e){}
-    const status=document.createElement('div'); status.className='statusline';
-    status.innerHTML=`<span class="pill">Round ${curRound.round_number}</span><span class="pill ${submitted>=total?'done':'wait'}">Submitted ${submitted}/${total}</span>`;
-    bar.appendChild(status);
-
-    if(myAct){
-      const done=document.createElement('div'); done.className='statusline'; done.innerHTML=`✅ You submitted: <i>${escapeHtml(myAct.action_text)}</i>`; bar.appendChild(done);
-    } else {
-      const ta=document.createElement('textarea'); ta.id='actInput'; ta.placeholder='What will your character do?'; bar.appendChild(ta);
-      const b=document.createElement('button'); b.className='btn'; b.textContent='Submit Action'; b.onclick=submitAction; bar.appendChild(b);
-    }
-    if(isHost){ const f=document.createElement('button'); f.className='btn warn sm'; f.textContent=resolving?'Resolving…':'⚡ Force Resolve'; f.disabled=resolving; f.onclick=()=>resolveRound(true); bar.appendChild(f); }
-  } else if(curRound.phase==='resolving'){
-    bar.innerHTML='<div class="statusline"><span class="pill wait">DM is resolving…</span></div>';
+  // STAGE 2: อ่านปูมหลังแล้ว แต่ยังไม่มีตัวละคร → สร้างตัวละคร
+  if(!myChar){
+    bar.innerHTML='<div class="statusline">อ่านปูมหลังโลกด้านบนก่อน แล้วสร้างตัวละครของคุณให้เข้ากับโลกนี้</div>';
+    const b=document.createElement('button'); b.className='btn'; b.textContent='📝 Create your character'; b.onclick=()=>show('charScreen'); bar.appendChild(b);
+    return;
   }
+  // STAGE 3: มีตัวละครแล้ว แต่ยังไม่เปิดฉาก → host เริ่มฉากแรก
+  if(!curRound){
+    bar.innerHTML='';
+    if(isHost){ const b=document.createElement('button'); b.className='btn'; b.textContent='▶ Start First Scene'; b.disabled=resolving; b.onclick=startFirstScene; bar.appendChild(b); }
+    else bar.innerHTML='<div class="statusline">Waiting for the host to start the first scene…</div>';
+    return;
+  }
+  if(curRound.phase==='resolving'){ bar.innerHTML='<div class="statusline"><span class="pill wait">DM is resolving…</span></div>'; return; }
+  if(curRound.phase!=='awaiting_actions'){ bar.innerHTML=''; return; }
+  // ดึงข้อมูลให้ครบ "ก่อน" สร้าง DOM (await อยู่ก่อน guard เท่านั้น → ไม่เกิด append ซ้อน)
+  const { data:acts } = await supa.from('actions').select('user_id, action_text, character_id').eq('round_id',curRound.id).order('submitted_at',{ascending:true});
+  let submitted=0, total=members.length;
+  try{ const { data:prog } = await supa.rpc('round_progress',{p_round:curRound.id}); const row=Array.isArray(prog)?prog[0]:prog; if(row){ submitted=row.submitted; total=row.total; } }catch(e){}
+  if(myseq!==roundbarSeq) return;       // มี render ใหม่กว่าเริ่มแล้ว ยกเลิกอันนี้
+  const list=acts||[];
+  const mine=list.find(a=>a.user_id===me.id);
+  let html=`<div class="statusline"><span class="pill">Round ${curRound.round_number}</span><span class="pill ${submitted>=total?'done':'wait'}">Submitted ${submitted}/${total}</span></div>`;
+  list.forEach(a=>{ html+=`<div class="actionlog"><b>${escapeHtml(nameFor(a))}</b> ${escapeHtml(a.action_text)}</div>`; });
+  bar.innerHTML=html;   // สร้างทีเดียว (synchronous ต่อจากนี้ ไม่มี await)
+  if(!mine){
+    const ta=document.createElement('textarea'); ta.id='actInput'; ta.placeholder='What will your character do?'; bar.appendChild(ta);
+    const b=document.createElement('button'); b.className='btn'; b.textContent='Submit Action'; b.onclick=submitAction; bar.appendChild(b);
+  }
+  if(isHost){ const f=document.createElement('button'); f.className='btn warn sm'; f.textContent=resolving?'Resolving…':'⚡ Force Resolve'; f.disabled=resolving; f.onclick=()=>resolveRound(true); bar.appendChild(f); }
 }
 
 async function submitAction(){
@@ -701,18 +787,21 @@ async function submitAction(){
   }catch(e){ toast(e.message||'Submit failed',true); }
 }
 
-async function startAdventure(){ resolveRound(false); }
+async function introAdventure(){ resolveRound(false,'intro'); }
+async function startFirstScene(){ resolveRound(false); }
 
-async function resolveRound(force){
+async function resolveRound(force, mode){
   if(resolving) return; resolving=true; renderRoundbar();
   try{
     const token=(await supa.auth.getSession()).data.session?.access_token;
+    const body={campaign_id:campaign.id, force:!!force}; if(mode) body.mode=mode;
     const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-      body:JSON.stringify({campaign_id:campaign.id, force:!!force})});
+      body:JSON.stringify(body)});
     const j=await r.json();
     if(!r.ok){ toast(j.error||'Resolve failed',true); }
     else if(j.status==='waiting'){ toast(`Waiting for everyone (${j.submitted}/${j.total})`); }
     else if(j.status==='busy'){ /* someone else is resolving */ }
+    else if(j.status==='intro'){ toast('โลกถูกสร้างแล้ว — สร้างตัวละครได้เลย!'); }
     else if(j.status==='opened'||j.status==='resolved'){ toast(j.status==='opened'?'Scene opened!':'The DM continued the story!'); }
   }catch(e){ toast('Could not reach the resolver',true); }
   finally{ resolving=false; await refreshAll(); renderStory(); }
@@ -722,8 +811,7 @@ async function resolveRound(force){
 async function renderMe(){
   const p=$('panel-me'); p.innerHTML='';
   if(!myChar){ p.innerHTML='<div class="muted">No character yet</div>'; return; }
-  const { data:sheetRow } = await supa.from('character_sheets').select('sheet').eq('character_id',myChar.id).maybeSingle();
-  const sheet=sheetRow?.sheet||{};
+  const sheet=mySheet||{};
   const ab=sheet.abilities||{}, cb=sheet.combat||{}, w=sheet.wallet||{}, ex=sheet.exp||{};
   const esc=v=>escapeHtml(String(v)); const dash='—';
   const mod=s=>{ if(s==null||isNaN(s)) return null; return Math.floor((s-10)/2); };
@@ -834,8 +922,7 @@ async function renderQuest(){
 async function renderItems(){
   const p=$('panel-items'); p.innerHTML='';
   if(!myChar){ p.innerHTML='<div class="muted">No character yet</div>'; return; }
-  const { data:sheetRow } = await supa.from('character_sheets').select('sheet').eq('character_id',myChar.id).maybeSingle();
-  const sheet=sheetRow?.sheet||{}; const eq=sheet.equipment||{}; const inv=sheet.inventory||[];
+  const sheet=mySheet||{}; const eq=sheet.equipment||{}; const inv=sheet.inventory||[];
   const tv=(k,v)=>`<div class="kv"><span class="k">${k}</span><span class="dots"></span><span class="num" style="font-family:'Noto Sans Thai';font-size:13px;color:#fff;">${v?escapeHtml(v):'—'}</span></div>`;
   const eqc=document.createElement('div'); eqc.className='item';
   eqc.innerHTML='<div class="sectitle">EQUIPPED</div>'+tv('Weapon',eq.weapon)+tv('Off-hand',eq.offhand)+tv('Armor',eq.armor)+tv('Shield',eq.shield)+tv('Accessory',eq.accessory);
@@ -956,6 +1043,7 @@ function subscribeRealtime(){
     .on('postgres_changes',{event:'*',schema:'public',table:'rounds',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadRound(); if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'actions',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'characters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadCharacters(); if(activeTab()==='party') renderParty(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'campaign_state',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadState(); if(activeTab()==='story') renderClock(); })
     .subscribe();
 }
 function activeTab(){ return document.querySelector('.tab.active')?.dataset.tab; }
