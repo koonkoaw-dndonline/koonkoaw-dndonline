@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TTRPG Campaign</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --bg:#0a0a0f;--surface:rgba(17,17,24,0.9);--surface2:rgba(26,26,36,0.9);--surface3:#22222f;
+  --border:rgba(60,60,90,0.7);--accent:#4f8cff;--accent2:#a78bfa;
+  --text:#e8e8f0;--text2:#8888a8;--error:#ff5566;--success:#44cc88;--warn:#f5b942;--radius:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Noto Sans Thai',sans-serif;background:var(--bg);color:var(--text);height:100dvh;display:flex;flex-direction:column;overflow:hidden;}
+.hidden{display:none!important;}
+button{font-family:inherit;cursor:pointer;}
+input,textarea,select{font-family:inherit;}
+
+/* header */
+.hd{padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.hd .logo{width:30px;height:30px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;}
+.hd .ttl{font-size:15px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.hd .code{font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--surface3);padding:3px 8px;border-radius:6px;color:var(--accent2);cursor:pointer;}
+.hd .who{font-size:11px;color:var(--text2);}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--border);}
+.dot.ok{background:var(--success);box-shadow:0 0 6px var(--success);}
+.dot.err{background:var(--error);}
+
+/* center cards (auth/lobby/char) */
+.center{flex:1;overflow-y:auto;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:16px;}
+.card{width:100%;max-width:420px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:22px;display:flex;flex-direction:column;gap:14px;}
+.card h2{font-size:18px;font-weight:700;}
+.card p.sub{font-size:13px;color:var(--text2);line-height:1.6;}
+label.fld{font-size:12px;color:var(--text2);display:flex;flex-direction:column;gap:5px;}
+input[type=text],input[type=email],input[type=password],textarea,select{background:rgba(26,26,36,.95);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:9px;font-size:14px;outline:none;transition:border-color .2s;width:100%;}
+input:focus,textarea:focus,select:focus{border-color:var(--accent);}
+textarea{resize:vertical;min-height:64px;line-height:1.5;}
+.btn{background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:#fff;padding:11px 18px;border-radius:9px;font-size:14px;font-weight:600;transition:opacity .2s;}
+.btn:hover{opacity:.88;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn.ghost{background:rgba(34,34,47,.85);border:1px solid var(--border);color:var(--text2);}
+.btn.ghost:hover{border-color:var(--accent);color:var(--accent);opacity:1;}
+.btn.sm{padding:7px 12px;font-size:12px;}
+.btn.warn{background:linear-gradient(135deg,var(--warn),#e07b39);}
+.divider{display:flex;align-items:center;gap:10px;color:var(--text2);font-size:11px;}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border);}
+.note{font-size:11px;color:var(--text2);}
+
+/* tabs */
+.tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;}
+.tab{flex:1;padding:11px 4px;text-align:center;font-size:12px;color:var(--text2);border-bottom:2px solid transparent;background:none;border-top:none;border-left:none;border-right:none;transition:all .2s;}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600;}
+.panel{flex:1;overflow-y:auto;padding:14px;display:none;flex-direction:column;gap:12px;}
+.panel.active{display:flex;}
+
+/* narrative feed */
+.narr{background:var(--ai-bg,rgba(20,20,32,.88));border:1px solid var(--border);border-left:3px solid var(--accent2);border-radius:10px;padding:12px 14px;font-size:14px;line-height:1.75;white-space:pre-wrap;word-break:break-word;}
+.narr .meta{font-size:10px;color:var(--text2);margin-bottom:5px;font-family:'JetBrains Mono',monospace;}
+.actionlog{background:rgba(30,42,74,.5);border:1px solid rgba(79,140,255,.25);border-radius:9px;padding:9px 12px;font-size:13px;line-height:1.6;}
+.actionlog b{color:var(--accent);}
+
+/* round bar */
+.roundbar{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--border);padding:10px;display:flex;flex-direction:column;gap:8px;}
+.statusline{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.pill{font-size:11px;padding:2px 8px;border-radius:10px;background:var(--surface3);color:var(--text2);}
+.pill.done{background:rgba(68,204,136,.18);color:var(--success);}
+.pill.wait{background:rgba(245,185,66,.18);color:var(--warn);}
+
+/* sheet / party / quest cards */
+.item{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:6px;}
+.item .nm{font-size:15px;font-weight:600;}
+.item .sub{font-size:12px;color:var(--text2);}
+.kv{display:flex;gap:8px;font-size:13px;}
+.kv .k{color:var(--text2);min-width:80px;}
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(10px);background:rgba(26,26,36,.97);border:1px solid var(--border);color:var(--text);padding:9px 18px;border-radius:18px;font-size:13px;opacity:0;transition:all .3s;pointer-events:none;z-index:999;max-width:90vw;text-align:center;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.err{border-color:var(--error);color:#ffb3bd;}
+.muted{color:var(--text2);font-size:12px;text-align:center;padding:20px;}
+a.link{color:var(--accent);font-size:12px;text-decoration:none;}
+</style>
+</head>
+<body>
+
+<div class="hd">
+  <div class="logo">⚔</div>
+  <div class="ttl" id="hdTitle">TTRPG Campaign</div>
+  <span class="code hidden" id="hdCode" title="คลิกเพื่อคัดลอกรหัสเชิญ"></span>
+  <span class="who" id="hdWho"></span>
+  <div class="dot" id="hdDot"></div>
+  <a class="btn ghost sm" href="index.html" style="text-decoration:none;">โหมดเดี่ยว</a>
+  <button class="btn ghost sm hidden" id="hdLogout" onclick="doLogout()">ออก</button>
+</div>
+
+<!-- AUTH -->
+<div class="center" id="authScreen">
+  <div class="card">
+    <h2>เข้าสู่ระบบ</h2>
+    <p class="sub">ใส่อีเมล เราจะส่งลิงก์เข้าสู่ระบบให้ (ไม่ต้องจำรหัสผ่าน) คลิกลิงก์ในเมลแล้วกลับมาหน้านี้ได้เลย</p>
+    <label class="fld hidden" id="anonFld">Supabase Anon/Publishable Key
+      <input type="password" id="anonKey" placeholder="eyJ... หรือ sb_publishable_..."/>
+    </label>
+    <label class="fld">อีเมล
+      <input type="email" id="email" placeholder="you@example.com" autocomplete="email"/>
+    </label>
+    <button class="btn" id="loginBtn" onclick="sendMagicLink()">ส่งลิงก์เข้าสู่ระบบ</button>
+    <p class="note" id="authNote"></p>
+  </div>
+</div>
+
+<!-- LOBBY -->
+<div class="center hidden" id="lobbyScreen">
+  <div class="card">
+    <h2>เริ่มแคมเปญใหม่</h2>
+    <p class="sub">คุณจะเป็นเจ้าภาพ (host) ของโลกนี้ — เล่นกันได้สูงสุด 4 คน</p>
+    <label class="fld">ชื่อแคมเปญ<input type="text" id="newName" placeholder="เช่น ตำนานแห่งเอลดราเรีย"/></label>
+    <label class="fld">กติกา/สไตล์ (ไม่บังคับ)<textarea id="newRules" placeholder="สรุปกติกาหรือโทนเรื่องที่อยากให้ DM ยึด"></textarea></label>
+    <button class="btn" id="createBtn" onclick="createCampaign()">สร้างแคมเปญ</button>
+  </div>
+  <div class="divider">หรือ</div>
+  <div class="card">
+    <h2>เข้าร่วมด้วยรหัส</h2>
+    <p class="sub">ขอรหัสเชิญ 6 ตัวจากเจ้าภาพ</p>
+    <label class="fld">รหัสเชิญ<input type="text" id="joinCode" placeholder="เช่น EMM8YM" maxlength="6" style="text-transform:uppercase;font-family:'JetBrains Mono',monospace;letter-spacing:3px;"/></label>
+    <button class="btn ghost" id="joinBtn" onclick="joinCampaign()">เข้าร่วม</button>
+  </div>
+</div>
+
+<!-- CHARACTER CREATE -->
+<div class="center hidden" id="charScreen">
+  <div class="card">
+    <h2>สร้างตัวละคร</h2>
+    <p class="sub">ข้อมูลพื้นฐานเปิดให้ทุกคนในปาร์ตี้เห็น ส่วนแผ่นตัวละครเต็มเห็นเฉพาะคุณ</p>
+    <label class="fld">ชื่อตัวละคร<input type="text" id="cName" placeholder="เช่น คาเอล"/></label>
+    <label class="fld">คลาส/อาชีพ<input type="text" id="cClass" placeholder="เช่น นักรบ, จอมเวท"/></label>
+    <label class="fld">บันทึก/แบ็คกราวด์ (ส่วนตัว)<textarea id="cNotes" placeholder="ภูมิหลัง ความลับ ของในกระเป๋า ฯลฯ (เห็นเฉพาะคุณ)"></textarea></label>
+    <button class="btn" id="charBtn" onclick="createCharacter()">ลุยเลย!</button>
+  </div>
+</div>
+
+<!-- CAMPAIGN -->
+<div class="tabs hidden" id="tabs">
+  <button class="tab active" data-tab="story" onclick="switchTab('story')">📖 เรื่องราว</button>
+  <button class="tab" data-tab="me" onclick="switchTab('me')">⚔️ ตัวเรา</button>
+  <button class="tab" data-tab="party" onclick="switchTab('party')">👥 ปาร์ตี้</button>
+  <button class="tab" data-tab="quest" onclick="switchTab('quest')">🎯 เควส</button>
+</div>
+
+<div class="panel active" id="panel-story" data-tab="story">
+  <div id="narrFeed" style="display:flex;flex-direction:column;gap:12px;"></div>
+  <div class="roundbar" id="roundbar"></div>
+</div>
+<div class="panel" id="panel-me" data-tab="me"></div>
+<div class="panel" id="panel-party" data-tab="party"></div>
+<div class="panel" id="panel-quest" data-tab="quest"></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ───────── config / state ─────────
+const SUPA_URL = localStorage.getItem('gSupaUrl') || 'https://caxksvqlgrvwnjynbbye.supabase.co';
+const RESOLVE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/resolve-round';
+let supa=null, session=null, me=null;            // me = auth user
+let campaign=null, members=[], myChar=null, characters=[], curRound=null, narrative=[];
+let rtChannel=null, resolving=false;
+
+function $(id){return document.getElementById(id);}
+function toast(msg,isErr){const t=$('toast');t.textContent=msg;t.className='toast show'+(isErr?' err':'');setTimeout(()=>t.className='toast',2600);}
+function show(id){['authScreen','lobbyScreen','charScreen'].forEach(s=>$(s).classList.add('hidden'));
+  $('tabs').classList.add('hidden');document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  if(id==='campaign'){$('tabs').classList.remove('hidden');switchTab('story');}
+  else{$(id).classList.remove('hidden');}}
+
+// ───────── init ─────────
+(async function init(){
+  let anon = localStorage.getItem('gSupaAnon')||'';
+  if(!anon){ $('anonFld').classList.remove('hidden'); }   // ขอ key ถ้ายังไม่เคยตั้ง
+  else { initClient(anon); }
+  // ถ้ามี key แล้ว เช็ค session (รวมถึง magic-link ที่เพิ่งกลับมา)
+  if(supa){ await afterAuthChange(); }
+})();
+
+function initClient(anon){
+  try{ supa = window.supabase.createClient(SUPA_URL, anon, {auth:{detectSessionInUrl:true,persistSession:true}});
+    localStorage.setItem('gSupaUrl',SUPA_URL); localStorage.setItem('gSupaAnon',anon);
+    supa.auth.onAuthStateChange((_e,s)=>{ session=s; });
+    return true;
+  }catch(e){ toast('เชื่อมต่อ Supabase ไม่ได้',true); return false; }
+}
+
+async function afterAuthChange(){
+  const { data:{ session:s } } = await supa.auth.getSession();
+  session = s;
+  if(!session){ $('hdDot').className='dot'; $('hdLogout').classList.add('hidden'); show('authScreen'); return; }
+  me = session.user;
+  $('hdDot').className='dot ok'; $('hdLogout').classList.remove('hidden');
+  $('hdWho').textContent = me.email || '';
+  await ensureProfile();
+  await loadMyCampaign();
+}
+
+async function ensureProfile(){
+  const name = (me.email||'Player').split('@')[0];
+  await supa.from('profiles').upsert({ id: me.id, display_name: name }, { onConflict:'id', ignoreDuplicates:true });
+}
+
+// ───────── auth ─────────
+async function sendMagicLink(){
+  if(!supa){ const k=$('anonKey').value.trim(); if(!k){toast('ใส่ Anon Key ก่อน',true);return;} if(!initClient(k))return; }
+  const email=$('email').value.trim();
+  if(!email){ toast('ใส่อีเมลก่อน',true); return; }
+  $('loginBtn').disabled=true;
+  try{
+    const { error } = await supa.auth.signInWithOtp({ email, options:{ emailRedirectTo: location.href.split('#')[0] } });
+    if(error) throw error;
+    $('authNote').textContent='✅ ส่งลิงก์ไปที่ '+email+' แล้ว — เปิดเมลแล้วคลิกลิงก์เพื่อเข้าสู่ระบบ';
+  }catch(e){ toast(e.message||'ส่งลิงก์ไม่สำเร็จ',true); }
+  finally{ $('loginBtn').disabled=false; }
+}
+async function doLogout(){ await supa.auth.signOut(); location.reload(); }
+
+// ───────── campaign membership ─────────
+async function loadMyCampaign(){
+  // หาแคมเปญ active ที่เราเป็นสมาชิก
+  const { data: mem } = await supa.from('campaign_members')
+    .select('campaign_id, role, is_active, campaigns(*)')
+    .eq('user_id', me.id).eq('is_active', true);
+  const active = (mem||[]).map(m=>m.campaigns).filter(c=>c && c.status==='active');
+  if(!active.length){ show('lobbyScreen'); return; }
+  campaign = active[0];
+  await enterCampaign();
+}
+
+async function createCampaign(){
+  const name=$('newName').value.trim(); if(!name){toast('ตั้งชื่อแคมเปญก่อน',true);return;}
+  $('createBtn').disabled=true;
+  try{
+    const { data, error } = await supa.rpc('create_campaign',{ p_name:name, p_rules:$('newRules').value.trim() });
+    if(error) throw error;
+    campaign = Array.isArray(data)?data[0]:data;
+    await enterCampaign();
+  }catch(e){ toast(e.message||'สร้างไม่สำเร็จ',true); }
+  finally{ $('createBtn').disabled=false; }
+}
+async function joinCampaign(){
+  const code=$('joinCode').value.trim().toUpperCase(); if(!code){toast('ใส่รหัสเชิญ',true);return;}
+  $('joinBtn').disabled=true;
+  try{
+    const { data:cid, error } = await supa.rpc('join_campaign',{ p_code:code });
+    if(error) throw error;
+    const { data:c } = await supa.from('campaigns').select('*').eq('id',cid).single();
+    campaign=c; await enterCampaign();
+  }catch(e){ toast(e.message||'เข้าร่วมไม่สำเร็จ (รหัสผิด/เต็ม/ติดแคมเปญอื่น)',true); }
+  finally{ $('joinBtn').disabled=false; }
+}
+
+// ───────── enter campaign ─────────
+async function enterCampaign(){
+  $('hdTitle').textContent = campaign.name;
+  if(campaign.host_id===me.id && campaign.join_code){
+    $('hdCode').textContent='รหัส: '+campaign.join_code; $('hdCode').classList.remove('hidden');
+    $('hdCode').onclick=()=>{navigator.clipboard?.writeText(campaign.join_code);toast('คัดลอกรหัสแล้ว');};
+  }
+  await refreshAll();
+  // ต้องมีตัวละครก่อนเล่น
+  if(!myChar){ show('charScreen'); return; }
+  show('campaign');
+  subscribeRealtime();
+}
+
+async function refreshAll(){
+  await Promise.all([loadMembers(), loadCharacters(), loadRound(), loadNarrative()]);
+  myChar = characters.find(c=>c.user_id===me.id) || null;
+}
+async function loadMembers(){
+  const { data } = await supa.from('campaign_members').select('user_id, role, is_active, profiles(display_name)')
+    .eq('campaign_id',campaign.id).eq('is_active',true);
+  members = data||[];
+}
+async function loadCharacters(){
+  const { data } = await supa.from('characters').select('*').eq('campaign_id',campaign.id);
+  characters = data||[];
+}
+async function loadRound(){
+  const { data } = await supa.from('rounds').select('*').eq('campaign_id',campaign.id)
+    .order('round_number',{ascending:false}).limit(1).maybeSingle();
+  curRound = data||null;
+}
+async function loadNarrative(){
+  const { data } = await supa.from('narrative').select('*').eq('campaign_id',campaign.id)
+    .order('created_at',{ascending:true});
+  narrative = data||[];
+}
+
+// ───────── character ─────────
+async function createCharacter(){
+  const name=$('cName').value.trim(); if(!name){toast('ตั้งชื่อตัวละครก่อน',true);return;}
+  $('charBtn').disabled=true;
+  try{
+    const { data:ch, error } = await supa.from('characters').insert({
+      campaign_id:campaign.id, user_id:me.id, name, class:$('cClass').value.trim()||null,
+      public_status:{ hp:'100%' }
+    }).select().single();
+    if(error) throw error;
+    await supa.from('character_sheets').insert({ character_id:ch.id, sheet:{ notes:$('cNotes').value.trim(), inventory:[], stats:{} } });
+    myChar=ch; await refreshAll(); show('campaign'); subscribeRealtime();
+  }catch(e){ toast(e.message||'สร้างตัวละครไม่สำเร็จ',true); }
+  finally{ $('charBtn').disabled=false; }
+}
+
+// ───────── tabs ─────────
+function switchTab(t){
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.dataset.tab===t));
+  if(t==='story') renderStory();
+  if(t==='me') renderMe();
+  if(t==='party') renderParty();
+  if(t==='quest') renderQuest();
+}
+
+// ───────── render: story ─────────
+async function renderStory(){
+  const feed=$('narrFeed'); feed.innerHTML='';
+  if(!narrative.length){ feed.innerHTML='<div class="muted">ยังไม่มีเรื่องราว '+(campaign.host_id===me.id?'— กด "เริ่มการผจญภัย" ด้านล่าง':'— รอเจ้าภาพเริ่มเรื่อง')+'</div>'; }
+  narrative.forEach(n=>{
+    const d=document.createElement('div'); d.className='narr';
+    d.innerHTML='<div class="meta">🎲 DM</div>'; const c=document.createElement('div'); c.textContent=n.content; d.appendChild(c);
+    feed.appendChild(d);
+  });
+  // ถ้ารอบจบแล้ว แสดง action ของทุกคน (RLS เปิดให้เห็นหลัง done)
+  renderRoundbar();
+  const sp=$('panel-story'); sp.scrollTop=sp.scrollHeight;
+}
+
+async function renderRoundbar(){
+  const bar=$('roundbar'); bar.innerHTML='';
+  const isHost = campaign.host_id===me.id;
+
+  if(!curRound){
+    if(isHost){ const b=document.createElement('button'); b.className='btn'; b.textContent='✨ เริ่มการผจญภัย'; b.onclick=startAdventure; bar.appendChild(b); }
+    else { bar.innerHTML='<div class="statusline">รอเจ้าภาพเริ่มเรื่อง…</div>'; }
+    return;
+  }
+  if(curRound.phase==='awaiting_actions'){
+    const { data:myAct } = await supa.from('actions').select('id, action_text').eq('round_id',curRound.id).eq('user_id',me.id).maybeSingle();
+    // นับผ่าน RPC (RLS ซ่อน action คนอื่นจนรอบ done — ใช้ security definer นับแทน)
+    let submitted=0, total=members.length;
+    try{ const { data:prog } = await supa.rpc('round_progress',{p_round:curRound.id});
+      const row=Array.isArray(prog)?prog[0]:prog; if(row){ submitted=row.submitted; total=row.total; } }catch(e){}
+    const status=document.createElement('div'); status.className='statusline';
+    status.innerHTML=`<span class="pill">รอบ ${curRound.round_number}</span><span class="pill ${submitted>=total?'done':'wait'}">ส่งแล้ว ${submitted}/${total}</span>`;
+    bar.appendChild(status);
+
+    if(myAct){
+      const done=document.createElement('div'); done.className='statusline'; done.innerHTML=`✅ คุณส่งแล้ว: <i>${escapeHtml(myAct.action_text)}</i>`; bar.appendChild(done);
+    } else {
+      const ta=document.createElement('textarea'); ta.id='actInput'; ta.placeholder='ตัวละครของคุณจะทำอะไร?'; bar.appendChild(ta);
+      const b=document.createElement('button'); b.className='btn'; b.textContent='ส่งการกระทำ'; b.onclick=submitAction; bar.appendChild(b);
+    }
+    if(isHost){ const f=document.createElement('button'); f.className='btn warn sm'; f.textContent=resolving?'กำลังประมวลผล…':'⚡ บังคับประมวลผลรอบนี้'; f.disabled=resolving; f.onclick=()=>resolveRound(true); bar.appendChild(f); }
+  } else if(curRound.phase==='resolving'){
+    bar.innerHTML='<div class="statusline"><span class="pill wait">DM กำลังประมวลผล…</span></div>';
+  }
+}
+
+async function submitAction(){
+  const txt=$('actInput')?.value.trim(); if(!txt){toast('พิมพ์การกระทำก่อน',true);return;}
+  try{
+    const { error } = await supa.from('actions').insert({
+      campaign_id:campaign.id, round_id:curRound.id, user_id:me.id, character_id:myChar?.id||null, action_text:txt
+    });
+    if(error) throw error;
+    toast('ส่งการกระทำแล้ว ✓');
+    await loadRound(); renderRoundbar();
+    resolveRound(false);   // ลองประมวลผล — backend ตอบ waiting ถ้ายังไม่ครบ
+  }catch(e){ toast(e.message||'ส่งไม่สำเร็จ',true); }
+}
+
+async function startAdventure(){ resolveRound(false); }
+
+async function resolveRound(force){
+  if(resolving) return; resolving=true; renderRoundbar();
+  try{
+    const token=(await supa.auth.getSession()).data.session?.access_token;
+    const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify({campaign_id:campaign.id, force:!!force})});
+    const j=await r.json();
+    if(!r.ok){ toast(j.error||'ประมวลผลไม่สำเร็จ',true); }
+    else if(j.status==='waiting'){ toast(`รอครบทุกคนก่อน (${j.submitted}/${j.total})`); }
+    else if(j.status==='busy'){ /* คนอื่นกำลัง resolve */ }
+    else if(j.status==='opened'||j.status==='resolved'){ toast(j.status==='opened'?'เปิดฉากแล้ว!':'DM เล่าต่อแล้ว!'); }
+  }catch(e){ toast('เชื่อมต่อ resolver ไม่ได้',true); }
+  finally{ resolving=false; await refreshAll(); renderStory(); }
+}
+
+// ───────── render: me / party / quest ─────────
+async function renderMe(){
+  const p=$('panel-me'); p.innerHTML='';
+  if(!myChar){ p.innerHTML='<div class="muted">ยังไม่มีตัวละคร</div>'; return; }
+  const { data:sheetRow } = await supa.from('character_sheets').select('sheet').eq('character_id',myChar.id).maybeSingle();
+  const sheet=sheetRow?.sheet||{};
+  const it=document.createElement('div'); it.className='item';
+  it.innerHTML=`<div class="nm">${escapeHtml(myChar.name)}</div><div class="sub">${escapeHtml(myChar.class||'-')} · Lv.${myChar.level}</div>`;
+  const notes=document.createElement('label'); notes.className='fld'; notes.style.marginTop='6px';
+  notes.innerHTML='บันทึกส่วนตัว (เห็นเฉพาะคุณ)';
+  const ta=document.createElement('textarea'); ta.id='meNotes'; ta.value=sheet.notes||''; notes.appendChild(ta);
+  it.appendChild(notes);
+  const save=document.createElement('button'); save.className='btn sm'; save.textContent='บันทึกแผ่นตัวละคร';
+  save.onclick=async()=>{ sheet.notes=$('meNotes').value; await supa.from('character_sheets').update({sheet,updated_at:new Date().toISOString()}).eq('character_id',myChar.id); toast('บันทึกแล้ว ✓'); };
+  it.appendChild(save);
+  p.appendChild(it);
+}
+function renderParty(){
+  const p=$('panel-party'); p.innerHTML='';
+  const others=characters.filter(c=>c.user_id!==me.id);
+  if(!others.length){ p.innerHTML='<div class="muted">ยังไม่มีเพื่อนร่วมปาร์ตี้ — แชร์รหัสเชิญให้เพื่อน</div>'; }
+  others.forEach(c=>{
+    const it=document.createElement('div'); it.className='item';
+    const hp=c.public_status?.hp?` · HP ${c.public_status.hp}`:'';
+    it.innerHTML=`<div class="nm">${escapeHtml(c.name)}</div><div class="sub">${escapeHtml(c.class||'-')} · Lv.${c.level}${hp}</div><div class="sub">ข้อมูลส่วนตัวของเพื่อนถูกซ่อนไว้ 🔒</div>`;
+    p.appendChild(it);
+  });
+  // เผยรายชื่อสมาชิกที่ยังไม่สร้างตัวละคร
+  const noChar=members.filter(m=>!characters.find(c=>c.user_id===m.user_id));
+  if(noChar.length){ const d=document.createElement('div'); d.className='note'; d.textContent=`รอสร้างตัวละคร: ${noChar.length} คน`; p.appendChild(d); }
+}
+async function renderQuest(){
+  const p=$('panel-quest'); p.innerHTML='';
+  const { data:quests } = await supa.from('quests').select('*').eq('campaign_id',campaign.id).order('created_at',{ascending:false});
+  const active=(quests||[]).filter(q=>q.status==='active');
+  if(!active.length){ p.innerHTML='<div class="muted">ยังไม่มีเควสที่กำลังดำเนินอยู่</div>'; return; }
+  active.forEach(q=>{
+    const it=document.createElement('div'); it.className='item';
+    it.innerHTML=`<div class="nm">🎯 ${escapeHtml(q.title)}</div><div class="sub">${escapeHtml(q.description||'')}</div>`;
+    p.appendChild(it);
+  });
+}
+
+// ───────── realtime ─────────
+function subscribeRealtime(){
+  if(rtChannel) return;
+  rtChannel = supa.channel('camp-'+campaign.id)
+    .on('postgres_changes',{event:'*',schema:'public',table:'narrative',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadNarrative(); if(activeTab()==='story') renderStory(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'rounds',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadRound(); if(activeTab()==='story') renderRoundbar(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'actions',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='story') renderRoundbar(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'characters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadCharacters(); if(activeTab()==='party') renderParty(); })
+    .subscribe();
+}
+function activeTab(){ return document.querySelector('.tab.active')?.dataset.tab; }
+function escapeHtml(s){ return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+</script>
+</body>
+</html>
