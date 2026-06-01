@@ -1371,12 +1371,11 @@ async function renderRoundbar(){
       const ec=cb.economy||{};
       const moveOk = ec.move!==undefined ? (String(ec.move)!=='0'&&String(ec.move).toLowerCase()!=='0 ft') : true;
       const econ=document.createElement('div'); econ.className='econrow';
-      const lbl=document.createElement('span'); lbl.className='econlbl'; lbl.textContent='เทิร์นนี้ทำได้ (แตะเพื่อมาร์กว่าใช้แล้ว):'; econ.appendChild(lbl);
+      const lbl=document.createElement('span'); lbl.className='econlbl'; lbl.textContent='เทิร์นนี้ทำได้ (ระบบไฮไลต์ให้อัตโนมัติตามที่คุณพิมพ์/เลือก):'; econ.appendChild(lbl);
+      // chip แสดงผลอย่างเดียว — 'ระบบ' มาร์กให้เองตามการตีความข้อความ (ไม่ให้ผู้เล่นแตะเลือกเอง)
       const mkChip=(key,lab,baseAvail)=>{
-        const c=document.createElement('button'); c.type='button';
-        const setCls=()=>{ const used=!baseAvail||econUsed[key]; c.className='econ '+(used?'used':'avail'); };
-        c.textContent=lab; setCls();
-        if(baseAvail){ c.onclick=()=>{ econUsed[key]=!econUsed[key]; setCls(); tick(); }; } else { c.disabled=true; }
+        const c=document.createElement('button'); c.type='button'; c.id='econchip-'+key; c.dataset.avail=baseAvail?'1':'0'; c.tabIndex=-1;
+        c.className='econ '+(baseAvail?'avail':'used'); c.textContent=lab; c.disabled=!baseAvail;
         return c;
       };
       econ.appendChild(mkChip('action','Action', ec.action!==false));
@@ -1384,14 +1383,15 @@ async function renderRoundbar(){
       econ.appendChild(mkChip('move','Move'+(ec.move?(' '+String(ec.move)):''), moveOk));
       econ.appendChild(mkChip('reaction','Reaction', ec.reaction!==false));
       bar.appendChild(econ);
-      const leg=document.createElement('div'); leg.className='econleg'; leg.textContent='Action=ทำหลัก (โจมตี/ร่ายเวท) · Bonus=โบนัสแอ็กชัน · Move=เดิน · Reaction=ตอบโต้นอกเทิร์น'; bar.appendChild(leg);
+      const leg=document.createElement('div'); leg.className='econleg'; leg.textContent='ระบบจะไฮไลต์เองว่าการกระทำของคุณใช้ Action/Bonus/Move/Reaction ใด (ช่วยมือใหม่) — DM ตัดสินผลจริงอีกที'; bar.appendChild(leg);
       if(Array.isArray(cb.options)&&cb.options.length){
         const opts=document.createElement('div'); opts.className='optrow'; opts.innerHTML='<span class="dicelbl">แนวทาง:</span>';
         cb.options.slice(0,3).forEach(o=>{ const ob=document.createElement('button'); ob.className='btn ghost sm'; ob.textContent=o; ob.onclick=()=>appendAct(o); opts.appendChild(ob); });
         bar.appendChild(opts);
       }
     }
-    const ta=document.createElement('textarea'); ta.id='actInput'; ta.placeholder='จะให้ตัวละครทำอะไร? พิมพ์ได้อิสระ'; if(keepAct) ta.value=keepAct; bar.appendChild(ta);
+    const ta=document.createElement('textarea'); ta.id='actInput'; ta.placeholder='จะให้ตัวละครทำอะไร? พิมพ์ได้อิสระ'; if(keepAct) ta.value=keepAct; ta.oninput=markEconomyFromText; bar.appendChild(ta);
+    markEconomyFromText();   // ไฮไลต์ตามข้อความที่ค้างอยู่ (ถ้ามี)
     // E: ปุ่มปฏิสัมพันธ์สิ่งแวดล้อม
     if(Array.isArray(inter)&&inter.length){
       const ir=document.createElement('div'); ir.className='optrow'; ir.innerHTML='<span class="dicelbl">🛠 ใช้:</span>';
@@ -1427,7 +1427,33 @@ async function renderRoundbar(){
 }
 
 // ── ทอยเต๋า: DM ทอยให้ (server สุ่มจริง) / ทอยเอง (ใส่เลขดิบ) ──
-function appendAct(t){ const ta=$('actInput'); if(!ta) return; ta.value=(ta.value?ta.value.trim()+'\n':'')+t; ta.focus(); }
+function appendAct(t){ const ta=$('actInput'); if(!ta) return; ta.value=(ta.value?ta.value.trim()+'\n':'')+t; ta.focus(); markEconomyFromText(); }
+// ── ตีความข้อความการกระทำ → action economy ที่ใช้ (ช่วยมือใหม่; DM ตัดสินผลจริง) ──
+function interpretEconomy(t){
+  const s=(t||'').toLowerCase();
+  const has=(arr)=>arr.some(w=>s.includes(w));
+  // Action หลัก: โจมตี/ร่ายเวท/dash/dodge/disengage/help/hide/search/ใช้ของ
+  const action = has(['โจมตี','โจม','ฟัน','ตี','ต่อย','ยิง','แทง','ปา','ขว้าง','ร่าย','เวท','คาถา','สกิล','จู่โจม','พุ่งเข้า','ลอบ','พุ่งตัว','ช่วย','ซ่อน','ค้นหา','สำรวจ','ใช้',
+    'attack','cast','strike','shoot','stab','throw','dash','dodge','disengage','help','hide','search','spell','smite']);
+  // Move: เดิน/วิ่ง/ขยับ/เข้าใกล้/ถอย/ปีน/กระโดด
+  const move = has(['เดิน','วิ่ง','ขยับ','เคลื่อน','เข้าใกล้','เข้าหา','เข้าประชิด','ถอย','ถอยห่าง','ปีน','กระโดด','คลาน','ย้าย','หลบไป','วิ่งเข้า','วิ่งไป','พุ่งไป',
+    'move','walk','run','step','climb','jump','crawl','approach','retreat','charge']);
+  // Bonus action: ระบุชัดว่าโบนัส/มือรอง/ดื่มน้ำยา/สลับอาวุธ
+  const bonus = has(['โบนัส','มือรอง','อาวุธรอง','สองมือ','ดื่มน้ำยา','ดื่มยา','สลับอาวุธ','bonus','off-hand','offhand']);
+  // Reaction: ตอบโต้/สวนกลับ/รับมือทันที
+  const reaction = has(['ตอบโต้','สวนกลับ','สวน','โต้กลับ','ป้องกันทันที','รับมือทันที','reaction','opportunity','riposte','parry']);
+  return {action,bonus,move,reaction};
+}
+function markEconomyFromText(){
+  const ta=document.getElementById('actInput'); if(!ta) return;
+  const res=interpretEconomy(ta.value||'');
+  ['action','bonus','move','reaction'].forEach(k=>{
+    const c=document.getElementById('econchip-'+k); if(!c) return;
+    const avail=c.dataset.avail==='1';
+    const used=!avail||res[k];          // ใช้ไม่ได้ = used (ทึบ) · ตีความว่าจะใช้ = used (ไฮไลต์)
+    c.className='econ '+(used?'used':'avail');
+  });
+}
 // DM ทอยให้ — ถ้ามีหลายเต๋า (combat) ทอยรวดเดียวทั้งหมดผ่าน server
 async function rollDM(items){
   try{
@@ -1667,7 +1693,10 @@ async function renderQuest(){
 async function renderItems(){
   const p=$('panel-items'); p.innerHTML='';
   if(!myChar){ p.innerHTML='<div class="muted">No character yet</div>'; return; }
+  // ดึง sheet ล่าสุด (กระเป๋า/เงินอัปเดตหลัง DM ลง loot) — ไม่งั้นจะค้างค่าเก่า
+  try{ const r=await supa.from('character_sheets').select('sheet').eq('character_id',myChar.id).maybeSingle(); if(!r.error&&r.data&&r.data.sheet) mySheet=r.data.sheet; }catch(e){}
   const sheet=mySheet||{}; const eq=sheet.equipment||{}; const inv=sheet.inventory||[];
+  const w=sheet.wallet||{};
   const tv=(k,v)=>`<div class="kv"><span class="k">${k}</span><span class="dots"></span><span class="num" style="font-family:'Noto Sans Thai';font-size:13px;color:#fff;">${v?escapeHtml(v):'—'}</span></div>`;
   const eqc=document.createElement('div'); eqc.className='item';
   eqc.innerHTML='<div class="sectitle">EQUIPPED</div>'+tv('Weapon',eq.weapon)+tv('Off-hand',eq.offhand)+tv('Armor',eq.armor)+tv('Shield',eq.shield)+tv('Accessory',eq.accessory);
@@ -1676,6 +1705,12 @@ async function renderItems(){
   bag.innerHTML=`<div class="winhead"><div class="sectitle" style="margin:0">BACKPACK</div><span class="chip">${inv.length} items</span></div>`+
     (inv.length? inv.map(i=>`<div class="kv"><span class="k">▸ ${escapeHtml(typeof i==='string'?i:(i.name||'')+(i.qty?` x${i.qty}`:''))}</span></div>`).join('') : '<div class="kv"><span class="k">— empty —</span></div>');
   p.appendChild(bag);
+  const purse=document.createElement('div'); purse.className='item';
+  purse.innerHTML='<div class="sectitle">MONEY</div>'+
+    `<div class="kv"><span class="k">🪙 ทอง (gp)</span><span class="dots"></span><span class="num">${+w.gp||0}</span></div>`+
+    `<div class="kv"><span class="k">⚪ เงิน (sp)</span><span class="dots"></span><span class="num">${+w.sp||0}</span></div>`+
+    `<div class="kv"><span class="k">🟤 ทองแดง (cp)</span><span class="dots"></span><span class="num">${+w.cp||0}</span></div>`;
+  p.appendChild(purse);
 }
 
 // ───────── render: skills (ตาราง skills + fallback) ─────────
@@ -1992,17 +2027,41 @@ async function deleteRefFile(id,name){
   toast('ลบแล้ว ✓'); renderFiles();
 }
 
-// ───────── render: chronicle (จาก narrative เต็ม) ─────────
+// ───────── render: chronicle (บทสรุปรวบยอดโดย AI) ─────────
+let chroniclesData=[];
 async function renderChronicle(){
   const p=$('panel-chron'); p.innerHTML='';
+  // ดึงบทสรุปที่ AI สร้างไว้ (สร้างตอนเดินทางข้ามเมือง / จบ combat)
+  try{ const r=await supa.from('chronicles').select('*').eq('campaign_id',campaign.id).order('idx',{ascending:true}); if(!r.error) chroniclesData=r.data||[]; }catch(e){ chroniclesData=[]; }
+
   const head=document.createElement('div'); head.className='item';
-  head.innerHTML='<div class="nm">Adventure Chronicle <span class="meta-inline">'+narrative.length+' entries</span></div>';
+  head.innerHTML='<div class="nm">Adventure Chronicle <span class="meta-inline">'+chroniclesData.length+' บท</span></div><div class="note" style="text-align:left;padding:4px 2px 0">บทสรุปรวบยอดโดย DM — สร้างอัตโนมัติทุกครั้งที่เดินทางข้ามเมืองหรือจบการต่อสู้</div>';
   const exp=document.createElement('button'); exp.className='btn ghost sm'; exp.style.marginTop='9px'; exp.textContent='Export as file (HTML)'; exp.onclick=exportChronicle;
   head.appendChild(exp); p.appendChild(head);
+
   const log=document.createElement('div'); log.className='item';
-  if(!narrative.length){ log.innerHTML='<div class="muted">No story yet</div>'; }
-  else narrative.forEach((n,i)=>{ const m=document.createElement('div'); m.className='chron-meta'; m.textContent='Entry '+(i+1)+' · DM'; const t=document.createElement('div'); t.className='chron-text'; t.innerHTML=colorizeNarr(n.content); log.appendChild(m); log.appendChild(t); });
+  if(!chroniclesData.length){
+    log.innerHTML='<div class="muted">ยังไม่มีบทสรุป — บทแรกจะถูกสร้างเมื่อปาร์ตี้เดินทางข้ามเมือง หรือจบการต่อสู้ครั้งแรก</div>';
+  } else {
+    const kindIcon={travel:'🧭',combat:'⚔',manual:'📜'};
+    chroniclesData.forEach(ch=>{
+      const m=document.createElement('div'); m.className='chron-meta';
+      m.textContent=(kindIcon[ch.kind]||'📖')+' บทที่ '+ch.idx+(ch.to_round?(' · ถึงรอบ '+ch.to_round):'');
+      const ti=document.createElement('div'); ti.className='nm'; ti.style.margin='2px 0 4px'; ti.textContent=ch.title||('บทที่ '+ch.idx);
+      const t=document.createElement('div'); t.className='chron-text'; t.innerHTML=colorizeNarr(ch.summary);
+      log.appendChild(m); log.appendChild(ti); log.appendChild(t);
+    });
+  }
   p.appendChild(log);
+
+  // ดูบทสนทนาเต็ม (ทางเลือก — ซ่อนไว้ ไม่รก)
+  if(narrative.length){
+    const det=document.createElement('details'); det.className='item'; det.style.cursor='pointer';
+    const sm=document.createElement('summary'); sm.textContent='ดูเนื้อเรื่องเต็มทุกตอน ('+narrative.length+')'; sm.style.cssText='font-weight:600;padding:4px 0';
+    det.appendChild(sm);
+    narrative.forEach((n,i)=>{ const t=document.createElement('div'); t.className='chron-text'; t.style.marginTop='8px'; t.innerHTML=colorizeNarr(n.content); det.appendChild(t); });
+    p.appendChild(det);
+  }
   // อัลบั้มภาพ + ตัวสร้าง prompt ภาพ (ไป gen ข้างนอกเอง — ไม่เสียค่า API)
   await chronAlbumCard(p);
 }
@@ -2075,7 +2134,12 @@ async function deleteCapture(id,path){
   toast('ลบแล้ว'); renderChronicle();
 }
 function exportChronicle(){
-  const body=narrative.map((n,i)=>'<h3>Entry '+(i+1)+'</h3><p>'+escapeHtml(n.content).replace(/\n/g,'<br>')+'</p>').join('');
+  let body;
+  if(chroniclesData&&chroniclesData.length){
+    body=chroniclesData.map(ch=>'<h3>บทที่ '+ch.idx+' — '+escapeHtml(ch.title||'')+'</h3><p>'+escapeHtml(ch.summary||'').replace(/\n/g,'<br>')+'</p>').join('');
+  } else {
+    body=narrative.map((n,i)=>'<h3>Entry '+(i+1)+'</h3><p>'+escapeHtml(n.content).replace(/\n/g,'<br>')+'</p>').join('');
+  }
   const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>'+escapeHtml(campaign.name)+'</title></head><body style="font-family:sans-serif;max-width:720px;margin:auto;padding:24px;line-height:1.8;background:#fff;color:#111"><h1>'+escapeHtml(campaign.name)+'</h1>'+body+'</body></html>';
   const blob=new Blob([html],{type:'text/html'}); const url=URL.createObjectURL(blob);
   const a=document.createElement('a'); a.href=url; a.download='chronicle.html'; a.click(); URL.revokeObjectURL(url); toast('Saved ✓');
@@ -2094,6 +2158,7 @@ function subscribeRealtime(){
     .on('postgres_changes',{event:'*',schema:'public',table:'actions',filter:'campaign_id=eq.'+campaign.id}, async()=>{ _rtTouch(); if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'characters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ _rtTouch(); await loadCharacters(); if(activeTab()==='party') renderParty(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'campaign_state',filter:'campaign_id=eq.'+campaign.id}, async()=>{ _rtTouch(); await loadState(); applyMood(); if(activeTab()==='story') renderClock(); if(activeTab()==='map') renderMap(); })
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'chronicles',filter:'campaign_id=eq.'+campaign.id}, async()=>{ _rtTouch(); if(activeTab()==='chron'){ renderChronicle(); } else { const t=document.querySelector('.tab[data-tab="chron"]'); if(t) t.classList.add('blink'); } })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_messages',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ _rtTouch(); await loadChat(); if(activeTab()==='party'){ renderChatList(); } else if(payload.new && payload.new.user_id!==me.id){ const t=document.querySelector('.tab[data-tab="party"]'); if(t) t.classList.add('blink'); } })
     // presence: ตรวจ dm_thinking ของผู้เล่นทุกคน → แสดง indicator
     .on('presence',{event:'sync'}, ()=>{ _rtTouch(); _refreshThinkingFromPresence(); })
