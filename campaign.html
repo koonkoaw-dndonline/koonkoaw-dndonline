@@ -563,6 +563,7 @@ body.role-player .dm-only{display:none!important;}
   <div class="card" style="max-width:480px">
     <h2>Create Character</h2>
     <p class="sub">อ่านปูมหลังโลกที่ DM เล่าก่อน แล้วสร้างตัวละครให้เข้ากับโลกนี้ — ตั้งค่าตามกฎ D&D หรือจะนอกกฎให้ DM improvise ก็ได้ (ข้อมูลพื้นฐานทุกคนเห็น · แผ่นเต็มเห็นเฉพาะคุณ)</p>
+    <div id="joinBrief" class="hidden" style="text-align:left;border:var(--px) solid var(--white);border-radius:8px;padding:12px 14px;margin:4px 0 12px;background:rgba(255,255,255,.04);max-height:220px;overflow:auto"></div>
     <label class="fld">Name<input type="text" id="cName" placeholder="e.g. Kael"/></label>
     <div class="srow3">
       <label class="fld">Race<input type="text" id="cRace" list="raceList" placeholder="เลือก/พิมพ์เอง"/></label>
@@ -1090,6 +1091,19 @@ function renderFinal(){
   if(bonusMode==='1-1-1'){ const s=[bonusPick.a,bonusPick.b,bonusPick.c]; if(new Set(s).size<3) warn=' ⚠ ต้องเลือก 3 ค่าต่างกัน'; }
   el.innerHTML='FINAL: '+['str','dex','con','int','wis','cha'].map(k=>{ const fv=pb[k]+(m[k]||0); return `${k.toUpperCase()} <b>${fv}</b>`; }).join(' · ')+(warn?`<span style="color:#ff6b6b">${warn}</span>`:'');
 }
+// ── ผู้เล่นที่เพิ่ง join: สรุป "เรื่องราวจนถึงตอนนี้" ให้อ่านก่อนสร้างตัวละคร ──
+function fillJoinBriefing(){
+  const box=$('joinBrief'); if(!box) return;
+  const summary=(campaign&&campaign.world_summary)?String(campaign.world_summary).trim():'';
+  // ข้อความ DM ล่าสุด (เฉพาะ final) เผื่อยังไม่มี summary
+  const lastDM=[...narrative].reverse().find(n=>n.author==='dm'&&n.status!=='placeholder');
+  if(!summary && !lastDM){ box.classList.add('hidden'); return; }   // ยังไม่มีเรื่อง = ปาร์ตี้เริ่มต้น ไม่ต้องโชว์
+  let h='<div class="sectitle" style="margin:0 0 6px">📖 เรื่องราวจนถึงตอนนี้ (สรุปให้ผู้มาใหม่)</div>';
+  if(summary) h+=`<div style="line-height:1.6;font-size:13px;white-space:pre-wrap">${escapeHtml(summary)}</div>`;
+  if(lastDM) h+=`<div class="sectitle" style="margin:10px 0 4px">ฉากปัจจุบัน</div><div style="line-height:1.6;font-size:13px;white-space:pre-wrap">${escapeHtml(String(lastDM.content).slice(0,800))}</div>`;
+  h+='<div class="note" style="margin-top:8px">สร้างตัวละครให้เข้ากับสถานการณ์นี้ — DM จะบรรยายแนะนำตัวคุณเข้าสู่กลุ่มในตาถัดไป</div>';
+  box.innerHTML=h; box.classList.remove('hidden');
+}
 // ── อาชีพ: select + ช่องพิมพ์เองเมื่อเลือก "อื่นๆ" ──
 function classValue(){
   const sel=$('cClass'); if(!sel) return '';
@@ -1311,7 +1325,7 @@ async function renderRoundbar(){
   // STAGE 2: อ่านปูมหลังแล้ว แต่ยังไม่มีตัวละคร → สร้างตัวละคร
   if(!myChar){
     bar.innerHTML='<div class="statusline">อ่านปูมหลังโลกด้านบนก่อน แล้วสร้างตัวละครของคุณให้เข้ากับโลกนี้</div>';
-    const b=document.createElement('button'); b.className='btn'; b.textContent='📝 Create your character'; b.onclick=()=>{ chosenSkills=[]; bonusMode='2-1'; bonusPick={a:'str',b:'dex',c:'con'}; show('charScreen'); renderPB(); renderBonus(); suggestHP(); renderSkillPick(); }; bar.appendChild(b);
+    const b=document.createElement('button'); b.className='btn'; b.textContent='📝 Create your character'; b.onclick=()=>{ chosenSkills=[]; bonusMode='2-1'; bonusPick={a:'str',b:'dex',c:'con'}; show('charScreen'); fillJoinBriefing(); renderPB(); renderBonus(); suggestHP(); renderSkillPick(); }; bar.appendChild(b);
     return;
   }
   // STAGE 3: มีตัวละครแล้ว แต่ยังไม่เปิดฉาก → host เริ่มฉากแรก
@@ -1325,7 +1339,8 @@ async function renderRoundbar(){
   if(curRound.phase!=='awaiting_actions'){ bar.innerHTML=''; return; }
   // ดึงข้อมูลให้ครบ "ก่อน" สร้าง DOM (await อยู่ก่อน guard เท่านั้น → ไม่เกิด append ซ้อน)
   const { data:acts } = await supa.from('actions').select('user_id, action_text, character_id').eq('round_id',curRound.id).order('submitted_at',{ascending:true});
-  let submitted=0, total=members.length;
+  // total = เฉพาะสมาชิกที่ 'มีตัวละครแล้ว' (คนเพิ่ง join ที่ยังไม่สร้างตัวละครไม่นับ → รอบไม่ค้าง)
+  let submitted=0, total=members.filter(m=>characters.some(c=>c.user_id===m.user_id)).length;
   try{ const { data:prog } = await supa.rpc('round_progress',{p_round:curRound.id}); const row=Array.isArray(prog)?prog[0]:prog; if(row){ submitted=row.submitted; total=row.total; } }catch(e){}
   if(myseq!==roundbarSeq) return;       // มี render ใหม่กว่าเริ่มแล้ว ยกเลิกอันนี้
   const list=acts||[];
@@ -1400,7 +1415,8 @@ async function renderRoundbar(){
   } else {
     // ส่งแล้ว — บอกชัดว่ารอใคร / DM กำลังดำเนินเรื่อง
     const submittedIds=new Set(list.map(a=>a.user_id));
-    const pending=members.filter(m=>!submittedIds.has(m.user_id)).map(m=>chatNameFor(m.user_id));
+    // รอเฉพาะคนที่มีตัวละครแล้วและยังไม่ส่ง (ข้ามคนเพิ่ง join ที่ยังสร้างตัวละครไม่เสร็จ)
+    const pending=members.filter(m=>characters.some(c=>c.user_id===m.user_id)&&!submittedIds.has(m.user_id)).map(m=>chatNameFor(m.user_id));
     const w=document.createElement('div'); w.className='note'; w.style.cssText='text-align:left;padding:8px 2px;line-height:1.6';
     if(curRound.phase==='resolving') w.innerHTML='⏳ ส่งครบแล้ว — DM กำลังประมวลผล (ศัตรูจะตอบโต้ในผลรอบนี้)…';
     else if(pending.length) w.innerHTML='✓ คุณส่งแล้ว — รออีก <b>'+pending.length+'</b> คน: <b>'+escapeHtml(pending.join(', '))+'</b><br><span class="muted">DM และศัตรูจะดำเนินเรื่อง<u>เมื่อทุกคนส่งครบ</u> (host กด Force Resolve เพื่อไปต่อได้)</span>';
