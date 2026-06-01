@@ -566,7 +566,7 @@ body.role-player .dm-only{display:none!important;}
     <label class="fld">Name<input type="text" id="cName" placeholder="e.g. Kael"/></label>
     <div class="srow3">
       <label class="fld">Race<input type="text" id="cRace" list="raceList" placeholder="เลือก/พิมพ์เอง"/></label>
-      <label class="fld">Sex<input type="text" id="cSex" placeholder="M / F / …"/></label>
+      <label class="fld">Sex<select id="cSex"><option value="">— เลือก —</option><option value="ชาย">ชาย (M)</option><option value="หญิง">หญิง (F)</option><option value="อื่นๆ">อื่นๆ/ไม่ระบุ</option></select></label>
       <label class="fld">Age<input type="text" id="cAge" placeholder="e.g. 24"/></label>
     </div>
     <datalist id="raceList">
@@ -575,13 +575,17 @@ body.role-player .dm-only{display:none!important;}
       <option value="Tiefling"></option><option value="Dragonborn"></option><option value="Gnome"></option>
       <option value="Aasimar"></option><option value="Goliath"></option><option value="Orc"></option>
     </datalist>
-    <label class="fld">Class<input type="text" id="cClass" list="classList" oninput="suggestHP();renderSkillPick()" placeholder="Fighter, Wizard, … (นอกกฎได้)"/></label>
-    <datalist id="classList">
-      <option value="Barbarian"></option><option value="Bard"></option><option value="Cleric"></option>
-      <option value="Druid"></option><option value="Fighter"></option><option value="Monk"></option>
-      <option value="Paladin"></option><option value="Ranger"></option><option value="Rogue"></option>
-      <option value="Sorcerer"></option><option value="Warlock"></option><option value="Wizard"></option><option value="Artificer"></option>
-    </datalist>
+    <label class="fld">Class
+      <select id="cClass" onchange="onClassChange()">
+        <option value="">— เลือกอาชีพ —</option>
+        <option>Barbarian</option><option>Bard</option><option>Cleric</option>
+        <option>Druid</option><option>Fighter</option><option>Monk</option>
+        <option>Paladin</option><option>Ranger</option><option>Rogue</option>
+        <option>Sorcerer</option><option>Warlock</option><option>Wizard</option><option>Artificer</option>
+        <option value="__custom">อื่นๆ (พิมพ์เอง / นอกกฎ)</option>
+      </select>
+    </label>
+    <input type="text" id="cClassCustom" class="hidden" oninput="suggestHP();renderSkillPick()" placeholder="ชื่ออาชีพนอกกฎ เช่น Blood Hunter" style="margin-top:6px"/>
     <div class="sectitle" style="margin-top:4px">ABILITY SCORES · POINT BUY</div>
     <div id="pbInfo" class="note" style="text-align:center;font-family:'VT323',monospace;font-size:18px;color:#fff;margin:2px 0"></div>
     <div id="pbWrap" class="pbgrid"></div>
@@ -1086,9 +1090,20 @@ function renderFinal(){
   if(bonusMode==='1-1-1'){ const s=[bonusPick.a,bonusPick.b,bonusPick.c]; if(new Set(s).size<3) warn=' ⚠ ต้องเลือก 3 ค่าต่างกัน'; }
   el.innerHTML='FINAL: '+['str','dex','con','int','wis','cha'].map(k=>{ const fv=pb[k]+(m[k]||0); return `${k.toUpperCase()} <b>${fv}</b>`; }).join(' · ')+(warn?`<span style="color:#ff6b6b">${warn}</span>`:'');
 }
+// ── อาชีพ: select + ช่องพิมพ์เองเมื่อเลือก "อื่นๆ" ──
+function classValue(){
+  const sel=$('cClass'); if(!sel) return '';
+  return sel.value==='__custom' ? (($('cClassCustom')||{}).value||'').trim() : (sel.value||'').trim();
+}
+function onClassChange(){
+  const sel=$('cClass'); const cu=$('cClassCustom'); if(!sel||!cu) return;
+  if(sel.value==='__custom'){ cu.classList.remove('hidden'); cu.focus(); }
+  else { cu.classList.add('hidden'); cu.value=''; }
+  suggestHP(); renderSkillPick();
+}
 function suggestHP(){
   const hpEl=$('cHp'); if(!hpEl) return;
-  const cls=($('cClass').value||'').toLowerCase().trim();
+  const cls=(classValue()||'').toLowerCase().trim();
   let die=8; for(const k in HITDIE){ if(cls.includes(k)){ die=HITDIE[k]; break; } }
   const mod=Math.floor((finalAb('con')-10)/2);   // ใช้ CON หลังโบนัส
   hpEl.value=Math.max(1, die+mod);   // fixed ตามกฎ แก้เองไม่ได้
@@ -1141,7 +1156,7 @@ const CLASS_FEATURES={
              {name:'Spellcasting',description:'Cast artificer spells (INT)',max_uses:0,recharge:'atwill'}],
 };
 let chosenSkills=[];
-function classKey(){ const c=($('cClass').value||'').toLowerCase(); for(const k in CLASS_SKILLS){ if(c.includes(k)) return k; } return null; }
+function classKey(){ const c=(classValue()||'').toLowerCase(); for(const k in CLASS_SKILLS){ if(c.includes(k)) return k; } return null; }
 function skillDef(){ const k=classKey(); return k? CLASS_SKILLS[k] : {n:2,list:'ALL'}; }
 function renderSkillPick(){
   const wrap=$('skillWrap'); if(!wrap) return;
@@ -1162,7 +1177,7 @@ async function createCharacter(){
   try{
     suggestHP(); const hpv=parseInt($('cHp').value); const maxhp=isNaN(hpv)?null:Math.max(1,hpv);
     const { data:ch, error } = await supa.from('characters').insert({
-      campaign_id:campaign.id, user_id:me.id, name, class:$('cClass').value.trim()||null,
+      campaign_id:campaign.id, user_id:me.id, name, class:classValue()||null,
       public_status:{ hp: maxhp?`${maxhp}/${maxhp}`:'100%' }
     }).select().single();
     if(error) throw error;
