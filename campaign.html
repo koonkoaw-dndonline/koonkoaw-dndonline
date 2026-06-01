@@ -1904,7 +1904,7 @@ async function uploadRefFile(fi,sel,btn){
     const r=await fetch(INGEST_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
       body:JSON.stringify({campaign_id:campaign.id, name:file.name, kind:sel.value, text, category:cat})});
     const j=await r.json();
-    if(!r.ok){ setS('ล้มเหลว: '+((j.error||'')+(j.detail?(' — '+String(j.detail).slice(0,120)):''))); toast('Index ล้มเหลว',true); btn.disabled=false; return; }
+    if(!r.ok){ const msg=(j.error||'')+(j.detail?(' — '+String(j.detail).slice(0,140)):''); setS('ล้มเหลว: '+msg); toast('Index ล้มเหลว: '+msg,true); btn.disabled=false; return; }
     toast(`Indexed ✓ ${j.chunks} chunks`); fi.value=''; renderFiles();
   }catch(e){ setS('ผิดพลาด: '+(e.message||e)); toast('อัปโหลดล้มเหลว',true); btn.disabled=false; }
 }
