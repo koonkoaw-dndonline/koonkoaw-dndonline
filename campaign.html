@@ -449,9 +449,11 @@ body.role-player .dm-only{display:none!important;}
 .cbrange{color:#9a9a9a;font-size:15px;}
 .econrow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
 .econlbl{font-size:13px;color:#9a9a9a;letter-spacing:.3px;}
-.econ{font-family:'VT323',monospace;font-size:15px;line-height:1;padding:4px 8px;border-radius:3px;border:2px solid #fff;}
+.econ{font-family:'VT323',monospace;font-size:15px;line-height:1;padding:5px 9px;border-radius:3px;border:2px solid #fff;cursor:pointer;}
 .econ.avail{background:#fff;color:#000;}
 .econ.used{background:#000;color:#555;border-color:#555;text-decoration:line-through;}
+.econ:disabled{cursor:default;}
+.econleg{font-size:12px;color:#9a9a9a;text-align:left;padding:2px 2px 0;line-height:1.45;}
 .album{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-top:10px;}
 .albumcell{border:2px solid #fff;padding:5px;display:flex;flex-direction:column;}
 .albumcell img{width:100%;display:block;}
@@ -471,6 +473,12 @@ body.role-player .dm-only{display:none!important;}
 .chatbody{font-size:16px;line-height:1.45;white-space:pre-wrap;word-break:break-word;}
 .tab.blink{animation:tabblink 0.9s steps(1) infinite;}
 @keyframes tabblink{50%{background:#fff;color:#000;}}
+/* Party = สมาชิก (ซ้าย) + แชต (ขวา) บนเดสก์ท็อป · มือถือเรียงล่าง */
+.partygrid{display:flex;flex-direction:column;gap:12px;}
+@media (min-width:900px){
+  .panel[data-tab="party"].active{display:block;max-width:1120px;}
+  .partygrid{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:18px;align-items:start;}
+}
 /* Skill proficiency picker */
 .skgrid{display:flex;flex-wrap:wrap;gap:6px;}
 .skbtn{border:2px solid #fff;background:#000;color:#9a9a9a;border-radius:5px;padding:5px 9px;font-size:14px;font-family:'VT323',monospace;letter-spacing:.3px;}
@@ -616,7 +624,6 @@ body.role-player .dm-only{display:none!important;}
   <button class="tab" data-tab="quest" onclick="switchTab('quest')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/></svg></span><span class="tlab">Quest</span></button>
   <button class="tab" data-tab="files" onclick="switchTab('files')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="7" y="5" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/><rect x="2" y="7" width="1" height="1"/><rect x="5" y="7" width="1" height="1"/></svg></span><span class="tlab">Files</span></button>
   <button class="tab" data-tab="chron" onclick="switchTab('chron')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="1" height="1"/><rect x="1" y="0" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="6" y="0" width="1" height="1"/><rect x="7" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="7" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="7" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="7" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="7" y="5" width="1" height="1"/></svg></span><span class="tlab">Chronicle</span></button>
-  <button class="tab" data-tab="chat" onclick="switchTab('chat')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="1" height="1"/><rect x="1" y="0" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="6" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/></svg></span><span class="tlab">Chat</span></button>
 </div>
 
 <div class="panel active" id="panel-story" data-tab="story">
@@ -634,7 +641,6 @@ body.role-player .dm-only{display:none!important;}
 <div class="panel" id="panel-quest" data-tab="quest"></div>
 <div class="panel" id="panel-files" data-tab="files"></div>
 <div class="panel" id="panel-chron" data-tab="chron"></div>
-<div class="panel" id="panel-chat" data-tab="chat"></div>
 
 <div class="toast" id="toast"></div>
 
@@ -653,6 +659,7 @@ const DUNGEON_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-dungeon';
 const DYNAMIC_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/dynamic-task';
 let supa=null, session=null, me=null;            // me = auth user
 let campaign=null, members=[], myChar=null, characters=[], curRound=null, narrative=[], mySheet={}, worldState=null, chatMsgs=[];
+let econUsed={}, econUsedRound=null;   // action economy: มาร์ก local ว่าผู้เล่นใช้อะไรไปแล้วในเทิร์น
 let rtChannel=null, resolving=false;
 
 function $(id){return document.getElementById(id);}
@@ -740,6 +747,25 @@ async function onRulesFiles(files){
   const info=$('rulesFilesInfo');
   if(info) info.textContent = files.length? `โหลด ${files.length} ไฟล์ · ~${Math.round(total/1024)} KB → จะฝังเป็นกติกา DM ตอนสร้างโลก` : 'ยังไม่ได้เลือกไฟล์';
 }
+// แมปชื่อไฟล์กฎ → หมวด RAG (ตาม Load-When ของระบบ prompt) · null = ข้าม (router/panels/log)
+function ruleCategory(filename){
+  const f=String(filename); const m=f.match(/(\d{2})\s*[A-Da-d]?/);
+  const n=m?m[1]:'';
+  if(n==='00'||n==='03'||n==='11') return null;
+  const byNum={'01':'core','02':'combat','04':'travel','05':'town','06':'town','07':'social','08':'events','09':'dungeon','10':'lore'};
+  if(byNum[n]) return byNum[n];
+  const lf=f.toLowerCase();
+  if(lf.includes('combat')) return 'combat';
+  if(lf.includes('travel')||lf.includes('camp')) return 'travel';
+  if(lf.includes('shop')||lf.includes('economy')||lf.includes('craft')) return 'town';
+  if(lf.includes('guild')||lf.includes('quest')) return 'town';
+  if(lf.includes('social')||lf.includes('downtime')||lf.includes('rep')) return 'social';
+  if(lf.includes('event')) return 'events';
+  if(lf.includes('dungeon')) return 'dungeon';
+  if(lf.includes('lore')) return 'lore';
+  if(lf.includes('core')||lf.includes('checklist')) return 'core';
+  return 'lore';
+}
 function onMusicFiles(files){
   const info=$('musicFilesInfo'); if(!info) return;
   const mood=($('musicMood')&&$('musicMood').value)||'explore';
@@ -754,6 +780,20 @@ async function createCampaign(){
     const { data, error } = await supa.rpc('create_campaign',{ p_name:name, p_rules:combined });
     if(error) throw error;
     campaign = Array.isArray(data)?data[0]:data;
+    // จัดทำดัชนีกฎเข้า RAG (แยกหมวดตามชื่อไฟล์) → DM ดึงเฉพาะที่จำเป็นต่อโหมดฉาก ประหยัด token
+    const rf=$('rulesFiles');
+    if(rf && rf.files && rf.files.length){
+      $('createBtn').textContent='กำลังจัดทำดัชนีกฎ…';
+      const tok=(await supa.auth.getSession()).data.session?.access_token;
+      for(const file of rf.files){
+        const cat=ruleCategory(file.name); if(!cat) continue;   // ข้าม 00/03/11
+        try{
+          const text=await file.text(); if(!text.trim()) continue;
+          await fetch(INGEST_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
+            body:JSON.stringify({campaign_id:campaign.id,name:file.name,kind:'RULES',text,category:cat})});
+        }catch(e){}
+      }
+    }
     // อัปเพลงประกอบ (ถ้าเลือก) — ไม่บล็อกการสร้างโลกถ้าพลาด
     const mf=$('musicFiles'); const mood=($('musicMood')&&$('musicMood').value)||'explore';
     if(mf && mf.files && mf.files.length){
@@ -1157,7 +1197,6 @@ function switchTab(t){
   else if(t==='quest') renderQuest();
   else if(t==='files') renderFiles();
   else if(t==='chron') renderChronicle();
-  else if(t==='chat'){ renderChat(); clearChatBlink(); }
 }
 // ───────── OOC chat (คุยวางแผนนอกเรื่อง) ─────────
 async function loadChat(){
@@ -1169,23 +1208,10 @@ function chatNameFor(uid){
   const c=characters.find(x=>x.user_id===uid); if(c) return c.name;
   const m=members.find(m=>m.user_id===uid); return (m&&m.profiles&&m.profiles.display_name)||'Player';
 }
-async function renderChat(){
-  const p=$('panel-chat'); p.innerHTML='';
-  const wrap=document.createElement('div'); wrap.className='item';
-  const list=document.createElement('div'); list.id='chatList'; list.className='chatlist';
-  list.innerHTML='<div class="muted">กำลังโหลด…</div>'; wrap.appendChild(list); p.appendChild(wrap);
-  const bar=document.createElement('div'); bar.className='item';
-  const row=document.createElement('div'); row.style.cssText='display:flex;gap:8px;align-items:flex-end';
-  const ta=document.createElement('textarea'); ta.id='chatInput'; ta.placeholder='พิมพ์คุยวางแผน (นอกเรื่อง)… Enter ส่ง, Shift+Enter ขึ้นบรรทัด'; ta.rows=2; ta.style.flex='1';
-  ta.onkeydown=(e)=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendChat(); } };
-  const sb=document.createElement('button'); sb.className='btn sm'; sb.textContent='Send'; sb.onclick=sendChat;
-  row.appendChild(ta); row.appendChild(sb); bar.appendChild(row); p.appendChild(bar);
-  await loadChat(); renderChatList();
-}
 function renderChatList(){
   const list=$('chatList'); if(!list) return; list.innerHTML='';
   if(!chatMsgs.length){ list.innerHTML='<div class="muted">ยังไม่มีข้อความ — เริ่มคุยได้เลย</div>'; return; }
-  chatMsgs.forEach(mm=>{ const mine=mm.user_id===me.id; const d=document.createElement('div'); d.className='chatmsg'+(mine?' mine':'');
+  chatMsgs.slice(-40).forEach(mm=>{ const mine=mm.user_id===me.id; const d=document.createElement('div'); d.className='chatmsg'+(mine?' mine':'');
     d.innerHTML=`<div class="chatname">${escapeHtml(chatNameFor(mm.user_id))}</div><div class="chatbody">${escapeHtml(mm.body)}</div>`; list.appendChild(d); });
   list.scrollTop=list.scrollHeight;
 }
@@ -1195,7 +1221,7 @@ async function sendChat(){
   try{ const { error }=await supa.from('chat_messages').insert({campaign_id:campaign.id,user_id:me.id,body:body.slice(0,2000)}); if(error) throw error; }
   catch(e){ toast(e.message||'ส่งไม่สำเร็จ',true); }
 }
-function clearChatBlink(){ const t=document.querySelector('.tab[data-tab="chat"]'); if(t) t.classList.remove('blink'); }
+function clearChatBlink(){ const t=document.querySelector('.tab[data-tab="party"]'); if(t) t.classList.remove('blink'); }
 // เสียงคลิกแบบ retro (Web Audio — ไม่ต้องโหลดไฟล์)
 let _actx=null;
 function tick(){ try{ _actx=_actx||new (window.AudioContext||window.webkitAudioContext)(); const o=_actx.createOscillator(),g=_actx.createGain(); o.type='square'; o.frequency.value=1180; g.gain.value=0.04; o.connect(g); g.connect(_actx.destination); o.start(); o.stop(_actx.currentTime+0.05); }catch(e){} }
@@ -1262,44 +1288,65 @@ async function renderRoundbar(){
   if(!mine){
     const meta=curRound.meta||{};
     const cb=meta.combat||{}, rr=meta.roll_request||{}, inter=meta.interactables||[];
-    // D: คอมแบต — แสดงระยะ + 3 ทางเลือก (เลือกอื่นได้)
+    if(econUsedRound!==curRound.id){ econUsed={}; econUsedRound=curRound.id; }  // รีเซ็ตมาร์กทุกรอบ
+    // D: คอมแบต — ระยะ + action economy (แตะมาร์กว่าใช้แล้ว) + 3 ทางเลือก
     if(cb.active){
       const ci=document.createElement('div'); ci.className='combatbar';
       ci.innerHTML='<span class="cbtag">⚔ COMBAT</span>'+(cb.range?`<span class="cbrange">ระยะ: ${escapeHtml(cb.range)}</span>`:'');
       bar.appendChild(ci);
-      // action economy ที่เหลือในเทิร์นนี้
       const ec=cb.economy||{};
-      const econ=document.createElement('div'); econ.className='econrow';
-      const ch=(lab,ok)=>`<span class="econ ${ok?'avail':'used'}">${lab}</span>`;
       const moveOk = ec.move!==undefined ? (String(ec.move)!=='0'&&String(ec.move).toLowerCase()!=='0 ft') : true;
-      econ.innerHTML = '<span class="econlbl">เหลือในเทิร์น:</span>'
-        + ch('Action', ec.action!==false)
-        + ch('Bonus', ec.bonus!==false)
-        + ch('Move'+(ec.move?(' '+escapeHtml(String(ec.move))):''), moveOk)
-        + ch('Reaction', ec.reaction!==false);
+      const econ=document.createElement('div'); econ.className='econrow';
+      const lbl=document.createElement('span'); lbl.className='econlbl'; lbl.textContent='เทิร์นนี้ทำได้ (แตะเพื่อมาร์กว่าใช้แล้ว):'; econ.appendChild(lbl);
+      const mkChip=(key,lab,baseAvail)=>{
+        const c=document.createElement('button'); c.type='button';
+        const setCls=()=>{ const used=!baseAvail||econUsed[key]; c.className='econ '+(used?'used':'avail'); };
+        c.textContent=lab; setCls();
+        if(baseAvail){ c.onclick=()=>{ econUsed[key]=!econUsed[key]; setCls(); tick(); }; } else { c.disabled=true; }
+        return c;
+      };
+      econ.appendChild(mkChip('action','Action', ec.action!==false));
+      econ.appendChild(mkChip('bonus','Bonus', ec.bonus!==false));
+      econ.appendChild(mkChip('move','Move'+(ec.move?(' '+String(ec.move)):''), moveOk));
+      econ.appendChild(mkChip('reaction','Reaction', ec.reaction!==false));
       bar.appendChild(econ);
+      const leg=document.createElement('div'); leg.className='econleg'; leg.textContent='Action=ทำหลัก (โจมตี/ร่ายเวท) · Bonus=โบนัสแอ็กชัน · Move=เดิน · Reaction=ตอบโต้นอกเทิร์น'; bar.appendChild(leg);
       if(Array.isArray(cb.options)&&cb.options.length){
-        const opts=document.createElement('div'); opts.className='optrow';
+        const opts=document.createElement('div'); opts.className='optrow'; opts.innerHTML='<span class="dicelbl">แนวทาง:</span>';
         cb.options.slice(0,3).forEach(o=>{ const ob=document.createElement('button'); ob.className='btn ghost sm'; ob.textContent=o; ob.onclick=()=>appendAct(o); opts.appendChild(ob); });
         bar.appendChild(opts);
       }
     }
-    const ta=document.createElement('textarea'); ta.id='actInput'; ta.placeholder='What will your character do?'; bar.appendChild(ta);
+    const ta=document.createElement('textarea'); ta.id='actInput'; ta.placeholder='จะให้ตัวละครทำอะไร? พิมพ์ได้อิสระ'; bar.appendChild(ta);
     // E: ปุ่มปฏิสัมพันธ์สิ่งแวดล้อม
     if(Array.isArray(inter)&&inter.length){
       const ir=document.createElement('div'); ir.className='optrow'; ir.innerHTML='<span class="dicelbl">🛠 ใช้:</span>';
       inter.forEach(it=>{ const ib=document.createElement('button'); ib.className='btn ghost sm'; ib.title=it.desc||''; ib.textContent=it.label; ib.onclick=()=>appendAct('ใช้ '+it.label+(it.desc?` (${it.desc})`:'')); ir.appendChild(ib); });
       bar.appendChild(ir);
     }
-    // เต๋า — โผล่เฉพาะตอน DM เรียก หรือ อยู่ในคอมแบต
-    if(rr.needed || cb.active){
+    // เต๋า — โผล่เฉพาะตอน DM 'เรียกให้ทอย' เท่านั้น (ชัดเจนว่าทอยเมื่อไหร่/ทอยอะไร)
+    if(rr.needed){
       const dice=document.createElement('div'); dice.className='dicerow';
-      dice.innerHTML='<span class="dicelbl">🎲'+(rr.reason?(' '+escapeHtml(rr.reason)):' ทอยเต๋า')+':</span>';
+      const reason = rr.reason? escapeHtml(rr.reason) : 'DM ขอให้ทอยเต๋า';
+      const itemsTxt = (Array.isArray(rr.items)&&rr.items.length)? rr.items.map(it=>`${it.label||'Roll'} ${it.formula||'1d20'}${it.ability?(' +'+it.ability):''}`).join(', ') : '';
+      dice.innerHTML='<span class="dicelbl">🎲 DM ขอให้ทอย: '+reason+(itemsTxt?(' <span style="color:#9a9a9a">('+escapeHtml(itemsTxt)+')</span>'):'')+'</span>';
       const dm=document.createElement('button'); dm.className='btn ghost sm'; dm.textContent='DM ทอยให้'; dm.onclick=()=>rollDM(rr.items); dice.appendChild(dm);
       const sf=document.createElement('button'); sf.className='btn ghost sm'; sf.textContent='ทอยเอง'; sf.onclick=rollSelf; dice.appendChild(sf);
       bar.appendChild(dice);
+      const dn=document.createElement('div'); dn.className='econleg'; dn.textContent='“DM ทอยให้” = server สุ่มจริง 100% · “ทอยเอง” = ทอยเต๋าจริงในมือแล้วใส่เลข'; bar.appendChild(dn);
+    } else if(cb.active){
+      const hint=document.createElement('div'); hint.className='econleg'; hint.textContent='ยังไม่ต้องทอยตอนนี้ — พิมพ์สิ่งที่จะทำแล้วกด Submit; DM จะบอกเมื่อถึงจังหวะต้องทอย'; bar.appendChild(hint);
     }
     const b=document.createElement('button'); b.className='btn'; b.textContent='Submit Action'; b.onclick=submitAction; bar.appendChild(b);
+  } else {
+    // ส่งแล้ว — บอกชัดว่ารอใคร / DM กำลังดำเนินเรื่อง
+    const submittedIds=new Set(list.map(a=>a.user_id));
+    const pending=members.filter(m=>!submittedIds.has(m.user_id)).map(m=>chatNameFor(m.user_id));
+    const w=document.createElement('div'); w.className='note'; w.style.cssText='text-align:left;padding:8px 2px;line-height:1.6';
+    if(curRound.phase==='resolving') w.innerHTML='⏳ ส่งครบแล้ว — DM กำลังประมวลผล (ศัตรูจะตอบโต้ในผลรอบนี้)…';
+    else if(pending.length) w.innerHTML='✓ คุณส่งแล้ว — รออีก <b>'+pending.length+'</b> คน: <b>'+escapeHtml(pending.join(', '))+'</b><br><span class="muted">DM และศัตรูจะดำเนินเรื่อง<u>เมื่อทุกคนส่งครบ</u> (host กด Force Resolve เพื่อไปต่อได้)</span>';
+    else w.innerHTML='✓ ส่งครบทุกคนแล้ว — DM กำลังจะดำเนินเรื่อง…';
+    bar.appendChild(w);
   }
   if(isHost){ const f=document.createElement('button'); f.className='btn warn sm'; f.textContent=resolving?'Resolving…':'⚡ Force Resolve'; f.disabled=resolving; f.onclick=()=>resolveRound(true); bar.appendChild(f); }
 }
@@ -1490,24 +1537,42 @@ async function uploadAvatar(fi,btn){
     myChar.avatar_path=path; toast('อัปรูปแล้ว ✓'); await loadCharacters(); myChar=characters.find(c=>c.user_id===me.id)||myChar; renderMe();
   }catch(e){ toast(e.message||'อัปรูปล้มเหลว',true); btn.disabled=false; }
 }
-function renderParty(){
+async function renderParty(){
   const p=$('panel-party'); p.innerHTML='';
-  const others=characters.filter(c=>c.user_id!==me.id);
-  if(!others.length){ p.innerHTML='<div class="muted">No party members yet — share the invite code with friends</div>'; }
-  others.forEach(c=>{
+  const grid=document.createElement('div'); grid.className='partygrid';
+  const left=document.createElement('div'); const right=document.createElement('div');
+  grid.appendChild(left); grid.appendChild(right); p.appendChild(grid);
+  // ── สมาชิก (เรียงบน→ล่าง ทุกคนรวมตัวเอง) + สถานะ/บัฟย่อๆ ให้ทุกคนเห็น ──
+  const head=document.createElement('div'); head.className='item'; head.innerHTML='<div class="sectitle">PARTY</div>'; left.appendChild(head);
+  const all=characters.slice();
+  if(!all.length){ const d=document.createElement('div'); d.className='muted'; d.textContent='No party members yet — share the invite code with friends'; left.appendChild(d); }
+  all.forEach(c=>{
+    const mine=c.user_id===me.id;
     const it=document.createElement('div'); it.className='item';
-    const hp=c.public_status?.hp?` · HP ${c.public_status.hp}`:'';
-    const conds=(c.public_status&&Array.isArray(c.public_status.conditions)&&c.public_status.conditions.length)?` · ${c.public_status.conditions.join(', ')}`:'';
     const row=document.createElement('div'); row.style.cssText='display:flex;gap:12px;align-items:center';
     const face=document.createElement('div'); face.className='facebox';
     if(c.avatar_path){ const im=document.createElement('img'); im.src=PUBLIC_URL+'avatars/'+c.avatar_path; im.onerror=()=>{face.innerHTML='';}; face.appendChild(im); }
+    const ps=c.public_status||{};
+    const hp=ps.hp?` · HP ${escapeHtml(String(ps.hp))}`:'';
+    const conds=Array.isArray(ps.conditions)?ps.conditions:[];
+    const chips=conds.length?'<div class="chips" style="margin-top:5px">'+conds.map(x=>`<span class="chip cond">${escapeHtml(String(x))}</span>`).join('')+'</div>':'';
     const info=document.createElement('div'); info.style.flex='1';
-    info.innerHTML=`<div class="nm">${escapeHtml(c.name)}</div><div class="sub">${escapeHtml(c.class||'-')} · Lv.${c.level}${hp}${escapeHtml(conds)}</div><div class="sub">Their private info is hidden 🔒</div>`;
-    row.appendChild(face); row.appendChild(info); it.appendChild(row);
-    p.appendChild(it);
+    info.innerHTML=`<div class="nm">${escapeHtml(c.name)}${mine?' <span class="muted" style="font-size:13px">(คุณ)</span>':''}</div><div class="sub">${escapeHtml(c.class||'-')} · Lv.${c.level}${hp}</div>`+chips;
+    row.appendChild(face); row.appendChild(info); it.appendChild(row); left.appendChild(it);
   });
   const noChar=members.filter(m=>!characters.find(c=>c.user_id===m.user_id));
-  if(noChar.length){ const d=document.createElement('div'); d.className='note'; d.textContent=`Waiting to create character: ${noChar.length}`; p.appendChild(d); }
+  if(noChar.length){ const d=document.createElement('div'); d.className='note'; d.textContent=`รอสร้างตัวละคร: ${noChar.length} คน`; left.appendChild(d); }
+  // ── แชตปาร์ตี้ (คอลัมน์ขวา — ข้อความล่าสุด) ──
+  const chatCard=document.createElement('div'); chatCard.className='item';
+  chatCard.innerHTML='<div class="sectitle">PARTY CHAT</div><div class="note" style="text-align:left;padding:2px 2px 6px">คุยวางแผนนอกเรื่อง (ข้อความล่าสุด)</div>';
+  const list=document.createElement('div'); list.id='chatList'; list.className='chatlist'; chatCard.appendChild(list);
+  const inrow=document.createElement('div'); inrow.style.cssText='display:flex;gap:8px;align-items:flex-end;margin-top:8px';
+  const ta=document.createElement('textarea'); ta.id='chatInput'; ta.rows=2; ta.placeholder='พิมพ์คุย… Enter ส่ง, Shift+Enter ขึ้นบรรทัด'; ta.style.flex='1';
+  ta.onkeydown=(e)=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendChat(); } };
+  const sb=document.createElement('button'); sb.className='btn sm'; sb.textContent='Send'; sb.onclick=sendChat;
+  inrow.appendChild(ta); inrow.appendChild(sb); chatCard.appendChild(inrow); right.appendChild(chatCard);
+  clearChatBlink();
+  await loadChat(); renderChatList();
 }
 async function renderQuest(){
   const p=$('panel-quest'); p.innerHTML='';
@@ -1595,15 +1660,25 @@ async function renderNPCs(){
   try{ const r=await supa.from('npcs').select('*').eq('campaign_id',campaign.id).order('city'); if(!r.error) rows=(r.data||[]).filter(n=>n.discovered!==false); }catch(e){}
   if(rows===null){ p.innerHTML='<div class="muted">NPC system not enabled yet<br>Run migration.sql</div>'; return; }
   if(!rows.length){ p.innerHTML='<div class="muted">No NPCs discovered yet</div>'; return; }
+  const isHost=campaign.host_id===me.id;
   const byCity={}; rows.forEach(n=>{ const c=n.city||'Unknown'; (byCity[c]=byCity[c]||[]).push(n); });
   Object.keys(byCity).forEach((city,idx)=>{
     const list=byCity[city];
     let body='';
-    list.forEach(n=>{ body+=`<div class="npc"><button class="npc-head" onclick="tick();this.parentElement.classList.toggle('open')">${escapeHtml(n.name)}<span class="rel">${escapeHtml(n.relationship||'-')}</span></button><div class="npc-detail"><div class="kv2"><b>Role</b><span>${escapeHtml(n.role||'-')}</span></div><div class="kv2"><b>Notes</b><span>${escapeHtml(n.notes||'-')}</span></div></div></div>`; });
+    list.forEach(n=>{
+      const del = isHost? `<div class="kv2"><b></b><span><button class="btn ghost sm" onclick="event.stopPropagation();deleteNPC('${n.id}')">✕ ลบ (ถ้าซ้ำ/ผิด)</button></span></div>` : '';
+      body+=`<div class="npc"><button class="npc-head" onclick="tick();this.parentElement.classList.toggle('open')">${escapeHtml(n.name)}<span class="rel">${escapeHtml(n.relationship||'-')}</span></button><div class="npc-detail"><div class="kv2"><b>Role</b><span>${escapeHtml(n.role||'-')}</span></div><div class="kv2"><b>Notes</b><span>${escapeHtml(n.notes||'-')}</span></div>${del}</div></div>`;
+    });
     const acc=document.createElement('div'); acc.className='acc'+(idx===0?' open':'');
     acc.innerHTML=`<button class="acc-head" onclick="tick();this.parentElement.classList.toggle('open')">${escapeHtml(city)}<span class="cnt">${list.length}</span></button><div class="acc-body">${body}</div>`;
     p.appendChild(acc);
   });
+}
+async function deleteNPC(id){
+  if(!confirm('ลบ NPC นี้?')) return;
+  const { error }=await supa.from('npcs').delete().eq('id',id);
+  if(error){ toast(error.message||'ลบไม่สำเร็จ (เฉพาะ host)',true); return; }
+  toast('ลบแล้ว ✓'); renderNPCs();
 }
 
 // ───────── render: monster (combat_state + fog-of-war) ─────────
@@ -1825,8 +1900,9 @@ async function uploadRefFile(fi,sel,btn){
     if(!text.trim()){ toast('ไฟล์ว่าง',true); btn.disabled=false; setS(''); return; }
     setS('กำลัง embed + index… (อาจใช้เวลาสักครู่ ขึ้นกับขนาดไฟล์)');
     const token=(await supa.auth.getSession()).data.session?.access_token;
+    const cat=ruleCategory(file.name)||'lore';   // หมวด RAG ตามชื่อไฟล์ (เผื่อแคมเปญเดิมอัปกฎใหม่)
     const r=await fetch(INGEST_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-      body:JSON.stringify({campaign_id:campaign.id, name:file.name, kind:sel.value, text})});
+      body:JSON.stringify({campaign_id:campaign.id, name:file.name, kind:sel.value, text, category:cat})});
     const j=await r.json();
     if(!r.ok){ setS('ล้มเหลว: '+((j.error||'')+(j.detail?(' — '+String(j.detail).slice(0,120)):''))); toast('Index ล้มเหลว',true); btn.disabled=false; return; }
     toast(`Indexed ✓ ${j.chunks} chunks`); fi.value=''; renderFiles();
@@ -1937,7 +2013,7 @@ function subscribeRealtime(){
     .on('postgres_changes',{event:'*',schema:'public',table:'actions',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'characters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadCharacters(); if(activeTab()==='party') renderParty(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'campaign_state',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadState(); applyMood(); if(activeTab()==='story') renderClock(); if(activeTab()==='map') renderMap(); })
-    .on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_messages',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ await loadChat(); if(activeTab()==='chat'){ renderChatList(); } else if(payload.new && payload.new.user_id!==me.id){ const t=document.querySelector('.tab[data-tab="chat"]'); if(t) t.classList.add('blink'); } })
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_messages',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ await loadChat(); if(activeTab()==='party'){ renderChatList(); } else if(payload.new && payload.new.user_id!==me.id){ const t=document.querySelector('.tab[data-tab="party"]'); if(t) t.classList.add('blink'); } })
     .subscribe();
 }
 function activeTab(){ return document.querySelector('.tab.active')?.dataset.tab; }
