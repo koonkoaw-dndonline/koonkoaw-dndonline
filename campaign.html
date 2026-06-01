@@ -574,6 +574,7 @@ const SUPA_URL = 'https://caxksvqlgrvwnjynbbye.supabase.co';
 const SUPA_ANON = 'sb_publishable_kODadNf7PNUWJr_ZTViABw_IsP6ggJ6';
 // ▲▲▲ key สาธารณะ (publishable) — ปลอดภัยที่จะฝัง ความปลอดภัยจริงอยู่ที่ RLS ▲▲▲
 const RESOLVE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/resolve-round';
+const INGEST_FN  = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-file';
 let supa=null, session=null, me=null;            // me = auth user
 let campaign=null, members=[], myChar=null, characters=[], curRound=null, narrative=[], mySheet={}, worldState=null;
 let rtChannel=null, resolving=false;
@@ -1355,9 +1356,59 @@ async function renderMap(){
 // ───────── render: files (placeholder — เปิดเต็มในขั้น RAG) ─────────
 async function renderFiles(){
   const p=$('panel-files'); p.innerHTML='';
-  const it=document.createElement('div'); it.className='item';
-  it.innerHTML='<div class="sectitle">Reference Files / Music / Dungeons / Puzzles</div><div class="note">This section (file upload + RAG + situational music) will be enabled in the next step, after setting up Supabase Storage and running migration.sql.</div>';
-  p.appendChild(it);
+  const isHost=campaign.host_id===me.id;
+  let files=null;
+  try{ const r=await supa.from('references_files').select('*').eq('campaign_id',campaign.id).order('created_at',{ascending:false}); if(!r.error) files=r.data||[]; }catch(e){}
+  if(files===null){ p.innerHTML='<div class="muted">Files system not enabled yet<br>Run migration.sql (0011) + deploy ingest-file</div>'; return; }
+  // upload (host/DM only)
+  if(isHost){
+    const up=document.createElement('div'); up.className='item';
+    up.innerHTML='<div class="sectitle">UPLOAD REFERENCE (DM)</div><div class="note" style="text-align:left;padding:4px 2px 8px">ไฟล์ .md / .txt (กฎ/lore/ตารางสุ่ม) — DM จะค้นมาใช้อัตโนมัติตอนเล่าเรื่องที่เกี่ยวข้อง</div>';
+    const row=document.createElement('div'); row.style.cssText='display:flex;gap:8px;flex-wrap:wrap;align-items:center';
+    const fi=document.createElement('input'); fi.type='file'; fi.accept='.md,.txt,.markdown,text/plain'; fi.style.cssText='color:#fff;font-size:13px;max-width:190px';
+    const sel=document.createElement('select'); sel.style.cssText='background:#000;color:#fff;border:2px solid #fff;font-family:inherit;font-size:15px;padding:3px 4px'; sel.innerHTML='<option value="RULES">RULES</option><option value="LORE">LORE</option><option value="TABLES">TABLES</option>';
+    const btn=document.createElement('button'); btn.className='btn sm'; btn.textContent='Upload & Index'; btn.onclick=()=>uploadRefFile(fi,sel,btn);
+    row.appendChild(fi); row.appendChild(sel); row.appendChild(btn); up.appendChild(row);
+    const status=document.createElement('div'); status.id='upStatus'; status.className='note'; status.style.cssText='text-align:left;padding:6px 2px 0;display:none'; up.appendChild(status);
+    p.appendChild(up);
+  }
+  // indexed list
+  const list=document.createElement('div'); list.className='item'; list.innerHTML='<div class="sectitle">INDEXED FILES</div>';
+  if(!files.length){ const e=document.createElement('div'); e.className='kv'; e.innerHTML='<span class="k">— '+(isHost?'no files yet — upload above':'DM has not added reference files yet')+' —</span>'; list.appendChild(e); }
+  files.forEach(f=>{
+    const d=document.createElement('div'); d.className='kv';
+    d.innerHTML=`<span class="k">▸ [${escapeHtml(f.kind)}] ${escapeHtml(f.name)} <span class="chip">${f.chunks} chunks</span></span>`;
+    if(isHost){ const del=document.createElement('button'); del.className='btn ghost sm'; del.textContent='✕'; del.onclick=()=>deleteRefFile(f.id,f.name); d.appendChild(del); }
+    list.appendChild(d);
+  });
+  p.appendChild(list);
+  const note=document.createElement('div'); note.className='note'; note.style.cssText='text-align:left;padding:6px 2px';
+  note.textContent='เพลงประกอบ / ดันเจียน / ปริศนา จะเปิดในเฟสถัดไป';
+  p.appendChild(note);
+}
+async function uploadRefFile(fi,sel,btn){
+  const file=fi.files&&fi.files[0];
+  if(!file){ toast('เลือกไฟล์ก่อน',true); return; }
+  if(file.size>600000){ toast('ไฟล์ใหญ่เกิน 600KB',true); return; }
+  const status=$('upStatus'); const setS=(t)=>{ if(status){ status.style.display='block'; status.textContent=t; } };
+  btn.disabled=true; setS('กำลังอ่านไฟล์…');
+  try{
+    const text=await file.text();
+    if(!text.trim()){ toast('ไฟล์ว่าง',true); btn.disabled=false; setS(''); return; }
+    setS('กำลัง embed + index… (อาจใช้เวลาสักครู่ ขึ้นกับขนาดไฟล์)');
+    const token=(await supa.auth.getSession()).data.session?.access_token;
+    const r=await fetch(INGEST_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify({campaign_id:campaign.id, name:file.name, kind:sel.value, text})});
+    const j=await r.json();
+    if(!r.ok){ setS('ล้มเหลว: '+((j.error||'')+(j.detail?(' — '+String(j.detail).slice(0,120)):''))); toast('Index ล้มเหลว',true); btn.disabled=false; return; }
+    toast(`Indexed ✓ ${j.chunks} chunks`); fi.value=''; renderFiles();
+  }catch(e){ setS('ผิดพลาด: '+(e.message||e)); toast('อัปโหลดล้มเหลว',true); btn.disabled=false; }
+}
+async function deleteRefFile(id,name){
+  if(!confirm('ลบไฟล์ "'+name+'" และ index ทั้งหมด?')) return;
+  const { error }=await supa.from('references_files').delete().eq('id',id);
+  if(error){ toast(error.message||'ลบไม่สำเร็จ',true); return; }
+  toast('ลบแล้ว ✓'); renderFiles();
 }
 
 // ───────── render: chronicle (จาก narrative เต็ม) ─────────
