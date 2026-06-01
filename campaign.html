@@ -1268,6 +1268,7 @@ async function renderStory(){
 }
 
 let roundbarSeq=0;
+let _lastRoundbarKey='';   // กัน rebuild roundbar ซ้ำตอนผู้เล่นกำลังพิมพ์ (ข้อความ/โฟกัสจะได้ไม่หาย)
 function nameFor(a){
   const c=characters.find(x=>(a.character_id&&x.id===a.character_id)||x.user_id===a.user_id);
   if(c) return c.name;
@@ -1307,6 +1308,17 @@ async function renderRoundbar(){
   if(myseq!==roundbarSeq) return;       // มี render ใหม่กว่าเริ่มแล้ว ยกเลิกอันนี้
   const list=acts||[];
   const mine=list.find(a=>a.user_id===me.id);
+  // ถ้าผู้เล่นกำลังพิมพ์ในช่อง action อยู่ และรอบ/สถานะไม่เปลี่ยน → อย่า rebuild ทั้งกล่อง (กันข้อความหาย+หลุดโฟกัส)
+  // อัปเดตแค่ตัวนับ Submitted ในที่เดิม แล้วจบ
+  const rbKey=`${curRound.id}|${curRound.phase}|${mine?1:0}`;
+  const typingNow=document.activeElement && document.activeElement.id==='actInput';
+  if(typingNow && rbKey===_lastRoundbarKey){
+    const sl=bar.querySelector('.statusline');
+    if(sl) sl.innerHTML=`<span class="pill">Round ${curRound.round_number}</span><span class="pill ${submitted>=total?'done':'wait'}">Submitted ${submitted}/${total}</span>`;
+    return;
+  }
+  _lastRoundbarKey=rbKey;
+  const keepAct=(document.getElementById('actInput')||{}).value||'';   // กันข้อความที่พิมพ์ค้างหายตอน re-render (placeholder/realtime)
   let html=`<div class="statusline"><span class="pill">Round ${curRound.round_number}</span><span class="pill ${submitted>=total?'done':'wait'}">Submitted ${submitted}/${total}</span></div>`;
   list.forEach(a=>{ html+=`<div class="actionlog"><b>${escapeHtml(nameFor(a))}</b> ${escapeHtml(a.action_text)}</div>`; });
   bar.innerHTML=html;   // สร้างทีเดียว (synchronous ต่อจากนี้ ไม่มี await)
@@ -1342,11 +1354,11 @@ async function renderRoundbar(){
         bar.appendChild(opts);
       }
     }
-    const ta=document.createElement('textarea'); ta.id='actInput'; ta.placeholder='จะให้ตัวละครทำอะไร? พิมพ์ได้อิสระ'; bar.appendChild(ta);
+    const ta=document.createElement('textarea'); ta.id='actInput'; ta.placeholder='จะให้ตัวละครทำอะไร? พิมพ์ได้อิสระ'; if(keepAct) ta.value=keepAct; bar.appendChild(ta);
     // E: ปุ่มปฏิสัมพันธ์สิ่งแวดล้อม
     if(Array.isArray(inter)&&inter.length){
       const ir=document.createElement('div'); ir.className='optrow'; ir.innerHTML='<span class="dicelbl">🛠 ใช้:</span>';
-      inter.forEach(it=>{ const ib=document.createElement('button'); ib.className='btn ghost sm'; ib.title=it.desc||''; ib.textContent=it.label; ib.onclick=()=>appendAct('ใช้ '+it.label+(it.desc?` (${it.desc})`:'')); ir.appendChild(ib); });
+      inter.slice(0,6).forEach(it=>{ const ib=document.createElement('button'); ib.className='btn ghost sm'; ib.title=it.desc||''; ib.textContent=it.label; ib.onclick=()=>appendAct('ใช้ '+it.label+(it.desc?` (${it.desc})`:'')); ir.appendChild(ib); });
       bar.appendChild(ir);
     }
     // เต๋า — โผล่เฉพาะตอน DM 'เรียกให้ทอย' เท่านั้น (ชัดเจนว่าทอยเมื่อไหร่/ทอยอะไร)
