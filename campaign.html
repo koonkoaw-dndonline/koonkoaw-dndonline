@@ -161,6 +161,12 @@ a.link:hover{background:var(--white);color:var(--black);}
 }
 .narr::after{content:"▼";position:absolute;right:12px;bottom:7px;color:var(--white);font-size:12px;animation:blink 1.1s steps(1) infinite;}
 @keyframes blink{50%{opacity:0;}}
+/* Phase 2: placeholder narrative — "DM กำลังคิด..." */
+.narr.narr-thinking{opacity:.85;animation:popIn .09s steps(2) both, dimpulse 1.4s ease-in-out infinite;}
+.narr.narr-thinking::after{content:"";display:none;}
+.narr-thinking .dots{display:inline-block;animation:dotpulse 1.1s steps(4) infinite;letter-spacing:.15em;color:var(--white);}
+@keyframes dimpulse{0%,100%{opacity:.65;}50%{opacity:1;}}
+@keyframes dotpulse{0%{opacity:.2;}50%{opacity:1;}100%{opacity:.2;}}
 
 .actionlog{
   background:var(--black);border:2px solid var(--white);border-radius:7px;
@@ -661,6 +667,10 @@ let supa=null, session=null, me=null;            // me = auth user
 let campaign=null, members=[], myChar=null, characters=[], curRound=null, narrative=[], mySheet={}, worldState=null, chatMsgs=[];
 let econUsed={}, econUsedRound=null;   // action economy: มาร์ก local ว่าผู้เล่นใช้อะไรไปแล้วในเทิร์น
 let rtChannel=null, resolving=false;
+// ── Realtime resilience (Phase 2 fix) ──
+let rtPollTimer=null;          // safety poll (กลับมาเช็คเอง ถ้า realtime หลุดเงียบๆ)
+let rtLastSyncTs=0;            // เวลาที่ได้ event ล่าสุดจากช่อง realtime
+let rtAnyThinking=false;       // มีผู้เล่นไหนกำลังให้ DM คิดอยู่ไหม (presence broadcast)
 
 function $(id){return document.getElementById(id);}
 function toast(msg,isErr){const t=$('toast');t.textContent=msg;t.className='toast show'+(isErr?' err':'');setTimeout(()=>t.className='toast',2600);}
@@ -1233,9 +1243,24 @@ async function renderStory(){
   if(!narrative.length){ feed.innerHTML='<div class="muted">No story yet '+(campaign.host_id===me.id?'— press "Begin Adventure" below':'— waiting for the host to begin')+'</div>'; }
   narrative.forEach(n=>{
     const d=document.createElement('div'); d.className='narr';
-    d.innerHTML='<div class="meta">🎲 DM</div>'; const c=document.createElement('div'); c.innerHTML=colorizeNarr(n.content); d.appendChild(c);
+    // Phase 2: placeholder narrative ("DM กำลังคิด...") แสดงแบบ italic + pulse
+    const isPlaceholder = n.status==='placeholder';
+    if(isPlaceholder) d.classList.add('narr-thinking');
+    d.innerHTML='<div class="meta">🎲 DM</div>';
+    const c=document.createElement('div');
+    c.innerHTML = isPlaceholder
+      ? '<i style="opacity:.7">'+escapeHtml(n.content||'_DM กำลังคิด…_').replace(/^_(.*?)_$/,'$1')+'</i><span class="dots">…</span>'
+      : colorizeNarr(n.content);
+    d.appendChild(c);
     feed.appendChild(d);
   });
+  // Phase 2: แสดง indicator presence "DM กำลังคิด" (ผู้เล่นคนอื่น trigger resolveRound อยู่)
+  const hasPlaceholder = narrative.some(n=>n.status==='placeholder');
+  if(rtAnyThinking && !hasPlaceholder){
+    const d=document.createElement('div'); d.className='narr narr-thinking';
+    d.innerHTML='<div class="meta">🎲 DM</div><div><i style="opacity:.7">DM กำลังคิด</i><span class="dots">…</span></div>';
+    feed.appendChild(d);
+  }
   // ถ้ารอบจบแล้ว แสดง action ของทุกคน (RLS เปิดให้เห็นหลัง done)
   renderRoundbar();
   const sp=$('panel-story'); sp.scrollTop=sp.scrollHeight;            // มือถือ: ทั้ง panel เลื่อน
@@ -1406,6 +1431,8 @@ async function startFirstScene(){ resolveRound(false); }
 
 async function resolveRound(force, mode){
   if(resolving) return; resolving=true; renderRoundbar();
+  // บอกผู้เล่นคนอื่นว่า DM กำลังทำงาน (presence broadcast)
+  setMyThinking(true);
   try{
     const token=(await supa.auth.getSession()).data.session?.access_token;
     const body={campaign_id:campaign.id, force:!!force}; if(mode) body.mode=mode;
@@ -1418,7 +1445,7 @@ async function resolveRound(force, mode){
     else if(j.status==='intro'){ toast('โลกถูกสร้างแล้ว — สร้างตัวละครได้เลย!'); }
     else if(j.status==='opened'||j.status==='resolved'){ toast(j.status==='opened'?'Scene opened!':'The DM continued the story!'); }
   }catch(e){ toast('Could not reach the resolver',true); }
-  finally{ resolving=false; await refreshAll(); renderStory(); }
+  finally{ resolving=false; setMyThinking(false); await refreshAll(); renderStory(); }
 }
 
 // ───────── render: me / party / quest ─────────
@@ -2004,17 +2031,70 @@ function exportChronicle(){
   const a=document.createElement('a'); a.href=url; a.download='chronicle.html'; a.click(); URL.revokeObjectURL(url); toast('Saved ✓');
 }
 
-// ───────── realtime ─────────
+// ───────── realtime (Phase 2: reconnect + presence + safety poll) ─────────
+// helper: touch sync timestamp ทุกครั้งที่ได้ event — ใช้ตรวจว่าช่องตายไหม
+function _rtTouch(){ rtLastSyncTs = Date.now(); }
+
 function subscribeRealtime(){
   if(rtChannel) return;
-  rtChannel = supa.channel('camp-'+campaign.id)
-    .on('postgres_changes',{event:'*',schema:'public',table:'narrative',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadNarrative(); if(activeTab()==='story') renderStory(); })
-    .on('postgres_changes',{event:'*',schema:'public',table:'rounds',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadRound(); if(activeTab()==='story') renderRoundbar(); })
-    .on('postgres_changes',{event:'*',schema:'public',table:'actions',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='story') renderRoundbar(); })
-    .on('postgres_changes',{event:'*',schema:'public',table:'characters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadCharacters(); if(activeTab()==='party') renderParty(); })
-    .on('postgres_changes',{event:'*',schema:'public',table:'campaign_state',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadState(); applyMood(); if(activeTab()==='story') renderClock(); if(activeTab()==='map') renderMap(); })
-    .on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_messages',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ await loadChat(); if(activeTab()==='party'){ renderChatList(); } else if(payload.new && payload.new.user_id!==me.id){ const t=document.querySelector('.tab[data-tab="party"]'); if(t) t.classList.add('blink'); } })
-    .subscribe();
+  // ตั้ง presence key เป็น user id เพื่อ track "DM thinking" ของแต่ละคน
+  rtChannel = supa.channel('camp-'+campaign.id, { config: { presence: { key: (me&&me.id)||'anon' } } })
+    .on('postgres_changes',{event:'*',schema:'public',table:'narrative',filter:'campaign_id=eq.'+campaign.id}, async()=>{ _rtTouch(); await loadNarrative(); if(activeTab()==='story') renderStory(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'rounds',filter:'campaign_id=eq.'+campaign.id}, async()=>{ _rtTouch(); await loadRound(); if(activeTab()==='story') renderRoundbar(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'actions',filter:'campaign_id=eq.'+campaign.id}, async()=>{ _rtTouch(); if(activeTab()==='story') renderRoundbar(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'characters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ _rtTouch(); await loadCharacters(); if(activeTab()==='party') renderParty(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'campaign_state',filter:'campaign_id=eq.'+campaign.id}, async()=>{ _rtTouch(); await loadState(); applyMood(); if(activeTab()==='story') renderClock(); if(activeTab()==='map') renderMap(); })
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_messages',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ _rtTouch(); await loadChat(); if(activeTab()==='party'){ renderChatList(); } else if(payload.new && payload.new.user_id!==me.id){ const t=document.querySelector('.tab[data-tab="party"]'); if(t) t.classList.add('blink'); } })
+    // presence: ตรวจ dm_thinking ของผู้เล่นทุกคน → แสดง indicator
+    .on('presence',{event:'sync'}, ()=>{ _rtTouch(); _refreshThinkingFromPresence(); })
+    .on('presence',{event:'join'},  ()=>{ _rtTouch(); _refreshThinkingFromPresence(); })
+    .on('presence',{event:'leave'}, ()=>{ _rtTouch(); _refreshThinkingFromPresence(); })
+    .subscribe(async (status,err)=>{
+      _rtTouch();
+      if(status==='SUBSCRIBED'){
+        try{ await rtChannel.track({ user_id:(me&&me.id)||'anon', dm_thinking:false, ts:Date.now() }); }catch(e){}
+      } else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){
+        // log debug แต่ไม่ต้อง toast ทุกครั้ง (รบกวน UX) — ลอง reconnect เงียบๆ
+        console.warn('Realtime reconnect:',status,err);
+        try{ rtChannel.unsubscribe(); }catch(e){}
+        rtChannel=null;
+        setTimeout(()=>{ if(campaign) subscribeRealtime(); }, 2000);
+      }
+    });
+  // safety poll: ทุก 20 วินาที — refresh round + narrative (กันกรณี realtime ตายเงียบไม่ trigger error)
+  if(!rtPollTimer){
+    rtPollTimer = setInterval(async ()=>{
+      if(!campaign) return;
+      // ถ้า event มาภายใน 18 วินาที = ปกติ ข้าม poll (ประหยัด query)
+      if(Date.now() - rtLastSyncTs < 18000) return;
+      try{
+        await loadRound(); await loadNarrative();
+        if(activeTab()==='story'){ renderRoundbar(); renderStory(); }
+      }catch(e){ /* silent */ }
+    }, 20000);
+  }
+}
+
+// อัปเดต indicator "DM กำลังคิด..." จาก presence state
+function _refreshThinkingFromPresence(){
+  if(!rtChannel) return;
+  let any=false;
+  try{
+    const state = rtChannel.presenceState() || {};
+    for(const k in state){
+      const arr = state[k]||[];
+      if(arr.some(p=>p && p.dm_thinking===true)){ any=true; break; }
+    }
+  }catch(e){ any=false; }
+  if(any===rtAnyThinking) return;
+  rtAnyThinking = any;
+  if(activeTab()==='story'){ renderRoundbar(); renderStory(); }
+}
+
+// broadcast "ฉันกำลังให้ DM คิด" ให้ผู้เล่นคนอื่นเห็น indicator
+async function setMyThinking(on){
+  if(!rtChannel) return;
+  try{ await rtChannel.track({ user_id:(me&&me.id)||'anon', dm_thinking:!!on, ts:Date.now() }); }catch(e){}
 }
 function activeTab(){ return document.querySelector('.tab.active')?.dataset.tab; }
 function escapeHtml(s){ return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
