@@ -628,6 +628,7 @@ const SUPA_ANON = 'sb_publishable_kODadNf7PNUWJr_ZTViABw_IsP6ggJ6';
 // ▲▲▲ key สาธารณะ (publishable) — ปลอดภัยที่จะฝัง ความปลอดภัยจริงอยู่ที่ RLS ▲▲▲
 const RESOLVE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/resolve-round';
 const INGEST_FN  = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-file';
+const INGEST_PUZZLE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-puzzle';
 const DYNAMIC_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/dynamic-task';
 let supa=null, session=null, me=null;            // me = auth user
 let campaign=null, members=[], myChar=null, characters=[], curRound=null, narrative=[], mySheet={}, worldState=null, chatMsgs=[];
@@ -1543,15 +1544,26 @@ async function renderCombat(){
 async function renderMap(){
   const p=$('panel-map'); p.innerHTML='';
   const isHost=campaign.host_id===me.id;
-  const st=worldState||{};
-  // current scene
-  const cur=document.createElement('div'); cur.className='item'; cur.innerHTML='<div class="sectitle">CURRENT SCENE</div>';
-  if(st.current_map){ const img=document.createElement('img'); img.src=PUBLIC_URL+'maps/'+st.current_map; img.style.cssText='width:100%;border:2px solid #fff;image-rendering:pixelated;margin-top:6px'; img.onerror=()=>{img.style.display='none';}; cur.appendChild(img); }
-  const room=document.createElement('div'); room.className='note'; room.style.cssText='text-align:left;padding:6px 2px';
-  room.textContent = st.current_room ? ('Room: '+st.current_room) : (st.current_map?'':'Not in a dungeon yet — the DM reveals the map when the time comes');
-  cur.appendChild(room); p.appendChild(cur);
-  // dungeons (host can set current scene)
+  const st=worldState||{}; const loc=st.location||{};
   let ds=[]; try{ const r=await supa.from('dungeons').select('*').eq('campaign_id',campaign.id).order('created_at',{ascending:false}); ds=r.data||[]; }catch(e){}
+  // เลือกรูปแผนที่: current_map ก่อน → ไม่มีก็จับคู่ตำแหน่งปัจจุบันกับดันเจียนที่ 'เคยอัปรูป'
+  const here=[st.current_room, loc.site, loc.settlement].filter(Boolean).map(s=>String(s).toLowerCase());
+  let mapPath=st.current_map||null, matched=null;
+  if(!mapPath && ds.length && here.length){
+    for(const d of ds){ if(!d.map_path) continue; const dn=(d.name||'').toLowerCase().trim(); if(dn && here.some(h=>h.includes(dn)||dn.includes(h))){ mapPath=d.map_path; matched=d.name; break; } }
+  }
+  // CURRENT SCENE
+  const cur=document.createElement('div'); cur.className='item'; cur.innerHTML='<div class="sectitle">CURRENT SCENE</div>';
+  const locLine=[loc.site,loc.settlement,loc.region,loc.kingdom].filter(Boolean).join(' · ');
+  if(locLine){ const ll=document.createElement('div'); ll.className='note'; ll.style.cssText='text-align:left;padding:2px 2px 6px'; ll.textContent='📍 '+locLine+(st.current_room?(' — '+st.current_room):''); cur.appendChild(ll); }
+  if(mapPath){
+    const img=document.createElement('img'); img.src=PUBLIC_URL+'maps/'+mapPath; img.style.cssText='width:100%;border:2px solid #fff;image-rendering:pixelated;margin-top:6px'; img.onerror=()=>{img.style.display='none';}; cur.appendChild(img);
+    if(matched){ const mn=document.createElement('div'); mn.className='note'; mn.style.cssText='text-align:left;padding:6px 2px'; mn.textContent='🗺 แผนที่: '+matched; cur.appendChild(mn); }
+  } else {
+    const e=document.createElement('div'); e.className='note'; e.style.cssText='text-align:left;padding:6px 2px'; e.textContent= locLine? 'ยังไม่มีรูปแผนที่ของที่นี่ — อัปในแท็บ Files แล้วตั้งชื่อดันเจียนให้ตรงกับสถานที่ จะขึ้นอัตโนมัติ' : 'ยังไม่อยู่ในดันเจียน — DM จะเผยแผนที่เมื่อถึงเวลา'; cur.appendChild(e);
+  }
+  p.appendChild(cur);
+  // DUNGEONS list (host เซ็ตฉากได้)
   if(ds.length){
     const dl=document.createElement('div'); dl.className='item'; dl.innerHTML='<div class="sectitle">DUNGEONS</div>';
     ds.forEach(d2=>{ const row=document.createElement('div'); row.className='kv'; row.innerHTML=`<span class="k">▣ ${escapeHtml(d2.name)}${d2.map_path?' 🗺':''}</span>`; if(isHost){ const b=document.createElement('button'); b.className='btn ghost sm'; b.textContent='Set scene'; b.onclick=()=>setScene(d2); row.appendChild(b); } dl.appendChild(row); });
@@ -1661,19 +1673,42 @@ async function deleteDungeon(id,mapPath){
 // PUZZLE card (collaborative)
 async function filesPuzzleCard(p){
   const c=document.createElement('div'); c.className='item';
-  c.innerHTML='<div class="sectitle">PUZZLES</div><div class="note" style="text-align:left;padding:4px 2px 8px">โจทย์ + เฉลย (เฉลยเป็นความลับ ไม่ส่งให้ AI)</div>';
+  c.innerHTML='<div class="sectitle">PUZZLES (คลังลับ)</div><div class="note" style="text-align:left;padding:4px 2px 8px">🔒 เห็นเฉพาะคุณ — DM จะสุ่มมาใช้เซอร์ไพรส์เพื่อน. พิมพ์เอง หรือ <b>อัปไฟล์ (รูป/PDF)</b> ให้ AI อ่านแยกโจทย์/เฉลยให้</div>';
+  // (A) พิมพ์เอง
   const nm=mkInput('ชื่อปริศนา'); const pr=mkInput('โจทย์/คำใบ้'); const so=mkInput('เฉลย');
-  const btn=document.createElement('button'); btn.className='btn sm'; btn.textContent='Add puzzle'; btn.onclick=()=>addPuzzle(nm,pr,so,btn);
+  const btn=document.createElement('button'); btn.className='btn sm'; btn.textContent='Add (พิมพ์)'; btn.onclick=()=>addPuzzle(nm,pr,so,btn);
   const row=document.createElement('div'); row.style.cssText='display:flex;gap:8px;flex-wrap:wrap;align-items:center'; row.appendChild(nm); row.appendChild(pr); row.appendChild(so); row.appendChild(btn); c.appendChild(row);
-  let ps=[]; try{ const r=await supa.from('puzzles').select('id,name,prompt').eq('campaign_id',campaign.id).order('created_at',{ascending:false}); ps=r.data||[]; }catch(e){}
-  ps.forEach(z=>{ const d=document.createElement('div'); d.className='kv'; d.innerHTML=`<span class="k">🧩 ${escapeHtml(z.name)}${z.prompt?' · '+escapeHtml(String(z.prompt).slice(0,40)):''}</span>`; const del=document.createElement('button'); del.className='btn ghost sm'; del.textContent='✕'; del.onclick=()=>deletePuzzle(z.id); d.appendChild(del); c.appendChild(d); });
+  // (B) อัปไฟล์ → AI อ่าน
+  const frow=document.createElement('div'); frow.style.cssText='display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px';
+  const fnm=mkInput('ชื่อ (optional)');
+  const fi=document.createElement('input'); fi.type='file'; fi.accept='image/*,application/pdf'; fi.style.cssText='color:#fff;font-size:13px;max-width:160px';
+  const fbtn=document.createElement('button'); fbtn.className='btn sm'; fbtn.textContent='Add (ไฟล์ → AI อ่าน)'; fbtn.onclick=()=>addPuzzleFile(fnm,fi,fbtn);
+  frow.appendChild(fnm); frow.appendChild(fi); frow.appendChild(fbtn); c.appendChild(frow);
+  // รายการของฉัน (RLS: เห็นเฉพาะของตัวเอง/host)
+  let ps=[]; try{ const r=await supa.from('puzzles').select('id,name,prompt,source').eq('campaign_id',campaign.id).order('created_at',{ascending:false}); ps=r.data||[]; }catch(e){}
+  ps.forEach(z=>{ const d=document.createElement('div'); d.className='kv'; d.innerHTML=`<span class="k">🧩 ${escapeHtml(z.name)}${z.source==='file'?' 📎':''}${z.prompt?' · '+escapeHtml(String(z.prompt).slice(0,38)):''}</span>`; const del=document.createElement('button'); del.className='btn ghost sm'; del.textContent='✕'; del.onclick=()=>deletePuzzle(z.id); d.appendChild(del); c.appendChild(d); });
   p.appendChild(c);
 }
 async function addPuzzle(nm,pr,so,btn){
   const name=nm.value.trim(); if(!name){ toast('ใส่ชื่อปริศนา',true); return; }
   btn.disabled=true;
-  try{ const ins=await supa.from('puzzles').insert({campaign_id:campaign.id,name,prompt:pr.value.trim()||null,solution:so.value.trim()||null,created_by:me.id}); if(ins.error) throw ins.error; toast('เพิ่มปริศนาแล้ว ✓'); renderFiles(); }
+  try{ const ins=await supa.from('puzzles').insert({campaign_id:campaign.id,name,prompt:pr.value.trim()||null,solution:so.value.trim()||null,source:'manual',created_by:me.id}); if(ins.error) throw ins.error; toast('เพิ่มปริศนาแล้ว ✓'); renderFiles(); }
   catch(e){ toast(e.message||'เพิ่มไม่สำเร็จ',true); btn.disabled=false; }
+}
+async function addPuzzleFile(fnm,fi,btn){
+  const file=fi.files&&fi.files[0]; if(!file){ toast('เลือกไฟล์ปริศนาก่อน',true); return; }
+  if(file.size>12000000){ toast('ไฟล์ใหญ่เกิน 12MB',true); return; }
+  btn.disabled=true; const orig=btn.textContent; btn.textContent='AI กำลังอ่าน…';
+  try{
+    const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_'); const path=campaign.id+'/'+Date.now()+'_'+safe;
+    const up=await supa.storage.from('puzzlefiles').upload(path,file,{upsert:false}); if(up.error) throw up.error;
+    const token=(await supa.auth.getSession()).data.session?.access_token;
+    const r=await fetch(INGEST_PUZZLE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify({campaign_id:campaign.id, name:fnm.value.trim()||file.name, storage_path:path, mime:file.type})});
+    const j=await r.json();
+    if(!r.ok){ toast('AI อ่านไม่สำเร็จ: '+((j.error||'')+(j.detail?(' — '+String(j.detail).slice(0,100)):'')),true); btn.disabled=false; btn.textContent=orig; return; }
+    toast('เพิ่มปริศนาจากไฟล์แล้ว ✓ (AI แยกโจทย์/เฉลยให้)'); renderFiles();
+  }catch(e){ toast(e.message||'อัปไฟล์ล้มเหลว',true); btn.disabled=false; btn.textContent=orig; }
 }
 async function deletePuzzle(id){
   if(!confirm('ลบปริศนานี้?')) return;
