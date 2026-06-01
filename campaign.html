@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="dark">
 <title>TTRPG Campaign</title>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ============================================================
@@ -23,13 +23,21 @@ html{background:#000;}
 :root{color-scheme:dark;}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{
-  font-family:'VT323','Noto Sans Thai',monospace;   /* อังกฤษ=พิกเซล, ไทย=fallback อ่านง่าย */
-  background:var(--black);color:var(--white);font-size:22px;
+  /* body + ข้อความในเนื้อหา = IBM Plex Sans Thai (Latin+ไทยชุดเดียว อ่านง่าย เข้ากัน) */
+  font-family:'IBM Plex Sans Thai','Noto Sans Thai',sans-serif;
+  background:var(--black);color:var(--white);font-size:19px;
   height:100dvh;display:flex;flex-direction:column;overflow:hidden;
-  -webkit-font-smoothing:none;
+  -webkit-font-smoothing:antialiased;
 }
-/* เนื้อหาภาษาไทยยาวๆ ใช้ฟอนต์อ่านง่าย (ไม่บังคับพิกเซล) */
-.narr,.chron-text,.actionlog,.item .sub,.card p.sub,.npc-detail,.muted,.note{font-family:'Noto Sans Thai',sans-serif;}
+/* หัวข้อ (headline) + ตัวเลข/HUD ภาษาอังกฤษ = พิกเซลตามเดิม (กลิ่นเรโทร) */
+.sectitle,.card h2,.hd .ttl,.item .nm,.tab .tlab,.pill,.statusline,.wh,.whlabel,.wh b,
+.num,.kv .num,.lvbadge,.barlabel,.cbtag,.chip,.code,.hd .code{
+  font-family:'VT323','Noto Sans Thai',monospace;-webkit-font-smoothing:none;
+}
+/* เนื้อหา/sub-headline (อังกฤษ+ไทย) = ฟอนต์อ่านง่าย ขนาดพอเหมาะ */
+.narr,.chron-text,.actionlog,.item .sub,.card p.sub,.npc-detail,.muted,.note,.sub,.meta,.meta-inline,.kv .k,.econleg,.dicelbl{
+  font-family:'IBM Plex Sans Thai','Noto Sans Thai',sans-serif;font-size:15px;line-height:1.6;
+}
 /* VT323 เล็กกว่าปกติ → ขยายองค์ประกอบ UI อังกฤษให้อ่านง่าย (อิงขนาดหน้า Stat ~19px) */
 .btn{font-size:23px;letter-spacing:.5px;}
 .tab .tlab{font-size:19px;}
@@ -342,6 +350,7 @@ a.link:hover{background:var(--white);color:var(--black);}
 .coin.c .ico{background:#000;color:#9a9a9a;border-color:#9a9a9a;}
 .coin .v{font-family:'VT323',monospace;font-size:21px;color:#fff;line-height:1;}
 .coin .lab{font-size:10px;color:#9a9a9a;letter-spacing:1px;}
+.cletter{font-family:'VT323',monospace;font-size:24px;font-weight:700;line-height:1;-webkit-font-smoothing:none;min-width:14px;display:inline-block;text-align:center;}
 .cico{display:inline-flex;width:28px;height:20px;flex-shrink:0;}
 .cico svg{width:28px;height:20px;display:block;image-rendering:pixelated;}
 .bico{display:inline-flex;width:20px;height:16px;flex-shrink:0;vertical-align:-3px;margin-right:5px;}
@@ -1582,7 +1591,7 @@ async function renderMe(){
   const cur=ex.current||0, nxt=ex.next||0; const pct=nxt?Math.min(100,Math.round(cur/nxt*100)):0;
   w2.innerHTML=`<div class="winhead"><div class="sectitle" style="margin:0">LEVEL & EXP</div><div class="lvbadge">Lv ${myChar.level}</div></div>`+
     `<div class="barwrap"><div class="barlabel"><span>Experience</span><span class="num">${cur} / ${nxt||dash}</span></div><div class="bar"><div class="fill" style="width:${pct}%"></div></div></div>`+
-    `<div class="sectitle" style="margin-top:10px">WALLET</div><div class="coins"><div class="coin g"><span class="cico">${COINF.g}</span><span><span class="v">${w.gp||0}</span> <span class="lab">GOLD</span></span></div><div class="coin s"><span class="cico">${COINF.s}</span><span><span class="v">${w.sp||0}</span> <span class="lab">SILVER</span></span></div><div class="coin c"><span class="cico">${COINF.c}</span><span><span class="v">${w.cp||0}</span> <span class="lab">COPPER</span></span></div></div>`;
+    `<div class="sectitle" style="margin-top:10px">WALLET</div><div class="coins"><div class="coin g"><span class="cletter" style="color:#ffe066">G</span><span class="v">${w.gp||0}</span></div><div class="coin s"><span class="cletter" style="color:#e0e6ee">S</span><span class="v">${w.sp||0}</span></div><div class="coin c"><span class="cletter" style="color:#d9a066">C</span><span class="v">${w.cp||0}</span></div></div>`;
   p.appendChild(w2);
 
   // window 3: status / conditions / resistances
@@ -1707,9 +1716,9 @@ async function renderItems(){
   p.appendChild(bag);
   const purse=document.createElement('div'); purse.className='item';
   purse.innerHTML='<div class="sectitle">MONEY</div>'+
-    `<div class="kv"><span class="k">🪙 ทอง (gp)</span><span class="dots"></span><span class="num">${+w.gp||0}</span></div>`+
-    `<div class="kv"><span class="k">⚪ เงิน (sp)</span><span class="dots"></span><span class="num">${+w.sp||0}</span></div>`+
-    `<div class="kv"><span class="k">🟤 ทองแดง (cp)</span><span class="dots"></span><span class="num">${+w.cp||0}</span></div>`;
+    `<div class="kv"><span class="k"><span class="cletter" style="color:#ffe066">G</span> Gold</span><span class="dots"></span><span class="num">${+w.gp||0}</span></div>`+
+    `<div class="kv"><span class="k"><span class="cletter" style="color:#e0e6ee">S</span> Silver</span><span class="dots"></span><span class="num">${+w.sp||0}</span></div>`+
+    `<div class="kv"><span class="k"><span class="cletter" style="color:#d9a066">C</span> Copper</span><span class="dots"></span><span class="num">${+w.cp||0}</span></div>`;
   p.appendChild(purse);
 }
 
@@ -1793,9 +1802,47 @@ async function deleteNPC(id){
   toast('ลบแล้ว ✓'); renderNPCs();
 }
 
-// ───────── render: monster (combat_state + fog-of-war) ─────────
+// ───────── battle tracker: initiative order + combat log ─────────
+async function renderInitiativeTracker(p){
+  let enc=null;
+  try{ const r=await supa.from('combat_encounters').select('*').eq('campaign_id',campaign.id).neq('status','ended').maybeSingle(); if(!r.error) enc=r.data; }catch(e){ return; }
+  if(!enc) return;   // ไม่มีคอมแบต → ไม่แสดง tracker
+  let ents=[]; try{ const r=await supa.from('initiative_entries').select('*').eq('encounter_id',enc.id).order('sort',{ascending:true,nullsFirst:false}); ents=r.data||[]; }catch(e){}
+  // HP: party จาก characters.public_status, monster จาก combat_state
+  let csMap={}; try{ const r=await supa.from('combat_state').select('id,cur_hp,monsters(max_hp,name)').eq('campaign_id',campaign.id); (r.data||[]).forEach(x=>csMap[x.id]=x); }catch(e){}
+  const wrap=document.createElement('div'); wrap.className='item';
+  wrap.innerHTML=`<div class="winhead"><div class="sectitle" style="margin:0">⚔ INITIATIVE</div><span class="chip">Round ${enc.combat_round}</span></div>`;
+  const list=document.createElement('div'); list.style.cssText='display:flex;flex-direction:column;gap:4px;margin-top:6px';
+  ents.filter(e=>e.is_active).forEach(e=>{
+    const isParty=e.side==='party';
+    let hpTxt='';
+    if(isParty){ const c=characters.find(x=>x.id===e.character_id); const hp=(c&&c.public_status&&c.public_status.hp)||''; hpTxt=hp?` · HP ${hp}`:''; }
+    else { const cs=csMap[e.combat_state_id]; if(cs){ const mx=cs.monsters&&cs.monsters.max_hp; hpTxt=` · HP ${cs.cur_hp}${mx?'/'+mx:''}`; } }
+    const conds=(Array.isArray(e.conditions)&&e.conditions.length)?' ['+e.conditions.map(escapeHtml).join(',')+']':'';
+    const mine=isParty&&myChar&&e.character_id===myChar.id;
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:8px;padding:5px 8px;border:2px solid '+(isParty?'#5cc8ff':'#ff6b6b')+';border-radius:6px;'+(mine?'box-shadow:0 0 0 2px #000,0 0 0 4px #5cc8ff;':'');
+    row.innerHTML=`<span class="num" style="min-width:26px;color:#fff">${e.initiative??'?'}</span><span style="flex:1;color:#fff">${escapeHtml(e.display_name)}${mine?' <b>(คุณ)</b>':''}<span class="muted" style="font-size:11px">${hpTxt}${conds}</span></span><span style="font-size:11px;color:${isParty?'#5cc8ff':'#ff6b6b'}">${isParty?'พันธมิตร':'ศัตรู'}</span>`;
+    list.appendChild(row);
+  });
+  wrap.appendChild(list); p.appendChild(wrap);
+  // combat log feed
+  let logs=[]; try{ const r=await supa.from('combat_log').select('*').eq('encounter_id',enc.id).order('created_at',{ascending:true}).limit(60); logs=r.data||[]; }catch(e){}
+  if(logs.length){
+    const ICON={initiative:'🎲',attack:'🎲',damage:'💥',heal:'💚',save:'🛡',check:'🎯',move:'👣',condition:'⭐',death:'☠',flee:'🏃',round_advance:'🔄',note:'📝'};
+    const lc=document.createElement('div'); lc.className='item';
+    lc.innerHTML='<div class="sectitle">COMBAT LOG</div>';
+    const feed=document.createElement('div'); feed.style.cssText='display:flex;flex-direction:column;gap:3px;margin-top:6px;max-height:260px;overflow:auto;font-size:13px;line-height:1.5';
+    logs.forEach(l=>{ const d=document.createElement('div'); d.style.color=l.entry_type==='round_advance'?'#9a9a9a':'#fff'; d.innerHTML=(ICON[l.entry_type]||'•')+' '+escapeHtml(l.summary); feed.appendChild(d); });
+    lc.appendChild(feed); p.appendChild(lc);
+    setTimeout(()=>{ feed.scrollTop=feed.scrollHeight; },0);
+  }
+}
+
+// ───────── render: monster + battle tracker (combat_state + initiative + log) ─────────
 async function renderCombat(){
   const p=$('panel-mon'); p.innerHTML='';
+  await renderInitiativeTracker(p);   // battle tracker ด้านบน (ถ้ามีคอมแบต)
   let cs=null;
   try{ const r=await supa.from('combat_state').select('*, monsters(*)').eq('campaign_id',campaign.id).eq('active',true); if(!r.error) cs=r.data||[]; }catch(e){}
   if(cs===null){ p.innerHTML='<div class="muted">Monster system not enabled yet<br>Run migration.sql</div>'; return; }
@@ -1816,9 +1863,49 @@ async function renderCombat(){
   });
 }
 
+// ───────── battle grid (SVG meeples) ─────────
+async function renderBattleGrid(p){
+  let grid=null;
+  try{ const r=await supa.from('battle_grids').select('*').eq('campaign_id',campaign.id).eq('active',true).maybeSingle(); if(!r.error) grid=r.data; }catch(e){ return; }
+  if(!grid) return;
+  let toks=[]; try{ const r=await supa.from('grid_tokens').select('*').eq('grid_id',grid.id).order('z',{ascending:true}); toks=r.data||[]; }catch(e){}
+  const CELL=26, cols=grid.cols, rows=grid.rows, W=cols*CELL, H=rows*CELL;
+  const walls=new Set(Array.isArray(grid.terrain&&grid.terrain.walls)?grid.terrain.walls:[]);
+  const L="ABCDEFGHIJKLMNOPQRST"; const rc2cell=(c,r)=>(L[c]||'?')+(r+1);
+  let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:520px;border:2px solid #fff;image-rendering:pixelated;background:#11141c" shape-rendering="crispEdges">`;
+  // walls
+  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){ if(walls.has(rc2cell(c,r))) svg+=`<rect x="${c*CELL}" y="${r*CELL}" width="${CELL}" height="${CELL}" fill="#3a3f4b"/>`; }
+  // grid lines
+  for(let c=0;c<=cols;c++) svg+=`<line x1="${c*CELL}" y1="0" x2="${c*CELL}" y2="${H}" stroke="#2a2f3a" stroke-width="1"/>`;
+  for(let r=0;r<=rows;r++) svg+=`<line x1="0" y1="${r*CELL}" x2="${W}" y2="${r*CELL}" stroke="#2a2f3a" stroke-width="1"/>`;
+  // tokens
+  toks.forEach(t=>{
+    const cx=t.col*CELL+CELL/2, cy=t.row*CELL+CELL/2, R=CELL*0.36;
+    const down=Array.isArray(t.flags)&&(t.flags.includes('down')||t.flags.includes('dead'));
+    const col=t.color||(t.kind==='monster'?'#e23b3b':t.kind==='object'?'#9a9a9a':'#3fa9f5');
+    const op=down?0.35:1;
+    if(t.kind==='object'||t.kind==='marker'){
+      svg+=`<rect x="${cx-R}" y="${cy-R}" width="${R*2}" height="${R*2}" fill="${col}" opacity="${op}" rx="2"/>`;
+    } else {
+      svg+=`<circle cx="${cx}" cy="${cy}" r="${R}" fill="${col}" opacity="${op}" stroke="#000" stroke-width="1.5"/>`;
+    }
+    // initial letter glyph
+    const init=escapeHtml((t.label||'?').slice(0,1).toUpperCase());
+    svg+=`<text x="${cx}" y="${cy+3}" text-anchor="middle" font-family="'Press Start 2P',monospace" font-size="7" fill="#000">${init}</text>`;
+    // label under token
+    svg+=`<text x="${cx}" y="${t.row*CELL+CELL-1}" text-anchor="middle" font-family="'VT323',monospace" font-size="9" fill="#fff">${escapeHtml((t.label||'').slice(0,8))}</text>`;
+    if(down) svg+=`<line x1="${cx-R}" y1="${cy-R}" x2="${cx+R}" y2="${cy+R}" stroke="#fff" stroke-width="1.5"/>`;
+  });
+  svg+='</svg>';
+  const box=document.createElement('div'); box.className='item';
+  box.innerHTML='<div class="sectitle">⚔ BATTLE GRID</div><div style="overflow:auto;margin-top:6px">'+svg+'</div><div class="note" style="text-align:left;padding:6px 2px 0">🔵 พันธมิตร · 🔴 ศัตรู · ⬜ วัตถุ — DM ขยับให้อัตโนมัติ (เห็นสดผ่าน realtime)</div>';
+  p.appendChild(box);
+}
+
 // ───────── render: map (campaign_state) ─────────
 async function renderMap(){
   const p=$('panel-map'); p.innerHTML='';
+  await renderBattleGrid(p);   // สนามรบ (ถ้ามี) แสดงบนสุด
   const isHost=campaign.host_id===me.id;
   const st=worldState||{}; const loc=st.location||{};
   let ds=[]; try{ const r=await supa.from('dungeons').select('*').eq('campaign_id',campaign.id).order('created_at',{ascending:false}); ds=r.data||[]; }catch(e){}
@@ -2159,6 +2246,13 @@ function subscribeRealtime(){
     .on('postgres_changes',{event:'*',schema:'public',table:'characters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ _rtTouch(); await loadCharacters(); if(activeTab()==='party') renderParty(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'campaign_state',filter:'campaign_id=eq.'+campaign.id}, async()=>{ _rtTouch(); await loadState(); applyMood(); if(activeTab()==='story') renderClock(); if(activeTab()==='map') renderMap(); })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'chronicles',filter:'campaign_id=eq.'+campaign.id}, async()=>{ _rtTouch(); if(activeTab()==='chron'){ renderChronicle(); } else { const t=document.querySelector('.tab[data-tab="chron"]'); if(t) t.classList.add('blink'); } })
+    // battle tracker: encounter / initiative / log → refresh แท็บ Monster + กระพริบเตือน
+    .on('postgres_changes',{event:'*',schema:'public',table:'combat_encounters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ _rtTouch(); if(activeTab()==='mon') renderCombat(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'initiative_entries',filter:'campaign_id=eq.'+campaign.id}, async()=>{ _rtTouch(); if(activeTab()==='mon') renderCombat(); })
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'combat_log',filter:'campaign_id=eq.'+campaign.id}, async()=>{ _rtTouch(); if(activeTab()==='mon'){ renderCombat(); } else { const t=document.querySelector('.tab[data-tab="mon"]'); if(t) t.classList.add('blink'); } })
+    // battle grid: token ขยับ/เปลี่ยน → refresh แท็บ Map (เห็นหมากเคลื่อนสด)
+    .on('postgres_changes',{event:'*',schema:'public',table:'battle_grids',filter:'campaign_id=eq.'+campaign.id}, async()=>{ _rtTouch(); if(activeTab()==='map') renderMap(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'grid_tokens',filter:'campaign_id=eq.'+campaign.id}, async()=>{ _rtTouch(); if(activeTab()==='map') renderMap(); })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_messages',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ _rtTouch(); await loadChat(); if(activeTab()==='party'){ renderChatList(); } else if(payload.new && payload.new.user_id!==me.id){ const t=document.querySelector('.tab[data-tab="party"]'); if(t) t.classList.add('blink'); } })
     // presence: ตรวจ dm_thinking ของผู้เล่นทุกคน → แสดง indicator
     .on('presence',{event:'sync'}, ()=>{ _rtTouch(); _refreshThinkingFromPresence(); })
