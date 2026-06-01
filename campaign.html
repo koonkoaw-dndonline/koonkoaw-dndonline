@@ -517,6 +517,15 @@ body.role-player .dm-only{display:none!important;}
       <input type="file" id="rulesFiles" multiple accept=".md,.txt,text/markdown,text/plain" onchange="onRulesFiles(this.files)"/>
     </label>
     <div class="note" id="rulesFilesInfo">เลือกไฟล์กฎ DM (เช่น 14 ไฟล์ฉบับสะอาด) → ระบบจะฝังเป็นกติกาของ DM ตอนสร้างโลก</div>
+    <label class="fld">🎵 เพลงประกอบ (optional — ไม่เติมตอนนี้ก็ได้ เติมทีหลังในแท็บ Files)
+      <input type="file" id="musicFiles" multiple accept="audio/*" onchange="onMusicFiles(this.files)"/>
+    </label>
+    <div class="srow2" style="align-items:center;gap:8px">
+      <select id="musicMood" onchange="onMusicFiles(document.getElementById('musicFiles').files)" style="background:#000;color:#fff;border:2px solid #fff;font-family:inherit;font-size:15px;padding:4px 6px">
+        <option value="explore">explore</option><option value="town">town</option><option value="battle">battle</option><option value="boss">boss</option><option value="tavern">tavern</option><option value="victory">victory</option><option value="sad">sad</option><option value="mystery">mystery</option>
+      </select>
+      <span class="note" id="musicFilesInfo">อารมณ์ของเพลงชุดนี้ (เปลี่ยน/เพิ่มทีหลังได้)</span>
+    </div>
     <button class="btn" id="createBtn" onclick="createCampaign()">Create Campaign</button>
   </div>
   <div class="divider">OR</div>
@@ -629,6 +638,7 @@ const SUPA_ANON = 'sb_publishable_kODadNf7PNUWJr_ZTViABw_IsP6ggJ6';
 const RESOLVE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/resolve-round';
 const INGEST_FN  = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-file';
 const INGEST_PUZZLE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-puzzle';
+const DUNGEON_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-dungeon';
 const DYNAMIC_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/dynamic-task';
 let supa=null, session=null, me=null;            // me = auth user
 let campaign=null, members=[], myChar=null, characters=[], curRound=null, narrative=[], mySheet={}, worldState=null, chatMsgs=[];
@@ -719,6 +729,11 @@ async function onRulesFiles(files){
   const info=$('rulesFilesInfo');
   if(info) info.textContent = files.length? `โหลด ${files.length} ไฟล์ · ~${Math.round(total/1024)} KB → จะฝังเป็นกติกา DM ตอนสร้างโลก` : 'ยังไม่ได้เลือกไฟล์';
 }
+function onMusicFiles(files){
+  const info=$('musicFilesInfo'); if(!info) return;
+  const mood=($('musicMood')&&$('musicMood').value)||'explore';
+  info.textContent = (files&&files.length)? `เลือก ${files.length} เพลง (mood: ${mood}) — จะอัปตอนสร้างโลก` : 'อารมณ์ของเพลงชุดนี้ (เปลี่ยน/เพิ่มทีหลังได้)';
+}
 async function createCampaign(){
   const name=$('newName').value.trim(); if(!name){toast('Name your campaign first',true);return;}
   $('createBtn').disabled=true;
@@ -728,9 +743,25 @@ async function createCampaign(){
     const { data, error } = await supa.rpc('create_campaign',{ p_name:name, p_rules:combined });
     if(error) throw error;
     campaign = Array.isArray(data)?data[0]:data;
+    // อัปเพลงประกอบ (ถ้าเลือก) — ไม่บล็อกการสร้างโลกถ้าพลาด
+    const mf=$('musicFiles'); const mood=($('musicMood')&&$('musicMood').value)||'explore';
+    if(mf && mf.files && mf.files.length){
+      $('createBtn').textContent='กำลังอัปเพลง…';
+      let okc=0;
+      for(const file of mf.files){
+        try{
+          if(file.size>15000000) continue;
+          const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_'); const path=campaign.id+'/'+Date.now()+'_'+safe;
+          const up=await supa.storage.from('audio').upload(path,file,{upsert:false}); if(up.error) throw up.error;
+          const ins=await supa.from('music_tracks').insert({campaign_id:campaign.id,mood,name:file.name,storage_path:path,created_by:me.id}); if(ins.error) throw ins.error;
+          okc++;
+        }catch(e){}
+      }
+      if(okc) toast(`อัปเพลง ${okc} เพลงแล้ว ✓`);
+    }
     await enterCampaign();
   }catch(e){ toast(e.message||'Create failed',true); }
-  finally{ $('createBtn').disabled=false; }
+  finally{ $('createBtn').disabled=false; $('createBtn').textContent='Create Campaign'; }
 }
 async function joinCampaign(){
   const code=$('joinCode').value.trim().toUpperCase(); if(!code){toast('Enter the invite code',true);return;}
@@ -1645,24 +1676,34 @@ async function deleteMusic(id,path){
 // DUNGEON card (collaborative)
 async function filesDungeonCard(p){
   const c=document.createElement('div'); c.className='item';
-  c.innerHTML='<div class="sectitle">DUNGEONS</div><div class="note" style="text-align:left;padding:4px 2px 8px">อัปแผนที่ (รูป) + ตั้งชื่อ — DM ใช้ในแท็บ Map (ทุกคนเพิ่มได้)</div>';
+  c.innerHTML='<div class="sectitle">DUNGEONS</div><div class="note" style="text-align:left;padding:4px 2px 8px">อัปแผนที่ (รูป) + ตั้งชื่อ — <b>AI จะอ่านแผนที่แยกผังห้อง/ทางเชื่อมให้</b> เพื่อเล่าทีละห้องแม่นขึ้น (ทุกคนเพิ่มได้)</div>';
   const nm=mkInput('ชื่อดันเจียน'); const th=mkInput('ธีม (optional)');
   const fi=document.createElement('input'); fi.type='file'; fi.accept='image/*'; fi.style.cssText='color:#fff;font-size:13px;max-width:150px';
   const btn=document.createElement('button'); btn.className='btn sm'; btn.textContent='Add dungeon'; btn.onclick=()=>addDungeon(nm,th,fi,btn);
   const row=document.createElement('div'); row.style.cssText='display:flex;gap:8px;flex-wrap:wrap;align-items:center'; row.appendChild(nm); row.appendChild(th); row.appendChild(fi); row.appendChild(btn); c.appendChild(row);
   let ds=[]; try{ const r=await supa.from('dungeons').select('*').eq('campaign_id',campaign.id).order('created_at',{ascending:false}); ds=r.data||[]; }catch(e){}
-  ds.forEach(x=>{ const d=document.createElement('div'); d.className='kv'; d.innerHTML=`<span class="k">▣ ${escapeHtml(x.name)}${x.theme?' · '+escapeHtml(x.theme):''}${x.map_path?' 🗺':''}</span>`; const del=document.createElement('button'); del.className='btn ghost sm'; del.textContent='✕'; del.onclick=()=>deleteDungeon(x.id,x.map_path); d.appendChild(del); c.appendChild(d); });
+  ds.forEach(x=>{ const aiRead=x.data&&x.data.ai_read; const d=document.createElement('div'); d.className='kv'; d.innerHTML=`<span class="k">▣ ${escapeHtml(x.name)}${x.theme?' · '+escapeHtml(x.theme):''}${x.map_path?' 🗺':''}${aiRead?' 🧠':''}</span>`; const del=document.createElement('button'); del.className='btn ghost sm'; del.textContent='✕'; del.onclick=()=>deleteDungeon(x.id,x.map_path); d.appendChild(del); c.appendChild(d); });
   p.appendChild(c);
 }
 async function addDungeon(nm,th,fi,btn){
   const name=nm.value.trim(); if(!name){ toast('ใส่ชื่อดันเจียน',true); return; }
-  btn.disabled=true;
+  btn.disabled=true; const orig=btn.textContent;
   try{
     let map_path=null; const file=fi.files&&fi.files[0];
     if(file){ if(file.size>8000000){ toast('รูปใหญ่เกิน 8MB',true); btn.disabled=false; return; } const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_'); map_path=campaign.id+'/'+Date.now()+'_'+safe; const up=await supa.storage.from('maps').upload(map_path,file,{upsert:false}); if(up.error) throw up.error; }
-    const ins=await supa.from('dungeons').insert({campaign_id:campaign.id,name,theme:th.value.trim()||null,map_path,created_by:me.id}); if(ins.error) throw ins.error;
-    toast('เพิ่มดันเจียนแล้ว ✓'); renderFiles();
-  }catch(e){ toast(e.message||'เพิ่มไม่สำเร็จ',true); btn.disabled=false; }
+    const ins=await supa.from('dungeons').insert({campaign_id:campaign.id,name,theme:th.value.trim()||null,map_path,created_by:me.id}).select('id').single(); if(ins.error) throw ins.error;
+    if(map_path && ins.data){ // ให้ AI อ่านแผนที่ครั้งเดียว → เก็บผังห้องไว้ใช้
+      btn.textContent='AI กำลังอ่านแผนที่…';
+      try{
+        const token=(await supa.auth.getSession()).data.session?.access_token;
+        const r=await fetch(DUNGEON_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({campaign_id:campaign.id,dungeon_id:ins.data.id})});
+        const j=await r.json();
+        if(r.ok) toast(`เพิ่มดันเจียน + AI อ่านแผนที่แล้ว ✓ (${j.rooms||0} ห้อง)`);
+        else toast('เพิ่มแล้ว แต่ AI อ่านแผนที่ไม่สำเร็จ: '+((j.error||'')+(j.detail?(' — '+String(j.detail).slice(0,80)):'')),true);
+      }catch(e){ toast('เพิ่มแล้ว แต่ AI อ่านแผนที่ไม่สำเร็จ',true); }
+    } else { toast('เพิ่มดันเจียนแล้ว ✓'); }
+    renderFiles();
+  }catch(e){ toast(e.message||'เพิ่มไม่สำเร็จ',true); btn.disabled=false; btn.textContent=orig; }
 }
 async function deleteDungeon(id,mapPath){
   if(!confirm('ลบดันเจียนนี้?')) return;
