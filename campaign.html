@@ -438,10 +438,13 @@ body.role-player .dm-only{display:none!important;}
 .hl-npc{color:#ffcf5a;font-weight:600;}
 .hl-item{color:#8ee88e;font-weight:600;}
 /* ฟอร์มสร้างตัวละคร */
-.srow2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-.srow3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
-.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
-.grid3 .fld,.srow3 .fld,.srow2 .fld{font-size:11px;}
+.srow2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;}
+.srow3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
+.grid3 .fld,.srow3 .fld,.srow2 .fld{font-size:11px;min-width:0;}
+.srow2 .fld input,.srow3 .fld input,.srow3 .fld select,.grid3 .fld input{min-width:0;width:100%;}
+/* มือถือจอแคบ: Max HP + weapon ซ้อนกันแทนเรียงข้าง (กันล้นจอ) */
+@media (max-width:520px){ .srow2{grid-template-columns:1fr;} }
 /* Point Buy widget */
 .pbgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;}
 .pbrow{display:flex;align-items:center;gap:7px;border:2px solid #fff;border-radius:6px;padding:5px 8px;background:#000;}
@@ -1915,7 +1918,7 @@ async function renderBattleGrid(p){
   const tileX=c=>PADX+c*TILE, tileY=r=>PADTOP+r*TILE*SY;
   const footX=(c)=>tileX(c)+TILE/2, footY=(r)=>tileY(r)+TILE*SY*0.78;
   const PAL={ pc:['#378ADD','#0C447C','#85B7EB'], ally:['#5c7bff','#26306b','#aeb8ff'], monster:['#E24B4A','#791F1F','#F09595'], npc:['#E8B23A','#6e5200','#f3d27a'] };
-  let svg=`<svg viewBox="0 0 ${VW} ${VH}" style="width:100%;max-width:560px;background:#0d1018;border:2px solid #fff;border-radius:6px">`;
+  let svg=`<svg viewBox="0 0 ${VW} ${VH}" style="display:block;width:100%;max-width:${VW}px;min-width:${cols*22}px;background:#0d1018;border:2px solid #fff;border-radius:6px">`;
   // tiles (checkerboard + squash = 2.5D) + walls
   for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
     const isW=walls.has(rc2cell(c,r));
@@ -1962,7 +1965,7 @@ async function renderBattleGrid(p){
   });
   svg+='</svg>';
   const box=document.createElement('div'); box.className='item';
-  box.innerHTML='<div class="sectitle">⚔ BATTLE GRID</div><div style="overflow:auto;margin-top:6px">'+svg+'</div><div class="note" style="text-align:left;padding:6px 2px 0">🟦 พันธมิตร · 🟥 ศัตรู · ⬛ วัตถุ — DM ขยับให้สด (กรอบทอง = ถึงตา)</div>';
+  box.innerHTML='<div class="sectitle">⚔ BATTLE GRID</div><div style="overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:6px">'+svg+'</div><div class="note" style="text-align:left;padding:6px 2px 0">🟦 พันธมิตร · 🟥 ศัตรู · ⬛ วัตถุ — DM ขยับให้สด (กรอบทอง = ถึงตา) · บอร์ดใหญ่เลื่อนแนวนอนได้</div>';
   p.appendChild(box);
 }
 
