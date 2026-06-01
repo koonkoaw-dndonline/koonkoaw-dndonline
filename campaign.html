@@ -276,6 +276,24 @@ a.link:hover{background:var(--white);color:var(--black);}
 @media (min-width:1500px){
   .panel{max-width:1500px;}
 }
+/* Desktop: เนื้อเรื่อง column ซ้ายกว้าง + ช่องคำสั่ง/คำตอบเพื่อน column ขวา (มือถือคงเรียงล่างตามเดิม) */
+@media (min-width:1024px){
+  .panel[data-tab="story"].active{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 360px;
+    grid-template-rows:auto 1fr;
+    gap:0 24px;
+    max-width:1320px;
+    align-content:start;
+  }
+  .panel[data-tab="story"].active #worldClock{grid-column:1 / -1;grid-row:1;}
+  .panel[data-tab="story"].active #narrFeed{grid-column:1;grid-row:2;min-width:0;}
+  .panel[data-tab="story"].active .roundbar{
+    grid-column:2;grid-row:2;align-self:start;
+    position:sticky;top:8px;max-width:none;width:100%;margin:0;
+    border-top:none;border-left:var(--px) solid var(--white);padding:2px 0 12px 16px;
+  }
+}
 
 /* ===== Phase 5 components ===== */
 .mapbox{border:2px solid #fff;background:#000;width:100%;aspect-ratio:10/7;display:block;}
@@ -414,6 +432,15 @@ body.role-player .dm-only{display:none!important;}
 .combatbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
 .cbtag{font-family:'Press Start 2P',monospace;font-size:8px;color:#fff;border:2px solid #fff;padding:4px 6px;border-radius:3px;letter-spacing:1px;}
 .cbrange{color:#9a9a9a;font-size:15px;}
+.econrow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.econlbl{font-size:13px;color:#9a9a9a;letter-spacing:.3px;}
+.econ{font-family:'VT323',monospace;font-size:15px;line-height:1;padding:4px 8px;border-radius:3px;border:2px solid #fff;}
+.econ.avail{background:#fff;color:#000;}
+.econ.used{background:#000;color:#555;border-color:#555;text-decoration:line-through;}
+.album{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-top:10px;}
+.albumcell{border:2px solid #fff;padding:5px;display:flex;flex-direction:column;}
+.albumcell img{width:100%;display:block;}
+.albumcap{font-size:13px;color:#9a9a9a;margin-top:4px;line-height:1.3;}
 /* Skill proficiency picker */
 .skgrid{display:flex;flex-wrap:wrap;gap:6px;}
 .skbtn{border:2px solid #fff;background:#000;color:#9a9a9a;border-radius:5px;padding:5px 9px;font-size:14px;font-family:'VT323',monospace;letter-spacing:.3px;}
@@ -435,6 +462,7 @@ body.role-player .dm-only{display:none!important;}
   <span class="code hidden" id="hdCode" title="Click to copy invite code"></span>
   <span class="who" id="hdWho"></span>
   <div class="dot" id="hdDot"></div>
+  <button class="btn ghost sm hidden" id="hdMusic" onclick="toggleMusic()" title="Toggle background music">&#9834; Music: off</button>
   <button class="btn ghost sm hidden" id="hdEnd"></button>
   <button class="btn ghost sm hidden" id="hdLogout" onclick="doLogout()">Logout</button>
 </div>
@@ -575,6 +603,7 @@ const SUPA_ANON = 'sb_publishable_kODadNf7PNUWJr_ZTViABw_IsP6ggJ6';
 // ▲▲▲ key สาธารณะ (publishable) — ปลอดภัยที่จะฝัง ความปลอดภัยจริงอยู่ที่ RLS ▲▲▲
 const RESOLVE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/resolve-round';
 const INGEST_FN  = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-file';
+const DYNAMIC_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/dynamic-task';
 let supa=null, session=null, me=null;            // me = auth user
 let campaign=null, members=[], myChar=null, characters=[], curRound=null, narrative=[], mySheet={}, worldState=null;
 let rtChannel=null, resolving=false;
@@ -701,6 +730,10 @@ async function enterCampaign(){
   else { endBtn.textContent='Leave'; endBtn.onclick=leaveCampaign; }
   endBtn.classList.remove('hidden');
   await refreshAll();
+  await loadMusicLibrary();
+  $('hdMusic').classList.remove('hidden');
+  try{ if(localStorage.getItem('ttrpg_music')==='1'){ musicOn=true; applyMood(); } }catch(e){}
+  updateMusicBtn();
   show('campaign');
   subscribeRealtime();
 }
@@ -741,6 +774,40 @@ async function loadState(){
   try{ const r=await supa.from('campaign_state').select('*').eq('campaign_id',campaign.id).maybeSingle(); worldState=r.error?null:r.data; }
   catch(e){ worldState=null; }
 }
+// ───────── audio: situational music (Batch C) ─────────
+const PUBLIC_URL = SUPA_URL.replace(/\/$/,'') + '/storage/v1/object/public/';
+let musicLib={}, curAudio=null, curMood=null, musicOn=false;
+async function loadMusicLibrary(){
+  musicLib={};
+  try{
+    const { data } = await supa.from('music_tracks').select('mood,storage_path,loop,volume').eq('campaign_id',campaign.id);
+    (data||[]).forEach(t=>{ const m=(t.mood||'').toLowerCase(); (musicLib[m]=musicLib[m]||[]).push({url:PUBLIC_URL+'audio/'+t.storage_path, loop:t.loop!==false, volume:(t.volume==null?0.6:t.volume)}); });
+  }catch(e){}
+}
+function toggleMusic(){
+  tick();
+  if(musicOn){ musicOn=false; try{localStorage.removeItem('ttrpg_music');}catch(e){} if(curAudio){ fadeOutAudio(curAudio,400); curAudio=null; } curMood=null; }
+  else { musicOn=true; try{localStorage.setItem('ttrpg_music','1');}catch(e){} applyMood(); }
+  updateMusicBtn();
+}
+function updateMusicBtn(){ const b=$('hdMusic'); if(b) b.innerHTML = musicOn? '&#9834; Music: on' : '&#9834; Music: off'; }
+function applyMood(){ playMood((worldState&&worldState.scene_mood)||'explore'); }
+function playMood(mood){
+  if(!musicOn){ curMood=mood; return; }
+  if(!mood) return;
+  if(mood===curMood && curAudio && !curAudio.paused) return;
+  const list=musicLib[mood]||[];
+  if(!list.length){ curMood=mood; return; } // ไม่มีเพลง mood นี้ → คงเพลงเดิม
+  const pick=list[Math.floor(Math.random()*list.length)];
+  const next=new Audio(pick.url); next.loop=pick.loop; next.volume=0;
+  next.play().then(()=>{
+    fadeInAudio(next, pick.volume, 800);
+    if(curAudio) fadeOutAudio(curAudio,800);
+    curAudio=next; curMood=mood;
+  }).catch(()=>{}); // autoplay ถูกบล็อกจนกว่าจะมี user gesture
+}
+function fadeInAudio(a,target,ms){ const steps=16,dt=ms/steps; let i=0; const t=setInterval(()=>{ i++; try{a.volume=Math.min(target,target*i/steps);}catch(e){} if(i>=steps) clearInterval(t); },dt); }
+function fadeOutAudio(a,ms){ const steps=16,dt=ms/steps,s=a.volume; let i=0; const t=setInterval(()=>{ i++; try{a.volume=Math.max(0,s*(1-i/steps));}catch(e){} if(i>=steps){ clearInterval(t); try{a.pause();}catch(e){} } },dt); }
 // ไอคอนพิกเซลสีสำหรับ HUD
 const ICONS={date:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#f5b942" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="1" height="1"/><rect x="1" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="7" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="0" y="6" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/><rect x="7" y="6" width="1" height="1"/></svg>',time:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#5ad7e0" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="0" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/></svg>',weather:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#cfd6e6" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="7" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="7" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/></svg>',moon:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#e9e6a8" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/></svg>',season:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#7ad17a" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="0" width="1" height="1"/><rect x="6" y="0" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="0" y="6" width="1" height="1"/></svg>',loc:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#ff6b6b" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/></svg>'};
 // เหรียญ pixel (gold/silver/copper)
@@ -1024,6 +1091,17 @@ async function renderRoundbar(){
       const ci=document.createElement('div'); ci.className='combatbar';
       ci.innerHTML='<span class="cbtag">⚔ COMBAT</span>'+(cb.range?`<span class="cbrange">ระยะ: ${escapeHtml(cb.range)}</span>`:'');
       bar.appendChild(ci);
+      // action economy ที่เหลือในเทิร์นนี้
+      const ec=cb.economy||{};
+      const econ=document.createElement('div'); econ.className='econrow';
+      const ch=(lab,ok)=>`<span class="econ ${ok?'avail':'used'}">${lab}</span>`;
+      const moveOk = ec.move!==undefined ? (String(ec.move)!=='0'&&String(ec.move).toLowerCase()!=='0 ft') : true;
+      econ.innerHTML = '<span class="econlbl">เหลือในเทิร์น:</span>'
+        + ch('Action', ec.action!==false)
+        + ch('Bonus', ec.bonus!==false)
+        + ch('Move'+(ec.move?(' '+escapeHtml(String(ec.move))):''), moveOk)
+        + ch('Reaction', ec.reaction!==false);
+      bar.appendChild(econ);
       if(Array.isArray(cb.options)&&cb.options.length){
         const opts=document.createElement('div'); opts.className='optrow';
         cb.options.slice(0,3).forEach(o=>{ const ob=document.createElement('button'); ob.className='btn ghost sm'; ob.textContent=o; ob.onclick=()=>appendAct(o); opts.appendChild(ob); });
@@ -1124,6 +1202,8 @@ async function resolveRound(force, mode){
 async function renderMe(){
   const p=$('panel-me'); p.innerHTML='';
   if(!myChar){ p.innerHTML='<div class="muted">No character yet</div>'; return; }
+  // โหลดแผ่นล่าสุด เผื่อ HP/สถานะถูก DM อัปเดตหลังต่อสู้
+  try{ const r=await supa.from('character_sheets').select('sheet').eq('character_id',myChar.id).maybeSingle(); if(!r.error&&r.data&&r.data.sheet) mySheet=r.data.sheet; }catch(e){}
   const sheet=mySheet||{};
   const ab=sheet.abilities||{}, cb=sheet.combat||{}, w=sheet.wallet||{}, ex=sheet.exp||{};
   const esc=v=>escapeHtml(String(v)); const dash='—';
@@ -1344,13 +1424,27 @@ async function renderCombat(){
 // ───────── render: map (campaign_state) ─────────
 async function renderMap(){
   const p=$('panel-map'); p.innerHTML='';
-  let st=null;
-  try{ const r=await supa.from('campaign_state').select('*').eq('campaign_id',campaign.id).maybeSingle(); if(!r.error) st=r.data; }catch(e){}
-  if(st===null){ p.innerHTML='<div class="muted">Map system not enabled yet<br>Run migration.sql</div>'; return; }
-  if(!st||!st.current_map){ p.innerHTML='<div class="muted">Not in a dungeon yet<br>The DM will reveal the map when the time comes</div>'; return; }
-  const it=document.createElement('div'); it.className='item';
-  it.innerHTML=`<div class="nm">Dungeon Map</div><div class="note" style="text-align:left;padding:4px 2px">Current room: ${escapeHtml(st.current_room||'-')}</div>`;
-  p.appendChild(it);
+  const isHost=campaign.host_id===me.id;
+  const st=worldState||{};
+  // current scene
+  const cur=document.createElement('div'); cur.className='item'; cur.innerHTML='<div class="sectitle">CURRENT SCENE</div>';
+  if(st.current_map){ const img=document.createElement('img'); img.src=PUBLIC_URL+'maps/'+st.current_map; img.style.cssText='width:100%;border:2px solid #fff;image-rendering:pixelated;margin-top:6px'; img.onerror=()=>{img.style.display='none';}; cur.appendChild(img); }
+  const room=document.createElement('div'); room.className='note'; room.style.cssText='text-align:left;padding:6px 2px';
+  room.textContent = st.current_room ? ('Room: '+st.current_room) : (st.current_map?'':'Not in a dungeon yet — the DM reveals the map when the time comes');
+  cur.appendChild(room); p.appendChild(cur);
+  // dungeons (host can set current scene)
+  let ds=[]; try{ const r=await supa.from('dungeons').select('*').eq('campaign_id',campaign.id).order('created_at',{ascending:false}); ds=r.data||[]; }catch(e){}
+  if(ds.length){
+    const dl=document.createElement('div'); dl.className='item'; dl.innerHTML='<div class="sectitle">DUNGEONS</div>';
+    ds.forEach(d2=>{ const row=document.createElement('div'); row.className='kv'; row.innerHTML=`<span class="k">▣ ${escapeHtml(d2.name)}${d2.map_path?' 🗺':''}</span>`; if(isHost){ const b=document.createElement('button'); b.className='btn ghost sm'; b.textContent='Set scene'; b.onclick=()=>setScene(d2); row.appendChild(b); } dl.appendChild(row); });
+    p.appendChild(dl);
+  } else {
+    const e=document.createElement('div'); e.className='note'; e.style.cssText='text-align:left;padding:6px 2px'; e.textContent='ยังไม่มีดันเจียน — เพิ่มได้ในแท็บ Files'; p.appendChild(e);
+  }
+}
+async function setScene(d){
+  try{ const { error }=await supa.from('campaign_state').upsert({campaign_id:campaign.id,current_map:d.map_path||null,current_room:d.name,updated_at:new Date().toISOString()},{onConflict:'campaign_id'}); if(error) throw error; await loadState(); renderMap(); toast('ตั้งฉากแล้ว ✓'); }
+  catch(e){ toast(e.message||'ตั้งฉากไม่สำเร็จ',true); }
 }
 
 // ───────── render: files (placeholder — เปิดเต็มในขั้น RAG) ─────────
@@ -1382,9 +1476,91 @@ async function renderFiles(){
     list.appendChild(d);
   });
   p.appendChild(list);
-  const note=document.createElement('div'); note.className='note'; note.style.cssText='text-align:left;padding:6px 2px';
-  note.textContent='เพลงประกอบ / ดันเจียน / ปริศนา จะเปิดในเฟสถัดไป';
-  p.appendChild(note);
+  await filesMusicCard(p);
+  await filesDungeonCard(p);
+  await filesPuzzleCard(p);
+}
+function moodSelect(){ const s=document.createElement('select'); s.style.cssText='background:#000;color:#fff;border:2px solid #fff;font-family:inherit;font-size:15px;padding:3px 4px'; s.innerHTML=['explore','town','battle','boss','tavern','victory','sad','mystery'].map(m=>`<option value="${m}">${m}</option>`).join(''); return s; }
+function mkInput(ph){ const i=document.createElement('input'); i.type='text'; i.placeholder=ph; i.style.cssText='background:#000;color:#fff;border:2px solid #fff;font-family:inherit;font-size:15px;padding:4px 6px;max-width:150px'; return i; }
+// MUSIC card (collaborative)
+async function filesMusicCard(p){
+  const c=document.createElement('div'); c.className='item';
+  c.innerHTML='<div class="sectitle">MUSIC (situational)</div><div class="note" style="text-align:left;padding:4px 2px 8px">อัปเพลง (.mp3/.ogg/.m4a) ผูกอารมณ์ฉาก — DM เปลี่ยนฉากเพลงจะสลับให้ (ทุกคนเพิ่มได้)</div>';
+  const row=document.createElement('div'); row.style.cssText='display:flex;gap:8px;flex-wrap:wrap;align-items:center';
+  const fi=document.createElement('input'); fi.type='file'; fi.accept='audio/*'; fi.style.cssText='color:#fff;font-size:13px;max-width:160px';
+  const sel=moodSelect();
+  const btn=document.createElement('button'); btn.className='btn sm'; btn.textContent='Upload'; btn.onclick=()=>uploadMusic(fi,sel,btn);
+  row.appendChild(fi); row.appendChild(sel); row.appendChild(btn); c.appendChild(row);
+  let tracks=[]; try{ const r=await supa.from('music_tracks').select('*').eq('campaign_id',campaign.id).order('mood'); tracks=r.data||[]; }catch(e){}
+  tracks.forEach(t=>{ const d=document.createElement('div'); d.className='kv'; d.innerHTML=`<span class="k">&#9834; <b>${escapeHtml(t.mood)}</b> · ${escapeHtml(t.name||'track')}</span>`; const del=document.createElement('button'); del.className='btn ghost sm'; del.textContent='✕'; del.onclick=()=>deleteMusic(t.id,t.storage_path); d.appendChild(del); c.appendChild(d); });
+  p.appendChild(c);
+}
+async function uploadMusic(fi,sel,btn){
+  const file=fi.files&&fi.files[0]; if(!file){ toast('เลือกไฟล์เพลงก่อน',true); return; }
+  if(file.size>15000000){ toast('ไฟล์ใหญ่เกิน 15MB',true); return; }
+  btn.disabled=true;
+  try{
+    const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_'); const path=campaign.id+'/'+Date.now()+'_'+safe;
+    const up=await supa.storage.from('audio').upload(path,file,{upsert:false}); if(up.error) throw up.error;
+    const ins=await supa.from('music_tracks').insert({campaign_id:campaign.id,mood:sel.value,name:file.name,storage_path:path,created_by:me.id}); if(ins.error) throw ins.error;
+    toast('เพิ่มเพลงแล้ว ✓'); await loadMusicLibrary(); renderFiles();
+  }catch(e){ toast(e.message||'อัปเพลงล้มเหลว',true); btn.disabled=false; }
+}
+async function deleteMusic(id,path){
+  if(!confirm('ลบเพลงนี้?')) return;
+  if(path){ try{ await supa.storage.from('audio').remove([path]); }catch(e){} }
+  const {error}=await supa.from('music_tracks').delete().eq('id',id); if(error){ toast(error.message,true); return; }
+  toast('ลบแล้ว'); await loadMusicLibrary(); renderFiles();
+}
+// DUNGEON card (collaborative)
+async function filesDungeonCard(p){
+  const c=document.createElement('div'); c.className='item';
+  c.innerHTML='<div class="sectitle">DUNGEONS</div><div class="note" style="text-align:left;padding:4px 2px 8px">อัปแผนที่ (รูป) + ตั้งชื่อ — DM ใช้ในแท็บ Map (ทุกคนเพิ่มได้)</div>';
+  const nm=mkInput('ชื่อดันเจียน'); const th=mkInput('ธีม (optional)');
+  const fi=document.createElement('input'); fi.type='file'; fi.accept='image/*'; fi.style.cssText='color:#fff;font-size:13px;max-width:150px';
+  const btn=document.createElement('button'); btn.className='btn sm'; btn.textContent='Add dungeon'; btn.onclick=()=>addDungeon(nm,th,fi,btn);
+  const row=document.createElement('div'); row.style.cssText='display:flex;gap:8px;flex-wrap:wrap;align-items:center'; row.appendChild(nm); row.appendChild(th); row.appendChild(fi); row.appendChild(btn); c.appendChild(row);
+  let ds=[]; try{ const r=await supa.from('dungeons').select('*').eq('campaign_id',campaign.id).order('created_at',{ascending:false}); ds=r.data||[]; }catch(e){}
+  ds.forEach(x=>{ const d=document.createElement('div'); d.className='kv'; d.innerHTML=`<span class="k">▣ ${escapeHtml(x.name)}${x.theme?' · '+escapeHtml(x.theme):''}${x.map_path?' 🗺':''}</span>`; const del=document.createElement('button'); del.className='btn ghost sm'; del.textContent='✕'; del.onclick=()=>deleteDungeon(x.id,x.map_path); d.appendChild(del); c.appendChild(d); });
+  p.appendChild(c);
+}
+async function addDungeon(nm,th,fi,btn){
+  const name=nm.value.trim(); if(!name){ toast('ใส่ชื่อดันเจียน',true); return; }
+  btn.disabled=true;
+  try{
+    let map_path=null; const file=fi.files&&fi.files[0];
+    if(file){ if(file.size>8000000){ toast('รูปใหญ่เกิน 8MB',true); btn.disabled=false; return; } const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_'); map_path=campaign.id+'/'+Date.now()+'_'+safe; const up=await supa.storage.from('maps').upload(map_path,file,{upsert:false}); if(up.error) throw up.error; }
+    const ins=await supa.from('dungeons').insert({campaign_id:campaign.id,name,theme:th.value.trim()||null,map_path,created_by:me.id}); if(ins.error) throw ins.error;
+    toast('เพิ่มดันเจียนแล้ว ✓'); renderFiles();
+  }catch(e){ toast(e.message||'เพิ่มไม่สำเร็จ',true); btn.disabled=false; }
+}
+async function deleteDungeon(id,mapPath){
+  if(!confirm('ลบดันเจียนนี้?')) return;
+  if(mapPath){ try{ await supa.storage.from('maps').remove([mapPath]); }catch(e){} }
+  const {error}=await supa.from('dungeons').delete().eq('id',id); if(error){ toast(error.message,true); return; }
+  toast('ลบแล้ว'); renderFiles();
+}
+// PUZZLE card (collaborative)
+async function filesPuzzleCard(p){
+  const c=document.createElement('div'); c.className='item';
+  c.innerHTML='<div class="sectitle">PUZZLES</div><div class="note" style="text-align:left;padding:4px 2px 8px">โจทย์ + เฉลย (เฉลยเป็นความลับ ไม่ส่งให้ AI)</div>';
+  const nm=mkInput('ชื่อปริศนา'); const pr=mkInput('โจทย์/คำใบ้'); const so=mkInput('เฉลย');
+  const btn=document.createElement('button'); btn.className='btn sm'; btn.textContent='Add puzzle'; btn.onclick=()=>addPuzzle(nm,pr,so,btn);
+  const row=document.createElement('div'); row.style.cssText='display:flex;gap:8px;flex-wrap:wrap;align-items:center'; row.appendChild(nm); row.appendChild(pr); row.appendChild(so); row.appendChild(btn); c.appendChild(row);
+  let ps=[]; try{ const r=await supa.from('puzzles').select('id,name,prompt').eq('campaign_id',campaign.id).order('created_at',{ascending:false}); ps=r.data||[]; }catch(e){}
+  ps.forEach(z=>{ const d=document.createElement('div'); d.className='kv'; d.innerHTML=`<span class="k">🧩 ${escapeHtml(z.name)}${z.prompt?' · '+escapeHtml(String(z.prompt).slice(0,40)):''}</span>`; const del=document.createElement('button'); del.className='btn ghost sm'; del.textContent='✕'; del.onclick=()=>deletePuzzle(z.id); d.appendChild(del); c.appendChild(d); });
+  p.appendChild(c);
+}
+async function addPuzzle(nm,pr,so,btn){
+  const name=nm.value.trim(); if(!name){ toast('ใส่ชื่อปริศนา',true); return; }
+  btn.disabled=true;
+  try{ const ins=await supa.from('puzzles').insert({campaign_id:campaign.id,name,prompt:pr.value.trim()||null,solution:so.value.trim()||null,created_by:me.id}); if(ins.error) throw ins.error; toast('เพิ่มปริศนาแล้ว ✓'); renderFiles(); }
+  catch(e){ toast(e.message||'เพิ่มไม่สำเร็จ',true); btn.disabled=false; }
+}
+async function deletePuzzle(id){
+  if(!confirm('ลบปริศนานี้?')) return;
+  const {error}=await supa.from('puzzles').delete().eq('id',id); if(error){ toast(error.message,true); return; }
+  toast('ลบแล้ว'); renderFiles();
 }
 async function uploadRefFile(fi,sel,btn){
   const file=fi.files&&fi.files[0];
@@ -1422,6 +1598,76 @@ async function renderChronicle(){
   if(!narrative.length){ log.innerHTML='<div class="muted">No story yet</div>'; }
   else narrative.forEach((n,i)=>{ const m=document.createElement('div'); m.className='chron-meta'; m.textContent='Entry '+(i+1)+' · DM'; const t=document.createElement('div'); t.className='chron-text'; t.innerHTML=colorizeNarr(n.content); log.appendChild(m); log.appendChild(t); });
   p.appendChild(log);
+  // อัลบั้มภาพ + ตัวสร้าง prompt ภาพ (ไป gen ข้างนอกเอง — ไม่เสียค่า API)
+  await chronAlbumCard(p);
+}
+// สร้าง prompt ภาพจากเนื้อเรื่องล่าสุด (ผ่าน dynamic-task = text ราคาถูก) ไว้เอาไป gen ข้างนอก
+async function genScenePrompt(btn,out){
+  if(!narrative.length){ toast('ยังไม่มีเนื้อเรื่อง',true); return; }
+  btn.disabled=true; btn.textContent='กำลังสร้าง…';
+  try{
+    const recent=narrative.slice(-3).map(n=>n.content).join('\n\n').slice(0,3000);
+    const ask='จากฉากนี้ในเกม D&D แนว pixel art / fantasy ให้เขียน "image generation prompt" ภาษาอังกฤษ 1 ย่อหน้า (บรรยายฉาก ตัวละคร แสง บรรยากาศ สไตล์ภาพ) สำหรับเอาไปสร้างภาพใน AI ภายนอก ตอบเฉพาะตัว prompt เท่านั้น ไม่ต้องมีคำอธิบายอื่น:\n\n'+recent;
+    const token=(await supa.auth.getSession()).data.session?.access_token;
+    const r=await fetch(DYNAMIC_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify({campaign_id:campaign.id, model:'gemini-2.5-flash', stream:false, body:{contents:[{role:'user',parts:[{text:ask}]}],generationConfig:{temperature:0.8,maxOutputTokens:400}}})});
+    const j=await r.json();
+    const txt=j?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    if(!txt){ toast('สร้างไม่สำเร็จ (โควต้า?)',true); btn.disabled=false; btn.textContent='🖼 สร้าง prompt ภาพ'; return; }
+    out.value=txt.trim(); out.style.display='block';
+  }catch(e){ toast('ผิดพลาด: '+(e.message||e),true); }
+  finally{ btn.disabled=false; btn.textContent='🖼 สร้าง prompt ภาพ'; }
+}
+async function chronAlbumCard(p){
+  const c=document.createElement('div'); c.className='item';
+  c.innerHTML='<div class="sectitle">SCENE ALBUM</div><div class="note" style="text-align:left;padding:4px 2px 8px">สร้าง prompt ฉากแล้วเอาไป gen ภาพใน AI ภายนอก → อัปกลับมาเก็บที่นี่ ทุกคนดาวน์โหลดได้</div>';
+  // prompt generator
+  const pbtn=document.createElement('button'); pbtn.className='btn ghost sm'; pbtn.textContent='🖼 สร้าง prompt ภาพ';
+  const pout=document.createElement('textarea'); pout.readOnly=true; pout.style.cssText='display:none;width:100%;min-height:80px;margin-top:7px;background:#000;color:#fff;border:2px solid #fff;font-family:inherit;font-size:14px;padding:6px';
+  pbtn.onclick=()=>genScenePrompt(pbtn,pout);
+  const cpy=document.createElement('button'); cpy.className='btn ghost sm'; cpy.style.marginLeft='8px'; cpy.textContent='Copy'; cpy.onclick=()=>{ if(pout.value){ navigator.clipboard?.writeText(pout.value); toast('คัดลอกแล้ว'); } };
+  c.appendChild(pbtn); c.appendChild(cpy); c.appendChild(pout);
+  // upload image (any member)
+  const urow=document.createElement('div'); urow.style.cssText='display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px';
+  const fi=document.createElement('input'); fi.type='file'; fi.accept='image/*'; fi.style.cssText='color:#fff;font-size:13px;max-width:170px';
+  const cap=mkInput('คำบรรยาย (optional)');
+  const ub=document.createElement('button'); ub.className='btn sm'; ub.textContent='Upload to album'; ub.onclick=()=>uploadCapture(fi,cap,ub);
+  urow.appendChild(fi); urow.appendChild(cap); urow.appendChild(ub); c.appendChild(urow);
+  // album grid
+  let caps=[]; try{ const r=await supa.from('scene_captures').select('*').eq('campaign_id',campaign.id).order('created_at',{ascending:false}); caps=r.data||[]; }catch(e){}
+  if(caps.length){
+    const grid=document.createElement('div'); grid.className='album';
+    caps.forEach(x=>{
+      const cell=document.createElement('div'); cell.className='albumcell';
+      const url=PUBLIC_URL+'captures/'+x.image_path;
+      const im=document.createElement('img'); im.src=url; im.loading='lazy'; im.onerror=()=>{im.style.display='none';};
+      cell.appendChild(im);
+      if(x.caption){ const cp=document.createElement('div'); cp.className='albumcap'; cp.textContent=x.caption; cell.appendChild(cp); }
+      const acts=document.createElement('div'); acts.style.cssText='display:flex;gap:6px;margin-top:4px';
+      const dl=document.createElement('a'); dl.className='btn ghost sm'; dl.href=url; dl.download=(x.caption||'scene')+'.png'; dl.target='_blank'; dl.textContent='⬇'; acts.appendChild(dl);
+      const del=document.createElement('button'); del.className='btn ghost sm'; del.textContent='✕'; del.onclick=()=>deleteCapture(x.id,x.image_path); acts.appendChild(del);
+      cell.appendChild(acts); grid.appendChild(cell);
+    });
+    c.appendChild(grid);
+  }
+  p.appendChild(c);
+}
+async function uploadCapture(fi,cap,btn){
+  const file=fi.files&&fi.files[0]; if(!file){ toast('เลือกรูปก่อน',true); return; }
+  if(file.size>10000000){ toast('รูปใหญ่เกิน 10MB',true); return; }
+  btn.disabled=true;
+  try{
+    const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_'); const path=campaign.id+'/'+Date.now()+'_'+safe;
+    const up=await supa.storage.from('captures').upload(path,file,{upsert:false}); if(up.error) throw up.error;
+    const ins=await supa.from('scene_captures').insert({campaign_id:campaign.id,image_path:path,caption:cap.value.trim()||null,round:(curRound&&curRound.round_number)||null,created_by:me.id}); if(ins.error) throw ins.error;
+    toast('เพิ่มรูปแล้ว ✓'); renderChronicle();
+  }catch(e){ toast(e.message||'อัปรูปล้มเหลว',true); btn.disabled=false; }
+}
+async function deleteCapture(id,path){
+  if(!confirm('ลบรูปนี้?')) return;
+  if(path){ try{ await supa.storage.from('captures').remove([path]); }catch(e){} }
+  const {error}=await supa.from('scene_captures').delete().eq('id',id); if(error){ toast(error.message,true); return; }
+  toast('ลบแล้ว'); renderChronicle();
 }
 function exportChronicle(){
   const body=narrative.map((n,i)=>'<h3>Entry '+(i+1)+'</h3><p>'+escapeHtml(n.content).replace(/\n/g,'<br>')+'</p>').join('');
@@ -1438,7 +1684,7 @@ function subscribeRealtime(){
     .on('postgres_changes',{event:'*',schema:'public',table:'rounds',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadRound(); if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'actions',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'characters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadCharacters(); if(activeTab()==='party') renderParty(); })
-    .on('postgres_changes',{event:'*',schema:'public',table:'campaign_state',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadState(); if(activeTab()==='story') renderClock(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'campaign_state',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadState(); applyMood(); if(activeTab()==='story') renderClock(); if(activeTab()==='map') renderMap(); })
     .subscribe();
 }
 function activeTab(){ return document.querySelector('.tab.active')?.dataset.tab; }
