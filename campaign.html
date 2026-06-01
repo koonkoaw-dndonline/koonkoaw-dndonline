@@ -299,7 +299,7 @@ a.link:hover{background:var(--white);color:var(--black);}
   .tabs .tab .tlab{display:inline;margin-left:6px;font-size:12px;}
 }
 .winhead{display:flex;align-items:center;justify-content:space-between;gap:10px;}
-.lvbadge{font-family:'VT323',monospace;font-size:26px;line-height:1;border:3px solid #fff;border-radius:6px;padding:5px 11px;color:#fff;}
+.lvbadge{font-family:'VT323',monospace;font-size:21px;line-height:1;border:3px solid #fff;border-radius:6px;padding:4px 10px;color:#fff;}
 .coins{display:flex;gap:16px;flex-wrap:wrap;margin-top:4px;}
 .coin{display:flex;align-items:center;gap:8px;}
 .coin .ico{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:2px solid #fff;flex-shrink:0;}
@@ -308,8 +308,10 @@ a.link:hover{background:var(--white);color:var(--black);}
 .coin.c .ico{background:#000;color:#9a9a9a;border-color:#9a9a9a;}
 .coin .v{font-family:'VT323',monospace;font-size:21px;color:#fff;line-height:1;}
 .coin .lab{font-size:10px;color:#9a9a9a;letter-spacing:1px;}
-.cico{display:inline-flex;width:22px;height:22px;flex-shrink:0;}
-.cico svg{width:22px;height:22px;display:block;image-rendering:pixelated;}
+.cico{display:inline-flex;width:28px;height:20px;flex-shrink:0;}
+.cico svg{width:28px;height:20px;display:block;image-rendering:pixelated;}
+.bico{display:inline-flex;width:20px;height:16px;flex-shrink:0;vertical-align:-3px;margin-right:5px;}
+.bico svg{width:20px;height:16px;display:block;image-rendering:pixelated;}
 .barwrap{display:flex;flex-direction:column;gap:5px;margin-top:6px;}
 .barlabel{display:flex;justify-content:space-between;font-size:12px;color:#9a9a9a;}
 .barlabel .num{font-family:'VT323',monospace;font-size:16px;color:#fff;}
@@ -742,6 +744,36 @@ async function loadState(){
 const ICONS={date:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#f5b942" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="1" height="1"/><rect x="1" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="7" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="0" y="6" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/><rect x="7" y="6" width="1" height="1"/></svg>',time:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#5ad7e0" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="0" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/></svg>',weather:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#cfd6e6" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="7" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="7" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/></svg>',moon:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#e9e6a8" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/></svg>',season:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#7ad17a" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="0" width="1" height="1"/><rect x="6" y="0" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="0" y="6" width="1" height="1"/></svg>',loc:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#ff6b6b" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/></svg>'};
 // เหรียญ pixel (gold/silver/copper)
 const COINS={"g":"<svg viewBox=\"0 0 8 8\" shape-rendering=\"crispEdges\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"2\" y=\"0\" width=\"1\" height=\"1\" fill=\"#a6781f\"/><rect x=\"3\" y=\"0\" width=\"1\" height=\"1\" fill=\"#a6781f\"/><rect x=\"4\" y=\"0\" width=\"1\" height=\"1\" fill=\"#a6781f\"/><rect x=\"5\" y=\"0\" width=\"1\" height=\"1\" fill=\"#a6781f\"/><rect x=\"1\" y=\"1\" width=\"1\" height=\"1\" fill=\"#a6781f\"/><rect x=\"2\" y=\"1\" width=\"1\" height=\"1\" fill=\"#f5c542\"/><rect x=\"3\" y=\"1\" width=\"1\" height=\"1\" fill=\"#f5c542\"/><rect x=\"4\" y=\"1\" width=\"1\" height=\"1\" fill=\"#f5c542\"/><rect x=\"5\" y=\"1\" width=\"1\" height=\"1\" fill=\"#f5c542\"/><rect x=\"6\" y=\"1\" width=\"1\" height=\"1\" fill=\"#a6781f\"/><rect x=\"0\" y=\"2\" width=\"1\" height=\"1\" fill=\"#a6781f\"/><rect x=\"1\" y=\"2\" width=\"1\" height=\"1\" fill=\"#f5c542\"/><rect x=\"2\" y=\"2\" width=\"1\" height=\"1\" fill=\"#f5c542\"/><rect x=\"3\" y=\"2\" width=\"1\" height=\"1\" fill=\"#f5c542\"/><rect x=\"4\" y=\"2\" width=\"1\" height=\"1\" fill=\"#f5c542\"/><rect x=\"5\" y=\"2\" width=\"1\" height=\"1\" fill=\"#f5c542\"/><rect x=\"6\" y=\"2\" width=\"1\" height=\"1\" fill=\"#f5c542\"/><rect x=\"7\" y=\"2\" width=\"1\" height=\"1\" fill=\"#a6781f\"/><rect x=\"0\" y=\"3\" width=\"1\" height=\"1\" fill=\"#a6781f\"/><rect x=\"1\" y=\"3\" width=\"1\" height=\"1\" fill=\"#f5c542\"/><rect x=\"2\" y=\"3\" width=\"1\" height=\"1\" fill=\"#f5c542\"/><rect x=\"3\" y=\"3\" width=\"1\" height=\"1\" fill=\"#ffe9a0\"/><rect x=\"4\" y=\"3\" width=\"1\" height=\"1\" fill=\"#f5c542\"/><rect x=\"5\" y=\"3\" width=\"1\" height=\"1\" fill=\"#f5c542\"/><rect x=\"6\" y=\"3\" width=\"1\" height=\"1\" fill=\"#f5c542\"/><rect x=\"7\" y=\"3\" width=\"1\" height=\"1\" fill=\"#a6781f\"/><rect x=\"0\" y=\"4\" width=\"1\" height=\"1\" fill=\"#a6781f\"/><rect x=\"1\" y=\"4\" width=\"1\" height=\"1\" fill=\"#f5c542\"/><rect x=\"2\" y=\"4\" width=\"1\" height=\"1\" fill=\"#f5c542\"/><rect x=\"3\" y=\"4\" width=\"1\" height=\"1\" fill=\"#f5c542\"/><rect x=\"4\" y=\"4\" width=\"1\" height=\"1\" fill=\"#f5c542\"/><rect x=\"5\" y=\"4\" width=\"1\" height=\"1\" fill=\"#f5c542\"/><rect x=\"6\" y=\"4\" width=\"1\" height=\"1\" fill=\"#f5c542\"/><rect x=\"7\" y=\"4\" width=\"1\" height=\"1\" fill=\"#a6781f\"/><rect x=\"0\" y=\"5\" width=\"1\" height=\"1\" fill=\"#a6781f\"/><rect x=\"1\" y=\"5\" width=\"1\" height=\"1\" fill=\"#f5c542\"/><rect x=\"2\" y=\"5\" width=\"1\" height=\"1\" fill=\"#f5c542\"/><rect x=\"3\" y=\"5\" width=\"1\" height=\"1\" fill=\"#f5c542\"/><rect x=\"4\" y=\"5\" width=\"1\" height=\"1\" fill=\"#f5c542\"/><rect x=\"5\" y=\"5\" width=\"1\" height=\"1\" fill=\"#f5c542\"/><rect x=\"6\" y=\"5\" width=\"1\" height=\"1\" fill=\"#f5c542\"/><rect x=\"7\" y=\"5\" width=\"1\" height=\"1\" fill=\"#a6781f\"/><rect x=\"1\" y=\"6\" width=\"1\" height=\"1\" fill=\"#a6781f\"/><rect x=\"2\" y=\"6\" width=\"1\" height=\"1\" fill=\"#f5c542\"/><rect x=\"3\" y=\"6\" width=\"1\" height=\"1\" fill=\"#f5c542\"/><rect x=\"4\" y=\"6\" width=\"1\" height=\"1\" fill=\"#f5c542\"/><rect x=\"5\" y=\"6\" width=\"1\" height=\"1\" fill=\"#f5c542\"/><rect x=\"6\" y=\"6\" width=\"1\" height=\"1\" fill=\"#a6781f\"/><rect x=\"2\" y=\"7\" width=\"1\" height=\"1\" fill=\"#a6781f\"/><rect x=\"3\" y=\"7\" width=\"1\" height=\"1\" fill=\"#a6781f\"/><rect x=\"4\" y=\"7\" width=\"1\" height=\"1\" fill=\"#a6781f\"/><rect x=\"5\" y=\"7\" width=\"1\" height=\"1\" fill=\"#a6781f\"/></svg>","s":"<svg viewBox=\"0 0 8 8\" shape-rendering=\"crispEdges\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"2\" y=\"0\" width=\"1\" height=\"1\" fill=\"#7d828c\"/><rect x=\"3\" y=\"0\" width=\"1\" height=\"1\" fill=\"#7d828c\"/><rect x=\"4\" y=\"0\" width=\"1\" height=\"1\" fill=\"#7d828c\"/><rect x=\"5\" y=\"0\" width=\"1\" height=\"1\" fill=\"#7d828c\"/><rect x=\"1\" y=\"1\" width=\"1\" height=\"1\" fill=\"#7d828c\"/><rect x=\"2\" y=\"1\" width=\"1\" height=\"1\" fill=\"#cdd2dc\"/><rect x=\"3\" y=\"1\" width=\"1\" height=\"1\" fill=\"#cdd2dc\"/><rect x=\"4\" y=\"1\" width=\"1\" height=\"1\" fill=\"#cdd2dc\"/><rect x=\"5\" y=\"1\" width=\"1\" height=\"1\" fill=\"#cdd2dc\"/><rect x=\"6\" y=\"1\" width=\"1\" height=\"1\" fill=\"#7d828c\"/><rect x=\"0\" y=\"2\" width=\"1\" height=\"1\" fill=\"#7d828c\"/><rect x=\"1\" y=\"2\" width=\"1\" height=\"1\" fill=\"#cdd2dc\"/><rect x=\"2\" y=\"2\" width=\"1\" height=\"1\" fill=\"#cdd2dc\"/><rect x=\"3\" y=\"2\" width=\"1\" height=\"1\" fill=\"#cdd2dc\"/><rect x=\"4\" y=\"2\" width=\"1\" height=\"1\" fill=\"#cdd2dc\"/><rect x=\"5\" y=\"2\" width=\"1\" height=\"1\" fill=\"#cdd2dc\"/><rect x=\"6\" y=\"2\" width=\"1\" height=\"1\" fill=\"#cdd2dc\"/><rect x=\"7\" y=\"2\" width=\"1\" height=\"1\" fill=\"#7d828c\"/><rect x=\"0\" y=\"3\" width=\"1\" height=\"1\" fill=\"#7d828c\"/><rect x=\"1\" y=\"3\" width=\"1\" height=\"1\" fill=\"#cdd2dc\"/><rect x=\"2\" y=\"3\" width=\"1\" height=\"1\" fill=\"#cdd2dc\"/><rect x=\"3\" y=\"3\" width=\"1\" height=\"1\" fill=\"#ffffff\"/><rect x=\"4\" y=\"3\" width=\"1\" height=\"1\" fill=\"#cdd2dc\"/><rect x=\"5\" y=\"3\" width=\"1\" height=\"1\" fill=\"#cdd2dc\"/><rect x=\"6\" y=\"3\" width=\"1\" height=\"1\" fill=\"#cdd2dc\"/><rect x=\"7\" y=\"3\" width=\"1\" height=\"1\" fill=\"#7d828c\"/><rect x=\"0\" y=\"4\" width=\"1\" height=\"1\" fill=\"#7d828c\"/><rect x=\"1\" y=\"4\" width=\"1\" height=\"1\" fill=\"#cdd2dc\"/><rect x=\"2\" y=\"4\" width=\"1\" height=\"1\" fill=\"#cdd2dc\"/><rect x=\"3\" y=\"4\" width=\"1\" height=\"1\" fill=\"#cdd2dc\"/><rect x=\"4\" y=\"4\" width=\"1\" height=\"1\" fill=\"#cdd2dc\"/><rect x=\"5\" y=\"4\" width=\"1\" height=\"1\" fill=\"#cdd2dc\"/><rect x=\"6\" y=\"4\" width=\"1\" height=\"1\" fill=\"#cdd2dc\"/><rect x=\"7\" y=\"4\" width=\"1\" height=\"1\" fill=\"#7d828c\"/><rect x=\"0\" y=\"5\" width=\"1\" height=\"1\" fill=\"#7d828c\"/><rect x=\"1\" y=\"5\" width=\"1\" height=\"1\" fill=\"#cdd2dc\"/><rect x=\"2\" y=\"5\" width=\"1\" height=\"1\" fill=\"#cdd2dc\"/><rect x=\"3\" y=\"5\" width=\"1\" height=\"1\" fill=\"#cdd2dc\"/><rect x=\"4\" y=\"5\" width=\"1\" height=\"1\" fill=\"#cdd2dc\"/><rect x=\"5\" y=\"5\" width=\"1\" height=\"1\" fill=\"#cdd2dc\"/><rect x=\"6\" y=\"5\" width=\"1\" height=\"1\" fill=\"#cdd2dc\"/><rect x=\"7\" y=\"5\" width=\"1\" height=\"1\" fill=\"#7d828c\"/><rect x=\"1\" y=\"6\" width=\"1\" height=\"1\" fill=\"#7d828c\"/><rect x=\"2\" y=\"6\" width=\"1\" height=\"1\" fill=\"#cdd2dc\"/><rect x=\"3\" y=\"6\" width=\"1\" height=\"1\" fill=\"#cdd2dc\"/><rect x=\"4\" y=\"6\" width=\"1\" height=\"1\" fill=\"#cdd2dc\"/><rect x=\"5\" y=\"6\" width=\"1\" height=\"1\" fill=\"#cdd2dc\"/><rect x=\"6\" y=\"6\" width=\"1\" height=\"1\" fill=\"#7d828c\"/><rect x=\"2\" y=\"7\" width=\"1\" height=\"1\" fill=\"#7d828c\"/><rect x=\"3\" y=\"7\" width=\"1\" height=\"1\" fill=\"#7d828c\"/><rect x=\"4\" y=\"7\" width=\"1\" height=\"1\" fill=\"#7d828c\"/><rect x=\"5\" y=\"7\" width=\"1\" height=\"1\" fill=\"#7d828c\"/></svg>","c":"<svg viewBox=\"0 0 8 8\" shape-rendering=\"crispEdges\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"2\" y=\"0\" width=\"1\" height=\"1\" fill=\"#8a4f24\"/><rect x=\"3\" y=\"0\" width=\"1\" height=\"1\" fill=\"#8a4f24\"/><rect x=\"4\" y=\"0\" width=\"1\" height=\"1\" fill=\"#8a4f24\"/><rect x=\"5\" y=\"0\" width=\"1\" height=\"1\" fill=\"#8a4f24\"/><rect x=\"1\" y=\"1\" width=\"1\" height=\"1\" fill=\"#8a4f24\"/><rect x=\"2\" y=\"1\" width=\"1\" height=\"1\" fill=\"#cf8a4a\"/><rect x=\"3\" y=\"1\" width=\"1\" height=\"1\" fill=\"#cf8a4a\"/><rect x=\"4\" y=\"1\" width=\"1\" height=\"1\" fill=\"#cf8a4a\"/><rect x=\"5\" y=\"1\" width=\"1\" height=\"1\" fill=\"#cf8a4a\"/><rect x=\"6\" y=\"1\" width=\"1\" height=\"1\" fill=\"#8a4f24\"/><rect x=\"0\" y=\"2\" width=\"1\" height=\"1\" fill=\"#8a4f24\"/><rect x=\"1\" y=\"2\" width=\"1\" height=\"1\" fill=\"#cf8a4a\"/><rect x=\"2\" y=\"2\" width=\"1\" height=\"1\" fill=\"#cf8a4a\"/><rect x=\"3\" y=\"2\" width=\"1\" height=\"1\" fill=\"#cf8a4a\"/><rect x=\"4\" y=\"2\" width=\"1\" height=\"1\" fill=\"#cf8a4a\"/><rect x=\"5\" y=\"2\" width=\"1\" height=\"1\" fill=\"#cf8a4a\"/><rect x=\"6\" y=\"2\" width=\"1\" height=\"1\" fill=\"#cf8a4a\"/><rect x=\"7\" y=\"2\" width=\"1\" height=\"1\" fill=\"#8a4f24\"/><rect x=\"0\" y=\"3\" width=\"1\" height=\"1\" fill=\"#8a4f24\"/><rect x=\"1\" y=\"3\" width=\"1\" height=\"1\" fill=\"#cf8a4a\"/><rect x=\"2\" y=\"3\" width=\"1\" height=\"1\" fill=\"#cf8a4a\"/><rect x=\"3\" y=\"3\" width=\"1\" height=\"1\" fill=\"#f0c79a\"/><rect x=\"4\" y=\"3\" width=\"1\" height=\"1\" fill=\"#cf8a4a\"/><rect x=\"5\" y=\"3\" width=\"1\" height=\"1\" fill=\"#cf8a4a\"/><rect x=\"6\" y=\"3\" width=\"1\" height=\"1\" fill=\"#cf8a4a\"/><rect x=\"7\" y=\"3\" width=\"1\" height=\"1\" fill=\"#8a4f24\"/><rect x=\"0\" y=\"4\" width=\"1\" height=\"1\" fill=\"#8a4f24\"/><rect x=\"1\" y=\"4\" width=\"1\" height=\"1\" fill=\"#cf8a4a\"/><rect x=\"2\" y=\"4\" width=\"1\" height=\"1\" fill=\"#cf8a4a\"/><rect x=\"3\" y=\"4\" width=\"1\" height=\"1\" fill=\"#cf8a4a\"/><rect x=\"4\" y=\"4\" width=\"1\" height=\"1\" fill=\"#cf8a4a\"/><rect x=\"5\" y=\"4\" width=\"1\" height=\"1\" fill=\"#cf8a4a\"/><rect x=\"6\" y=\"4\" width=\"1\" height=\"1\" fill=\"#cf8a4a\"/><rect x=\"7\" y=\"4\" width=\"1\" height=\"1\" fill=\"#8a4f24\"/><rect x=\"0\" y=\"5\" width=\"1\" height=\"1\" fill=\"#8a4f24\"/><rect x=\"1\" y=\"5\" width=\"1\" height=\"1\" fill=\"#cf8a4a\"/><rect x=\"2\" y=\"5\" width=\"1\" height=\"1\" fill=\"#cf8a4a\"/><rect x=\"3\" y=\"5\" width=\"1\" height=\"1\" fill=\"#cf8a4a\"/><rect x=\"4\" y=\"5\" width=\"1\" height=\"1\" fill=\"#cf8a4a\"/><rect x=\"5\" y=\"5\" width=\"1\" height=\"1\" fill=\"#cf8a4a\"/><rect x=\"6\" y=\"5\" width=\"1\" height=\"1\" fill=\"#cf8a4a\"/><rect x=\"7\" y=\"5\" width=\"1\" height=\"1\" fill=\"#8a4f24\"/><rect x=\"1\" y=\"6\" width=\"1\" height=\"1\" fill=\"#8a4f24\"/><rect x=\"2\" y=\"6\" width=\"1\" height=\"1\" fill=\"#cf8a4a\"/><rect x=\"3\" y=\"6\" width=\"1\" height=\"1\" fill=\"#cf8a4a\"/><rect x=\"4\" y=\"6\" width=\"1\" height=\"1\" fill=\"#cf8a4a\"/><rect x=\"5\" y=\"6\" width=\"1\" height=\"1\" fill=\"#cf8a4a\"/><rect x=\"6\" y=\"6\" width=\"1\" height=\"1\" fill=\"#8a4f24\"/><rect x=\"2\" y=\"7\" width=\"1\" height=\"1\" fill=\"#8a4f24\"/><rect x=\"3\" y=\"7\" width=\"1\" height=\"1\" fill=\"#8a4f24\"/><rect x=\"4\" y=\"7\" width=\"1\" height=\"1\" fill=\"#8a4f24\"/><rect x=\"5\" y=\"7\" width=\"1\" height=\"1\" fill=\"#8a4f24\"/></svg>"};
+// เหรียญแบน (ลดความมน) + ตัวอักษร G/S/C ด้านใน — แถบบนสว่าง/ล่างเข้ม = เงาเหรียญแบน
+function mkCoin(rim,band,face,letter){
+  return `<svg viewBox="0 0 16 12" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg">`
+    +`<rect x="1" y="1" width="14" height="10" fill="${rim}"/>`
+    +`<rect x="2" y="2" width="12" height="4" fill="${band}"/>`
+    +`<rect x="2" y="6" width="12" height="4" fill="${face}"/>`
+    +`<text x="8" y="9.3" font-family="monospace" font-weight="700" font-size="7" fill="${rim}" text-anchor="middle">${letter}</text>`
+    +`</svg>`;
+}
+const COINF={ g:mkCoin('#6e5212','#ffe9a0','#e9b53a','G'), s:mkCoin('#54585f','#ffffff','#b9bfca','S'), c:mkCoin('#5e3718','#f0c79a','#c07a40','C') };
+// ไอคอน 16-bit จาก grid อักขระ ('.'=โปร่งใส)
+function pxSvg(rows,pal){ let r=''; const h=rows.length,w=rows[0].length; for(let y=0;y<h;y++)for(let x=0;x<rows[y].length;x++){const c=pal[rows[y][x]]; if(c) r+=`<rect x="${x}" y="${y}" width="1" height="1" fill="${c}"/>`;} return `<svg viewBox="0 0 ${w} ${h}" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg">${r}</svg>`; }
+const ICON_CAMPFIRE=pxSvg([
+ '....yy....',
+ '...yooy...',
+ '...oooo...',
+ '..ooyyoo..',
+ '..oyyyyo..',
+ '.ooyyyyoo.',
+ '..oooooo..',
+ '...oooo...',
+ '..L....R..',
+ '.LLLeeRRR.',
+],{y:'#ffd23f',o:'#ff7a1a',L:'#a6781f',R:'#7a4f14',e:'#7a2a10'});
+const ICON_INN=`<svg viewBox="0 0 16 12" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg">`
+ +`<rect x="7" y="0" width="2" height="2" fill="#9a7838"/>`
+ +`<rect x="1" y="2" width="14" height="9" fill="#5e431c"/>`
+ +`<rect x="2" y="3" width="12" height="7" fill="#caa15a"/>`
+ +`<text x="8" y="9" font-family="monospace" font-weight="700" font-size="5.5" fill="#2e2008" text-anchor="middle">INN</text>`
+ +`</svg>`;
 // แปลงมาร์กเกอร์ [ชื่อ|ประเภท] → สปแอนสี + ใส่วงเล็บ (escape ส่วนอื่นกัน XSS)
 function colorizeNarr(text){
   let out='', last=0; const re=/\[([^\]|]+)\|([a-zA-Z]+)\]/g; let m;
@@ -823,6 +855,36 @@ const CLASS_SKILLS={
   wizard:{n:2,list:['Arcana','History','Insight','Investigation','Medicine','Religion']},
   artificer:{n:2,list:['Arcana','History','Investigation','Medicine','Nature','Perception','Sleight of Hand']},
 };
+// ความสามารถเด่นระดับเริ่มต้น (Lv.1) ของแต่ละคลาส → ลงตาราง skills ตอนสร้างตัวละคร
+// max_uses 0 = at-will/passive (ไม่มี pip), recharge: long|short|atwill|passive
+const CLASS_FEATURES={
+  barbarian:[{name:'Rage',description:'+dmg, resist physical, advantage STR. 2 uses/long rest',max_uses:2,recharge:'long'},
+             {name:'Unarmored Defense',description:'AC = 10 + DEX + CON when no armor',max_uses:0,recharge:'passive'}],
+  bard:[{name:'Bardic Inspiration',description:'Give an ally a d6 to add to a roll (CHA-mod uses/long rest)',max_uses:3,recharge:'long'},
+        {name:'Spellcasting',description:'Cast bard spells (CHA)',max_uses:0,recharge:'atwill'}],
+  cleric:[{name:'Spellcasting',description:'Cast cleric spells (WIS)',max_uses:0,recharge:'atwill'},
+          {name:'Divine Domain',description:'Domain feature & bonus spells',max_uses:0,recharge:'passive'}],
+  druid:[{name:'Spellcasting',description:'Cast druid spells (WIS)',max_uses:0,recharge:'atwill'},
+         {name:'Druidic',description:'Secret language of druids',max_uses:0,recharge:'passive'}],
+  fighter:[{name:'Second Wind',description:'Regain 1d10+level HP as a bonus action (1/short rest)',max_uses:1,recharge:'short'},
+           {name:'Fighting Style',description:'Combat specialty bonus',max_uses:0,recharge:'passive'}],
+  monk:[{name:'Martial Arts',description:'Unarmed strikes use DEX + bonus-action strike',max_uses:0,recharge:'passive'},
+        {name:'Unarmored Defense',description:'AC = 10 + DEX + WIS',max_uses:0,recharge:'passive'}],
+  paladin:[{name:'Divine Sense',description:'Detect celestial/fiend/undead nearby (1+CHA uses/long rest)',max_uses:2,recharge:'long'},
+           {name:'Lay on Hands',description:'Healing pool = 5 x level HP per long rest',max_uses:1,recharge:'long'}],
+  ranger:[{name:'Favored Enemy',description:'Advantage to track & recall info on chosen foe',max_uses:0,recharge:'passive'},
+          {name:'Natural Explorer',description:'Bonuses while in favored terrain',max_uses:0,recharge:'passive'}],
+  rogue:[{name:'Sneak Attack',description:'+1d6 once/turn with advantage or ally adjacent',max_uses:0,recharge:'atwill'},
+         {name:'Thieves Cant',description:'Secret rogue code & signs',max_uses:0,recharge:'passive'}],
+  sorcerer:[{name:'Spellcasting',description:'Cast sorcerer spells (CHA)',max_uses:0,recharge:'atwill'},
+            {name:'Sorcerous Origin',description:'Innate magic source feature',max_uses:0,recharge:'passive'}],
+  warlock:[{name:'Pact Magic',description:'Cast warlock spells (CHA); slots recover on short rest',max_uses:0,recharge:'short'},
+           {name:'Otherworldly Patron',description:'Patron boon & feature',max_uses:0,recharge:'passive'}],
+  wizard:[{name:'Spellcasting',description:'Cast wizard spells (INT)',max_uses:0,recharge:'atwill'},
+          {name:'Arcane Recovery',description:'Recover some spell slots on a short rest (1/long rest)',max_uses:1,recharge:'long'}],
+  artificer:[{name:'Magical Tinkering',description:'Imbue tiny objects with minor magic effects',max_uses:0,recharge:'passive'},
+             {name:'Spellcasting',description:'Cast artificer spells (INT)',max_uses:0,recharge:'atwill'}],
+};
 let chosenSkills=[];
 function classKey(){ const c=($('cClass').value||'').toLowerCase(); for(const k in CLASS_SKILLS){ if(c.includes(k)) return k; } return null; }
 function skillDef(){ const k=classKey(); return k? CLASS_SKILLS[k] : {n:2,list:'ALL'}; }
@@ -860,6 +922,14 @@ async function createCharacter(){
       notes:$('cNotes').value.trim()
     };
     await supa.from('character_sheets').insert({ character_id:ch.id, sheet });
+    // ความสามารถเริ่มต้นตามคลาส → แท็บ Skills (ไม่พังถ้าตาราง skills ยังไม่ได้ migrate)
+    try{
+      const ck=classKey(); const feats=ck?CLASS_FEATURES[ck]:null;
+      if(feats&&feats.length){
+        const rows=feats.map((f,i)=>({campaign_id:campaign.id,character_id:ch.id,name:f.name,description:f.description,max_uses:f.max_uses,used:0,recharge:f.recharge,sort:i}));
+        await supa.from('skills').insert(rows);
+      }
+    }catch(e){}
     try{ localStorage.setItem('ttrpg_bg_'+campaign.id, sheet.notes||''); }catch(e){}
     myChar=ch; mySheet=sheet; await refreshAll(); show('campaign'); switchTab('story');
   }catch(e){ toast(e.message||'Failed to create character',true); }
@@ -1105,7 +1175,7 @@ async function renderMe(){
   const cur=ex.current||0, nxt=ex.next||0; const pct=nxt?Math.min(100,Math.round(cur/nxt*100)):0;
   w2.innerHTML=`<div class="winhead"><div class="sectitle" style="margin:0">LEVEL & EXP</div><div class="lvbadge">Lv ${myChar.level}</div></div>`+
     `<div class="barwrap"><div class="barlabel"><span>Experience</span><span class="num">${cur} / ${nxt||dash}</span></div><div class="bar"><div class="fill" style="width:${pct}%"></div></div></div>`+
-    `<div class="sectitle" style="margin-top:10px">WALLET</div><div class="coins"><div class="coin g"><span class="cico">${COINS.g}</span><span><span class="v">${w.gp||0}</span> <span class="lab">GOLD</span></span></div><div class="coin s"><span class="cico">${COINS.s}</span><span><span class="v">${w.sp||0}</span> <span class="lab">SILVER</span></span></div><div class="coin c"><span class="cico">${COINS.c}</span><span><span class="v">${w.cp||0}</span> <span class="lab">COPPER</span></span></div></div>`;
+    `<div class="sectitle" style="margin-top:10px">WALLET</div><div class="coins"><div class="coin g"><span class="cico">${COINF.g}</span><span><span class="v">${w.gp||0}</span> <span class="lab">GOLD</span></span></div><div class="coin s"><span class="cico">${COINF.s}</span><span><span class="v">${w.sp||0}</span> <span class="lab">SILVER</span></span></div><div class="coin c"><span class="cico">${COINF.c}</span><span><span class="v">${w.cp||0}</span> <span class="lab">COPPER</span></span></div></div>`;
   p.appendChild(w2);
 
   // window 3: status / conditions / resistances
@@ -1184,7 +1254,16 @@ async function renderSkills(){
   let rows=null;
   try{ const r=await supa.from('skills').select('*').eq('character_id',myChar.id).order('sort'); if(!r.error) rows=r.data||[]; }catch(e){}
   if(rows===null){ p.innerHTML='<div class="muted">Skills system not enabled yet<br>Run migration.sql to add the skills table</div>'; return; }
-  if(!rows.length){ p.innerHTML='<div class="muted">No skills yet</div>'; return; }
+  if(!rows.length){ p.innerHTML='<div class="muted">No skills yet<br>Skills appear after you create a character (based on class), or when the DM grants them</div>'; return; }
+  // ปุ่มพัก (รีเซ็ตจำนวนครั้งใช้สกิล)
+  const hasUses=rows.some(s=>s.max_uses>0);
+  if(hasUses){
+    const restbar=document.createElement('div'); restbar.className='item'; restbar.innerHTML='<div class="sectitle">REST</div>';
+    const rb=document.createElement('div'); rb.style.cssText='display:flex;gap:8px;flex-wrap:wrap';
+    const longB=document.createElement('button'); longB.className='btn ghost sm'; longB.innerHTML=`<span class="bico">${ICON_INN}</span>Long Rest`; longB.onclick=()=>restSkills('long');
+    const shortB=document.createElement('button'); shortB.className='btn ghost sm'; shortB.innerHTML=`<span class="bico">${ICON_CAMPFIRE}</span>Short Rest`; shortB.onclick=()=>restSkills('short');
+    rb.appendChild(longB); rb.appendChild(shortB); restbar.appendChild(rb); p.appendChild(restbar);
+  }
   const card=document.createElement('div'); card.className='item'; card.innerHTML='<div class="sectitle">SKILLS</div>';
   rows.forEach(s=>{
     const rech=s.recharge||'long';
@@ -1194,9 +1273,30 @@ async function renderSkills(){
     if(s.max_uses>0){ for(let i=0;i<s.max_uses;i++) pips+=`<span class="pip${i<s.used?' spent':''}"></span>`; pips=`<div class="pips">${pips}<span class="cnt">${s.max_uses-s.used}/${s.max_uses} left</span></div>`; }
     const d=document.createElement('div'); d.className='skill';
     d.innerHTML=`<div class="top"><span class="nm">${escapeHtml(s.name)}</span><span class="rech${at}">${lab}</span></div>${pips}<div class="desc">${escapeHtml(s.description||'')}</div>`;
+    if(s.max_uses>0){
+      const use=document.createElement('button'); use.style.marginTop='7px';
+      if(s.used>=s.max_uses){ use.className='btn ghost sm'; use.textContent='Depleted'; use.disabled=true; }
+      else { use.className='btn sm'; use.textContent='Use (−1)'; use.onclick=()=>useSkill(s.id,s.used,s.max_uses); }
+      d.appendChild(use);
+    }
     card.appendChild(d);
   });
   p.appendChild(card);
+}
+async function useSkill(id,used,max){
+  if(used>=max) return; tick();
+  const { error }=await supa.from('skills').update({used:used+1}).eq('id',id);
+  if(error){ toast(error.message||'Failed',true); return; }
+  renderSkills();
+}
+async function restSkills(kind){
+  tick();
+  let q=supa.from('skills').update({used:0}).eq('character_id',myChar.id);
+  if(kind==='short') q=q.eq('recharge','short'); else q=q.in('recharge',['long','short']);
+  const { error }=await q;
+  if(error){ toast(error.message||'Rest failed',true); return; }
+  toast(kind==='long'?'Long rest — abilities restored 🌙':'Short rest — abilities restored ⛺');
+  renderSkills();
 }
 
 // ───────── render: NPC (ตาราง npcs + accordion) ─────────
