@@ -805,7 +805,7 @@ async function enterCampaign(){
   await refreshAll();
   if(activeTab()==='story') renderStory(); else switchTab(activeTab()||'story');
   await loadMusicLibrary();
-  try{ if(localStorage.getItem('ttrpg_music')==='1'){ musicOn=true; applyMood(); } }catch(e){}
+  try{ if(localStorage.getItem('ttrpg_music')==='1'){ musicOn=true; applyMood(); armMusicResume(); } }catch(e){}
   updateMusicBtn();
   subscribeRealtime();
 }
@@ -865,8 +865,10 @@ async function loadState(){
   }catch(e){ const c=cacheLoad('state'); if(c!==null) worldState=c; }
 }
 // ───────── audio: situational music (Batch C) ─────────
+// ใช้ <audio> ตัวเดียวซ้ำ → ปลดล็อกด้วยการแตะครั้งเดียว แล้วเปลี่ยนเพลงต่อได้บน iOS/มือถือ
 const PUBLIC_URL = SUPA_URL.replace(/\/$/,'') + '/storage/v1/object/public/';
-let musicLib={}, curAudio=null, curMood=null, musicOn=false;
+let musicLib={}, mAudio=null, curMood=null, musicOn=false;
+function getAudioEl(){ if(!mAudio){ mAudio=new Audio(); mAudio.preload='auto'; } return mAudio; }
 async function loadMusicLibrary(){
   musicLib={};
   try{
@@ -876,28 +878,39 @@ async function loadMusicLibrary(){
 }
 function toggleMusic(){
   tick();
-  if(musicOn){ musicOn=false; try{localStorage.removeItem('ttrpg_music');}catch(e){} if(curAudio){ fadeOutAudio(curAudio,400); curAudio=null; } curMood=null; }
+  if(musicOn){ musicOn=false; try{localStorage.removeItem('ttrpg_music');}catch(e){} if(mAudio){ try{mAudio.pause();}catch(e){} } curMood=null; }
   else { musicOn=true; try{localStorage.setItem('ttrpg_music','1');}catch(e){} applyMood(); }
   updateMusicBtn();
 }
 function updateMusicBtn(){ const b=$('hdMusic'); if(b) b.innerHTML = musicOn? '&#9834; Music: on' : '&#9834; Music: off'; }
 function applyMood(){ playMood((worldState&&worldState.scene_mood)||'explore'); }
+// หลัง refresh: browser บล็อก autoplay → เริ่มเพลงเองตอนผู้ใช้แตะ/คลิก/กดปุ่มครั้งแรก
+let _musicArmed=false;
+function armMusicResume(){
+  if(_musicArmed) return; _musicArmed=true;
+  const resume=()=>{
+    if(musicOn && (!mAudio || mAudio.paused)){ applyMood(); }
+    if(mAudio && !mAudio.paused){ ['click','keydown','touchstart','pointerdown'].forEach(ev=>document.removeEventListener(ev,resume,true)); }
+  };
+  ['click','keydown','touchstart','pointerdown'].forEach(ev=>document.addEventListener(ev,resume,{capture:true}));
+}
 function playMood(mood){
   if(!musicOn){ curMood=mood; return; }
   if(!mood) return;
-  if(mood===curMood && curAudio && !curAudio.paused) return;
+  const el=getAudioEl();
+  if(mood===curMood && !el.paused) return;
   const list=musicLib[mood]||[];
   if(!list.length){ curMood=mood; return; } // ไม่มีเพลง mood นี้ → คงเพลงเดิม
   const pick=list[Math.floor(Math.random()*list.length)];
-  const next=new Audio(pick.url); next.loop=pick.loop; next.volume=0;
-  next.play().then(()=>{
-    fadeInAudio(next, pick.volume, 800);
-    if(curAudio) fadeOutAudio(curAudio,800);
-    curAudio=next; curMood=mood;
-  }).catch(()=>{}); // autoplay ถูกบล็อกจนกว่าจะมี user gesture
+  curMood=mood;
+  el.loop=pick.loop!==false;
+  if(el.src!==pick.url){ el.src=pick.url; }
+  const target=(pick.volume==null?0.6:pick.volume);
+  const pr=el.play();           // ต้องอยู่ใน gesture ครั้งแรก (iOS) — ถ้าถูกบล็อก armMusicResume จะลองใหม่ตอนแตะ
+  if(pr&&pr.catch) pr.catch(()=>{});
+  fadeInEl(el, target, 600);    // Android: ค่อยๆ ดังขึ้น · iOS: volume แก้ไม่ได้ (เล่นเต็มเสียง)
 }
-function fadeInAudio(a,target,ms){ const steps=16,dt=ms/steps; let i=0; const t=setInterval(()=>{ i++; try{a.volume=Math.min(target,target*i/steps);}catch(e){} if(i>=steps) clearInterval(t); },dt); }
-function fadeOutAudio(a,ms){ const steps=16,dt=ms/steps,s=a.volume; let i=0; const t=setInterval(()=>{ i++; try{a.volume=Math.max(0,s*(1-i/steps));}catch(e){} if(i>=steps){ clearInterval(t); try{a.pause();}catch(e){} } },dt); }
+function fadeInEl(a,target,ms){ try{a.volume=0;}catch(e){return;} const steps=12,dt=ms/steps; let i=0; const t=setInterval(()=>{ i++; try{a.volume=Math.min(target,target*i/steps);}catch(e){} if(i>=steps) clearInterval(t); },dt); }
 // ไอคอนพิกเซลสีสำหรับ HUD
 const ICONS={date:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#f5b942" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="1" height="1"/><rect x="1" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="7" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="0" y="6" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/><rect x="7" y="6" width="1" height="1"/></svg>',time:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#5ad7e0" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="0" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/></svg>',weather:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#cfd6e6" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="7" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="7" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/></svg>',moon:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#e9e6a8" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/></svg>',season:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#7ad17a" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="0" width="1" height="1"/><rect x="6" y="0" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="0" y="6" width="1" height="1"/></svg>',loc:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#ff6b6b" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/></svg>'};
 // เหรียญ pixel (gold/silver/copper)
