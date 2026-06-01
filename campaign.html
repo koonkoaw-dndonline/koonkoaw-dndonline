@@ -1239,36 +1239,43 @@ function tick(){ try{ _actx=_actx||new (window.AudioContext||window.webkitAudioC
 // ───────── render: story ─────────
 async function renderStory(){
   renderClock();
-  const feed=$('narrFeed'); feed.innerHTML='';
-  if(!narrative.length){ feed.innerHTML='<div class="muted">No story yet '+(campaign.host_id===me.id?'— press "Begin Adventure" below':'— waiting for the host to begin')+'</div>'; }
-  narrative.forEach(n=>{
-    const d=document.createElement('div'); d.className='narr';
-    // Phase 2: placeholder narrative ("DM กำลังคิด...") แสดงแบบ italic + pulse
-    const isPlaceholder = n.status==='placeholder';
-    if(isPlaceholder) d.classList.add('narr-thinking');
-    d.innerHTML='<div class="meta">🎲 DM</div>';
-    const c=document.createElement('div');
-    c.innerHTML = isPlaceholder
-      ? '<i style="opacity:.7">'+escapeHtml(n.content||'_DM กำลังคิด…_').replace(/^_(.*?)_$/,'$1')+'</i><span class="dots">…</span>'
-      : colorizeNarr(n.content);
-    d.appendChild(c);
-    feed.appendChild(d);
-  });
-  // Phase 2: แสดง indicator presence "DM กำลังคิด" (ผู้เล่นคนอื่น trigger resolveRound อยู่)
-  const hasPlaceholder = narrative.some(n=>n.status==='placeholder');
-  if(rtAnyThinking && !hasPlaceholder){
-    const d=document.createElement('div'); d.className='narr narr-thinking';
-    d.innerHTML='<div class="meta">🎲 DM</div><div><i style="opacity:.7">DM กำลังคิด</i><span class="dots">…</span></div>';
-    feed.appendChild(d);
+  // placeholder ที่ค้างเกิน 2 นาที = orphan (resolve timeout) → ไม่ต้องแสดง (กัน "DM กำลังคิด" ค้างกระพริบ)
+  const now=Date.now();
+  const isLivePlaceholder = n => n.status==='placeholder' && (!n.created_at || (now - new Date(n.created_at).getTime()) < 120000);
+  const shown = narrative.filter(n => n.status!=='placeholder' || isLivePlaceholder(n));
+  const hasLivePh = shown.some(n=>n.status==='placeholder');
+  // ลายเซ็น feed — ถ้าไม่เปลี่ยน 'ไม่ rebuild เลย' (กันกระพริบ)
+  const sig = shown.map(n=>`${n.id}:${n.status}:${(n.content||'').length}`).join('|')+'|'+(rtAnyThinking&&!hasLivePh?'T':'');
+  if(sig!==_lastFeedSig){
+    _lastFeedSig=sig;
+    const feed=$('narrFeed'); feed.innerHTML='';
+    if(!shown.length){ feed.innerHTML='<div class="muted">No story yet '+(campaign.host_id===me.id?'— press "Begin Adventure" below':'— waiting for the host to begin')+'</div>'; }
+    shown.forEach(n=>{
+      const d=document.createElement('div'); d.className='narr';
+      const isPlaceholder = n.status==='placeholder';
+      if(isPlaceholder) d.classList.add('narr-thinking');
+      d.innerHTML='<div class="meta">🎲 DM</div>';
+      const c=document.createElement('div');
+      c.innerHTML = isPlaceholder
+        ? '<i style="opacity:.7">'+escapeHtml(n.content||'_DM กำลังคิด…_').replace(/^_(.*?)_$/,'$1')+'</i><span class="dots">…</span>'
+        : colorizeNarr(n.content);
+      d.appendChild(c); feed.appendChild(d);
+    });
+    if(rtAnyThinking && !hasLivePh){
+      const d=document.createElement('div'); d.className='narr narr-thinking';
+      d.innerHTML='<div class="meta">🎲 DM</div><div><i style="opacity:.7">DM กำลังคิด</i><span class="dots">…</span></div>';
+      feed.appendChild(d);
+    }
+    const sp=$('panel-story'); sp.scrollTop=sp.scrollHeight;
+    if(feed) feed.scrollTop=feed.scrollHeight;
   }
-  // ถ้ารอบจบแล้ว แสดง action ของทุกคน (RLS เปิดให้เห็นหลัง done)
+  // roundbar มี guard ของตัวเอง (ไม่ rebuild ตอนพิมพ์)
   renderRoundbar();
-  const sp=$('panel-story'); sp.scrollTop=sp.scrollHeight;            // มือถือ: ทั้ง panel เลื่อน
-  const nf=$('narrFeed'); if(nf) nf.scrollTop=nf.scrollHeight;        // เดสก์ท็อป: คอลัมน์เนื้อเรื่องเลื่อน
 }
 
 let roundbarSeq=0;
 let _lastRoundbarKey='';   // กัน rebuild roundbar ซ้ำตอนผู้เล่นกำลังพิมพ์ (ข้อความ/โฟกัสจะได้ไม่หาย)
+let _lastFeedSig='';       // ลายเซ็นของ feed ล่าสุด — ถ้าไม่เปลี่ยนจะไม่ rebuild (กันกระพริบ)
 function nameFor(a){
   const c=characters.find(x=>(a.character_id&&x.id===a.character_id)||x.user_id===a.user_id);
   if(c) return c.name;
