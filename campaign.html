@@ -276,23 +276,31 @@ a.link:hover{background:var(--white);color:var(--black);}
 @media (min-width:1500px){
   .panel{max-width:1500px;}
 }
-/* Desktop: เนื้อเรื่อง column ซ้ายกว้าง + ช่องคำสั่ง/คำตอบเพื่อน column ขวา (มือถือคงเรียงล่างตามเดิม) */
+/* Desktop: เนื้อเรื่องเลื่อนเองฝั่งซ้าย (scrollbar ติดเนื้อเรื่อง) · กล่องตอบโต้ฝั่งขวาไม่เลื่อน · เต็มจอ */
 @media (min-width:1024px){
   .panel[data-tab="story"].active{
     display:grid;
-    grid-template-columns:minmax(0,1fr) 360px;
+    grid-template-columns:minmax(0,1fr) 380px;
     grid-template-rows:auto 1fr;
     gap:0 24px;
-    max-width:1320px;
-    align-content:start;
+    max-width:none;width:100%;
+    overflow:hidden;            /* ไม่ให้ทั้ง panel เลื่อน */
   }
   .panel[data-tab="story"].active #worldClock{grid-column:1 / -1;grid-row:1;}
-  .panel[data-tab="story"].active #narrFeed{grid-column:1;grid-row:2;min-width:0;}
-  .panel[data-tab="story"].active .roundbar{
-    grid-column:2;grid-row:2;align-self:start;
-    position:sticky;top:8px;max-width:none;width:100%;margin:0;
-    border-top:none;border-left:var(--px) solid var(--white);padding:2px 0 12px 16px;
+  .panel[data-tab="story"].active #narrFeed{
+    grid-column:1;grid-row:2;min-width:0;
+    overflow-y:auto;max-height:100%;padding-right:14px;   /* แถบ scroll ติดเนื้อเรื่อง */
   }
+  .panel[data-tab="story"].active .roundbar{
+    grid-column:2;grid-row:2;align-self:stretch;
+    overflow-y:auto;max-height:100%;                       /* ปกติไม่เลื่อน เผื่อยาวมากค่อยเลื่อนเฉพาะกล่องนี้ */
+    border-top:none;border-left:var(--px) solid var(--white);
+    padding:2px 0 12px 18px;margin:0;max-width:none;width:100%;
+  }
+}
+/* ≥1300: World HUD ลอยซ้าย (ตำแหน่งเดิม) → เว้นที่ให้เนื้อเรื่องไม่ทับ */
+@media (min-width:1300px){
+  .panel[data-tab="story"].active{padding-left:236px;}
 }
 
 /* ===== Phase 5 components ===== */
@@ -441,6 +449,21 @@ body.role-player .dm-only{display:none!important;}
 .albumcell{border:2px solid #fff;padding:5px;display:flex;flex-direction:column;}
 .albumcell img{width:100%;display:block;}
 .albumcap{font-size:13px;color:#9a9a9a;margin-top:4px;line-height:1.3;}
+.avatarbox{border:2px solid #fff;width:100%;max-width:240px;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000;margin-top:6px;}
+.avatarbox img{width:100%;height:100%;object-fit:cover;display:block;}
+.avatarph{color:#555;font-size:14px;}
+.facebox{width:56px;height:56px;flex-shrink:0;border:2px solid #fff;overflow:hidden;background:#000;}
+.facebox img{width:100%;height:100%;object-fit:cover;display:block;}
+@media (min-width:900px){ .panel[data-tab="me"].active .avatarwin{order:-1;} }
+/* OOC chat */
+.chatlist{display:flex;flex-direction:column;gap:8px;max-height:62vh;overflow-y:auto;padding:2px;}
+.chatmsg{border:2px solid #fff;border-radius:5px;padding:6px 10px;max-width:85%;align-self:flex-start;}
+.chatmsg.mine{align-self:flex-end;background:#fff;color:#000;}
+.chatmsg.mine .chatname{color:#000;}
+.chatname{font-size:12px;color:#9a9a9a;margin-bottom:2px;letter-spacing:.3px;}
+.chatbody{font-size:16px;line-height:1.45;white-space:pre-wrap;word-break:break-word;}
+.tab.blink{animation:tabblink 0.9s steps(1) infinite;}
+@keyframes tabblink{50%{background:#fff;color:#000;}}
 /* Skill proficiency picker */
 .skgrid{display:flex;flex-wrap:wrap;gap:6px;}
 .skbtn{border:2px solid #fff;background:#000;color:#9a9a9a;border-radius:5px;padding:5px 9px;font-size:14px;font-family:'VT323',monospace;letter-spacing:.3px;}
@@ -573,6 +596,7 @@ body.role-player .dm-only{display:none!important;}
   <button class="tab" data-tab="quest" onclick="switchTab('quest')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/></svg></span><span class="tlab">Quest</span></button>
   <button class="tab" data-tab="files" onclick="switchTab('files')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="7" y="5" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/><rect x="2" y="7" width="1" height="1"/><rect x="5" y="7" width="1" height="1"/></svg></span><span class="tlab">Files</span></button>
   <button class="tab" data-tab="chron" onclick="switchTab('chron')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="1" height="1"/><rect x="1" y="0" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="6" y="0" width="1" height="1"/><rect x="7" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="7" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="7" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="7" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="7" y="5" width="1" height="1"/></svg></span><span class="tlab">Chronicle</span></button>
+  <button class="tab" data-tab="chat" onclick="switchTab('chat')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="1" height="1"/><rect x="1" y="0" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="6" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/></svg></span><span class="tlab">Chat</span></button>
 </div>
 
 <div class="panel active" id="panel-story" data-tab="story">
@@ -590,6 +614,7 @@ body.role-player .dm-only{display:none!important;}
 <div class="panel" id="panel-quest" data-tab="quest"></div>
 <div class="panel" id="panel-files" data-tab="files"></div>
 <div class="panel" id="panel-chron" data-tab="chron"></div>
+<div class="panel" id="panel-chat" data-tab="chat"></div>
 
 <div class="toast" id="toast"></div>
 
@@ -605,7 +630,7 @@ const RESOLVE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/resolve-round';
 const INGEST_FN  = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-file';
 const DYNAMIC_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/dynamic-task';
 let supa=null, session=null, me=null;            // me = auth user
-let campaign=null, members=[], myChar=null, characters=[], curRound=null, narrative=[], mySheet={}, worldState=null;
+let campaign=null, members=[], myChar=null, characters=[], curRound=null, narrative=[], mySheet={}, worldState=null, chatMsgs=[];
 let rtChannel=null, resolving=false;
 
 function $(id){return document.getElementById(id);}
@@ -729,19 +754,23 @@ async function enterCampaign(){
   if(campaign.host_id===me.id){ endBtn.textContent='✕ End World'; endBtn.onclick=endCampaign; }
   else { endBtn.textContent='Leave'; endBtn.onclick=leaveCampaign; }
   endBtn.classList.remove('hidden');
-  await refreshAll();
-  await loadMusicLibrary();
   $('hdMusic').classList.remove('hidden');
+  // โชว์จาก cache ทันที (ถ้ามี) แล้วค่อยอัปเดตจาก DB
+  hydrateCache();
+  show('campaign');
+  switchTab('story');
+  await refreshAll();
+  if(activeTab()==='story') renderStory(); else switchTab(activeTab()||'story');
+  await loadMusicLibrary();
   try{ if(localStorage.getItem('ttrpg_music')==='1'){ musicOn=true; applyMood(); } }catch(e){}
   updateMusicBtn();
-  show('campaign');
   subscribeRealtime();
 }
 
 async function refreshAll(){
   await Promise.all([loadMembers(), loadCharacters(), loadRound(), loadNarrative(), loadState()]);
   myChar = characters.find(c=>c.user_id===me.id) || null;
-  if(myChar){ try{ const r=await supa.from('character_sheets').select('sheet').eq('character_id',myChar.id).maybeSingle(); mySheet=r.data?.sheet||{}; }catch(e){ mySheet={}; } }
+  if(myChar){ try{ const r=await supa.from('character_sheets').select('sheet').eq('character_id',myChar.id).maybeSingle(); if(r.error) throw r.error; mySheet=r.data?.sheet||{}; cacheSave('sheet_'+myChar.id, mySheet); }catch(e){ const c=cacheLoad('sheet_'+myChar.id); mySheet=c||mySheet||{}; } }
   updateCombatBadge();
 }
 // ไอคอน Monster กระพริบเมื่อมี combat active (combat_state) — เงียบถ้ายังไม่ได้รัน migration
@@ -750,29 +779,47 @@ async function updateCombatBadge(){
   try{ const r=await supa.from('combat_state').select('id').eq('campaign_id',campaign.id).eq('active',true).limit(1); active=!r.error && (r.data||[]).length>0; }catch(e){}
   const t=document.querySelector('.tab[data-tab="mon"]'); if(t) t.classList.toggle('combat',active);
 }
+// ───────── local cache (โหลดไว + ดูย้อนหลังตอนเน็ตหลุด — DB ยังเป็นตัวหลัก) ─────────
+function cacheKey(kind){ return 'ttrpg_c_'+kind+'_'+((campaign&&campaign.id)||'x'); }
+function cacheSave(kind,data){ try{ localStorage.setItem(cacheKey(kind), JSON.stringify(data)); }catch(e){} }
+function cacheLoad(kind){ try{ const s=localStorage.getItem(cacheKey(kind)); return s?JSON.parse(s):null; }catch(e){ return null; } }
+// เติม global จาก cache ทันที (ก่อน DB ตอบ) → UI ขึ้นไว
+function hydrateCache(){
+  const m=cacheLoad('members'); if(m) members=m;
+  const ch=cacheLoad('characters'); if(ch){ characters=ch; myChar=characters.find(c=>c.user_id===me.id)||null; }
+  const r=cacheLoad('round'); if(r) curRound=r;
+  const n=cacheLoad('narrative'); if(n) narrative=n;
+  const s=cacheLoad('state'); if(s!==null) worldState=s;
+  if(myChar){ const sh=cacheLoad('sheet_'+myChar.id); if(sh) mySheet=sh; }
+}
 async function loadMembers(){
-  const { data } = await supa.from('campaign_members').select('user_id, role, is_active, profiles(display_name)')
+  try{ const { data, error } = await supa.from('campaign_members').select('user_id, role, is_active, profiles(display_name)')
     .eq('campaign_id',campaign.id).eq('is_active',true);
-  members = data||[];
+    if(error) throw error; members = data||[]; cacheSave('members',members);
+  }catch(e){ const c=cacheLoad('members'); if(c) members=c; }
 }
 async function loadCharacters(){
-  const { data } = await supa.from('characters').select('*').eq('campaign_id',campaign.id);
-  characters = data||[];
+  try{ const { data, error } = await supa.from('characters').select('*').eq('campaign_id',campaign.id);
+    if(error) throw error; characters = data||[]; cacheSave('characters',characters);
+  }catch(e){ const c=cacheLoad('characters'); if(c) characters=c; }
 }
 async function loadRound(){
-  const { data } = await supa.from('rounds').select('*').eq('campaign_id',campaign.id)
+  try{ const { data, error } = await supa.from('rounds').select('*').eq('campaign_id',campaign.id)
     .order('round_number',{ascending:false}).limit(1).maybeSingle();
-  curRound = data||null;
+    if(error) throw error; curRound = data||null; cacheSave('round',curRound);
+  }catch(e){ const c=cacheLoad('round'); if(c) curRound=c; }
 }
 async function loadNarrative(){
-  const { data } = await supa.from('narrative').select('*').eq('campaign_id',campaign.id)
+  try{ const { data, error } = await supa.from('narrative').select('*').eq('campaign_id',campaign.id)
     .order('created_at',{ascending:true});
-  narrative = data||[];
+    if(error) throw error; narrative = data||[]; cacheSave('narrative',narrative);
+  }catch(e){ const c=cacheLoad('narrative'); if(c) narrative=c; }
   try{ localStorage.setItem('ttrpg_chron_'+campaign.id, JSON.stringify(narrative.map(n=>n.content))); }catch(e){}
 }
 async function loadState(){
-  try{ const r=await supa.from('campaign_state').select('*').eq('campaign_id',campaign.id).maybeSingle(); worldState=r.error?null:r.data; }
-  catch(e){ worldState=null; }
+  try{ const r=await supa.from('campaign_state').select('*').eq('campaign_id',campaign.id).maybeSingle();
+    if(r.error) throw r.error; worldState=r.data; cacheSave('state',worldState);
+  }catch(e){ const c=cacheLoad('state'); if(c!==null) worldState=c; }
 }
 // ───────── audio: situational music (Batch C) ─────────
 const PUBLIC_URL = SUPA_URL.replace(/\/$/,'') + '/storage/v1/object/public/';
@@ -1020,7 +1067,45 @@ function switchTab(t){
   else if(t==='quest') renderQuest();
   else if(t==='files') renderFiles();
   else if(t==='chron') renderChronicle();
+  else if(t==='chat'){ renderChat(); clearChatBlink(); }
 }
+// ───────── OOC chat (คุยวางแผนนอกเรื่อง) ─────────
+async function loadChat(){
+  try{ const { data, error }=await supa.from('chat_messages').select('*').eq('campaign_id',campaign.id).order('created_at',{ascending:true}).limit(300);
+    if(error) throw error; chatMsgs=data||[]; cacheSave('chat',chatMsgs);
+  }catch(e){ const c=cacheLoad('chat'); if(c) chatMsgs=c; }
+}
+function chatNameFor(uid){
+  const c=characters.find(x=>x.user_id===uid); if(c) return c.name;
+  const m=members.find(m=>m.user_id===uid); return (m&&m.profiles&&m.profiles.display_name)||'Player';
+}
+async function renderChat(){
+  const p=$('panel-chat'); p.innerHTML='';
+  const wrap=document.createElement('div'); wrap.className='item';
+  const list=document.createElement('div'); list.id='chatList'; list.className='chatlist';
+  list.innerHTML='<div class="muted">กำลังโหลด…</div>'; wrap.appendChild(list); p.appendChild(wrap);
+  const bar=document.createElement('div'); bar.className='item';
+  const row=document.createElement('div'); row.style.cssText='display:flex;gap:8px;align-items:flex-end';
+  const ta=document.createElement('textarea'); ta.id='chatInput'; ta.placeholder='พิมพ์คุยวางแผน (นอกเรื่อง)… Enter ส่ง, Shift+Enter ขึ้นบรรทัด'; ta.rows=2; ta.style.flex='1';
+  ta.onkeydown=(e)=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendChat(); } };
+  const sb=document.createElement('button'); sb.className='btn sm'; sb.textContent='Send'; sb.onclick=sendChat;
+  row.appendChild(ta); row.appendChild(sb); bar.appendChild(row); p.appendChild(bar);
+  await loadChat(); renderChatList();
+}
+function renderChatList(){
+  const list=$('chatList'); if(!list) return; list.innerHTML='';
+  if(!chatMsgs.length){ list.innerHTML='<div class="muted">ยังไม่มีข้อความ — เริ่มคุยได้เลย</div>'; return; }
+  chatMsgs.forEach(mm=>{ const mine=mm.user_id===me.id; const d=document.createElement('div'); d.className='chatmsg'+(mine?' mine':'');
+    d.innerHTML=`<div class="chatname">${escapeHtml(chatNameFor(mm.user_id))}</div><div class="chatbody">${escapeHtml(mm.body)}</div>`; list.appendChild(d); });
+  list.scrollTop=list.scrollHeight;
+}
+async function sendChat(){
+  const ta=$('chatInput'); const body=ta&&ta.value.trim(); if(!body) return;
+  ta.value=''; ta.focus();
+  try{ const { error }=await supa.from('chat_messages').insert({campaign_id:campaign.id,user_id:me.id,body:body.slice(0,2000)}); if(error) throw error; }
+  catch(e){ toast(e.message||'ส่งไม่สำเร็จ',true); }
+}
+function clearChatBlink(){ const t=document.querySelector('.tab[data-tab="chat"]'); if(t) t.classList.remove('blink'); }
 // เสียงคลิกแบบ retro (Web Audio — ไม่ต้องโหลดไฟล์)
 let _actx=null;
 function tick(){ try{ _actx=_actx||new (window.AudioContext||window.webkitAudioContext)(); const o=_actx.createOscillator(),g=_actx.createGain(); o.type='square'; o.frequency.value=1180; g.gain.value=0.04; o.connect(g); g.connect(_actx.destination); o.start(); o.stop(_actx.currentTime+0.05); }catch(e){} }
@@ -1037,7 +1122,8 @@ async function renderStory(){
   });
   // ถ้ารอบจบแล้ว แสดง action ของทุกคน (RLS เปิดให้เห็นหลัง done)
   renderRoundbar();
-  const sp=$('panel-story'); sp.scrollTop=sp.scrollHeight;
+  const sp=$('panel-story'); sp.scrollTop=sp.scrollHeight;            // มือถือ: ทั้ง panel เลื่อน
+  const nf=$('narrFeed'); if(nf) nf.scrollTop=nf.scrollHeight;        // เดสก์ท็อป: คอลัมน์เนื้อเรื่องเลื่อน
 }
 
 let roundbarSeq=0;
@@ -1287,6 +1373,32 @@ async function renderMe(){
   const save=document.createElement('button'); save.className='btn sm'; save.textContent='Save Sheet';
   save.onclick=async()=>{ sheet.notes=$('meNotes').value; await supa.from('character_sheets').update({sheet,updated_at:new Date().toISOString()}).eq('character_id',myChar.id); try{ localStorage.setItem('ttrpg_bg_'+campaign.id, sheet.notes||''); }catch(e){} toast('Saved ✓'); };
   it4.appendChild(save); p.appendChild(it4);
+
+  // PORTRAIT (รูปตัวละคร — เห็นได้ทุกคน) · desktop=บนซ้าย (order:-1) · mobile=ล่างสุด
+  const av=document.createElement('div'); av.className='item avatarwin';
+  av.innerHTML='<div class="sectitle">PORTRAIT</div>';
+  const imgwrap=document.createElement('div'); imgwrap.className='avatarbox';
+  if(myChar.avatar_path){ const im=document.createElement('img'); im.src=PUBLIC_URL+'avatars/'+myChar.avatar_path; im.onerror=()=>{imgwrap.innerHTML='<div class="avatarph">No portrait</div>';}; imgwrap.appendChild(im); }
+  else imgwrap.innerHTML='<div class="avatarph">No portrait</div>';
+  av.appendChild(imgwrap);
+  const arow=document.createElement('div'); arow.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center';
+  const afi=document.createElement('input'); afi.type='file'; afi.accept='image/*'; afi.style.cssText='color:#fff;font-size:13px;max-width:150px';
+  const abtn=document.createElement('button'); abtn.className='btn sm'; abtn.textContent=myChar.avatar_path?'Change':'Upload portrait'; abtn.onclick=()=>uploadAvatar(afi,abtn);
+  arow.appendChild(afi); arow.appendChild(abtn); av.appendChild(arow);
+  p.appendChild(av);
+}
+async function uploadAvatar(fi,btn){
+  const file=fi.files&&fi.files[0]; if(!file){ toast('เลือกรูปก่อน',true); return; }
+  if(file.size>5000000){ toast('รูปใหญ่เกิน 5MB',true); return; }
+  btn.disabled=true;
+  try{
+    const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_'); const path=campaign.id+'/'+myChar.id+'_'+Date.now()+'_'+safe;
+    const up=await supa.storage.from('avatars').upload(path,file,{upsert:false}); if(up.error) throw up.error;
+    const old=myChar.avatar_path;
+    const upd=await supa.from('characters').update({avatar_path:path}).eq('id',myChar.id); if(upd.error) throw upd.error;
+    if(old){ try{ await supa.storage.from('avatars').remove([old]); }catch(e){} }
+    myChar.avatar_path=path; toast('อัปรูปแล้ว ✓'); await loadCharacters(); myChar=characters.find(c=>c.user_id===me.id)||myChar; renderMe();
+  }catch(e){ toast(e.message||'อัปรูปล้มเหลว',true); btn.disabled=false; }
 }
 function renderParty(){
   const p=$('panel-party'); p.innerHTML='';
@@ -1295,7 +1407,13 @@ function renderParty(){
   others.forEach(c=>{
     const it=document.createElement('div'); it.className='item';
     const hp=c.public_status?.hp?` · HP ${c.public_status.hp}`:'';
-    it.innerHTML=`<div class="nm">${escapeHtml(c.name)}</div><div class="sub">${escapeHtml(c.class||'-')} · Lv.${c.level}${hp}</div><div class="sub">Their private info is hidden 🔒</div>`;
+    const conds=(c.public_status&&Array.isArray(c.public_status.conditions)&&c.public_status.conditions.length)?` · ${c.public_status.conditions.join(', ')}`:'';
+    const row=document.createElement('div'); row.style.cssText='display:flex;gap:12px;align-items:center';
+    const face=document.createElement('div'); face.className='facebox';
+    if(c.avatar_path){ const im=document.createElement('img'); im.src=PUBLIC_URL+'avatars/'+c.avatar_path; im.onerror=()=>{face.innerHTML='';}; face.appendChild(im); }
+    const info=document.createElement('div'); info.style.flex='1';
+    info.innerHTML=`<div class="nm">${escapeHtml(c.name)}</div><div class="sub">${escapeHtml(c.class||'-')} · Lv.${c.level}${hp}${escapeHtml(conds)}</div><div class="sub">Their private info is hidden 🔒</div>`;
+    row.appendChild(face); row.appendChild(info); it.appendChild(row);
     p.appendChild(it);
   });
   const noChar=members.filter(m=>!characters.find(c=>c.user_id===m.user_id));
@@ -1685,6 +1803,7 @@ function subscribeRealtime(){
     .on('postgres_changes',{event:'*',schema:'public',table:'actions',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'characters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadCharacters(); if(activeTab()==='party') renderParty(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'campaign_state',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadState(); applyMood(); if(activeTab()==='story') renderClock(); if(activeTab()==='map') renderMap(); })
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_messages',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ await loadChat(); if(activeTab()==='chat'){ renderChatList(); } else if(payload.new && payload.new.user_id!==me.id){ const t=document.querySelector('.tab[data-tab="chat"]'); if(t) t.classList.add('blink'); } })
     .subscribe();
 }
 function activeTab(){ return document.querySelector('.tab.active')?.dataset.tab; }
