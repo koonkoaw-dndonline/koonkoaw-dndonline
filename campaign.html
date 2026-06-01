@@ -78,7 +78,9 @@ input,textarea,select{font-family:inherit;}
 .dot.err{background:var(--black);border-color:var(--white);animation:blink 1s steps(1) infinite;}
 
 /* ---------- center screens (auth/lobby/char) ---------- */
-.center{flex:1;overflow-y:auto;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:22px 16px;gap:16px;}
+.center{flex:1;overflow-y:auto;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:22px 16px;gap:16px;}
+/* เนื้อหาที่พอดีจอ = จัดกึ่งกลาง · ที่สูงเกินจอ = ชิดบน (เลื่อนถึงช่องชื่อได้เสมอ ไม่ถูกตัด) */
+@supports (justify-content: safe center){ .center{justify-content:safe center;} }
 .card{
   width:100%;max-width:430px;background:var(--black);
   border:var(--px) solid var(--white);border-radius:10px;padding:22px 20px;
@@ -434,6 +436,11 @@ body.role-player .dm-only{display:none!important;}
 .pbbtn{width:24px;height:24px;border:2px solid #fff;background:#000;color:#fff;border-radius:4px;font-size:15px;line-height:1;font-weight:700;flex-shrink:0;}
 .pbbtn:hover{background:#fff;color:#000;}
 @media(max-width:560px){ .pbgrid{grid-template-columns:1fr;} }
+.bonusgrid{display:flex;gap:8px;flex-wrap:wrap;}
+.bonusrow{display:flex;align-items:center;gap:6px;border:2px solid #fff;border-radius:6px;padding:4px 8px;background:#000;}
+.bblab{font-family:'VT323',monospace;font-size:17px;color:#fff;}
+.bonsel{background:#000;color:#fff;border:2px solid #fff;border-radius:4px;font-family:inherit;font-size:14px;padding:3px 4px;}
+.btn.ghost.sm.on{background:#fff;color:#000;font-weight:700;}
 /* dice / combat / interact helpers ในช่อง action */
 .dicerow,.optrow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
 .dicelbl{color:#9a9a9a;font-size:15px;}
@@ -569,6 +576,10 @@ body.role-player .dm-only{display:none!important;}
       <button type="button" class="btn ghost sm" onclick="pbReset()">Reset (all 8)</button>
     </div>
     <div class="note">งบ 27 แต้ม · ค่า 8–15 (ก่อนโบนัสเผ่า) · 14–15 ใช้แต้มแพงขึ้น</div>
+    <div class="sectitle" style="margin-top:8px">RACIAL / BACKGROUND BONUS</div>
+    <div class="note" style="margin:0 0 4px">เลือกโบนัสเผ่า/พื้นเพ (2024 RAW): +2 และ +1 คนละค่า หรือ +1/+1/+1 สามค่า → สูงสุด 17</div>
+    <div id="bonusWrap"></div>
+    <div id="finalScores" class="note" style="text-align:center;font-family:'VT323',monospace;font-size:18px;margin:4px 0"></div>
     <div class="srow2">
       <label class="fld">Max HP (auto ตามกฎ)<input type="number" id="cHp" readonly style="color:#9a9a9a"/></label>
       <label class="fld">Starting weapon<input type="text" id="cWeapon" list="basicWeapons" placeholder="เลือกหรือพิมพ์เอง"/></label>
@@ -977,12 +988,46 @@ function renderPB(){
   const order=[['str','STR'],['dex','DEX'],['con','CON'],['int','INT'],['wis','WIS'],['cha','CHA']];
   w.innerHTML=order.map(([k,lab])=>`<div class="pbrow"><span class="pblab">${lab}</span><button type="button" class="pbbtn" onclick="pbAdj('${k}',-1)">−</button><span class="pbval">${pb[k]}</span><button type="button" class="pbbtn" onclick="pbAdj('${k}',1)">+</button><span class="pbmod">${abMod(pb[k])}</span></div>`).join('');
   const info=$('pbInfo'); if(info) info.textContent='Points left: '+(PB_BUDGET-pbSpent())+' / '+PB_BUDGET;
+  renderFinal();
+}
+// ── โบนัสเผ่า/พื้นเพ (2024 RAW): +2/+1 ต่างค่า หรือ +1/+1/+1 → สูงสุด 17 ──
+let bonusMode='2-1';
+let bonusPick={a:'str',b:'dex',c:'con'};
+function abBonusMap(){
+  const m={str:0,dex:0,con:0,int:0,wis:0,cha:0};
+  if(bonusMode==='2-1'){ if(bonusPick.a) m[bonusPick.a]+=2; if(bonusPick.b&&bonusPick.b!==bonusPick.a) m[bonusPick.b]+=1; }
+  else { const seen=[bonusPick.a,bonusPick.b,bonusPick.c]; seen.forEach((k,i)=>{ if(k&&seen.indexOf(k)===i) m[k]+=1; }); }
+  return m;
+}
+function finalAb(k){ return Math.min(17, pb[k]+(abBonusMap()[k]||0)); }
+function setBonusMode(m){ bonusMode=m; renderBonus(); }
+function setBonus(slot,v){ bonusPick[slot]=v; renderBonus(); }
+function renderBonus(){
+  const w=$('bonusWrap'); if(!w) return;
+  const opts=(sel)=>['str','dex','con','int','wis','cha'].map(k=>`<option value="${k}"${sel===k?' selected':''}>${k.toUpperCase()}</option>`).join('');
+  const mb=`<div class="srow2" style="margin:2px 0 6px"><button type="button" class="btn ghost sm${bonusMode==='2-1'?' on':''}" onclick="setBonusMode('2-1')">+2 / +1</button><button type="button" class="btn ghost sm${bonusMode==='1-1-1'?' on':''}" onclick="setBonusMode('1-1-1')">+1 / +1 / +1</button></div>`;
+  let sels;
+  if(bonusMode==='2-1'){
+    sels=`<div class="bonusrow"><span class="bblab">+2</span><select class="bonsel" onchange="setBonus('a',this.value)">${opts(bonusPick.a)}</select></div><div class="bonusrow"><span class="bblab">+1</span><select class="bonsel" onchange="setBonus('b',this.value)">${opts(bonusPick.b)}</select></div>`;
+  } else {
+    sels=['a','b','c'].map(s=>`<div class="bonusrow"><span class="bblab">+1</span><select class="bonsel" onchange="setBonus('${s}',this.value)">${opts(bonusPick[s])}</select></div>`).join('');
+  }
+  w.innerHTML=mb+'<div class="bonusgrid">'+sels+'</div>';
+  renderFinal();
+}
+function renderFinal(){
+  const el=$('finalScores'); if(!el) return;
+  const m=abBonusMap();
+  let warn='';
+  if(bonusMode==='2-1' && bonusPick.a===bonusPick.b) warn=' ⚠ +2/+1 ต้องคนละค่า';
+  if(bonusMode==='1-1-1'){ const s=[bonusPick.a,bonusPick.b,bonusPick.c]; if(new Set(s).size<3) warn=' ⚠ ต้องเลือก 3 ค่าต่างกัน'; }
+  el.innerHTML='FINAL: '+['str','dex','con','int','wis','cha'].map(k=>{ const fv=pb[k]+(m[k]||0); return `${k.toUpperCase()} <b>${fv}</b>`; }).join(' · ')+(warn?`<span style="color:#ff6b6b">${warn}</span>`:'');
 }
 function suggestHP(){
   const hpEl=$('cHp'); if(!hpEl) return;
   const cls=($('cClass').value||'').toLowerCase().trim();
   let die=8; for(const k in HITDIE){ if(cls.includes(k)){ die=HITDIE[k]; break; } }
-  const mod=Math.floor((pb.con-10)/2);
+  const mod=Math.floor((finalAb('con')-10)/2);   // ใช้ CON หลังโบนัส
   hpEl.value=Math.max(1, die+mod);   // fixed ตามกฎ แก้เองไม่ได้
 }
 // ── สกิลถนัดเริ่มต้นตามคลาส (กฎ D&D 5e) ──
@@ -1060,7 +1105,7 @@ async function createCharacter(){
     if(error) throw error;
     const sheet={
       race:$('cRace').value.trim(), sex:$('cSex').value.trim(), age:$('cAge').value.trim(),
-      abilities:{ str:pb.str, dex:pb.dex, con:pb.con, int:pb.int, wis:pb.wis, cha:pb.cha },
+      abilities:{ str:finalAb('str'), dex:finalAb('dex'), con:finalAb('con'), int:finalAb('int'), wis:finalAb('wis'), cha:finalAb('cha') },
       skill_proficiencies: chosenSkills.slice(),
       combat:{ hp:maxhp, maxhp:maxhp, hitdice:'' },
       equipment:{ weapon:$('cWeapon').value.trim(), offhand:'', armor:'', shield:'', accessory:'' },
@@ -1179,7 +1224,7 @@ async function renderRoundbar(){
   // STAGE 2: อ่านปูมหลังแล้ว แต่ยังไม่มีตัวละคร → สร้างตัวละคร
   if(!myChar){
     bar.innerHTML='<div class="statusline">อ่านปูมหลังโลกด้านบนก่อน แล้วสร้างตัวละครของคุณให้เข้ากับโลกนี้</div>';
-    const b=document.createElement('button'); b.className='btn'; b.textContent='📝 Create your character'; b.onclick=()=>{ chosenSkills=[]; show('charScreen'); renderPB(); suggestHP(); renderSkillPick(); }; bar.appendChild(b);
+    const b=document.createElement('button'); b.className='btn'; b.textContent='📝 Create your character'; b.onclick=()=>{ chosenSkills=[]; bonusMode='2-1'; bonusPick={a:'str',b:'dex',c:'con'}; show('charScreen'); renderPB(); renderBonus(); suggestHP(); renderSkillPick(); }; bar.appendChild(b);
     return;
   }
   // STAGE 3: มีตัวละครแล้ว แต่ยังไม่เปิดฉาก → host เริ่มฉากแรก
