@@ -152,8 +152,8 @@ a.link:hover{background:var(--white);color:var(--black);}
 .tab:last-child{border-right:0;}
 .tab:hover{color:var(--white);}
 .tab.active{color:var(--black);background:var(--white);font-weight:700;}
-/* ลูกศรเลือกแท็บ: สามเหลี่ยมพิกเซลดำเล็ก (คมชัด) แทนอักขระ ▶ */
-.tab.active::before{content:"";display:inline-block;vertical-align:middle;margin-right:4px;width:0;height:0;border-style:solid;border-width:3px 0 3px 5px;border-color:transparent transparent transparent var(--black);}
+/* ไม่ใช้ลูกศรหน้าแท็บแล้ว — พื้นหลังขาวบอกว่าเลือกอยู่พอ */
+.tab.active::before{content:none;}
 .tab.active::after{content:none;}
 .tab .tico{display:inline-flex;align-items:center;vertical-align:middle;}
 .tab .tico svg{width:16px;height:16px;display:block;}
@@ -522,7 +522,7 @@ body.role-player .dm-only{display:none!important;}
 <body>
 
 <div class="hd">
-  <div class="logo"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="0" width="1" height="1"/><rect x="6" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/></svg></div>
+  <div class="logo"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="7" y="5" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/><rect x="2" y="7" width="1" height="1"/><rect x="5" y="7" width="1" height="1"/></svg></div>
   <div class="ttl" id="hdTitle">TTRPG Campaign</div>
   <span class="code hidden" id="hdCode" title="Click to copy invite code"></span>
   <span class="who" id="hdWho"></span>
@@ -649,11 +649,11 @@ body.role-player .dm-only{display:none!important;}
 <div class="tabs hidden" id="tabs">
   <button class="tab active" data-tab="story" onclick="switchTab('story')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="0" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="6" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/></svg></span><span class="tlab">Story</span></button>
   <button class="tab" data-tab="me" onclick="switchTab('me')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="1" height="1"/><rect x="1" y="0" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="0" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="0" y="7" width="1" height="1"/><rect x="1" y="7" width="1" height="1"/><rect x="2" y="7" width="1" height="1"/><rect x="3" y="7" width="1" height="1"/><rect x="4" y="7" width="1" height="1"/><rect x="5" y="7" width="1" height="1"/></svg></span><span class="tlab">Stat</span></button>
-  <button class="tab" data-tab="items" onclick="switchTab('items')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/></svg></span><span class="tlab">Items</span></button>
-  <button class="tab" data-tab="skills" onclick="switchTab('skills')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="7" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/></svg></span><span class="tlab">Skills</span></button>
-  <button class="tab" data-tab="party" onclick="switchTab('party')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="7" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="7" y="5" width="1" height="1"/><rect x="0" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="7" y="6" width="1" height="1"/></svg></span><span class="tlab">Party</span></button>
+  <button class="tab" data-tab="items" onclick="switchTab('items')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/></svg></span><span class="tlab">Items</span></button>
+  <button class="tab" data-tab="skills" onclick="switchTab('skills')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="7" y="3" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/></svg></span><span class="tlab">Skills</span></button>
+  <button class="tab" data-tab="party" onclick="switchTab('party')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="6" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/></svg></span><span class="tlab">Party</span></button>
   <button class="tab" data-tab="npc" onclick="switchTab('npc')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/></svg></span><span class="tlab">NPC</span></button>
-  <button class="tab" data-tab="mon" onclick="switchTab('mon')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="7" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="7" y="5" width="1" height="1"/><rect x="0" y="6" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/><rect x="7" y="6" width="1" height="1"/><rect x="1" y="7" width="1" height="1"/><rect x="2" y="7" width="1" height="1"/><rect x="3" y="7" width="1" height="1"/><rect x="4" y="7" width="1" height="1"/><rect x="5" y="7" width="1" height="1"/><rect x="6" y="7" width="1" height="1"/></svg></span><span class="tlab">Monster</span></button>
+  <button class="tab" data-tab="mon" onclick="switchTab('mon')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="0" width="1" height="1"/><rect x="6" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/></svg></span><span class="tlab">Monster</span></button>
   <button class="tab" data-tab="map" onclick="switchTab('map')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/></svg></span><span class="tlab">Map</span></button>
   <button class="tab" data-tab="quest" onclick="switchTab('quest')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/></svg></span><span class="tlab">Quest</span></button>
   <button class="tab" data-tab="files" onclick="switchTab('files')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="7" y="5" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/><rect x="2" y="7" width="1" height="1"/><rect x="5" y="7" width="1" height="1"/></svg></span><span class="tlab">Files</span></button>
@@ -1739,10 +1739,18 @@ async function renderItems(){
   try{ const r=await supa.from('character_sheets').select('sheet').eq('character_id',myChar.id).maybeSingle(); if(!r.error&&r.data&&r.data.sheet) mySheet=r.data.sheet; }catch(e){}
   const sheet=mySheet||{}; const eq=sheet.equipment||{}; const inv=sheet.inventory||[];
   const w=sheet.wallet||{};
-  const tv=(k,v)=>`<div class="kv"><span class="k">${k}</span><span class="dots"></span><span class="num" style="font-family:'Noto Sans Thai';font-size:13px;color:#fff;">${v?escapeHtml(v):'—'}</span></div>`;
-  const eqc=document.createElement('div'); eqc.className='item';
-  eqc.innerHTML='<div class="sectitle">EQUIPPED</div>'+tv('Weapon',eq.weapon)+tv('Off-hand',eq.offhand)+tv('Armor',eq.armor)+tv('Shield',eq.shield)+tv('Accessory',eq.accessory);
+  // EQUIPPED — มีปุ่ม "ถอด" ต่อช่องที่ใส่อยู่
+  const SLOTS=[['weapon','Weapon'],['offhand','Off-hand'],['armor','Armor'],['shield','Shield'],['accessory','Accessory']];
+  const eqc=document.createElement('div'); eqc.className='item'; eqc.innerHTML='<div class="sectitle">EQUIPPED</div>';
+  SLOTS.forEach(([key,lab])=>{
+    const val=eq[key];
+    const row=document.createElement('div'); row.className='kv'; row.style.alignItems='center';
+    row.innerHTML=`<span class="k">${lab}</span><span class="dots"></span><span class="num" style="font-family:'Noto Sans Thai';font-size:13px;color:#fff">${val?escapeHtml(val):'—'}</span>`;
+    if(val){ const ub=document.createElement('button'); ub.className='btn ghost sm'; ub.style.marginLeft='8px'; ub.textContent='ถอด'; ub.onclick=()=>unequipItem(key); row.appendChild(ub); }
+    eqc.appendChild(row);
+  });
   p.appendChild(eqc);
+  // BACKPACK — ปุ่ม "สวมใส่" เฉพาะของที่ใส่ได้ (อาวุธ/เกราะ/โล่/เครื่องประดับ)
   const bag=document.createElement('div'); bag.className='item';
   bag.innerHTML=`<div class="winhead"><div class="sectitle" style="margin:0">BACKPACK</div><span class="chip">${inv.length} items</span></div>`;
   if(!inv.length){ bag.innerHTML+='<div class="kv"><span class="k">— empty —</span></div>'; }
@@ -1751,7 +1759,7 @@ async function renderItems(){
     const nm=typeof i==='string'?i:(i.name||'');
     const row=document.createElement('div'); row.className='kv'; row.style.alignItems='center';
     row.innerHTML=`<span class="k">▸ ${escapeHtml(disp)}</span>`;
-    const eb=document.createElement('button'); eb.className='btn ghost sm'; eb.textContent='สวมใส่'; eb.onclick=()=>equipItem(nm); row.appendChild(eb);
+    if(equipSlotFor(nm)){ const eb=document.createElement('button'); eb.className='btn ghost sm'; eb.textContent='🛡 สวมใส่'; eb.onclick=()=>equipItem(nm); row.appendChild(eb); }
     bag.appendChild(row);
   });
   p.appendChild(bag);
@@ -1763,21 +1771,41 @@ async function renderItems(){
   p.appendChild(purse);
 }
 
-// สวมใส่ไอเทมจากกระเป๋า → อัปเดต equipment (DM จะใช้อาวุธนี้)
+// ของชิ้นนี้ใส่ช่องไหนได้ (null = ใส่ไม่ได้ เช่น น้ำยา/จดหมาย/เชือก)
+function equipSlotFor(name){
+  const s=(name||'').toLowerCase();
+  if(/shield|โล่/.test(s)) return 'shield';
+  if(/armor|เกราะ|mail|plate|chain|leather|breastplate|เสื้อเกราะ|robe/.test(s)) return 'armor';
+  if(/ring|amulet|necklace|cloak|pendant|แหวน|สร้อย|จี้|เครื่องราง|ผ้าคลุม|เสื้อคลุม/.test(s)) return 'accessory';
+  if(/sword|dagger|axe|mace|bow|staff|spear|blade|hammer|club|rapier|scimitar|knife|wand|glaive|halberd|flail|whip|sling|crossbow|ดาบ|มีด|ขวาน|ธนู|ไม้เท้า|หอก|กระบอง|ค้อน|คทา|กริช|หน้าไม้|แส้/.test(s)) return 'weapon';
+  return null;
+}
+async function _saveSheet(sheet){ const u=await supa.from('character_sheets').update({sheet,updated_at:new Date().toISOString()}).eq('character_id',myChar.id); if(u.error) throw u.error; mySheet=sheet; }
+// สวมใส่: ย้ายของจากกระเป๋า → ช่อง equipment (ของเดิมในช่องเด้งกลับกระเป๋า)
 async function equipItem(name){
-  if(!myChar||!name) return;
+  if(!myChar||!name) return; const slot=equipSlotFor(name); if(!slot){ toast('ไอเทมนี้สวมใส่ไม่ได้',true); return; }
   try{
     const r=await supa.from('character_sheets').select('sheet').eq('character_id',myChar.id).maybeSingle();
     const sheet=(r.data&&r.data.sheet)||{}; sheet.equipment=sheet.equipment||{};
-    const low=name.toLowerCase();
-    let slot='weapon';
-    if(/armor|เกราะ|mail|plate|leather|robe/.test(low)) slot='armor';
-    else if(/shield|โล่/.test(low)) slot='shield';
-    sheet.equipment[slot]=name;
-    const u=await supa.from('character_sheets').update({sheet,updated_at:new Date().toISOString()}).eq('character_id',myChar.id);
-    if(u.error) throw u.error;
-    mySheet=sheet; tick(); toast('สวมใส่ '+name+' ('+slot+') ✓'); renderItems();
+    let inv=Array.isArray(sheet.inventory)?sheet.inventory.slice():[];
+    const idx=inv.findIndex(i=>(typeof i==='string'?i:(i.name||''))===name);
+    if(idx>=0){ const it=inv[idx]; if(typeof it!=='string' && +it.qty>1){ inv[idx]={...it,qty:+it.qty-1}; } else { inv.splice(idx,1); } }
+    const prev=sheet.equipment[slot]; if(prev) inv.push({name:prev,qty:1});  // ของเดิมกลับกระเป๋า
+    sheet.equipment[slot]=name; sheet.inventory=inv;
+    await _saveSheet(sheet); tick(); toast('สวมใส่ '+name+' ✓'); renderItems();
   }catch(e){ toast('สวมใส่ไม่สำเร็จ',true); }
+}
+// ถอด: ย้ายจากช่อง equipment → กระเป๋า
+async function unequipItem(slot){
+  if(!myChar) return;
+  try{
+    const r=await supa.from('character_sheets').select('sheet').eq('character_id',myChar.id).maybeSingle();
+    const sheet=(r.data&&r.data.sheet)||{}; sheet.equipment=sheet.equipment||{};
+    const val=sheet.equipment[slot]; if(!val) return;
+    let inv=Array.isArray(sheet.inventory)?sheet.inventory.slice():[]; inv.push({name:val,qty:1});
+    sheet.equipment[slot]=''; sheet.inventory=inv;
+    await _saveSheet(sheet); tick(); toast('ถอด '+val+' ✓'); renderItems();
+  }catch(e){ toast('ถอดไม่สำเร็จ',true); }
 }
 // ───────── render: skills (ตาราง skills + fallback) ─────────
 async function renderSkills(){
@@ -2353,59 +2381,4 @@ function subscribeRealtime(){
     .on('postgres_changes',{event:'*',schema:'public',table:'battle_grids',filter:'campaign_id=eq.'+campaign.id}, async()=>{ _rtTouch(); if(activeTab()==='map') renderMap(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'grid_tokens',filter:'campaign_id=eq.'+campaign.id}, async()=>{ _rtTouch(); if(activeTab()==='map') renderMap(); })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_messages',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ _rtTouch(); await loadChat(); if(activeTab()==='party'){ renderChatList(); } else if(payload.new && payload.new.user_id!==me.id){ const t=document.querySelector('.tab[data-tab="party"]'); if(t) t.classList.add('blink'); } })
-    // presence: ตรวจ dm_thinking ของผู้เล่นทุกคน → แสดง indicator
-    .on('presence',{event:'sync'}, ()=>{ _rtTouch(); _refreshThinkingFromPresence(); })
-    .on('presence',{event:'join'},  ()=>{ _rtTouch(); _refreshThinkingFromPresence(); })
-    .on('presence',{event:'leave'}, ()=>{ _rtTouch(); _refreshThinkingFromPresence(); })
-    .subscribe(async (status,err)=>{
-      _rtTouch();
-      if(status==='SUBSCRIBED'){
-        try{ await rtChannel.track({ user_id:(me&&me.id)||'anon', dm_thinking:false, ts:Date.now() }); }catch(e){}
-      } else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){
-        // log debug แต่ไม่ต้อง toast ทุกครั้ง (รบกวน UX) — ลอง reconnect เงียบๆ
-        console.warn('Realtime reconnect:',status,err);
-        try{ rtChannel.unsubscribe(); }catch(e){}
-        rtChannel=null;
-        setTimeout(()=>{ if(campaign) subscribeRealtime(); }, 2000);
-      }
-    });
-  // safety poll: ทุก 20 วินาที — refresh round + narrative (กันกรณี realtime ตายเงียบไม่ trigger error)
-  if(!rtPollTimer){
-    rtPollTimer = setInterval(async ()=>{
-      if(!campaign) return;
-      // ถ้า event มาภายใน 18 วินาที = ปกติ ข้าม poll (ประหยัด query)
-      if(Date.now() - rtLastSyncTs < 18000) return;
-      try{
-        await loadRound(); await loadNarrative();
-        if(activeTab()==='story'){ renderRoundbar(); renderStory(); }
-      }catch(e){ /* silent */ }
-    }, 20000);
-  }
-}
-
-// อัปเดต indicator "DM กำลังคิด..." จาก presence state
-function _refreshThinkingFromPresence(){
-  if(!rtChannel) return;
-  let any=false;
-  try{
-    const state = rtChannel.presenceState() || {};
-    for(const k in state){
-      const arr = state[k]||[];
-      if(arr.some(p=>p && p.dm_thinking===true)){ any=true; break; }
-    }
-  }catch(e){ any=false; }
-  if(any===rtAnyThinking) return;
-  rtAnyThinking = any;
-  if(activeTab()==='story'){ renderRoundbar(); renderStory(); }
-}
-
-// broadcast "ฉันกำลังให้ DM คิด" ให้ผู้เล่นคนอื่นเห็น indicator
-async function setMyThinking(on){
-  if(!rtChannel) return;
-  try{ await rtChannel.track({ user_id:(me&&me.id)||'anon', dm_thinking:!!on, ts:Date.now() }); }catch(e){}
-}
-function activeTab(){ return document.querySelector('.tab.active')?.dataset.tab; }
-function escapeHtml(s){ return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-</script>
-</body>
-</html>
+    // presence: ตรวจ d
