@@ -5,7 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="dark">
 <title>TTRPG Campaign</title>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;600;700&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ============================================================
@@ -22,9 +25,14 @@
 html{background:#000;}
 :root{color-scheme:dark;}
 *{box-sizing:border-box;margin:0;padding:0;}
+/* กันล้นแนวนอน (ไม่ให้ทั้งแอปกว้างเกินจอจนต้องย่อ) — element กว้างผิดปกติจะถูกตัด/ห่อแทนที่จะดันจอ */
+html,body{max-width:100%;overflow-x:hidden;}
+.center,.panel,.roundbar{max-width:100%;overflow-x:hidden;}
+img,video,canvas{max-width:100%;height:auto;}
+.narr,.actionlog,.item .sub,.chatbody,.note{overflow-wrap:anywhere;}
 body{
   /* body + ข้อความในเนื้อหา = IBM Plex Sans Thai (Latin+ไทยชุดเดียว อ่านง่าย เข้ากัน) */
-  font-family:'IBM Plex Sans Thai','Noto Sans Thai',sans-serif;
+  font-family:'IBM Plex Sans Thai',sans-serif;
   background:var(--black);color:var(--white);font-size:19px;
   height:100dvh;display:flex;flex-direction:column;overflow:hidden;
   -webkit-font-smoothing:antialiased;
@@ -32,11 +40,11 @@ body{
 /* หัวข้อ (headline) + ตัวเลข/HUD ภาษาอังกฤษ = พิกเซลตามเดิม (กลิ่นเรโทร) */
 .sectitle,.card h2,.hd .ttl,.item .nm,.tab .tlab,.pill,.statusline,.wh,.whlabel,.wh b,
 .num,.kv .num,.lvbadge,.barlabel,.cbtag,.chip,.code,.hd .code{
-  font-family:'VT323','Noto Sans Thai',monospace;-webkit-font-smoothing:none;
+  font-family:'VT323',monospace;-webkit-font-smoothing:none;
 }
 /* เนื้อหา/sub-headline (อังกฤษ+ไทย) = ฟอนต์อ่านง่าย ขนาดพอเหมาะ */
 .narr,.chron-text,.actionlog,.item .sub,.card p.sub,.npc-detail,.muted,.note,.sub,.meta,.meta-inline,.kv .k,.econleg,.dicelbl{
-  font-family:'IBM Plex Sans Thai','Noto Sans Thai',sans-serif;font-size:15px;line-height:1.6;
+  font-family:'IBM Plex Sans Thai',sans-serif;font-size:15px;line-height:1.6;
 }
 /* VT323 เล็กกว่าปกติ → ขยายองค์ประกอบ UI อังกฤษให้อ่านง่าย (อิงขนาดหน้า Stat ~19px) */
 .btn{font-size:23px;letter-spacing:.5px;}
@@ -157,7 +165,12 @@ a.link:hover{background:var(--white);color:var(--black);}
 .tab.active::after{content:none;}
 .tab .tico{display:inline-flex;align-items:center;vertical-align:middle;}
 .tab .tico svg{width:16px;height:16px;display:block;}
-.tab .tlab{margin-left:6px;vertical-align:middle;}
+.tab .tlab{display:none;}                          /* มือถือ: ไอคอนอย่างเดียว */
+/* เดสก์ท็อป (พื้นที่เยอะ): ใช้ตัวอักษรพิกเซลแทนไอคอน */
+@media (min-width:860px){
+  .tab .tico{display:none;}
+  .tab .tlab{display:inline;margin-left:0;font-family:'VT323',monospace;font-size:21px;letter-spacing:.5px;}
+}
 
 /* ---------- panels ---------- */
 .panel{flex:1;overflow-y:auto;padding:14px;display:none;flex-direction:column;gap:12px;background:var(--black);}
@@ -270,9 +283,9 @@ a.link:hover{background:var(--white);color:var(--black);}
   .center{padding:14px 11px;}
   .card{padding:16px 14px;}
   .card h2{font-size:16px;}
-  .tabs{overflow-x:hidden;flex-wrap:wrap;}
-  .tabs .tab{flex:1 1 auto;min-width:0;padding:8px 6px 10px;font-size:11px;border-right:2px solid #141414;}
-  .tabs .tab .tlab{display:inline;margin-left:5px;}
+  .tabs{overflow-x:hidden;flex-wrap:nowrap;}                                   /* ไอคอนแถวเดียว ไม่ตก */
+  .tabs .tab{flex:1 1 0;min-width:0;padding:9px 1px 10px;font-size:11px;border-right:2px solid #141414;}
+  .tabs .tab .tlab{display:none;}                                              /* มือถือ: ไอคอนล้วน */
   .tabs .tab.active::before{display:none;}
   .panel{padding:10px;gap:9px;}
   .item{padding:11px;gap:6px;}
@@ -439,6 +452,7 @@ body.role-player .dm-only{display:none!important;}
 .wh{display:flex;align-items:center;gap:5px;font-size:11px;color:#9a9a9a;}
 .wh svg{width:14px;height:14px;display:block;image-rendering:pixelated;}
 .wh b{color:#fff;font-family:'VT323',monospace;font-size:15px;font-weight:400;letter-spacing:.5px;}
+.whtxt{font-family:'Press Start 2P',monospace;font-size:7px;color:#9a9a9a;letter-spacing:.5px;}
 @media (min-width:1300px){
   .worldhud{position:fixed;top:104px;left:16px;width:208px;z-index:6;}  /* ฝั่งซ้าย ใต้แท็บ ไม่ขวาง */
 }
@@ -576,7 +590,7 @@ body.role-player .dm-only{display:none!important;}
   <div class="card">
     <h2>Join with Code</h2>
     <p class="sub">Ask the host for the 6-character invite code.</p>
-    <label class="fld">Invite code<input type="text" id="joinCode" placeholder="e.g. EMM8YM" maxlength="6" style="text-transform:uppercase;font-family:'JetBrains Mono',monospace;letter-spacing:3px;"/></label>
+    <label class="fld">Invite code<input type="text" id="joinCode" placeholder="e.g. EMM8YM" maxlength="6" style="text-transform:uppercase;font-family:'VT323',monospace;font-size:22px;letter-spacing:4px;"/></label>
     <button class="btn ghost" id="joinBtn" onclick="joinCampaign()">Join</button>
   </div>
 </div>
@@ -650,10 +664,10 @@ body.role-player .dm-only{display:none!important;}
   <button class="tab active" data-tab="story" onclick="switchTab('story')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="0" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="6" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/></svg></span><span class="tlab">Story</span></button>
   <button class="tab" data-tab="me" onclick="switchTab('me')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="1" height="1"/><rect x="1" y="0" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="0" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="0" y="7" width="1" height="1"/><rect x="1" y="7" width="1" height="1"/><rect x="2" y="7" width="1" height="1"/><rect x="3" y="7" width="1" height="1"/><rect x="4" y="7" width="1" height="1"/><rect x="5" y="7" width="1" height="1"/></svg></span><span class="tlab">Stat</span></button>
   <button class="tab" data-tab="items" onclick="switchTab('items')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/></svg></span><span class="tlab">Items</span></button>
-  <button class="tab" data-tab="skills" onclick="switchTab('skills')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="7" y="3" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/></svg></span><span class="tlab">Skills</span></button>
+  <button class="tab" data-tab="skills" onclick="switchTab('skills')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="0" y="6" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/><rect x="7" y="6" width="1" height="1"/></svg></span><span class="tlab">Skills</span></button>
   <button class="tab" data-tab="party" onclick="switchTab('party')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="6" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/></svg></span><span class="tlab">Party</span></button>
   <button class="tab" data-tab="npc" onclick="switchTab('npc')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/></svg></span><span class="tlab">NPC</span></button>
-  <button class="tab" data-tab="mon" onclick="switchTab('mon')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="0" width="1" height="1"/><rect x="6" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/></svg></span><span class="tlab">Monster</span></button>
+  <button class="tab" data-tab="mon" onclick="switchTab('mon')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="0" width="1" height="1"/><rect x="6" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/></svg></span><span class="tlab">Monster</span></button>
   <button class="tab" data-tab="map" onclick="switchTab('map')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/></svg></span><span class="tlab">Map</span></button>
   <button class="tab" data-tab="quest" onclick="switchTab('quest')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/></svg></span><span class="tlab">Quest</span></button>
   <button class="tab" data-tab="files" onclick="switchTab('files')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="7" y="5" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/><rect x="2" y="7" width="1" height="1"/><rect x="5" y="7" width="1" height="1"/></svg></span><span class="tlab">Files</span></button>
@@ -1048,7 +1062,7 @@ function renderClock(){
   const E=escapeHtml; let h='';
   if(hasClock){
     h+='<div class="whbox"><span class="whlabel">WORLD</span>';
-    if(c.date) h+=`<span class="wh">${ICONS.date}<b>${E(c.date)}/${E(c.month||'-')}/${E(c.year||'-')}</b></span>`;
+    if(c.date) h+=`<span class="wh"><span class="whtxt">DATE</span><b>${E(c.date)}/${E(c.month||'-')}/${E(c.year||'-')}</b></span>`;
     if(c.time) h+=`<span class="wh">${ICONS.time}<b>${E(c.time)}</b></span>`;
     if(c.season) h+=`<span class="wh">${ICONS.season}<b>${E(c.season)}</b></span>`;
     if(c.weather) h+=`<span class="wh">${ICONS.weather}<b>${E(c.weather)}</b></span>`;
@@ -1747,7 +1761,7 @@ async function renderItems(){
   SLOTS.forEach(([key,lab])=>{
     const val=eq[key];
     const row=document.createElement('div'); row.className='kv'; row.style.alignItems='center';
-    row.innerHTML=`<span class="k">${lab}</span><span class="dots"></span><span class="num" style="font-family:'Noto Sans Thai';font-size:13px;color:#fff">${val?escapeHtml(val):'—'}</span>`;
+    row.innerHTML=`<span class="k">${lab}</span><span class="dots"></span><span class="num" style="font-family:'IBM Plex Sans Thai',sans-serif;font-size:13px;color:#fff">${val?escapeHtml(val):'—'}</span>`;
     if(val){ const ub=document.createElement('button'); ub.className='btn ghost sm'; ub.style.marginLeft='8px'; ub.textContent='ถอด'; ub.onclick=()=>unequipItem(key); row.appendChild(ub); }
     eqc.appendChild(row);
   });
@@ -1976,28 +1990,48 @@ async function renderBattleGrid(p){
   const TILE=36, SY=0.62, PADX=16, PADTOP=48, PADBOT=14;
   const bw=cols*TILE, bh=rows*TILE*SY, VW=bw+PADX*2, VH=bh+PADTOP+PADBOT;
   const L="ABCDEFGHIJKLMNOPQRST"; const rc2cell=(c,r)=>(L[c]||'?')+(r+1);
-  const walls=new Set(Array.isArray(grid.terrain&&grid.terrain.walls)?grid.terrain.walls:[]);
+  const T=grid.terrain||{};
+  const walls=new Set(Array.isArray(T.walls)?T.walls:[]);
+  const HILLS=new Set(Array.isArray(T.hills)?T.hills:[]);     // พื้นสูง (ยกระดับ)
+  const WATER=new Set(Array.isArray(T.water)?T.water:[]);     // น้ำ
+  const RAISE=9;                                              // ความสูงของพื้นต่างระดับ (px)
   const tileX=c=>PADX+c*TILE, tileY=r=>PADTOP+r*TILE*SY;
-  const footX=(c)=>tileX(c)+TILE/2, footY=(r)=>tileY(r)+TILE*SY*0.78;
+  const isHill=(c,r)=>HILLS.has((L[c]||'?')+(r+1));
+  const footX=(c)=>tileX(c)+TILE/2;
+  const footY=(c,r)=>tileY(r)+TILE*SY*0.78-(isHill(c,r)?RAISE:0);   // หมากบนพื้นสูงยกตามระดับ
+  // สัญลักษณ์ภูมิประเทศ (object token) — แม็ปจาก glyph หรือชื่อ (ไทย/อังกฤษ) → อิโมจิพิกเซล
+  const GLYPH={cave:'🕳️','ถ้ำ':'🕳️',house:'🏠','บ้าน':'🏠',hut:'🛖','กระท่อม':'🛖',well:'🪣','บ่อน้ำ':'🪣',tree:'🌲','ต้นไม้':'🌲',rock:'🪨','หิน':'🪨',fire:'🔥','เตาไฟ':'🔥','ไฟ':'🔥',brazier:'🔥',door:'🚪','ประตู':'🚪',chest:'📦','หีบ':'📦',crate:'📦','ลัง':'📦',barrel:'🛢️','ถัง':'🛢️',statue:'🗿','รูปปั้น':'🗿',altar:'⛩️','แท่นบูชา':'⛩️',bridge:'🌉','สะพาน':'🌉',ladder:'🪜','บันได':'🪜',tent:'⛺','เต็นท์':'⛺',banner:'🚩','ธง':'🚩',grave:'🪦','หลุมศพ':'🪦',lever:'🎚️','คันโยก':'🎚️',torch:'🔥','คบเพลิง':'🔥',crystal:'💎','คริสตัล':'💎'};
+  const glyphFor=(t)=>{ const k=String(t.glyph||'').toLowerCase(); if(GLYPH[k])return GLYPH[k]; const lab=String(t.label||'').toLowerCase(); for(const key in GLYPH){ if(lab.includes(key.toLowerCase())) return GLYPH[key]; } return null; };
   const PAL={ pc:['#378ADD','#0C447C','#85B7EB'], ally:['#5c7bff','#26306b','#aeb8ff'], monster:['#E24B4A','#791F1F','#F09595'], npc:['#E8B23A','#6e5200','#f3d27a'] };
   let svg=`<svg viewBox="0 0 ${VW} ${VH}" style="display:block;width:100%;max-width:${VW}px;min-width:${cols*22}px;background:#0d1018;border:2px solid #fff;border-radius:6px">`;
-  // tiles (checkerboard + squash = 2.5D) + walls
+  // tiles (checkerboard + squash = 2.5D) + กำแพง + พื้นสูง (hills) + น้ำ
   for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
-    const isW=walls.has(rc2cell(c,r));
-    const fill=isW?'#3a3f4b':((c+r)%2===0?'#1a2030':'#202840');
-    svg+=`<rect x="${tileX(c).toFixed(1)}" y="${tileY(r).toFixed(1)}" width="${TILE}" height="${(TILE*SY).toFixed(1)}" fill="${fill}" stroke="#2c3344" stroke-width="0.8"/>`;
-    if(isW) svg+=`<rect x="${(tileX(c)+4).toFixed(1)}" y="${(tileY(r)-6).toFixed(1)}" width="${TILE-8}" height="${(TILE*SY+6).toFixed(1)}" fill="#4a5160" stroke="#2c3344" stroke-width="0.8" rx="2"/>`;
+    const cell=rc2cell(c,r); const isW=walls.has(cell); const hill=HILLS.has(cell); const wet=WATER.has(cell);
+    const x=tileX(c), y=tileY(r), th=TILE*SY;
+    if(hill){
+      // พื้นต่างระดับ: หน้าผาด้านข้าง (ฐาน) + พื้นบนยกขึ้น RAISE
+      svg+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${TILE}" height="${(th+RAISE).toFixed(1)}" fill="#2a3a24" stroke="#1c2418" stroke-width="0.8"/>`;
+      svg+=`<rect x="${x.toFixed(1)}" y="${(y-RAISE).toFixed(1)}" width="${TILE}" height="${th.toFixed(1)}" fill="#3c5230" stroke="#2c3f22" stroke-width="0.8"/>`;
+    } else {
+      const fill=isW?'#3a3f4b':wet?'#1c3a5e':((c+r)%2===0?'#1a2030':'#202840');
+      svg+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${TILE}" height="${th.toFixed(1)}" fill="${fill}" stroke="#2c3344" stroke-width="0.8"/>`;
+      if(wet) svg+=`<line x1="${(x+3).toFixed(1)}" y1="${(y+th*0.45).toFixed(1)}" x2="${(x+TILE-3).toFixed(1)}" y2="${(y+th*0.45).toFixed(1)}" stroke="#3a6fa0" stroke-width="0.9"/>`;
+      if(isW) svg+=`<rect x="${(x+4).toFixed(1)}" y="${(y-6).toFixed(1)}" width="${TILE-8}" height="${(th+6).toFixed(1)}" fill="#4a5160" stroke="#2c3344" stroke-width="0.8" rx="2"/>`;
+    }
   }
   // tokens เรียงตามแถว (painter's: หลัง→หน้า)
   const order=toks.slice().sort((a,b)=>(a.row-b.row)|| (a.z-b.z));
   order.forEach(t=>{
-    const fx=footX(t.col), fy=footY(t.row);
+    const fx=footX(t.col), fy=footY(t.col,t.row);
     const down=Array.isArray(t.flags)&&(t.flags.includes('down')||t.flags.includes('dead'));
     const op=down?0.4:1;
     // เงา
     svg+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy+5).toFixed(1)}" rx="13" ry="4.5" fill="rgba(0,0,0,0.45)"/>`;
-    if(t.kind==='active') {}
-    if(t.kind==='object'){
+    const gly=glyphFor(t);
+    if(t.kind==='object' && gly){
+      // สัญลักษณ์ภูมิประเทศ (ถ้ำ/บ้าน/บ่อน้ำ ฯลฯ)
+      svg+=`<text x="${fx.toFixed(1)}" y="${(fy-1).toFixed(1)}" text-anchor="middle" font-size="20" opacity="${op}">${gly}</text>`;
+    } else if(t.kind==='object'){
       svg+=`<rect x="${(fx-9).toFixed(1)}" y="${(fy-12).toFixed(1)}" width="18" height="16" rx="2" fill="${t.color||'#9a9a9a'}" stroke="#000" stroke-width="1.2" opacity="${op}"/>`;
     } else if(t.kind==='marker'){
       svg+=`<polygon points="${fx},${fy-12} ${fx+9},${fy} ${fx},${fy+8} ${fx-9},${fy}" fill="${t.color||'#b06cff'}" opacity="0.6"/>`;
