@@ -1312,9 +1312,10 @@ function notifyMyTurn(){
 // ───────── render: story ─────────
 async function renderStory(){
   renderClock();
-  // ไม่แสดง placeholder/"DM กำลังคิด" ในเนื้อเรื่องแล้ว — สถานะ resolving โชว์ที่ roundbar เป็นหลัก
-  const shown = narrative.filter(n => n.status !== 'placeholder');
-  const sig = shown.map(n=>`${n.id}:${(n.content||'').length}`).join('|');
+  // แสดง placeholder 'เฉพาะที่มีข้อความสตรีมจริง' (ไม่ใช่ marker "_DM…_") — streaming narration
+  const isStreaming = n => n.status==='placeholder' && n.content && !/^_/.test(String(n.content).trim());
+  const shown = narrative.filter(n => n.status !== 'placeholder' || isStreaming(n));
+  const sig = shown.map(n=>`${n.id}:${n.status}:${(n.content||'').length}`).join('|');
   if(sig!==_lastFeedSig){
     _lastFeedSig=sig;
     const feed=$('narrFeed'); feed.innerHTML='';
@@ -1322,7 +1323,8 @@ async function renderStory(){
     shown.forEach(n=>{
       const d=document.createElement('div'); d.className='narr';
       d.innerHTML='<div class="meta">🎲 DM</div>';
-      const c=document.createElement('div'); c.innerHTML=colorizeNarr(n.content);
+      const c=document.createElement('div');
+      c.innerHTML = isStreaming(n) ? (colorizeNarr(n.content)+'<span class="dots">▌</span>') : colorizeNarr(n.content);
       d.appendChild(c); feed.appendChild(d);
     });
     const sp=$('panel-story'); sp.scrollTop=sp.scrollHeight;
