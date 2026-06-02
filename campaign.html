@@ -63,7 +63,15 @@ input,textarea,select{font-family:inherit;}
 .hd{
   padding:9px 12px;background:var(--black);
   border-bottom:var(--px) solid var(--white);
-  display:flex;align-items:center;gap:9px;flex-shrink:0;position:relative;z-index:5;
+  display:flex;align-items:center;gap:9px;flex-shrink:0;position:relative;z-index:5;flex-wrap:wrap;
+}
+/* กลุ่มปุ่ม music/end/logout — อยู่ติดกันบรรทัดเดียวเสมอ */
+.hd-actions{display:flex;align-items:center;gap:6px;margin-left:auto;flex-shrink:0;flex-wrap:nowrap;}
+@media (max-width:560px){
+  .hd-actions{width:100%;justify-content:flex-end;margin-left:0;}
+  .hd-actions .btn{font-size:12px;padding:5px 7px;letter-spacing:0;}
+  .hd .code{font-size:13px;padding:3px 6px;}
+  .hd .ttl{font-size:13px;}
 }
 .hd .logo{
   width:32px;height:32px;flex-shrink:0;background:var(--black);color:var(--white);
@@ -144,7 +152,8 @@ a.link:hover{background:var(--white);color:var(--black);}
 .tab:last-child{border-right:0;}
 .tab:hover{color:var(--white);}
 .tab.active{color:var(--black);background:var(--white);font-weight:700;}
-.tab.active::before{content:"▶";margin-right:4px;font-size:10px;}
+/* ลูกศรเลือกแท็บ: สามเหลี่ยมพิกเซลดำเล็ก (คมชัด) แทนอักขระ ▶ */
+.tab.active::before{content:"";display:inline-block;vertical-align:middle;margin-right:4px;width:0;height:0;border-style:solid;border-width:3px 0 3px 5px;border-color:transparent transparent transparent var(--black);}
 .tab.active::after{content:none;}
 .tab .tico{display:inline-flex;align-items:center;vertical-align:middle;}
 .tab .tico svg{width:16px;height:16px;display:block;}
@@ -513,14 +522,16 @@ body.role-player .dm-only{display:none!important;}
 <body>
 
 <div class="hd">
-  <div class="logo"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="3" y="7" width="1" height="1"/><rect x="4" y="7" width="1" height="1"/></svg></div>
+  <div class="logo"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="0" width="1" height="1"/><rect x="6" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/></svg></div>
   <div class="ttl" id="hdTitle">TTRPG Campaign</div>
   <span class="code hidden" id="hdCode" title="Click to copy invite code"></span>
   <span class="who" id="hdWho"></span>
   <div class="dot" id="hdDot"></div>
-  <button class="btn ghost sm hidden" id="hdMusic" onclick="toggleMusic()" title="Toggle background music">&#9834; Music: off</button>
-  <button class="btn ghost sm hidden" id="hdEnd"></button>
-  <button class="btn ghost sm hidden" id="hdLogout" onclick="doLogout()">Logout</button>
+  <div class="hd-actions">
+    <button class="btn ghost sm hidden" id="hdMusic" onclick="toggleMusic()" title="Toggle background music">&#9834; Music: off</button>
+    <button class="btn ghost sm hidden" id="hdEnd"></button>
+    <button class="btn ghost sm hidden" id="hdLogout" onclick="doLogout()">Logout</button>
+  </div>
 </div>
 
 <!-- AUTH -->
@@ -1301,33 +1312,19 @@ function notifyMyTurn(){
 // ───────── render: story ─────────
 async function renderStory(){
   renderClock();
-  // placeholder ที่ค้างเกิน 2 นาที = orphan (resolve timeout) → ไม่ต้องแสดง (กัน "DM กำลังคิด" ค้างกระพริบ)
-  const now=Date.now();
-  const isLivePlaceholder = n => n.status==='placeholder' && (!n.created_at || (now - new Date(n.created_at).getTime()) < 120000);
-  const shown = narrative.filter(n => n.status!=='placeholder' || isLivePlaceholder(n));
-  const hasLivePh = shown.some(n=>n.status==='placeholder');
-  // ลายเซ็น feed — ถ้าไม่เปลี่ยน 'ไม่ rebuild เลย' (กันกระพริบ)
-  const sig = shown.map(n=>`${n.id}:${n.status}:${(n.content||'').length}`).join('|')+'|'+(rtAnyThinking&&!hasLivePh?'T':'');
+  // ไม่แสดง placeholder/"DM กำลังคิด" ในเนื้อเรื่องแล้ว — สถานะ resolving โชว์ที่ roundbar เป็นหลัก
+  const shown = narrative.filter(n => n.status !== 'placeholder');
+  const sig = shown.map(n=>`${n.id}:${(n.content||'').length}`).join('|');
   if(sig!==_lastFeedSig){
     _lastFeedSig=sig;
     const feed=$('narrFeed'); feed.innerHTML='';
     if(!shown.length){ feed.innerHTML='<div class="muted">No story yet '+(campaign.host_id===me.id?'— press "Begin Adventure" below':'— waiting for the host to begin')+'</div>'; }
     shown.forEach(n=>{
       const d=document.createElement('div'); d.className='narr';
-      const isPlaceholder = n.status==='placeholder';
-      if(isPlaceholder) d.classList.add('narr-thinking');
       d.innerHTML='<div class="meta">🎲 DM</div>';
-      const c=document.createElement('div');
-      c.innerHTML = isPlaceholder
-        ? '<i style="opacity:.7">'+escapeHtml(n.content||'_DM กำลังคิด…_').replace(/^_(.*?)_$/,'$1')+'</i><span class="dots">…</span>'
-        : colorizeNarr(n.content);
+      const c=document.createElement('div'); c.innerHTML=colorizeNarr(n.content);
       d.appendChild(c); feed.appendChild(d);
     });
-    if(rtAnyThinking && !hasLivePh){
-      const d=document.createElement('div'); d.className='narr narr-thinking';
-      d.innerHTML='<div class="meta">🎲 DM</div><div><i style="opacity:.7">DM กำลังคิด</i><span class="dots">…</span></div>';
-      feed.appendChild(d);
-    }
     const sp=$('panel-story'); sp.scrollTop=sp.scrollHeight;
     if(feed) feed.scrollTop=feed.scrollHeight;
   }
@@ -1461,9 +1458,9 @@ async function renderRoundbar(){
     // รอเฉพาะคนที่มีตัวละครแล้วและยังไม่ส่ง (ข้ามคนเพิ่ง join ที่ยังสร้างตัวละครไม่เสร็จ)
     const pending=members.filter(m=>characters.some(c=>c.user_id===m.user_id)&&!submittedIds.has(m.user_id)).map(m=>chatNameFor(m.user_id));
     const w=document.createElement('div'); w.className='note'; w.style.cssText='text-align:left;padding:8px 2px;line-height:1.6';
-    if(curRound.phase==='resolving') w.innerHTML='⏳ ส่งครบแล้ว — DM กำลังประมวลผล (ศัตรูจะตอบโต้ในผลรอบนี้)…';
-    else if(pending.length) w.innerHTML='✓ คุณส่งแล้ว — รออีก <b>'+pending.length+'</b> คน: <b>'+escapeHtml(pending.join(', '))+'</b><br><span class="muted">DM และศัตรูจะดำเนินเรื่อง<u>เมื่อทุกคนส่งครบ</u> (host กด Force Resolve เพื่อไปต่อได้)</span>';
-    else w.innerHTML='✓ ส่งครบทุกคนแล้ว — DM กำลังจะดำเนินเรื่อง…';
+    if(curRound.phase==='resolving') w.innerHTML='⏳ DM กำลังดำเนินเรื่อง…';
+    else if(pending.length) w.innerHTML='✓ คุณส่งแล้ว — กำลังรอคำตอบจากสมาชิกในปาร์ตี้ <b>'+escapeHtml(pending.join(', '))+'</b><br><span class="muted">DM จะดำเนินเรื่องเมื่อได้คำตอบครบ (host กด Force Resolve เพื่อไปต่อได้)</span>';
+    else w.innerHTML='กำลังรอคำตอบจากสมาชิกในปาร์ตี้ — DM จะดำเนินเรื่องเมื่อได้คำตอบครบ';
     bar.appendChild(w);
   }
   if(isHost){ const f=document.createElement('button'); f.className='btn warn sm'; f.textContent=resolving?'Resolving…':'⚡ Force Resolve'; f.disabled=resolving; f.onclick=()=>resolveRound(true); bar.appendChild(f); }
@@ -1609,7 +1606,7 @@ async function renderMe(){
   const prof=2+Math.floor(((myChar.level||1)-1)/4);
   const initv=sign(mod(ab.dex));
   const hp=(cb.maxhp!=null)?`${cb.hp??cb.maxhp}/${cb.maxhp}`:((myChar.public_status||{}).hp||dash);
-  const sub=[sheet.race, myChar.class||'Adventurer','Lv.'+myChar.level].filter(Boolean).join(' · ');
+  const sub=[sheet.race, sheet.sex, sheet.age?('อายุ '+sheet.age):'', myChar.class||'Adventurer','Lv.'+myChar.level].filter(Boolean).join(' · ');
 
   // window 1: abilities + combat
   const it=document.createElement('div'); it.className='item';
@@ -1723,7 +1720,9 @@ async function renderParty(){
 async function renderQuest(){
   const p=$('panel-quest'); p.innerHTML='';
   const { data:quests } = await supa.from('quests').select('*').eq('campaign_id',campaign.id).order('created_at',{ascending:false});
-  const active=(quests||[]).filter(q=>q.status==='active');
+  // กันเควสซ้ำในการแสดงผล (เผื่อมีชื่อซ้ำค้างใน DB) — เก็บอันล่าสุดต่อชื่อ
+  const seen=new Set();
+  const active=(quests||[]).filter(q=>q.status==='active').filter(q=>{ const k=String(q.title||'').toLowerCase().trim(); if(seen.has(k))return false; seen.add(k); return true; });
   if(!active.length){ p.innerHTML='<div class="muted">No active quests yet</div>'; return; }
   active.forEach(q=>{
     const it=document.createElement('div'); it.className='item';
@@ -1745,8 +1744,16 @@ async function renderItems(){
   eqc.innerHTML='<div class="sectitle">EQUIPPED</div>'+tv('Weapon',eq.weapon)+tv('Off-hand',eq.offhand)+tv('Armor',eq.armor)+tv('Shield',eq.shield)+tv('Accessory',eq.accessory);
   p.appendChild(eqc);
   const bag=document.createElement('div'); bag.className='item';
-  bag.innerHTML=`<div class="winhead"><div class="sectitle" style="margin:0">BACKPACK</div><span class="chip">${inv.length} items</span></div>`+
-    (inv.length? inv.map(i=>`<div class="kv"><span class="k">▸ ${escapeHtml(typeof i==='string'?i:(i.name||'')+(i.qty?` x${i.qty}`:''))}</span></div>`).join('') : '<div class="kv"><span class="k">— empty —</span></div>');
+  bag.innerHTML=`<div class="winhead"><div class="sectitle" style="margin:0">BACKPACK</div><span class="chip">${inv.length} items</span></div>`;
+  if(!inv.length){ bag.innerHTML+='<div class="kv"><span class="k">— empty —</span></div>'; }
+  else inv.forEach(i=>{
+    const disp=typeof i==='string'?i:((i.name||'')+(i.qty&&i.qty>1?` x${i.qty}`:''));
+    const nm=typeof i==='string'?i:(i.name||'');
+    const row=document.createElement('div'); row.className='kv'; row.style.alignItems='center';
+    row.innerHTML=`<span class="k">▸ ${escapeHtml(disp)}</span>`;
+    const eb=document.createElement('button'); eb.className='btn ghost sm'; eb.textContent='สวมใส่'; eb.onclick=()=>equipItem(nm); row.appendChild(eb);
+    bag.appendChild(row);
+  });
   p.appendChild(bag);
   const purse=document.createElement('div'); purse.className='item';
   purse.innerHTML='<div class="sectitle">MONEY</div>'+
@@ -1756,6 +1763,22 @@ async function renderItems(){
   p.appendChild(purse);
 }
 
+// สวมใส่ไอเทมจากกระเป๋า → อัปเดต equipment (DM จะใช้อาวุธนี้)
+async function equipItem(name){
+  if(!myChar||!name) return;
+  try{
+    const r=await supa.from('character_sheets').select('sheet').eq('character_id',myChar.id).maybeSingle();
+    const sheet=(r.data&&r.data.sheet)||{}; sheet.equipment=sheet.equipment||{};
+    const low=name.toLowerCase();
+    let slot='weapon';
+    if(/armor|เกราะ|mail|plate|leather|robe/.test(low)) slot='armor';
+    else if(/shield|โล่/.test(low)) slot='shield';
+    sheet.equipment[slot]=name;
+    const u=await supa.from('character_sheets').update({sheet,updated_at:new Date().toISOString()}).eq('character_id',myChar.id);
+    if(u.error) throw u.error;
+    mySheet=sheet; tick(); toast('สวมใส่ '+name+' ('+slot+') ✓'); renderItems();
+  }catch(e){ toast('สวมใส่ไม่สำเร็จ',true); }
+}
 // ───────── render: skills (ตาราง skills + fallback) ─────────
 async function renderSkills(){
   const p=$('panel-skills'); p.innerHTML='';
@@ -1782,21 +1805,22 @@ async function renderSkills(){
     if(s.max_uses>0){ for(let i=0;i<s.max_uses;i++) pips+=`<span class="pip${i<s.used?' spent':''}"></span>`; pips=`<div class="pips">${pips}<span class="cnt">${s.max_uses-s.used}/${s.max_uses} left</span></div>`; }
     const d=document.createElement('div'); d.className='skill';
     d.innerHTML=`<div class="top"><span class="nm">${escapeHtml(s.name)}</span><span class="rech${at}">${lab}</span></div>${pips}<div class="desc">${escapeHtml(s.description||'')}</div>`;
-    if(s.max_uses>0){
-      const use=document.createElement('button'); use.style.marginTop='7px';
-      if(s.used>=s.max_uses){ use.className='btn ghost sm'; use.textContent='Depleted'; use.disabled=true; }
-      else { use.className='btn sm'; use.textContent='Use (−1)'; use.onclick=()=>useSkill(s.id,s.used,s.max_uses); }
-      d.appendChild(use);
-    }
+    // ปุ่มใช้สกิล — ทุกสกิลกดได้ (DM จะบรรยายผลในเนื้อเรื่อง); สกิลมีจำนวนครั้งจะหัก −1
+    const use=document.createElement('button'); use.style.marginTop='7px';
+    if(s.max_uses>0 && s.used>=s.max_uses){ use.className='btn ghost sm'; use.textContent='Depleted'; use.disabled=true; }
+    else { use.className='btn sm'; use.textContent= s.max_uses>0?'⚔ ใช้ (−1)':'⚔ ใช้'; use.onclick=()=>useSkill(s.id,s.used||0,s.max_uses||0,s.name,s.description||''); }
+    d.appendChild(use);
     card.appendChild(d);
   });
   p.appendChild(card);
 }
-async function useSkill(id,used,max){
-  if(used>=max) return; tick();
-  const { error }=await supa.from('skills').update({used:used+1}).eq('id',id);
-  if(error){ toast(error.message||'Failed',true); return; }
-  renderSkills();
+async function useSkill(id,used,max,name,desc){
+  if(max>0){ if(used>=max) return; const { error }=await supa.from('skills').update({used:used+1}).eq('id',id); if(error){ toast(error.message||'Failed',true); return; } }
+  tick();
+  // ใส่การใช้สกิลลงช่องสั่งการ → ไป Story → DM บรรยายผล (ได้ทั้งในและนอกคอมแบต)
+  const txt='ใช้ความสามารถ "'+name+'"'+(desc?(' ('+desc+')'):'');
+  switchTab('story');
+  setTimeout(()=>{ const ta=$('actInput'); if(ta){ ta.value=(ta.value?ta.value.trim()+'\n':'')+txt; ta.focus(); ta.dispatchEvent(new Event('input')); } toast('ใส่สกิลในช่องสั่งการแล้ว — เพิ่มเป้าหมาย/รายละเอียดได้ แล้วกด Submit เพื่อให้ DM บรรยายผล'); }, 180);
 }
 async function restSkills(kind){
   tick();
@@ -1874,7 +1898,15 @@ async function renderInitiativeTracker(p){
 }
 
 // ───────── render: monster + battle tracker (combat_state + initiative + log) ─────────
+// กัน render ซ้อน (realtime ยิงถี่ → INITIATIVE โผล่ซ้ำ) → รันทีละครั้ง
+let _combatRendering=false, _combatPending=false;
 async function renderCombat(){
+  if(_combatRendering){ _combatPending=true; return; }
+  _combatRendering=true;
+  try{ await _renderCombatImpl(); }
+  finally{ _combatRendering=false; if(_combatPending){ _combatPending=false; renderCombat(); } }
+}
+async function _renderCombatImpl(){
   const p=$('panel-mon'); p.innerHTML='';
   await renderInitiativeTracker(p);   // battle tracker ด้านบน (ถ้ามีคอมแบต)
   let cs=null;
