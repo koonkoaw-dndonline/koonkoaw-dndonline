@@ -273,13 +273,14 @@ a.link:hover{background:var(--white);color:var(--black);}
 @media (max-width:560px){ .grid2{gap:0 12px;} }
 
 @media (max-width:600px){
-  .hd{padding:7px 9px;gap:6px 6px;flex-wrap:wrap;align-items:center;}
-  .hd .logo{width:26px;height:26px;font-size:12px;}
-  .hd .ttl{flex:1 0 calc(100% - 40px);min-width:0;font-size:15px;white-space:nowrap;}
+  .hd{padding:6px 8px;gap:5px;flex-wrap:nowrap;align-items:center;overflow:hidden;}   /* มือถือ: ทุกอย่างบรรทัดเดียว */
+  .hd .logo{width:24px;height:24px;font-size:12px;flex-shrink:0;}
+  .hd .ttl{flex:1 1 auto;min-width:24px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .hd .who{display:none;}
-  .hd .code{font-size:14px;padding:2px 7px;}
-  .hd .dot{margin-left:auto;}
-  .hd .btn.sm{padding:5px 9px;font-size:10.5px;}
+  .hd .code{display:none;}                                          /* ซ่อนโค้ดเชิญบนมือถือ (ดูได้บนคอม host) */
+  .hd .dot{margin-left:0;flex-shrink:0;}
+  .hd-actions{width:auto;margin-left:auto;flex-shrink:0;gap:4px;}
+  .hd-actions .btn,.hd .btn.sm{padding:4px 6px;font-size:9.5px;letter-spacing:0;}
   .center{padding:14px 11px 110px;justify-content:flex-start;-webkit-overflow-scrolling:touch;}
   .card{padding:16px 14px;}
   .card h2{font-size:16px;}
@@ -2060,7 +2061,7 @@ async function renderBattleGrid(p){
     const isActive=(activeRef.char&&t.ref_char_id===activeRef.char)||(activeRef.cs&&t.ref_combat_state_id===activeRef.cs);
     if(isActive) svg+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy+5).toFixed(1)}" rx="16" ry="6" fill="none" stroke="#FAC775" stroke-width="2.5"/>`;
     // ชื่อใต้ตัว
-    svg+=`<text x="${fx.toFixed(1)}" y="${(fy+15).toFixed(1)}" text-anchor="middle" font-family="'VT323',monospace" font-size="11" fill="#fff">${escapeHtml((t.label||'').slice(0,9))}</text>`;
+    if(t.kind!=='object'){ svg+=`<text x="${fx.toFixed(1)}" y="${(fy+15).toFixed(1)}" text-anchor="middle" font-family="'VT323',monospace" font-size="11" fill="#fff">${escapeHtml((t.label||'').slice(0,9))}</text>`; }
     if(down) svg+=`<line x1="${(fx-9).toFixed(1)}" y1="${(fy-14).toFixed(1)}" x2="${(fx+9).toFixed(1)}" y2="${(fy+2).toFixed(1)}" stroke="#fff" stroke-width="1.5"/>`;
   });
   svg+='</svg>';
