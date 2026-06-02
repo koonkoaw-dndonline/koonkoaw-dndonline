@@ -1561,6 +1561,10 @@ async function submitAction(){
 async function introAdventure(){ resolveRound(false,'intro'); }
 async function startFirstScene(){ resolveRound(false); }
 
+// Phase 2: บอกผู้เล่นคนอื่นว่า DM กำลังทำงาน ผ่าน realtime presence (กันพังถ้าช่องไม่รองรับ)
+function setMyThinking(on){
+  try { if (typeof rtChannel !== 'undefined' && rtChannel && typeof rtChannel.track === 'function') rtChannel.track({ thinking: !!on, uid: (me && me.id) || 'anon', at: Date.now() }); } catch(e){}
+}
 async function resolveRound(force, mode){
   if(resolving) return; resolving=true; renderRoundbar();
   // บอกผู้เล่นคนอื่นว่า DM กำลังทำงาน (presence broadcast)
