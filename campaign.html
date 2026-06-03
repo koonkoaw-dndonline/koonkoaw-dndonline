@@ -102,7 +102,7 @@ input,textarea,select{font-family:inherit;}
 .dot.err{background:var(--black);border-color:var(--white);animation:blink 1s steps(1) infinite;}
 
 /* ---------- center screens (auth/lobby/char) ---------- */
-.center{flex:1;overflow-y:auto;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:22px 16px;gap:16px;}
+.center{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:22px 16px;gap:16px;}
 /* เนื้อหาที่พอดีจอ = จัดกึ่งกลาง · ที่สูงเกินจอ = ชิดบน (เลื่อนถึงช่องชื่อได้เสมอ ไม่ถูกตัด) */
 @supports (justify-content: safe center){ .center{justify-content:safe center;} }
 .card{
@@ -173,7 +173,7 @@ a.link:hover{background:var(--white);color:var(--black);}
 }
 
 /* ---------- panels ---------- */
-.panel{flex:1;overflow-y:auto;padding:14px;display:none;flex-direction:column;gap:12px;background:var(--black);}
+.panel{flex:1;min-height:0;overflow-y:auto;padding:14px;display:none;flex-direction:column;gap:12px;background:var(--black);}
 .panel.active{display:flex;}
 
 /* ---------- narrative feed (DQ dialogue window) ---------- */
