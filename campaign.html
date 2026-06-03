@@ -315,7 +315,15 @@ a.link:hover{background:var(--white);color:var(--black);}
 @media (min-width:1500px){
   .panel{max-width:1500px;}
 }
-@media (max-width:1023px){ .panel{ padding-bottom:120px; } }  /* มือถือ/แท็บเล็ต: เผื่อที่ล่างให้เลื่อนถึง roundbar/ปุ่มเสมอ */
+@media (max-width:1023px){
+  /* iOS-reliable: เลื่อนทั้งหน้า (document scroll) แทน panel scroll ที่ Safari มีบั๊ก → ปุ่มทุกปุ่มเลื่อนถึง */
+  html,body{ height:auto; min-height:100dvh; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  body{ display:block; }
+  .tabs{ position:sticky; top:0; z-index:10; }
+  .panel{ flex:none; min-height:auto; overflow:visible; padding-bottom:120px; }
+  .panel.active{ display:block; }
+  .center{ flex:none; min-height:auto; overflow:visible; }
+}
 /* Desktop: เนื้อเรื่องเลื่อนเองฝั่งซ้าย (scrollbar ติดเนื้อเรื่อง) · กล่องตอบโต้ฝั่งขวาไม่เลื่อน · เต็มจอ */
 @media (min-width:1024px){
   .panel[data-tab="story"].active{
