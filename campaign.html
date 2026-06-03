@@ -741,7 +741,7 @@ const DUNGEON_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-dungeon';
 const DYNAMIC_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/dynamic-task';
 let supa=null, session=null, me=null;            // me = auth user
 const OWNER_EMAIL='koonkoaw@hotmail.com';   // ช่วงทดสอบ: เฉพาะอีเมลนี้สร้างโลกได้ (กัน API token หมด)
-let campaign=null, members=[], myChar=null, characters=[], curRound=null, narrative=[], mySheet={}, worldState=null, chatMsgs=[];
+let campaign=null, members=[], myChar=null, characters=[], curRound=null, narrative=[], mySheet={}, mySheetUpdatedAt=null, worldState=null, chatMsgs=[];
 let econUsed={}, econUsedRound=null;   // action economy: มาร์ก local ว่าผู้เล่นใช้อะไรไปแล้วในเทิร์น
 let rtChannel=null, resolving=false;
 // ── Realtime resilience (Phase 2 fix) ──
@@ -956,7 +956,7 @@ async function refreshAll(){
   await Promise.all([loadMembers(), loadCharacters(), loadRound(), loadNarrative(), loadState()]);
   loadCatalogs();
   myChar = characters.find(c=>c.user_id===me.id) || null;
-  if(myChar){ try{ const r=await supa.from('character_sheets').select('sheet').eq('character_id',myChar.id).maybeSingle(); if(r.error) throw r.error; mySheet=r.data?.sheet||{}; cacheSave('sheet_'+myChar.id, mySheet); }catch(e){ const c=cacheLoad('sheet_'+myChar.id); mySheet=c||mySheet||{}; } }
+  if(myChar){ try{ const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle(); if(r.error) throw r.error; mySheet=r.data?.sheet||{}; mySheetUpdatedAt=r.data?.updated_at||null; cacheSave('sheet_'+myChar.id, mySheet); }catch(e){ const c=cacheLoad('sheet_'+myChar.id); mySheet=c||mySheet||{}; } }
   updateCombatBadge();
   refreshCombatTurn();   // v2: อัปเดต "ถึงตาใคร"
 }
@@ -1472,6 +1472,8 @@ let _actx=null;
 function tick(){ try{ _actx=_actx||new (window.AudioContext||window.webkitAudioContext)(); const o=_actx.createOscillator(),g=_actx.createGain(); o.type='square'; o.frequency.value=1180; g.gain.value=0.04; o.connect(g); g.connect(_actx.destination); o.start(); o.stop(_actx.currentTime+0.05); }catch(e){} }
 
 // ───────── v2: combat turn state (ถึงตาใคร) + แจ้งเตือนรายคน ─────────
+let _combatRenderT=null;
+function scheduleCombatRender(){ clearTimeout(_combatRenderT); _combatRenderT=setTimeout(()=>{ if(activeTab()==='mon') renderCombat(); }, 200); }   // รวมการ re-render หลายครั้งจาก combat_log/initiative ที่มารัวๆ ให้เหลือครั้งเดียว
 async function refreshCombatTurn(){
   try{
     const er=await supa.from('combat_encounters').select('id,active_entry_id,status').eq('campaign_id',campaign.id).eq('active',true).maybeSingle();
@@ -1865,9 +1867,10 @@ async function renderLevelUpPanel(p){
   }
   const picks=new Set();
   const ck=charClassKey(myChar.class);
+  const knownSkills=new Set(); try{ const _kr=await supa.from('skills').select('name').eq('character_id',myChar.id); (_kr.data||[]).forEach(x=>knownSkills.add(String(x.name).toLowerCase())); }catch(e){}
   if(['bard','cleric','druid','paladin','ranger','sorcerer','warlock','wizard'].includes(ck) && SPELL_CAT.length){
     const maxLv=maxSpellLevelFor(ck, lvl);   // ตามตารางคลาสจริง (ตัวละครเลเวลต่ำยังเห็นแค่เวทระดับต่ำ)
-    let known=new Set(); try{ const r=await supa.from('skills').select('name').eq('character_id',myChar.id); (r.data||[]).forEach(x=>known.add(String(x.name).toLowerCase())); }catch(e){}
+    const known=knownSkills;
     const avail=SPELL_CAT.filter(sp=>(sp.classes||[]).includes(ck) && sp.level<=maxLv && !known.has(String(sp.name).toLowerCase()));
     const box=document.createElement('div'); box.innerHTML='<div class="sectitle" style="margin-top:8px">เวท / CANTRIP ใหม่ (เลือกตามกฎคลาส)</div>';
     [0,1,2,3,4,5,6,7,8,9].forEach(L=>{ const grp=avail.filter(sp=>sp.level===L); if(!grp.length) return;
@@ -1882,7 +1885,7 @@ async function renderLevelUpPanel(p){
   // อาชีพนอกกฎ (ไม่อยู่ในคลัง) → เลือกเวทอิสระจากทุกคลาส (DM กำกับ)
   if(!ck && SPELL_CAT.length){
     const maxLv=Math.min(9, Math.ceil(lvl/2));
-    let known=new Set(); try{ const r=await supa.from('skills').select('name').eq('character_id',myChar.id); (r.data||[]).forEach(x=>known.add(String(x.name).toLowerCase())); }catch(e){}
+    const known=knownSkills;
     const avail=SPELL_CAT.filter(sp=>sp.level<=maxLv && !known.has(String(sp.name).toLowerCase()));
     const box=document.createElement('div'); box.innerHTML='<div class="sectitle" style="margin-top:8px">เวท/cantrip (อาชีพนอกกฎ \u2014 เลือกอิสระ DM กำกับ)</div>';
     [0,1,2,3,4,5,6,7,8,9].forEach(L=>{ const grp=avail.filter(sp=>sp.level===L); if(!grp.length) return;
@@ -1930,7 +1933,7 @@ async function renderMe(){
   const p=$('panel-me'); p.innerHTML='';
   if(!myChar){ p.innerHTML='<div class="muted">No character yet</div>'; return; }
   // โหลดแผ่นล่าสุด เผื่อ HP/สถานะถูก DM อัปเดตหลังต่อสู้
-  try{ const r=await supa.from('character_sheets').select('sheet').eq('character_id',myChar.id).maybeSingle(); if(!r.error&&r.data&&r.data.sheet) mySheet=r.data.sheet; }catch(e){}
+  /* ใช้ mySheet ที่ refreshAll/realtime โหลดไว้แล้ว — ไม่ refetch ทุกครั้งที่ render (ลด round-trip) */
   const sheet=mySheet||{};
   const ab=sheet.abilities||{}, cb=sheet.combat||{}, w=sheet.wallet||{}, ex=sheet.exp||{};
   if(worldState&&worldState.level_up&&worldState.level_up.active){ try{ await renderLevelUpPanel(p); }catch(e){} }
@@ -2120,7 +2123,7 @@ async function renderItems(){
   const p=$('panel-items'); p.innerHTML='';
   if(!myChar){ p.innerHTML='<div class="muted">No character yet</div>'; return; }
   // ดึง sheet ล่าสุด (กระเป๋า/เงินอัปเดตหลัง DM ลง loot) — ไม่งั้นจะค้างค่าเก่า
-  try{ const r=await supa.from('character_sheets').select('sheet').eq('character_id',myChar.id).maybeSingle(); if(!r.error&&r.data&&r.data.sheet) mySheet=r.data.sheet; }catch(e){}
+  /* ใช้ mySheet ที่ refreshAll/realtime โหลดไว้แล้ว — ไม่ refetch ทุกครั้งที่ render (ลด round-trip) */
   const sheet=mySheet||{}; const eq=sheet.equipment||{}; const inv=sheet.inventory||[];
   const w=sheet.wallet||{};
   // EQUIPPED — มีปุ่ม "ถอด" ต่อช่องที่ใส่อยู่
@@ -2172,7 +2175,15 @@ function equipSlotFor(name){
   if(/sword|dagger|axe|mace|bow|staff|spear|blade|hammer|club|rapier|scimitar|knife|wand|glaive|halberd|flail|whip|sling|crossbow|ดาบ|มีด|ขวาน|ธนู|ไม้เท้า|หอก|กระบอง|ค้อน|คทา|กริช|หน้าไม้|แส้/.test(s)) return 'weapon';
   return null;
 }
-async function _saveSheet(sheet){ const u=await supa.from('character_sheets').update({sheet,updated_at:new Date().toISOString()}).eq('character_id',myChar.id); if(u.error) throw u.error; mySheet=sheet; }
+async function _saveSheet(sheet, prev){
+  const now=new Date().toISOString();
+  let q=supa.from('character_sheets').update({sheet,updated_at:now}).eq('character_id',myChar.id);
+  if(prev) q=q.eq('updated_at',prev);              // optimistic lock: เขียนได้ก็ต่อเมื่อยังไม่มีใครแก้แทรก
+  const u=await q.select('updated_at');
+  if(u.error) throw u.error;
+  if(prev && (!u.data||!u.data.length)){ const e=new Error('sheet changed'); e.code='SHEET_CONFLICT'; throw e; }
+  mySheet=sheet; mySheetUpdatedAt=now;
+}
 // สวมใส่: ย้ายของจากกระเป๋า → ช่อง equipment (ของเดิมในช่องเด้งกลับกระเป๋า)
 function useConsumable(name, effect){
   const ta=$('actInput'); const txt='ใช้ '+name+(effect?(' — '+effect):'');
@@ -2182,8 +2193,8 @@ function useConsumable(name, effect){
 async function equipItem(name){
   if(!myChar||!name) return; const slot=equipSlotFor(name); if(!slot){ toast('ไอเทมนี้สวมใส่ไม่ได้',true); return; }
   try{
-    const r=await supa.from('character_sheets').select('sheet').eq('character_id',myChar.id).maybeSingle();
-    const sheet=(r.data&&r.data.sheet)||{}; sheet.equipment=sheet.equipment||{};
+    const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle();
+    const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at; sheet.equipment=sheet.equipment||{};
     const ci=itemByName(name);
     if(ci&&ci.requires_attunement){ if(equippedBonuses(sheet).attune>=3){ toast('attunement เต็ม (สูงสุด 3 ชิ้น) — ถอดของเวทก่อน',true); return; } }
     let inv=Array.isArray(sheet.inventory)?sheet.inventory.slice():[];
@@ -2198,33 +2209,33 @@ async function equipItem(name){
       sheet.equipment[slot]=name;
     }
     sheet.inventory=inv;
-    persistCombatStats(sheet, myChar.class); await _saveSheet(sheet); tick(); toast('สวมใส่ '+name+' ✓'); renderItems();
-  }catch(e){ toast('สวมใส่ไม่สำเร็จ',true); }
+    persistCombatStats(sheet, myChar.class); await _saveSheet(sheet, _prev); tick(); toast('สวมใส่ '+name+' ✓'); renderItems();
+  }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ของเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderItems(); } else toast('สวมใส่ไม่สำเร็จ',true); }
 }
 async function unequipAccessory(name){
   if(!myChar||!name) return;
   try{
-    const r=await supa.from('character_sheets').select('sheet').eq('character_id',myChar.id).maybeSingle();
-    const sheet=(r.data&&r.data.sheet)||{}; sheet.equipment=sheet.equipment||{};
+    const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle();
+    const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at; sheet.equipment=sheet.equipment||{};
     let acc=Array.isArray(sheet.equipment.accessories)?sheet.equipment.accessories.slice():[]; let removed=false;
     const i=acc.findIndex(a=>(typeof a==='string'?a:(a&&a.name))===name);
     if(i>=0){ acc.splice(i,1); removed=true; } else if(sheet.equipment.accessory===name){ sheet.equipment.accessory=''; removed=true; }
     sheet.equipment.accessories=acc; if(!removed) return;
     let inv=Array.isArray(sheet.inventory)?sheet.inventory.slice():[]; inv.push({name,qty:1}); sheet.inventory=inv;
-    persistCombatStats(sheet, myChar.class); await _saveSheet(sheet); tick(); toast('ถอด '+name+' ✓'); renderItems();
-  }catch(e){ toast('ถอดไม่สำเร็จ',true); }
+    persistCombatStats(sheet, myChar.class); await _saveSheet(sheet, _prev); tick(); toast('ถอด '+name+' ✓'); renderItems();
+  }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ของเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderItems(); } else toast('ถอดไม่สำเร็จ',true); }
 }
 // ถอด: ย้ายจากช่อง equipment → กระเป๋า
 async function unequipItem(slot){
   if(!myChar) return;
   try{
-    const r=await supa.from('character_sheets').select('sheet').eq('character_id',myChar.id).maybeSingle();
-    const sheet=(r.data&&r.data.sheet)||{}; sheet.equipment=sheet.equipment||{};
+    const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle();
+    const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at; sheet.equipment=sheet.equipment||{};
     const val=sheet.equipment[slot]; if(!val) return;
     let inv=Array.isArray(sheet.inventory)?sheet.inventory.slice():[]; inv.push({name:val,qty:1});
     sheet.equipment[slot]=''; sheet.inventory=inv;
-    persistCombatStats(sheet, myChar.class); await _saveSheet(sheet); tick(); toast('ถอด '+val+' ✓'); renderItems();
-  }catch(e){ toast('ถอดไม่สำเร็จ',true); }
+    persistCombatStats(sheet, myChar.class); await _saveSheet(sheet, _prev); tick(); toast('ถอด '+val+' ✓'); renderItems();
+  }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ของเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderItems(); } else toast('ถอดไม่สำเร็จ',true); }
 }
 // ───────── render: skills (ตาราง skills + fallback) ─────────
 async function renderSkills(){
@@ -2848,11 +2859,11 @@ function subscribeRealtime(){
     .on('postgres_changes',{event:'*',schema:'public',table:'actions',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'characters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadCharacters(); if(activeTab()==='party') renderParty(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'campaign_state',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadState(); applyMood(); if(activeTab()==='story'){ renderClock(); renderRoundbar(); } if(activeTab()==='map') renderMap(); const _lu=worldState&&worldState.level_up; if(activeTab()==='me'){ const md=_lu&&_lu.active&&(_lu.done||[]).includes(myChar&&myChar.id); if(!_lu||!_lu.active||md) renderMe(); } })
-    .on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_messages',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ await loadChat(); if(activeTab()==='party'){ renderChatList(); } else if(payload.new && payload.new.user_id!==me.id){ const t=document.querySelector('.tab[data-tab="party"]'); if(t) t.classList.add('blink'); } })
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_messages',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ const row=payload.new; if(row&&row.id&&!chatMsgs.some(m=>m.id===row.id)){ chatMsgs.push(row); if(chatMsgs.length>300) chatMsgs=chatMsgs.slice(-300); cacheSave('chat',chatMsgs); } if(activeTab()==='party'){ renderChatList(); } else if(row && row.user_id!==me.id){ const t=document.querySelector('.tab[data-tab="party"]'); if(t) t.classList.add('blink'); } })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'chronicles',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='chron'){ renderChronicle(); } else { const t=document.querySelector('.tab[data-tab="chron"]'); if(t) t.classList.add('blink'); } })
-    .on('postgres_changes',{event:'*',schema:'public',table:'combat_encounters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await refreshCombatTurn(); if(activeTab()==='mon') renderCombat(); if(activeTab()==='story') renderRoundbar(); })
-    .on('postgres_changes',{event:'*',schema:'public',table:'initiative_entries',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='mon') renderCombat(); })
-    .on('postgres_changes',{event:'INSERT',schema:'public',table:'combat_log',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='mon'){ renderCombat(); } else { const t=document.querySelector('.tab[data-tab="mon"]'); if(t) t.classList.add('blink'); } })
+    .on('postgres_changes',{event:'*',schema:'public',table:'combat_encounters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await refreshCombatTurn(); scheduleCombatRender(); if(activeTab()==='story') renderRoundbar(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'initiative_entries',filter:'campaign_id=eq.'+campaign.id}, async()=>{ scheduleCombatRender(); })
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'combat_log',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='mon'){ scheduleCombatRender(); } else { const t=document.querySelector('.tab[data-tab="mon"]'); if(t) t.classList.add('blink'); } })
     .on('postgres_changes',{event:'*',schema:'public',table:'battle_grids',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='map') renderMap(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'grid_tokens',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='map') renderMap(); })
     .subscribe((status)=>{
