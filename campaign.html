@@ -270,8 +270,8 @@ a.link:hover{background:var(--white);color:var(--black);}
 /* ---------- ปุ่มย่อ/ขยาย แท็บ+สถานะ (ลอยมุมขวาบน เหนือ story) ---------- */
 #uiToggle{position:fixed;top:8px;right:8px;z-index:60;width:30px;height:30px;border-radius:8px;background:rgba(0,0,0,.7);border:2px solid #fff;color:#fff;font:700 17px/1 'VT323',monospace;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;box-shadow:0 0 0 2px #000;}
 #uiToggle:hover{background:#fff;color:#000;}
-body.ui-min .hd{display:none!important;}
-body.ui-min #tabs{display:none!important;}
+#topbar{flex-shrink:0;}
+body.ui-min #topbar{display:none!important;}
 body.ui-min #worldClock{display:none!important;}
 
 /* ---------- responsive (มือถือ ~380px) ---------- */
@@ -326,7 +326,8 @@ body.ui-min #worldClock{display:none!important;}
   /* iOS-reliable: เลื่อนทั้งหน้า (document scroll) แทน panel scroll ที่ Safari มีบั๊ก → ปุ่มทุกปุ่มเลื่อนถึง */
   html,body{ height:auto; min-height:100dvh; overflow-y:auto; -webkit-overflow-scrolling:touch; }
   body{ display:block; }
-  .tabs{ position:sticky; top:0; z-index:10; }
+  /* เมนูบาร์ = island ลอยทับเนื้อหาเมื่อเรียก (ไม่ดันเลย์เอาต์ ไม่เด้ง scroll); ยุบแล้วเหลือปุ่มลูกศรลอย */
+  #topbar{ position:fixed; top:0; left:0; right:0; z-index:55; box-shadow:0 3px 14px rgba(0,0,0,.55); }
   .panel{ flex:none; min-height:auto; overflow:visible; padding-bottom:120px; }
   .panel.active{ display:block; }
   .center{ flex:none; min-height:auto; overflow:visible; }
@@ -553,6 +554,7 @@ body.role-player .dm-only{display:none!important;}
 <body>
 <button id="uiToggle" onclick="toggleUI()" title="ย่อ/ขยายเมนู" aria-label="ย่อ/ขยายเมนู">‹</button>
 
+<div id="topbar">
 <div class="hd">
   <div class="logo"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="7" y="5" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/><rect x="2" y="7" width="1" height="1"/><rect x="5" y="7" width="1" height="1"/></svg></div>
   <div class="ttl" id="hdTitle">TTRPG Campaign</div>
@@ -693,6 +695,7 @@ body.role-player .dm-only{display:none!important;}
   <button class="tab" data-tab="files" onclick="switchTab('files')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="7" y="5" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/><rect x="2" y="7" width="1" height="1"/><rect x="5" y="7" width="1" height="1"/></svg></span><span class="tlab">Files</span></button>
   <button class="tab" data-tab="chron" onclick="switchTab('chron')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="1" height="1"/><rect x="1" y="0" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="6" y="0" width="1" height="1"/><rect x="7" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="7" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="7" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="7" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="7" y="5" width="1" height="1"/></svg></span><span class="tlab">Chronicle</span></button>
 </div>
+</div>
 
 <div class="panel" id="panel-story" data-tab="story">
   <div id="worldClock" class="worldhud hidden"></div>
@@ -740,12 +743,10 @@ function toast(msg,isErr){const t=$('toast');t.textContent=msg;t.className='toas
 function toggleUI(){
   const min=document.body.classList.toggle('ui-min');
   const t=document.getElementById('uiToggle'); if(t) t.textContent = min ? '›' : '‹';
-  // มือถือ: ตอนกดขยายกลับ เลื่อนขึ้นบนสุด เพื่อให้ header+tabs โผล่ครบ และบังคับ sticky คำนวณใหม่ (กันบั๊ก iOS Safari ที่ sticky ไม่ re-stick หลังถูกซ่อน)
-  if(!min){ try{ window.scrollTo(0,0); requestAnimationFrame(()=>window.scrollTo(0,0)); }catch(e){} }
 }
 function show(id){['authScreen','lobbyScreen','charScreen'].forEach(s=>$(s).classList.add('hidden'));
   $('tabs').classList.add('hidden');document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
-  if(id==='campaign'){$('tabs').classList.remove('hidden');switchTab('story');}
+  if(id==='campaign'){$('tabs').classList.remove('hidden');switchTab('story'); if(!window._uiInit){ window._uiInit=1; try{ if(matchMedia('(max-width:1023px)').matches){ document.body.classList.add('ui-min'); const _t=document.getElementById('uiToggle'); if(_t)_t.textContent='›'; } }catch(e){} } }
   else{$(id).classList.remove('hidden');}}
 
 // ───────── init ─────────
