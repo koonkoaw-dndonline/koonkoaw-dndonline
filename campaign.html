@@ -271,6 +271,9 @@ a.link:hover{background:var(--white);color:var(--black);}
 #uiToggle{position:fixed;top:8px;right:8px;z-index:60;width:30px;height:30px;border-radius:8px;background:rgba(0,0,0,.7);border:2px solid #fff;color:#fff;font:700 17px/1 'VT323',monospace;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;box-shadow:0 0 0 2px #000;}
 #uiToggle:hover{background:#fff;color:#000;}
 @media (min-width:1024px){ #uiToggle{display:none!important;} }   /* ปุ่ม island เฉพาะมือถือ */
+#scrollLatest{position:fixed;right:12px;bottom:18px;z-index:58;width:42px;height:42px;border-radius:50%;background:rgba(0,0,0,.78);border:2px solid #fff;color:#fff;font:700 20px/1 'VT323',monospace;display:none;align-items:center;justify-content:center;cursor:pointer;padding:0;box-shadow:0 2px 8px rgba(0,0,0,.5);}
+#scrollLatest:hover{background:#fff;color:#000;}
+@media (max-width:1023px){ body.tab-story #scrollLatest{display:flex;} }   /* ปุ่มเลื่อนลงล่าสุด เฉพาะมือถือ+แท็บ story */
 #topbar{flex-shrink:0;}
 body.ui-min #topbar{display:none!important;}
 body.ui-min #worldClock{display:none!important;}
@@ -328,7 +331,8 @@ body.ui-min #worldClock{display:none!important;}
   html,body{ height:auto; min-height:100dvh; overflow-y:auto; -webkit-overflow-scrolling:touch; }
   body{ display:block; }
   /* เมนูบาร์ = island ลอยทับเนื้อหาเมื่อเรียก (ไม่ดันเลย์เอาต์ ไม่เด้ง scroll); ยุบแล้วเหลือปุ่มลูกศรลอย */
-  #topbar{ position:fixed; top:0; left:0; right:0; z-index:55; box-shadow:0 3px 14px rgba(0,0,0,.55); }
+  #topbar{ position:static; }                              /* แท็บอื่น: เมนูอยู่ในแนว flow ดันเนื้อหาลง ไม่บังรายละเอียด */
+  body.tab-story #topbar{ position:fixed; top:0; left:0; right:0; z-index:55; box-shadow:0 3px 14px rgba(0,0,0,.55); }   /* story: เมนูลอยทับ (อ่านนิยาย) */
   .panel{ flex:none; min-height:auto; overflow:visible; padding-bottom:120px; }
   .panel.active{ display:block; }
   .center{ flex:none; min-height:auto; overflow:visible; }
@@ -554,6 +558,7 @@ body.role-player .dm-only{display:none!important;}
 </head>
 <body>
 <button id="uiToggle" onclick="toggleUI()" title="ย่อ/ขยายเมนู" aria-label="ย่อ/ขยายเมนู">‹</button>
+<button id="scrollLatest" onclick="scrollToLatest()" title="ไปข้อความล่าสุด" aria-label="ไปข้อความล่าสุด">↓</button>
 
 <div id="topbar">
 <div class="hd">
@@ -592,6 +597,10 @@ body.role-player .dm-only{display:none!important;}
     <p class="sub">You'll be the host (DM) of this world — up to 4 players.</p>
     <label class="fld">Campaign name<input type="text" id="newName" placeholder="e.g. Legend of Eldraria"/></label>
     <label class="fld">Rules / tone (optional)<textarea id="newRules" placeholder="พิมพ์กติกา/โทนเพิ่มเอง หรือปล่อยว่างถ้าจะอัปไฟล์ด้านล่าง"></textarea></label>
+    <div class="srow2" style="gap:8px">
+      <label class="fld">จังหวะเรื่อง (Pace)<select id="newPace" style="background:#000;color:#fff;border:2px solid #fff;font-family:inherit;font-size:15px;padding:4px 6px"><option value="">— ปกติ (สมดุล) —</option><option value="brisk">เร่ง / บู๊รัว (เดินเรื่องเร็ว)</option><option value="normal">ปกติ (สมดุล)</option><option value="slow">เนิบ (เน้น roleplay)</option></select></label>
+      <label class="fld">โทนเรื่อง (Tone)<input type="text" id="newTone" placeholder="เช่น heroic, dark, mystery, comedic"/></label>
+    </div>
     <label class="fld">📎 ไฟล์กฎ DM (.md/.txt — เลือกได้หลายไฟล์พร้อมกัน)
       <input type="file" id="rulesFiles" multiple accept=".md,.txt,text/markdown,text/plain" onchange="onRulesFiles(this.files)"/>
     </label>
@@ -748,6 +757,10 @@ function toggleUI(){
   const min=document.body.classList.toggle('ui-min');
   const t=document.getElementById('uiToggle'); if(t) t.textContent = min ? '›' : '‹';
 }
+function scrollToLatest(){
+  try{ const f=$('narrFeed'); if(f&&f.lastElementChild){ f.lastElementChild.scrollIntoView({behavior:'smooth',block:'end'}); return; } }catch(e){}
+  try{ window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'}); }catch(e){ try{ window.scrollTo(0,document.body.scrollHeight); }catch(_){} }
+}
 function show(id){['authScreen','lobbyScreen','charScreen'].forEach(s=>$(s).classList.add('hidden'));
   $('tabs').classList.add('hidden');document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   if(id==='campaign'){$('tabs').classList.remove('hidden');switchTab('story'); if(!window._uiInit){ window._uiInit=1; try{ if(matchMedia('(max-width:1023px)').matches){ document.body.classList.add('ui-min'); const _t=document.getElementById('uiToggle'); if(_t)_t.textContent='›'; } }catch(e){} } }
@@ -866,6 +879,8 @@ async function createCampaign(){
     const { data, error } = await supa.rpc('create_campaign',{ p_name:name, p_rules:combined });
     if(error) throw error;
     campaign = Array.isArray(data)?data[0]:data;
+    const _pace=(($('newPace')||{}).value||'').trim(), _tone=(($('newTone')||{}).value||'').trim();
+    if(_pace||_tone){ try{ await supa.from('campaigns').update({pace:_pace||null, tone:_tone||null}).eq('id',campaign.id); campaign.pace=_pace; campaign.tone=_tone; }catch(e){} }
     // จัดทำดัชนีกฎเข้า RAG (แยกหมวดตามชื่อไฟล์) → DM ดึงเฉพาะที่จำเป็นต่อโหมดฉาก ประหยัด token
     const rf=$('rulesFiles');
     if(rf && rf.files && rf.files.length){
@@ -980,12 +995,30 @@ async function loadRound(){
     if(error) throw error; curRound = data||null; cacheSave('round',curRound);
   }catch(e){ const c=cacheLoad('round'); if(c) curRound=c; }
 }
+const NARR_WINDOW=50; let narrMore=false, _skipAutoScroll=false;
 async function loadNarrative(){
   try{ const { data, error } = await supa.from('narrative').select('*').eq('campaign_id',campaign.id)
-    .order('created_at',{ascending:true});
-    if(error) throw error; narrative = data||[]; cacheSave('narrative',narrative);
+    .order('created_at',{ascending:false}).limit(NARR_WINDOW);
+    if(error) throw error; const rows=(data||[]); narrMore = rows.length>=NARR_WINDOW; narrative = rows.slice().reverse(); cacheSave('narrative',narrative);
   }catch(e){ const c=cacheLoad('narrative'); if(c) narrative=c; }
   try{ localStorage.setItem('ttrpg_chron_'+campaign.id, JSON.stringify(narrative.map(n=>n.content))); }catch(e){}
+}
+async function loadOlderNarrative(){
+  if(!narrative.length) return;
+  try{ const { data } = await supa.from('narrative').select('*').eq('campaign_id',campaign.id)
+    .lt('created_at',narrative[0].created_at).order('created_at',{ascending:false}).limit(NARR_WINDOW);
+    const older=(data||[]); narrMore = older.length>=NARR_WINDOW;
+    if(older.length){ narrative = older.slice().reverse().concat(narrative); }
+  }catch(e){}
+  _skipAutoScroll=true; _lastFeedSig=''; renderStory();
+}
+// รวมข้อความใหม่/อัปเดตจาก realtime โดยไม่ดึงทั้งก้อน (รักษาบทเก่าที่โหลดไว้)
+function mergeNarrative(row){
+  if(!row||!row.id) return;
+  const i=narrative.findIndex(n=>n.id===row.id);
+  if(i>=0) narrative[i]=row;
+  else { narrative.push(row); narrative.sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)); }
+  cacheSave('narrative',narrative);
 }
 async function loadState(){
   try{ const r=await supa.from('campaign_state').select('*').eq('campaign_id',campaign.id).maybeSingle();
@@ -1383,6 +1416,7 @@ function switchTab(t){
   tick();
   document.querySelectorAll('.tab').forEach(b=>{ b.classList.toggle('active',b.dataset.tab===t); if(b.dataset.tab===t) b.classList.remove('blink'); });
   document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.dataset.tab===t));
+  document.body.classList.toggle('tab-story', t==='story');
   if(t==='story') renderStory();
   else if(t==='me') renderMe();
   else if(t==='items') renderItems();
@@ -1452,6 +1486,7 @@ async function renderStory(){
   if(sig!==_lastFeedSig){
     _lastFeedSig=sig;
     const feed=$('narrFeed'); feed.innerHTML='';
+    if(narrMore){ const lb=document.createElement('button'); lb.className='btn ghost sm'; lb.style.cssText='align-self:center;margin:2px 0 8px'; lb.textContent='▲ โหลดบทก่อนหน้า'; lb.title='บทเก่ากว่านี้ดูสรุปได้ในแท็บ Chronicle'; lb.onclick=loadOlderNarrative; feed.appendChild(lb); }
     if(!shown.length){ feed.innerHTML='<div class="muted">No story yet '+(campaign.host_id===me.id?'— press "Begin Adventure" below':'— waiting for the host to begin')+'</div>'; }
     shown.forEach(n=>{
       const d=document.createElement('div'); d.className='narr';
@@ -1460,8 +1495,7 @@ async function renderStory(){
       c.innerHTML = isStreaming(n) ? (colorizeNarr(n.content)+'<span class="dots">▌</span>') : colorizeNarr(n.content);
       d.appendChild(c); feed.appendChild(d);
     });
-    const sp=$('panel-story'); sp.scrollTop=sp.scrollHeight;
-    if(feed) feed.scrollTop=feed.scrollHeight;
+    if(_skipAutoScroll){ _skipAutoScroll=false; } else { const sp=$('panel-story'); if(sp) sp.scrollTop=sp.scrollHeight; if(feed) feed.scrollTop=feed.scrollHeight; }
   }
   // roundbar มี guard ของตัวเอง (ไม่ rebuild ตอนพิมพ์)
   renderRoundbar();
@@ -2572,7 +2606,7 @@ function exportChronicle(){
 function subscribeRealtime(){
   if(rtChannel) return;
   rtChannel = supa.channel('camp-'+campaign.id)
-    .on('postgres_changes',{event:'*',schema:'public',table:'narrative',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); await loadNarrative(); if(activeTab()==='story') renderStory(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'narrative',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ rtLastSyncTs=Date.now(); if(payload&&payload.new&&payload.eventType!=='DELETE'){ mergeNarrative(payload.new); } else { await loadNarrative(); } if(activeTab()==='story') renderStory(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'rounds',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); await loadRound(); if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'actions',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'characters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadCharacters(); if(activeTab()==='party') renderParty(); })
