@@ -1254,8 +1254,8 @@ function calcAC(sheet, klass){
   else { const ci=itemByName(eq.armor);
     if(ci&&ci.category==='armor'&&ci.armor_base!=null){ const b=+ci.armor_base,st=ci.subtype; base=(st==='medium')?b+Math.min(dex,2):(st==='heavy')?b:b+dex; label=ci.name; }
     else { let e=null,key=null; for(const k of Object.keys(ARM).sort((x,y)=>y.length-x.length)){ if(a.includes(k)){e=ARM[k];key=k;break;} } if(!e){base=10+dex;label='?';} else { base=(e[1]==='medium')?e[0]+Math.min(dex,2):(e[1]==='heavy')?e[0]:e[0]+dex; label=capf(key);} } }
-  const sh=(eq.shield||'').toLowerCase().trim(); const hasShield=sh&&!/^(none|no shield|-|—)$/.test(sh); const acb=bon.add.ac||0;
-  return {ac:base+(hasShield?2:0)+acb, label, bon, eAb};
+  const sh=(eq.shield||'').toLowerCase().trim(); const hasShield=sh&&!/^(none|no shield|-|—)$/.test(sh); const shCat=itemByName(eq.shield); const shAc=hasShield?((shCat&&shCat.bonuses&&shCat.bonuses.ac)?+shCat.bonuses.ac:2):0; const acb=bon.add.ac||0;
+  return {ac:base+shAc+acb, label, bon, eAb};
 }
 function itemBonusStr(bon){ const x=[]; const g=(lab,v)=>{ if(v) x.push(lab+' '+(v>=0?'+':'')+v); };
   g('atk',bon.add.attack); g('dmg',bon.add.damage); g('save',bon.add.save); g('check',bon.add.ability_check); g('spellAtk',bon.add.spell_attack); g('spellDC',bon.add.spell_dc); if(bon.add.speed)x.push('speed +'+bon.add.speed); return x.join(', '); }
@@ -1746,8 +1746,9 @@ async function renderMe(){
     }
     const sh=(eq.shield||'').toLowerCase().trim();
     const hasShield=sh&&!/^(none|no shield|-|—)$/.test(sh);
+    const shCat=itemByName(eq.shield); const shAc=hasShield?((shCat&&shCat.bonuses&&shCat.bonuses.ac)?+shCat.bonuses.ac:2):0;
     const acb=bon.add.ac||0;
-    return { ac:base+(hasShield?2:0)+acb, label:label+(hasShield?' + Shield (2)':'')+(acb?(' + items ('+(acb>=0?'+':'')+acb+')'):'') };
+    return { ac:base+shAc+acb, label:label+(hasShield?(' + Shield ('+shAc+')'):'')+(acb?(' + items ('+(acb>=0?'+':'')+acb+')'):'') };
   }
   const acRes=computeAC();
   const prof=2+Math.floor(((myChar.level||1)-1)/4);
@@ -1930,6 +1931,8 @@ async function renderItems(){
 
 // ของชิ้นนี้ใส่ช่องไหนได้ (null = ใส่ไม่ได้ เช่น น้ำยา/จดหมาย/เชือก)
 function equipSlotFor(name){
+  const ci=(typeof itemByName==='function')?itemByName(name):null;
+  if(ci){ const c=ci.category; if(c==='weapon') return 'weapon'; if(c==='armor') return 'armor'; if(c==='shield') return 'shield'; if(c==='accessory') return 'accessory'; return null; }
   const s=(name||'').toLowerCase();
   if(/shield|โล่/.test(s)) return 'shield';
   if(/armor|เกราะ|mail|plate|chain|leather|breastplate|เสื้อเกราะ|robe/.test(s)) return 'armor';
