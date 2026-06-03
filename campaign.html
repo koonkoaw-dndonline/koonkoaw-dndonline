@@ -2009,6 +2009,7 @@ async function renderBattleGrid(p){
   const glyphFor=(t)=>{ const k=String(t.glyph||'').toLowerCase(); if(GLYPH[k])return GLYPH[k]; const lab=String(t.label||'').toLowerCase(); for(const key in GLYPH){ if(lab.includes(key.toLowerCase())) return GLYPH[key]; } return null; };
   const PAL={ pc:['#378ADD','#0C447C','#85B7EB'], ally:['#5c7bff','#26306b','#aeb8ff'], monster:['#E24B4A','#791F1F','#F09595'], npc:['#E8B23A','#6e5200','#f3d27a'] };
   let svg=`<svg viewBox="0 0 ${VW} ${VH}" style="display:block;width:100%;max-width:${VW}px;min-width:${cols*22}px;background:#0d1018;border:2px solid #fff;border-radius:6px">`;
+  svg+='<style>.gtok{cursor:pointer}.gtok .tklbl{visibility:hidden}.gtok:hover .tklbl{visibility:visible}.gtok.lblon .tklbl{visibility:visible}</style>';
   // tiles (checkerboard + squash = 2.5D) + กำแพง + พื้นสูง (hills) + น้ำ
   for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
     const cell=rc2cell(c,r); const isW=walls.has(cell); const hill=HILLS.has(cell); const wet=WATER.has(cell);
@@ -2030,6 +2031,7 @@ async function renderBattleGrid(p){
     const fx=footX(t.col), fy=footY(t.col,t.row);
     const down=Array.isArray(t.flags)&&(t.flags.includes('down')||t.flags.includes('dead'));
     const op=down?0.4:1;
+    svg+=`<g class="gtok" onclick="this.classList.toggle('lblon')"><title>${escapeHtml(t.label||'')}</title>`;
     // เงา
     svg+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy+5).toFixed(1)}" rx="13" ry="4.5" fill="rgba(0,0,0,0.45)"/>`;
     const gly=glyphFor(t);
@@ -2061,8 +2063,9 @@ async function renderBattleGrid(p){
     const isActive=(activeRef.char&&t.ref_char_id===activeRef.char)||(activeRef.cs&&t.ref_combat_state_id===activeRef.cs);
     if(isActive) svg+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy+5).toFixed(1)}" rx="16" ry="6" fill="none" stroke="#FAC775" stroke-width="2.5"/>`;
     // ชื่อใต้ตัว
-    if(t.kind!=='object'){ svg+=`<text x="${fx.toFixed(1)}" y="${(fy+15).toFixed(1)}" text-anchor="middle" font-family="'VT323',monospace" font-size="11" fill="#fff">${escapeHtml((t.label||'').slice(0,9))}</text>`; }
+    svg+=`<text class="tklbl" x="${fx.toFixed(1)}" y="${(fy+15).toFixed(1)}" text-anchor="middle" font-family="'VT323',monospace" font-size="11" fill="#fff" stroke="#000" stroke-width="0.6" paint-order="stroke">${escapeHtml((t.label||'').slice(0,16))}</text>`;
     if(down) svg+=`<line x1="${(fx-9).toFixed(1)}" y1="${(fy-14).toFixed(1)}" x2="${(fx+9).toFixed(1)}" y2="${(fy+2).toFixed(1)}" stroke="#fff" stroke-width="1.5"/>`;
+    svg+='</g>';
   });
   svg+='</svg>';
   const box=document.createElement('div'); box.className='item';
