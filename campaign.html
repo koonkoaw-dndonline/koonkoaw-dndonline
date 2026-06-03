@@ -1235,21 +1235,23 @@ function onRaceChange(){ const sel=$('cRace'),cu=$('cRaceCustom'); if(!sel||!cu)
 function weaponValue(){ const sel=$('cWeapon'); if(!sel) return ''; return sel.value==='__custom' ? (($('cWeaponCustom')||{}).value||'').trim() : (sel.value||'').trim(); }
 function onWeaponChange(){ const sel=$('cWeapon'),cu=$('cWeaponCustom'); if(!sel||!cu) return; if(sel.value==='__custom'){ cu.classList.remove('hidden'); cu.focus(); } else { cu.classList.add('hidden'); cu.value=''; } }
 // ── คลังไอเทม/คลาส (global catalog จาก DB) — โหลดครั้งเดียว แคชไว้ ──
-let ITEM_CAT={}, CLASS_CAT={}, ITEM_BY_NAME={}, SPELL_CAT=[], _catLoaded=false, selectedPkg=null;
+let ITEM_CAT={}, CLASS_CAT={}, ITEM_BY_NAME={}, SPELL_CAT=[], SKILL_CAT=[], _catLoaded=false, selectedPkg=null;
 async function loadCatalogs(){
   if(_catLoaded) return;
   try{
-    const [ic,cc,sc]=await Promise.all([
+    const [ic,cc,sc,kc]=await Promise.all([
       supa.from('item_catalog').select('slug,name,category,subtype,damage_dice,damage_type,properties,range_ft,armor_base,dex_cap,str_req,stealth_disadv,is_magic,rarity,requires_attunement,bonuses,effect,cost_gp'),
       supa.from('class_catalog').select('slug,name,hit_die,armor_prof,weapon_prof,saving_throws,starting_packages'),
-      supa.from('spell_catalog').select('slug,name,level,school,classes,casting_time,range_,components,duration,concentration,ritual,save,damage,effect')
+      supa.from('spell_catalog').select('slug,name,level,school,classes,casting_time,range_,components,duration,concentration,ritual,save,damage,effect'),
+      supa.from('skill_catalog').select('slug,name,classes,level,max_uses,recharge,effect')
     ]);
     if(!ic.error&&ic.data){ ITEM_CAT={}; ic.data.forEach(r=>ITEM_CAT[r.slug]=r); cacheSave('itemcat',ic.data); }
     if(!cc.error&&cc.data){ CLASS_CAT={}; cc.data.forEach(r=>CLASS_CAT[r.slug]=r); cacheSave('classcat',cc.data); }
     if(!sc.error&&sc.data){ SPELL_CAT=sc.data; cacheSave('spellcat',sc.data); }
+    if(!kc.error&&kc.data){ SKILL_CAT=kc.data; cacheSave('skillcat',kc.data); }
     if(!ic.error&&ic.data&&ic.data.length) _catLoaded=true;
   }catch(e){}
-  if(!_catLoaded){ const i=cacheLoad('itemcat'),c=cacheLoad('classcat'); if(i){ITEM_CAT={};i.forEach(r=>ITEM_CAT[r.slug]=r);} if(c){CLASS_CAT={};c.forEach(r=>CLASS_CAT[r.slug]=r);} const sp=cacheLoad('spellcat'); if(sp) SPELL_CAT=sp; }
+  if(!_catLoaded){ const i=cacheLoad('itemcat'),c=cacheLoad('classcat'); if(i){ITEM_CAT={};i.forEach(r=>ITEM_CAT[r.slug]=r);} if(c){CLASS_CAT={};c.forEach(r=>CLASS_CAT[r.slug]=r);} const sp=cacheLoad('spellcat'); if(sp) SPELL_CAT=sp; const kp=cacheLoad('skillcat'); if(kp) SKILL_CAT=kp; }
   buildItemIndex();
 }
 function pkgItemNames(pk){ return (pk.items||[]).map(it=>{ const ci=ITEM_CAT[it.slug]; const nm=ci?ci.name:it.slug; return nm+(it.qty>1?(' x'+it.qty):''); }).join(', '); }
@@ -1757,6 +1759,12 @@ async function resolveRound(force, mode){
 }
 
 // ───────── render: me / party / quest ─────────
+function maxSpellLevelFor(ck, lvl){
+  lvl=Math.max(1, +lvl||1);
+  if(ck==='paladin'||ck==='ranger') return lvl>=17?5:lvl>=13?4:lvl>=9?3:lvl>=5?2:lvl>=2?1:0;       // half-caster
+  if(ck==='warlock') return lvl>=17?9:lvl>=15?8:lvl>=13?7:lvl>=11?6:Math.min(5,Math.ceil(lvl/2));   // pact + arcanum
+  return Math.min(9, Math.ceil(lvl/2));                                                              // full caster
+}
 function charClassKey(klass){ const c=String(klass||'').toLowerCase(); const L=['barbarian','bard','cleric','druid','fighter','monk','paladin','ranger','rogue','sorcerer','warlock','wizard']; for(const k of L){ if(c.includes(k)) return k; } return null; }
 async function renderLevelUpPanel(p){
   const lu=(worldState&&worldState.level_up)||{}; const done=lu.done||[];
@@ -1781,11 +1789,11 @@ async function renderLevelUpPanel(p){
   const picks=new Set();
   const ck=charClassKey(myChar.class);
   if(['bard','cleric','druid','paladin','ranger','sorcerer','warlock','wizard'].includes(ck) && SPELL_CAT.length){
-    const maxLv=Math.min(3, Math.max(1, Math.ceil(lvl/2)));
+    const maxLv=maxSpellLevelFor(ck, lvl);   // ตามตารางคลาสจริง (ตัวละครเลเวลต่ำยังเห็นแค่เวทระดับต่ำ)
     let known=new Set(); try{ const r=await supa.from('skills').select('name').eq('character_id',myChar.id); (r.data||[]).forEach(x=>known.add(String(x.name).toLowerCase())); }catch(e){}
     const avail=SPELL_CAT.filter(sp=>(sp.classes||[]).includes(ck) && sp.level<=maxLv && !known.has(String(sp.name).toLowerCase()));
     const box=document.createElement('div'); box.innerHTML='<div class="sectitle" style="margin-top:8px">เวท / CANTRIP ใหม่ (เลือกตามกฎคลาส)</div>';
-    [0,1,2,3].forEach(L=>{ const grp=avail.filter(sp=>sp.level===L); if(!grp.length) return;
+    [0,1,2,3,4,5,6,7,8,9].forEach(L=>{ const grp=avail.filter(sp=>sp.level===L); if(!grp.length) return;
       const h=document.createElement('div'); h.className='note'; h.style.cssText='text-align:left;margin-top:5px;color:#9ad'; h.textContent=(L===0?'Cantrip':'เลเวล '+L); box.appendChild(h);
       grp.forEach(sp=>{ const row=document.createElement('label'); row.className='fld'; row.style.cssText='flex-direction:row;align-items:flex-start;gap:8px;cursor:pointer;margin:1px 0';
         row.innerHTML='<input type="checkbox" style="margin-top:3px"><span><b>'+escapeHtml(sp.name)+'</b>'+(sp.damage?' <span class="muted">('+escapeHtml(sp.damage)+(sp.save?(' '+escapeHtml(sp.save)):'')+')</span>':'')+'<div class="muted" style="font-size:11px;line-height:1.4">'+escapeHtml(sp.effect||'')+'</div></span>';
@@ -1794,11 +1802,15 @@ async function renderLevelUpPanel(p){
     if(!avail.length){ const m=document.createElement('div'); m.className='muted'; m.textContent='ไม่มีเวทใหม่ให้เลือกในเลเวลนี้'; box.appendChild(m); }
     card.appendChild(box);
   }
+  // ความสามารถคลาสที่ได้รับเลเวลนี้ (auto-grant)
+  let feats=[];
+  try{ const kn=new Set(); const r=await supa.from('skills').select('name').eq('character_id',myChar.id); (r.data||[]).forEach(x=>kn.add(String(x.name).toLowerCase())); feats=(SKILL_CAT||[]).filter(f=>(f.classes||[]).includes(ck)&&f.level===lvl&&!kn.has(String(f.name).toLowerCase())); }catch(e){}
+  if(feats.length){ const fb=document.createElement('div'); fb.innerHTML='<div class="sectitle" style="margin-top:8px">ความสามารถใหม่ของเลเวลนี้ (ได้รับอัตโนมัติ)</div>'; feats.forEach(f=>{ const d=document.createElement('div'); d.className='note'; d.style.cssText='text-align:left;color:#9fe0a0;margin:1px 0'; d.innerHTML='\u2726 <b>'+escapeHtml(f.name)+'</b> <span class="muted" style="font-size:11px">'+escapeHtml(f.effect||'')+'</span>'; fb.appendChild(d); }); card.appendChild(fb); }
   const btn=document.createElement('button'); btn.className='btn'; btn.style.marginTop='10px'; btn.textContent='\u2713 ยืนยันเลเวลอัพ';
-  btn.onclick=()=>submitLevelUp(asiState, [...picks].map(sl=>SPELL_CAT.find(x=>x.slug===sl)).filter(Boolean), btn);
+  btn.onclick=()=>submitLevelUp(asiState, [...picks].map(sl=>SPELL_CAT.find(x=>x.slug===sl)).filter(Boolean), feats, btn);
   card.appendChild(btn); p.appendChild(card);
 }
-async function submitLevelUp(asiState, spells, btn){
+async function submitLevelUp(asiState, spells, feats, btn){
   if(btn){ btn.disabled=true; btn.textContent='กำลังบันทึก…'; }
   try{
     if(asiState && Object.keys(asiState).length){
@@ -1813,6 +1825,10 @@ async function submitLevelUp(asiState, spells, btn){
         description:(sp.effect||'')+(sp.damage?(' \u00b7 '+sp.damage+(sp.save?(' ('+sp.save+' save)'):'')):'')+' \u00b7 '+(sp.level===0?'cantrip':'เลเวล '+sp.level),
         max_uses:(sp.level===0?0:2), used:0, recharge:(sp.level===0?'atwill':'long')}));
       try{ await supa.from('skills').upsert(rows,{onConflict:'character_id,name',ignoreDuplicates:true}); }catch(e){}
+    }
+    if(feats && feats.length){
+      const frows=feats.map(f=>({campaign_id:campaign.id,character_id:myChar.id,name:f.name,description:f.effect||'',max_uses:f.max_uses||0,used:0,recharge:f.recharge||'passive'}));
+      try{ await supa.from('skills').upsert(frows,{onConflict:'character_id,name',ignoreDuplicates:true}); }catch(e){}
     }
     const { data:lu, error }=await supa.rpc('levelup_submit',{p_campaign:campaign.id,p_char:myChar.id});
     if(error) throw error;
