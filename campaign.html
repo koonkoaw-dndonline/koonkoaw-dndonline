@@ -529,7 +529,7 @@ body.role-player .dm-only{display:none!important;}
 .facebox img{width:100%;height:100%;object-fit:cover;display:block;}
 @media (min-width:900px){ .panel[data-tab="me"].active .avatarwin{order:-1;} }
 /* OOC chat */
-.chatlist{display:flex;flex-direction:column;gap:8px;max-height:62vh;overflow-y:auto;padding:2px;}
+.chatlist{display:flex;flex-direction:column;gap:8px;max-height:min(46vh,360px);overflow-y:auto;padding:2px;}
 .chatmsg{border:2px solid #fff;border-radius:5px;padding:6px 10px;max-width:85%;align-self:flex-start;}
 .chatmsg.mine{align-self:flex-end;background:#fff;color:#000;}
 .chatmsg.mine .chatname{color:#000;}
@@ -1887,7 +1887,10 @@ async function uploadAvatar(fi,btn){
   }catch(e){ toast(e.message||'อัปรูปล้มเหลว',true); btn.disabled=false; }
 }
 async function renderParty(){
-  const p=$('panel-party'); p.innerHTML='';
+  const p=$('panel-party');
+  const _ciEl=document.getElementById('chatInput');   // กันข้อความแชทหลุดตอน re-render
+  const _ciSave=_ciEl?{v:_ciEl.value,foc:(document.activeElement===_ciEl),s:_ciEl.selectionStart,e:_ciEl.selectionEnd}:null;
+  p.innerHTML='';
   const grid=document.createElement('div'); grid.className='partygrid';
   const left=document.createElement('div'); const right=document.createElement('div');
   grid.appendChild(left); grid.appendChild(right); p.appendChild(grid);
@@ -1922,6 +1925,7 @@ async function renderParty(){
   inrow.appendChild(ta); inrow.appendChild(sb); chatCard.appendChild(inrow); right.appendChild(chatCard);
   clearChatBlink();
   await loadChat(); renderChatList();
+  if(_ciSave){ const ne=document.getElementById('chatInput'); if(ne){ ne.value=_ciSave.v; if(_ciSave.foc){ try{ ne.focus(); ne.setSelectionRange(_ciSave.s,_ciSave.e); }catch(e){} } } }
 }
 async function renderQuest(){
   const p=$('panel-quest'); p.innerHTML='';
