@@ -270,6 +270,7 @@ a.link:hover{background:var(--white);color:var(--black);}
 /* ---------- ปุ่มย่อ/ขยาย แท็บ+สถานะ (ลอยมุมขวาบน เหนือ story) ---------- */
 #uiToggle{position:fixed;top:8px;right:8px;z-index:60;width:30px;height:30px;border-radius:8px;background:rgba(0,0,0,.7);border:2px solid #fff;color:#fff;font:700 17px/1 'VT323',monospace;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;box-shadow:0 0 0 2px #000;}
 #uiToggle:hover{background:#fff;color:#000;}
+@media (min-width:1024px){ #uiToggle{display:none!important;} }   /* ปุ่ม island เฉพาะมือถือ */
 #topbar{flex-shrink:0;}
 body.ui-min #topbar{display:none!important;}
 body.ui-min #worldClock{display:none!important;}
