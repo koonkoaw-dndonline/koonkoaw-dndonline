@@ -2267,13 +2267,20 @@ async function renderNPCs(){
   if(rows===null){ p.innerHTML='<div class="muted">NPC system not enabled yet<br>Run migration.sql</div>'; return; }
   if(!rows.length){ p.innerHTML='<div class="muted">No NPCs discovered yet</div>'; return; }
   const isHost=campaign.host_id===me.id;
+  // ความสัมพันธ์ส่วนตัวของผู้เล่นคนนี้ (RLS คืนเฉพาะของตัวละครตัวเอง — เพื่อนไม่เห็นของเรา)
+  let myRels=[]; try{ const rr=await supa.from('relationships').select('npc_name,score,tier,romance,note').eq('campaign_id',campaign.id); if(!rr.error) myRels=rr.data||[]; }catch(e){}
+  const relOf=(nm)=>{ const k=String(nm||'').toLowerCase().trim(); return myRels.find(r=>String(r.npc_name||'').toLowerCase().trim()===k); };
+  const relColor=(sc)=>sc>=70?'#ff7eb6':sc>=20?'#9fe0a0':sc>=-19?'#9a9a9a':sc>=-44?'#e0c45f':'#e06a6a';
+  const relBadge=(r)=>{ if(!r) return ''; const c=relColor(r.score); const heart=r.romance?'❤ ':''; return ` <span class="chip" style="background:#1a1a22;color:${c};border-color:${c}" title="คะแนน ${r.score>=0?'+':''}${r.score} (เฉพาะคุณเห็น)">${heart}${escapeHtml(r.tier)}</span>`; };
+  const relDetail=(r)=>{ if(!r) return ''; const c=relColor(r.score); const pct=Math.round((Math.max(-100,Math.min(100,r.score))+100)/2); return `<div class="kv2"><b>ความสัมพันธ์<br><span class="muted" style="font-size:11px">(ส่วนตัว เฉพาะคุณ)</span></b><span>${r.romance?'❤ ':''}${escapeHtml(r.tier)} · ${r.score>=0?'+':''}${r.score}<div style="height:6px;border-radius:3px;background:#222;margin-top:4px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${c}"></div></div>${r.note?'<div class="muted" style="font-size:11px;margin-top:3px">'+escapeHtml(r.note)+'</div>':''}</span></div>`; };
   const byCity={}; rows.forEach(n=>{ const c=n.city||'Unknown'; (byCity[c]=byCity[c]||[]).push(n); });
   Object.keys(byCity).forEach((city,idx)=>{
     const list=byCity[city];
     let body='';
     list.forEach(n=>{
       const del = isHost? `<div class="kv2"><b></b><span><button class="btn ghost sm" onclick="event.stopPropagation();deleteNPC('${n.id}')">✕ ลบ (ถ้าซ้ำ/ผิด)</button></span></div>` : '';
-      body+=`<div class="npc"><button class="npc-head" onclick="tick();this.parentElement.classList.toggle('open')">${escapeHtml(n.name)}<span class="rel">${escapeHtml(n.relationship||'-')}</span></button><div class="npc-detail"><div class="kv2"><b>Role</b><span>${escapeHtml(n.role||'-')}</span></div><div class="kv2"><b>Notes</b><span>${escapeHtml(n.notes||'-')}</span></div>${del}</div></div>`;
+      const mr=relOf(n.name);
+      body+=`<div class="npc"><button class="npc-head" onclick="tick();this.parentElement.classList.toggle('open')">${escapeHtml(n.name)}${relBadge(mr)}<span class="rel">${escapeHtml(n.relationship||'-')}</span></button><div class="npc-detail">${relDetail(mr)}<div class="kv2"><b>Role</b><span>${escapeHtml(n.role||'-')}</span></div><div class="kv2"><b>Notes</b><span>${escapeHtml(n.notes||'-')}</span></div>${del}</div></div>`;
     });
     const acc=document.createElement('div'); acc.className='acc'+(idx===0?' open':'');
     acc.innerHTML=`<button class="acc-head" onclick="tick();this.parentElement.classList.toggle('open')">${escapeHtml(city)}<span class="cnt">${list.length}</span></button><div class="acc-body">${body}</div>`;
