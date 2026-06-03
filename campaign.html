@@ -315,6 +315,7 @@ a.link:hover{background:var(--white);color:var(--black);}
 @media (min-width:1500px){
   .panel{max-width:1500px;}
 }
+@media (max-width:1023px){ .panel{ padding-bottom:120px; } }  /* มือถือ/แท็บเล็ต: เผื่อที่ล่างให้เลื่อนถึง roundbar/ปุ่มเสมอ */
 /* Desktop: เนื้อเรื่องเลื่อนเองฝั่งซ้าย (scrollbar ติดเนื้อเรื่อง) · กล่องตอบโต้ฝั่งขวาไม่เลื่อน · เต็มจอ */
 @media (min-width:1024px){
   .panel[data-tab="story"].active{
@@ -334,7 +335,7 @@ a.link:hover{background:var(--white);color:var(--black);}
     grid-column:2;grid-row:2;align-self:stretch;
     overflow-y:auto;max-height:100%;                       /* ปกติไม่เลื่อน เผื่อยาวมากค่อยเลื่อนเฉพาะกล่องนี้ */
     border-top:none;border-left:var(--px) solid var(--white);
-    padding:2px 0 12px 18px;margin:0;max-width:none;width:100%;
+    padding:2px 0 80px 18px;margin:0;max-width:none;width:100%;
   }
 }
 /* ≥1300: World HUD ลอยซ้าย (ตำแหน่งเดิม) → เว้นที่ให้เนื้อเรื่องไม่ทับ */
@@ -604,10 +605,11 @@ body.role-player .dm-only{display:none!important;}
     <div id="joinBrief" class="hidden" style="text-align:left;border:var(--px) solid var(--white);border-radius:8px;padding:12px 14px;margin:4px 0 12px;background:rgba(255,255,255,.04);max-height:220px;overflow:auto"></div>
     <label class="fld">Name<input type="text" id="cName" placeholder="e.g. Kael"/></label>
     <div class="srow3">
-      <label class="fld">Race<input type="text" id="cRace" list="raceList" placeholder="เลือก/พิมพ์เอง"/></label>
+      <label class="fld">Race<select id="cRace" onchange="onRaceChange()"><option value="">— เลือกเผ่า —</option><option>Human</option><option>Elf</option><option>Dwarf</option><option>Halfling</option><option>Half-Elf</option><option>Half-Orc</option><option>Tiefling</option><option>Dragonborn</option><option>Gnome</option><option>Aasimar</option><option>Goliath</option><option>Orc</option><option value="__custom">อื่นๆ (พิมพ์เอง)</option></select></label>
       <label class="fld">Sex<select id="cSex"><option value="">— เลือก —</option><option value="ชาย">ชาย (M)</option><option value="หญิง">หญิง (F)</option><option value="อื่นๆ">อื่นๆ/ไม่ระบุ</option></select></label>
       <label class="fld">Age<input type="text" id="cAge" placeholder="e.g. 24"/></label>
     </div>
+    <input type="text" id="cRaceCustom" class="hidden" placeholder="ชื่อเผ่านอกกฎ เช่น Aarakocra" style="margin:6px 0"/>
     <datalist id="raceList">
       <option value="Human"></option><option value="Elf"></option><option value="Dwarf"></option>
       <option value="Halfling"></option><option value="Half-Elf"></option><option value="Half-Orc"></option>
@@ -639,8 +641,9 @@ body.role-player .dm-only{display:none!important;}
     <div id="finalScores" class="note" style="text-align:center;font-family:'VT323',monospace;font-size:18px;margin:4px 0"></div>
     <div class="srow2">
       <label class="fld">Max HP (auto ตามกฎ)<input type="number" id="cHp" readonly style="color:#9a9a9a"/></label>
-      <label class="fld">Starting weapon<input type="text" id="cWeapon" list="basicWeapons" placeholder="เลือกหรือพิมพ์เอง"/></label>
+      <label class="fld">Starting weapon<select id="cWeapon" onchange="onWeaponChange()"><option value="">— เลือกอาวุธ —</option><option>Dagger (1d4 piercing)</option><option>Club (1d4 bludgeoning)</option><option>Quarterstaff (1d6 bludgeoning)</option><option>Spear (1d6 piercing)</option><option>Handaxe (1d6 slashing)</option><option>Mace (1d6 bludgeoning)</option><option>Shortsword (1d6 piercing)</option><option>Rapier (1d8 piercing)</option><option>Longsword (1d8 slashing)</option><option>Warhammer (1d8 bludgeoning)</option><option>Battleaxe (1d8 slashing)</option><option>Shortbow (1d6 piercing)</option><option>Longbow (1d8 piercing)</option><option>Light Crossbow (1d8 piercing)</option><option>Greatsword (2d6 slashing)</option><option>Greataxe (1d12 slashing)</option><option value="__custom">อื่นๆ (พิมพ์เอง)</option></select></label>
     </div>
+    <input type="text" id="cWeaponCustom" class="hidden" placeholder="อาวุธนอกกฎ เช่น Whip (1d4)" style="margin:6px 0"/>
     <div class="note">HP เลเวล 1 = Hit Die สูงสุดของคลาส + CON modifier (custom class = d8) — เปลี่ยนคลาส/CON แล้วคำนวณให้อัตโนมัติ</div>
     <datalist id="basicWeapons">
       <option value="Dagger (1d4 piercing)"></option><option value="Club (1d4 bludgeoning)"></option>
@@ -1155,6 +1158,10 @@ function onClassChange(){
   else { cu.classList.add('hidden'); cu.value=''; }
   suggestHP(); renderSkillPick();
 }
+function raceValue(){ const sel=$('cRace'); if(!sel) return ''; return sel.value==='__custom' ? (($('cRaceCustom')||{}).value||'').trim() : (sel.value||'').trim(); }
+function onRaceChange(){ const sel=$('cRace'),cu=$('cRaceCustom'); if(!sel||!cu) return; if(sel.value==='__custom'){ cu.classList.remove('hidden'); cu.focus(); } else { cu.classList.add('hidden'); cu.value=''; } }
+function weaponValue(){ const sel=$('cWeapon'); if(!sel) return ''; return sel.value==='__custom' ? (($('cWeaponCustom')||{}).value||'').trim() : (sel.value||'').trim(); }
+function onWeaponChange(){ const sel=$('cWeapon'),cu=$('cWeaponCustom'); if(!sel||!cu) return; if(sel.value==='__custom'){ cu.classList.remove('hidden'); cu.focus(); } else { cu.classList.add('hidden'); cu.value=''; } }
 function suggestHP(){
   const hpEl=$('cHp'); if(!hpEl) return;
   const cls=(classValue()||'').toLowerCase().trim();
@@ -1236,11 +1243,11 @@ async function createCharacter(){
     }).select().single();
     if(error) throw error;
     const sheet={
-      race:$('cRace').value.trim(), sex:$('cSex').value.trim(), age:$('cAge').value.trim(),
+      race:raceValue(), sex:$('cSex').value.trim(), age:$('cAge').value.trim(),
       abilities:{ str:finalAb('str'), dex:finalAb('dex'), con:finalAb('con'), int:finalAb('int'), wis:finalAb('wis'), cha:finalAb('cha') },
       skill_proficiencies: chosenSkills.slice(),
       combat:{ hp:maxhp, maxhp:maxhp, hitdice:'' },
-      equipment:{ weapon:$('cWeapon').value.trim(), offhand:'', armor:'', shield:'', accessory:'' },
+      equipment:{ weapon:weaponValue(), offhand:'', armor:'', shield:'', accessory:'' },
       inventory:[], wallet:{gp:0,sp:0,cp:0}, exp:{current:0,next:300},
       conditions:[], resistances:{resist:[],immune:[],vulnerable:[]}, effects:[],
       notes:$('cNotes').value.trim()
