@@ -1469,7 +1469,7 @@ function tick(){ try{ _actx=_actx||new (window.AudioContext||window.webkitAudioC
 // ───────── v2: combat turn state (ถึงตาใคร) + แจ้งเตือนรายคน ─────────
 async function refreshCombatTurn(){
   try{
-    const er=await supa.from('combat_encounters').select('id,active_entry_id,status').eq('campaign_id',campaign.id).neq('status','ended').maybeSingle();
+    const er=await supa.from('combat_encounters').select('id,active_entry_id,status').eq('campaign_id',campaign.id).eq('active',true).maybeSingle();
     if(!er.data){ gCombat={active:false,activeCharId:null,activeName:null}; return; }
     let charId=null,name=null;
     if(er.data.active_entry_id){ const e2=await supa.from('initiative_entries').select('character_id,display_name').eq('id',er.data.active_entry_id).maybeSingle(); if(e2.data){ charId=e2.data.character_id; name=e2.data.display_name; } }
@@ -1488,25 +1488,32 @@ function notifyMyTurn(){
 // ───────── render: story ─────────
 async function renderStory(){
   renderClock();
-  // แสดง placeholder 'เฉพาะที่มีข้อความสตรีมจริง' (ไม่ใช่ marker "_DM…_") — streaming narration
   const isStreaming = n => n.status==='placeholder' && n.content && !/^_/.test(String(n.content).trim());
   const shown = narrative.filter(n => n.status !== 'placeholder' || isStreaming(n));
-  const sig = shown.map(n=>`${n.id}:${n.status}:${(n.content||'').length}`).join('|');
-  if(sig!==_lastFeedSig){
-    _lastFeedSig=sig;
-    const feed=$('narrFeed'); feed.innerHTML='';
-    if(narrMore){ const lb=document.createElement('button'); lb.className='btn ghost sm'; lb.style.cssText='align-self:center;margin:2px 0 8px'; lb.textContent='▲ โหลดบทก่อนหน้า'; lb.title='บทเก่ากว่านี้ดูสรุปได้ในแท็บ Chronicle'; lb.onclick=loadOlderNarrative; feed.appendChild(lb); }
-    if(!shown.length){ feed.innerHTML='<div class="muted">No story yet '+(campaign.host_id===me.id?'— press "Begin Adventure" below':'— waiting for the host to begin')+'</div>'; }
-    shown.forEach(n=>{
-      const d=document.createElement('div'); d.className='narr';
-      d.innerHTML='<div class="meta">🎲 DM</div>';
-      const c=document.createElement('div');
-      c.innerHTML = isStreaming(n) ? (colorizeNarr(n.content)+'<span class="dots">▌</span>') : colorizeNarr(n.content);
-      d.appendChild(c); feed.appendChild(d);
-    });
-    if(_skipAutoScroll){ _skipAutoScroll=false; } else { const sp=$('panel-story'); if(sp) sp.scrollTop=sp.scrollHeight; if(feed) feed.scrollTop=feed.scrollHeight; }
+  const feed=$('narrFeed');
+  const isig = n => (n.status||'')+':'+((n.content||'').length);
+  const cdraw = n => isStreaming(n) ? (colorizeNarr(n.content)+'<span class="dots">▌</span>') : colorizeNarr(n.content);
+  const existing=[...feed.querySelectorAll('.narr')];
+  const sameStruct = shown.length>0 && existing.length===shown.length && shown.every((n,i)=> existing[i] && existing[i].dataset.nid===String(n.id));
+  if(sameStruct){
+    // อัปเดตเฉพาะกล่องที่เนื้อหาเปลี่ยน (เช่นสตรีม) → ไม่ rebuild ทั้ง feed = ไม่กระพริบ ไม่เด้ง scroll
+    let changed=false;
+    shown.forEach((n,i)=>{ if(existing[i].dataset.sig!==isig(n)){ const cd=existing[i].querySelector('.narrc'); if(cd){ cd.innerHTML=cdraw(n); existing[i].dataset.sig=isig(n); changed=true; } } });
+    if(changed && !_skipAutoScroll){ const sp=$('panel-story'); if(sp && (sp.scrollHeight-sp.scrollTop-sp.clientHeight)<160) sp.scrollTop=sp.scrollHeight; }
+    _skipAutoScroll=false; renderRoundbar(); return;
   }
-  // roundbar มี guard ของตัวเอง (ไม่ rebuild ตอนพิมพ์)
+  // โครงสร้างเปลี่ยน (entry ใหม่/ลบ/โหลดเก่า) → rebuild ทั้งก้อน
+  _lastFeedSig=shown.map(n=>`${n.id}:${isig(n)}`).join('|');
+  feed.innerHTML='';
+  if(narrMore){ const lb=document.createElement('button'); lb.className='btn ghost sm'; lb.style.cssText='align-self:center;margin:2px 0 8px'; lb.textContent='▲ โหลดบทก่อนหน้า'; lb.title='บทเก่ากว่านี้ดูสรุปได้ในแท็บ Chronicle'; lb.onclick=loadOlderNarrative; feed.appendChild(lb); }
+  if(!shown.length){ feed.innerHTML='<div class="muted">No story yet '+(campaign.host_id===me.id?'— press "Begin Adventure" below':'— waiting for the host to begin')+'</div>'; }
+  shown.forEach(n=>{
+    const d=document.createElement('div'); d.className='narr'; d.dataset.nid=String(n.id); d.dataset.sig=isig(n);
+    d.innerHTML='<div class="meta">🎲 DM</div>';
+    const c=document.createElement('div'); c.className='narrc'; c.innerHTML=cdraw(n);
+    d.appendChild(c); feed.appendChild(d);
+  });
+  if(_skipAutoScroll){ _skipAutoScroll=false; } else { const sp=$('panel-story'); if(sp) sp.scrollTop=sp.scrollHeight; if(feed) feed.scrollTop=feed.scrollHeight; }
   renderRoundbar();
 }
 
