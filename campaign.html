@@ -267,6 +267,13 @@ a.link:hover{background:var(--white);color:var(--black);}
 ::-webkit-scrollbar-thumb{background:var(--white);border:2px solid var(--black);}
 ::-webkit-scrollbar-thumb:hover{background:var(--gray);}
 
+/* ---------- ปุ่มย่อ/ขยาย แท็บ+สถานะ (ลอยมุมขวาบน เหนือ story) ---------- */
+#uiToggle{position:fixed;top:8px;right:8px;z-index:60;width:30px;height:30px;border-radius:8px;background:rgba(0,0,0,.7);border:2px solid #fff;color:#fff;font:700 17px/1 'VT323',monospace;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;box-shadow:0 0 0 2px #000;}
+#uiToggle:hover{background:#fff;color:#000;}
+body.ui-min .hd{display:none!important;}
+body.ui-min #tabs{display:none!important;}
+body.ui-min #worldClock{display:none!important;}
+
 /* ---------- responsive (มือถือ ~380px) ---------- */
 .hd .logo svg{width:18px;height:18px;display:block;}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 18px;}
@@ -544,6 +551,7 @@ body.role-player .dm-only{display:none!important;}
 </style>
 </head>
 <body>
+<button id="uiToggle" onclick="toggleUI()" title="ย่อ/ขยายเมนู" aria-label="ย่อ/ขยายเมนู">‹</button>
 
 <div class="hd">
   <div class="logo"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="7" y="5" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/><rect x="2" y="7" width="1" height="1"/><rect x="5" y="7" width="1" height="1"/></svg></div>
@@ -729,6 +737,10 @@ let gCombat={active:false,activeCharId:null,activeName:null};  // v2: สถา�
 
 function $(id){return document.getElementById(id);}
 function toast(msg,isErr){const t=$('toast');t.textContent=msg;t.className='toast show'+(isErr?' err':'');setTimeout(()=>t.className='toast',2600);}
+function toggleUI(){
+  const min=document.body.classList.toggle('ui-min');
+  const t=document.getElementById('uiToggle'); if(t) t.textContent = min ? '›' : '‹';
+}
 function show(id){['authScreen','lobbyScreen','charScreen'].forEach(s=>$(s).classList.add('hidden'));
   $('tabs').classList.add('hidden');document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   if(id==='campaign'){$('tabs').classList.remove('hidden');switchTab('story');}
