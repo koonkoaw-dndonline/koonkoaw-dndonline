@@ -1906,7 +1906,7 @@ async function renderParty(){
     const conds=Array.isArray(ps.conditions)?ps.conditions:[];
     const chips=conds.length?'<div class="chips" style="margin-top:5px">'+conds.map(x=>`<span class="chip cond">${escapeHtml(String(x))}</span>`).join('')+'</div>':'';
     const info=document.createElement('div'); info.style.flex='1';
-    info.innerHTML=`<div class="nm">${escapeHtml(c.name)}${mine?' <span class="muted" style="font-size:13px">(คุณ)</span>':''}</div><div class="sub">${escapeHtml(c.class||'-')} · Lv.${c.level}${hp}</div>`+chips;
+    info.innerHTML=`<div class="nm">${escapeHtml(c.name)}${mine?' <span class="muted" style="font-size:13px">(คุณ)</span>':''}${c.is_companion?' <span class="chip" style="background:#1d3a5f;color:#9ad;border-color:#9ad">⚔ เพื่อนร่วมทาง</span>':''}</div><div class="sub">${escapeHtml(c.class||'-')} · Lv.${c.level}${hp}</div>`+chips;
     row.appendChild(face); row.appendChild(info); it.appendChild(row); left.appendChild(it);
   });
   const noChar=members.filter(m=>!characters.find(c=>c.user_id===m.user_id));
