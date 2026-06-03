@@ -587,7 +587,7 @@ body.role-player .dm-only{display:none!important;}
 
 <!-- LOBBY -->
 <div class="center hidden" id="lobbyScreen">
-  <div class="card">
+  <div class="card" id="createCard">
     <h2>New Campaign</h2>
     <p class="sub">You'll be the host (DM) of this world — up to 4 players.</p>
     <label class="fld">Campaign name<input type="text" id="newName" placeholder="e.g. Legend of Eldraria"/></label>
@@ -732,6 +732,7 @@ const INGEST_PUZZLE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-puzz
 const DUNGEON_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-dungeon';
 const DYNAMIC_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/dynamic-task';
 let supa=null, session=null, me=null;            // me = auth user
+const OWNER_EMAIL='koonkoaw@hotmail.com';   // ช่วงทดสอบ: เฉพาะอีเมลนี้สร้างโลกได้ (กัน API token หมด)
 let campaign=null, members=[], myChar=null, characters=[], curRound=null, narrative=[], mySheet={}, worldState=null, chatMsgs=[];
 let econUsed={}, econUsedRound=null;   // action economy: มาร์ก local ว่าผู้เล่นใช้อะไรไปแล้วในเทิร์น
 let rtChannel=null, resolving=false;
@@ -774,6 +775,7 @@ async function afterAuthChange(){
   session = s;
   if(!session){ $('hdDot').className='dot'; $('hdLogout').classList.add('hidden'); show('authScreen'); return; }
   me = session.user;
+  try{ const _own=(me.email||'').toLowerCase()===OWNER_EMAIL; const _cc=$('createCard'); if(_cc) _cc.style.display=_own?'':'none'; }catch(e){}
   $('hdDot').className='dot ok'; $('hdLogout').classList.remove('hidden');
   $('hdWho').textContent = me.email || '';
   await ensureProfile();
@@ -855,6 +857,7 @@ function onMusicFiles(files){
   info.textContent = (files&&files.length)? `เลือก ${files.length} เพลง (mood: ${mood}) — จะอัปตอนสร้างโลก` : 'อารมณ์ของเพลงชุดนี้ (เปลี่ยน/เพิ่มทีหลังได้)';
 }
 async function createCampaign(){
+  if((me.email||'').toLowerCase()!==OWNER_EMAIL){ toast('ช่วงทดสอบ: เฉพาะเจ้าของระบบเท่านั้นที่สร้างโลกได้',true); return; }
   const name=$('newName').value.trim(); if(!name){toast('Name your campaign first',true);return;}
   $('createBtn').disabled=true;
   try{
@@ -1918,6 +1921,7 @@ async function renderItems(){
     const row=document.createElement('div'); row.className='kv'; row.style.alignItems='center';
     row.innerHTML=`<span class="k">▸ ${escapeHtml(disp)}</span>`;
     if(equipSlotFor(nm)){ const eb=document.createElement('button'); eb.className='btn ghost sm'; eb.textContent='🛡 สวมใส่'; eb.onclick=()=>equipItem(nm); row.appendChild(eb); }
+    else { const ci=itemByName(nm); if(ci&&(ci.category==='consumable'||ci.category==='wand')){ const ub=document.createElement('button'); ub.className='btn ghost sm'; ub.textContent='✨ ใช้'; ub.onclick=()=>useConsumable(nm, ci.effect); row.appendChild(ub); } }
     bag.appendChild(row);
   });
   p.appendChild(bag);
@@ -1942,6 +1946,11 @@ function equipSlotFor(name){
 }
 async function _saveSheet(sheet){ const u=await supa.from('character_sheets').update({sheet,updated_at:new Date().toISOString()}).eq('character_id',myChar.id); if(u.error) throw u.error; mySheet=sheet; }
 // สวมใส่: ย้ายของจากกระเป๋า → ช่อง equipment (ของเดิมในช่องเด้งกลับกระเป๋า)
+function useConsumable(name, effect){
+  const ta=$('actInput'); const txt='ใช้ '+name+(effect?(' — '+effect):'');
+  if(ta){ ta.value=(ta.value?ta.value.trim()+'\n':'')+txt; switchTab('story'); try{ta.focus();}catch(e){} toast('ใส่ "'+name+'" ในช่องสั่งการแล้ว — กดส่งให้ DM บรรยายผล'); }
+  else { switchTab('story'); toast('พิมพ์ "ใช้ '+name+'" ในช่องสั่งการ เพื่อให้ DM ประมวลผล',true); }
+}
 async function equipItem(name){
   if(!myChar||!name) return; const slot=equipSlotFor(name); if(!slot){ toast('ไอเทมนี้สวมใส่ไม่ได้',true); return; }
   try{
