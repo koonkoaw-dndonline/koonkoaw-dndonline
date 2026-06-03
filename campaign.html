@@ -2429,9 +2429,9 @@ function exportChronicle(){
 function subscribeRealtime(){
   if(rtChannel) return;
   rtChannel = supa.channel('camp-'+campaign.id)
-    .on('postgres_changes',{event:'*',schema:'public',table:'narrative',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadNarrative(); if(activeTab()==='story') renderStory(); })
-    .on('postgres_changes',{event:'*',schema:'public',table:'rounds',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadRound(); if(activeTab()==='story') renderRoundbar(); })
-    .on('postgres_changes',{event:'*',schema:'public',table:'actions',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='story') renderRoundbar(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'narrative',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); await loadNarrative(); if(activeTab()==='story') renderStory(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'rounds',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); await loadRound(); if(activeTab()==='story') renderRoundbar(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'actions',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'characters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadCharacters(); if(activeTab()==='party') renderParty(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'campaign_state',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadState(); applyMood(); if(activeTab()==='story') renderClock(); if(activeTab()==='map') renderMap(); })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_messages',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ await loadChat(); if(activeTab()==='party'){ renderChatList(); } else if(payload.new && payload.new.user_id!==me.id){ const t=document.querySelector('.tab[data-tab="party"]'); if(t) t.classList.add('blink'); } })
@@ -2441,7 +2441,47 @@ function subscribeRealtime(){
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'combat_log',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='mon'){ renderCombat(); } else { const t=document.querySelector('.tab[data-tab="mon"]'); if(t) t.classList.add('blink'); } })
     .on('postgres_changes',{event:'*',schema:'public',table:'battle_grids',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='map') renderMap(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'grid_tokens',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='map') renderMap(); })
-    .subscribe();
+    .subscribe((status)=>{
+      if(status==='SUBSCRIBED'){ rtLastSyncTs=Date.now(); }
+      else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){
+        try{ supa.removeChannel(rtChannel); }catch(e){} rtChannel=null;
+        setTimeout(()=>{ if(!document.hidden && !rtChannel) subscribeRealtime(); }, 1500);
+      }
+    });
+  startRtFallback();
+}
+// ── มือถือ-resilient: re-sync สถานะหลักเมื่อ realtime ตกหล่น (Safari ตัด websocket ตอนพับแอป) ──
+let _narrSig='', _roundSig='', _rtPoll=null;
+async function resyncAll(force){
+  if(typeof campaign==='undefined' || !campaign || !campaign.id) return;
+  try{
+    await Promise.all([loadRound(), loadNarrative(), loadCharacters(), loadState()]);
+    if(typeof refreshCombatTurn==='function'){ try{ await refreshCombatTurn(); }catch(e){} }
+    rtLastSyncTs=Date.now();
+    const narrSig=narrative.length+'|'+((narrative[narrative.length-1]||{}).id||'');
+    const roundSig=((curRound&&curRound.id)||'')+'|'+((curRound&&curRound.phase)||'');
+    const changed = force || narrSig!==_narrSig || roundSig!==_roundSig;
+    _narrSig=narrSig; _roundSig=roundSig;
+    const t=activeTab();
+    if(t==='story'){ if(changed) renderStory(); renderRoundbar(); renderClock(); }
+    else if(t==='party'){ if(changed) renderParty(); }
+    else if(t==='map'){ if(changed){ try{applyMood();}catch(e){} renderMap(); } }
+    else if(t==='mon'){ renderCombat(); }
+  }catch(e){}
+}
+function ensureRtAlive(){
+  try{
+    const st = rtChannel && rtChannel.state;
+    if(!rtChannel || st!=='joined'){ try{ supa.removeChannel(rtChannel); }catch(e){} rtChannel=null; subscribeRealtime(); }
+  }catch(e){}
+}
+function startRtFallback(){
+  if(_rtPoll) return;
+  // โพลทุก 8 วิ: ถ้าไม่ได้ event จาก realtime เกิน 7 วิ ให้ดึงสถานะมาเอง (กัน socket ตายเงียบบนมือถือ)
+  _rtPoll=setInterval(()=>{ if(document.hidden) return; if(Date.now()-rtLastSyncTs>7000) resyncAll(false); }, 8000);
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ ensureRtAlive(); resyncAll(true); } });
+  window.addEventListener('online',()=>{ ensureRtAlive(); resyncAll(true); });
+  window.addEventListener('pageshow',()=>{ ensureRtAlive(); resyncAll(true); });
 }
 function activeTab(){ return document.querySelector('.tab.active')?.dataset.tab; }
 function escapeHtml(s){ return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
