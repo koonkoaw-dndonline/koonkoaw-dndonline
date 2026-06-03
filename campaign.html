@@ -1054,9 +1054,18 @@ function armMusicResume(){
   };
   ['click','keydown','touchstart','pointerdown'].forEach(ev=>document.addEventListener(ev,resume,{capture:true}));
 }
+function normalizeMood(m){
+  m=String(m||'').toLowerCase().trim();
+  const STD=['explore','town','battle','boss','tavern','victory','sad','mystery'];
+  if(STD.includes(m)) return m;
+  const map=[[/(boss|final|epic|dragon|archvillain|climax|lord)/,'boss'],[/(battle|combat|fight|tense|urgent|danger|attack|chase|ambush|war|threat)/,'battle'],[/(tavern|inn|bar|feast|celebrat|drink|party)/,'tavern'],[/(victory|win|triumph|success|reward|cheer)/,'victory'],[/(sad|sorrow|grief|mourn|loss|tragic|melanchol|despair)/,'sad'],[/(mystery|myster|eerie|creepy|spooky|suspense|dark|unknown|strange|haunt|ominous|dread)/,'mystery'],[/(town|village|market|city|safe|home|settlement|shop)/,'town'],[/(explore|travel|journey|forest|road|wilderness|calm|peace|adventure|wander|quiet)/,'explore']];
+  for(const [re,v] of map){ if(re.test(m)) return v; }
+  return 'explore';
+}
 function playMood(mood){
   if(!musicOn){ curMood=mood; return; }
   if(!mood) return;
+  mood=normalizeMood(mood);
   const el=getAudioEl();
   if(mood===curMood && !el.paused) return;
   const list=musicLib[mood]||[];
