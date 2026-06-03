@@ -740,6 +740,8 @@ function toast(msg,isErr){const t=$('toast');t.textContent=msg;t.className='toas
 function toggleUI(){
   const min=document.body.classList.toggle('ui-min');
   const t=document.getElementById('uiToggle'); if(t) t.textContent = min ? '›' : '‹';
+  // มือถือ: ตอนกดขยายกลับ เลื่อนขึ้นบนสุด เพื่อให้ header+tabs โผล่ครบ และบังคับ sticky คำนวณใหม่ (กันบั๊ก iOS Safari ที่ sticky ไม่ re-stick หลังถูกซ่อน)
+  if(!min){ try{ window.scrollTo(0,0); requestAnimationFrame(()=>window.scrollTo(0,0)); }catch(e){} }
 }
 function show(id){['authScreen','lobbyScreen','charScreen'].forEach(s=>$(s).classList.add('hidden'));
   $('tabs').classList.add('hidden');document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
@@ -1290,7 +1292,7 @@ async function createCharacter(){
 // ───────── tabs ─────────
 function switchTab(t){
   tick();
-  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));
+  document.querySelectorAll('.tab').forEach(b=>{ b.classList.toggle('active',b.dataset.tab===t); if(b.dataset.tab===t) b.classList.remove('blink'); });
   document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.dataset.tab===t));
   if(t==='story') renderStory();
   else if(t==='me') renderMe();
