@@ -1235,19 +1235,21 @@ function onRaceChange(){ const sel=$('cRace'),cu=$('cRaceCustom'); if(!sel||!cu)
 function weaponValue(){ const sel=$('cWeapon'); if(!sel) return ''; return sel.value==='__custom' ? (($('cWeaponCustom')||{}).value||'').trim() : (sel.value||'').trim(); }
 function onWeaponChange(){ const sel=$('cWeapon'),cu=$('cWeaponCustom'); if(!sel||!cu) return; if(sel.value==='__custom'){ cu.classList.remove('hidden'); cu.focus(); } else { cu.classList.add('hidden'); cu.value=''; } }
 // ── คลังไอเทม/คลาส (global catalog จาก DB) — โหลดครั้งเดียว แคชไว้ ──
-let ITEM_CAT={}, CLASS_CAT={}, ITEM_BY_NAME={}, _catLoaded=false, selectedPkg=null;
+let ITEM_CAT={}, CLASS_CAT={}, ITEM_BY_NAME={}, SPELL_CAT=[], _catLoaded=false, selectedPkg=null;
 async function loadCatalogs(){
   if(_catLoaded) return;
   try{
-    const [ic,cc]=await Promise.all([
+    const [ic,cc,sc]=await Promise.all([
       supa.from('item_catalog').select('slug,name,category,subtype,damage_dice,damage_type,properties,range_ft,armor_base,dex_cap,str_req,stealth_disadv,is_magic,rarity,requires_attunement,bonuses,effect,cost_gp'),
-      supa.from('class_catalog').select('slug,name,hit_die,armor_prof,weapon_prof,saving_throws,starting_packages')
+      supa.from('class_catalog').select('slug,name,hit_die,armor_prof,weapon_prof,saving_throws,starting_packages'),
+      supa.from('spell_catalog').select('slug,name,level,school,classes,casting_time,range_,components,duration,concentration,ritual,save,damage,effect')
     ]);
     if(!ic.error&&ic.data){ ITEM_CAT={}; ic.data.forEach(r=>ITEM_CAT[r.slug]=r); cacheSave('itemcat',ic.data); }
     if(!cc.error&&cc.data){ CLASS_CAT={}; cc.data.forEach(r=>CLASS_CAT[r.slug]=r); cacheSave('classcat',cc.data); }
+    if(!sc.error&&sc.data){ SPELL_CAT=sc.data; cacheSave('spellcat',sc.data); }
     if(!ic.error&&ic.data&&ic.data.length) _catLoaded=true;
   }catch(e){}
-  if(!_catLoaded){ const i=cacheLoad('itemcat'),c=cacheLoad('classcat'); if(i){ITEM_CAT={};i.forEach(r=>ITEM_CAT[r.slug]=r);} if(c){CLASS_CAT={};c.forEach(r=>CLASS_CAT[r.slug]=r);} }
+  if(!_catLoaded){ const i=cacheLoad('itemcat'),c=cacheLoad('classcat'); if(i){ITEM_CAT={};i.forEach(r=>ITEM_CAT[r.slug]=r);} if(c){CLASS_CAT={};c.forEach(r=>CLASS_CAT[r.slug]=r);} const sp=cacheLoad('spellcat'); if(sp) SPELL_CAT=sp; }
   buildItemIndex();
 }
 function pkgItemNames(pk){ return (pk.items||[]).map(it=>{ const ci=ITEM_CAT[it.slug]; const nm=ci?ci.name:it.slug; return nm+(it.qty>1?(' x'+it.qty):''); }).join(', '); }
@@ -1552,6 +1554,7 @@ async function renderRoundbar(){
   }
   if(curRound.phase==='resolving'){ bar.innerHTML='<div class="statusline"><span class="pill wait">DM is resolving…</span></div>'; return; }
   if(curRound.phase!=='awaiting_actions'){ bar.innerHTML=''; return; }
+  if(worldState&&worldState.level_up&&worldState.level_up.active){ const dn=(worldState.level_up.done||[]).length; const tot=characters.filter(c=>!c.is_companion).length||1; bar.innerHTML='<div class="statusline"><span class="pill wait">\u2b50 เลเวลอัพ '+dn+'/'+tot+' \u2014 เลือกสกิลในแท็บ Stat ก่อน</span></div>'; return; }
   // ดึงข้อมูลให้ครบ "ก่อน" สร้าง DOM (await อยู่ก่อน guard เท่านั้น → ไม่เกิด append ซ้อน)
   const { data:acts } = await supa.from('actions').select('user_id, action_text, character_id').eq('round_id',curRound.id).order('submitted_at',{ascending:true});
   // total = เฉพาะสมาชิกที่ 'มีตัวละครแล้ว' (คนเพิ่ง join ที่ยังไม่สร้างตัวละครไม่นับ → รอบไม่ค้าง)
@@ -1754,6 +1757,69 @@ async function resolveRound(force, mode){
 }
 
 // ───────── render: me / party / quest ─────────
+function charClassKey(klass){ const c=String(klass||'').toLowerCase(); const L=['barbarian','bard','cleric','druid','fighter','monk','paladin','ranger','rogue','sorcerer','warlock','wizard']; for(const k of L){ if(c.includes(k)) return k; } return null; }
+async function renderLevelUpPanel(p){
+  const lu=(worldState&&worldState.level_up)||{}; const done=lu.done||[];
+  const total=characters.filter(c=>!c.is_companion).length||1;
+  const card=document.createElement('div'); card.className='item'; card.style.cssText='border:2px solid #f5c542';
+  if(done.includes(myChar.id)){
+    card.innerHTML='<div class="sectitle" style="color:#f5c542">\u2b50 LEVEL UP</div><div class="note">เลือกเสร็จแล้ว \u2014 รอเพื่อน '+done.length+'/'+total+' คน</div>';
+    p.appendChild(card); return;
+  }
+  await loadCatalogs();
+  const lvl=lu.level||(myChar.level||1);
+  card.innerHTML='<div class="sectitle" style="color:#f5c542">\u2b50 LEVEL UP \u2192 Lv '+lvl+'</div><div class="note" style="text-align:left">HP เพิ่มเต็มหลอดให้แล้ว \u00b7 เลือกสกิล/เวทใหม่ของเลเวลนี้ แล้วกดยืนยัน \u2014 รอครบทุกคน DM ถึงเล่าต่อ ('+done.length+'/'+total+' พร้อม)</div>';
+  const asiState={};
+  if([4,8,12,16,19].includes(lvl)){
+    const box=document.createElement('div'); box.innerHTML='<div class="sectitle" style="margin-top:8px">ABILITY \u2014 เลือก +1 ได้ 2 ค่า</div>';
+    const g=document.createElement('div'); g.style.cssText='display:flex;flex-wrap:wrap;gap:6px';
+    ['str','dex','con','int','wis','cha'].forEach(k=>{ const b=document.createElement('button'); b.type='button'; b.className='btn ghost sm'; b.textContent=k.toUpperCase()+' +1';
+      b.onclick=()=>{ if(asiState[k]){ delete asiState[k]; b.style.background=''; b.style.color=''; } else { if(Object.keys(asiState).length>=2){ toast('เลือกได้สูงสุด 2 ค่า',true); return; } asiState[k]=1; b.style.background='#f5c542'; b.style.color='#000'; } };
+      g.appendChild(b); });
+    box.appendChild(g); card.appendChild(box);
+  }
+  const picks=new Set();
+  const ck=charClassKey(myChar.class);
+  if(['bard','cleric','druid','paladin','ranger','sorcerer','warlock','wizard'].includes(ck) && SPELL_CAT.length){
+    const maxLv=Math.min(3, Math.max(1, Math.ceil(lvl/2)));
+    let known=new Set(); try{ const r=await supa.from('skills').select('name').eq('character_id',myChar.id); (r.data||[]).forEach(x=>known.add(String(x.name).toLowerCase())); }catch(e){}
+    const avail=SPELL_CAT.filter(sp=>(sp.classes||[]).includes(ck) && sp.level<=maxLv && !known.has(String(sp.name).toLowerCase()));
+    const box=document.createElement('div'); box.innerHTML='<div class="sectitle" style="margin-top:8px">เวท / CANTRIP ใหม่ (เลือกตามกฎคลาส)</div>';
+    [0,1,2,3].forEach(L=>{ const grp=avail.filter(sp=>sp.level===L); if(!grp.length) return;
+      const h=document.createElement('div'); h.className='note'; h.style.cssText='text-align:left;margin-top:5px;color:#9ad'; h.textContent=(L===0?'Cantrip':'เลเวล '+L); box.appendChild(h);
+      grp.forEach(sp=>{ const row=document.createElement('label'); row.className='fld'; row.style.cssText='flex-direction:row;align-items:flex-start;gap:8px;cursor:pointer;margin:1px 0';
+        row.innerHTML='<input type="checkbox" style="margin-top:3px"><span><b>'+escapeHtml(sp.name)+'</b>'+(sp.damage?' <span class="muted">('+escapeHtml(sp.damage)+(sp.save?(' '+escapeHtml(sp.save)):'')+')</span>':'')+'<div class="muted" style="font-size:11px;line-height:1.4">'+escapeHtml(sp.effect||'')+'</div></span>';
+        row.querySelector('input').onchange=(e)=>{ if(e.target.checked) picks.add(sp.slug); else picks.delete(sp.slug); };
+        box.appendChild(row); }); });
+    if(!avail.length){ const m=document.createElement('div'); m.className='muted'; m.textContent='ไม่มีเวทใหม่ให้เลือกในเลเวลนี้'; box.appendChild(m); }
+    card.appendChild(box);
+  }
+  const btn=document.createElement('button'); btn.className='btn'; btn.style.marginTop='10px'; btn.textContent='\u2713 ยืนยันเลเวลอัพ';
+  btn.onclick=()=>submitLevelUp(asiState, [...picks].map(sl=>SPELL_CAT.find(x=>x.slug===sl)).filter(Boolean), btn);
+  card.appendChild(btn); p.appendChild(card);
+}
+async function submitLevelUp(asiState, spells, btn){
+  if(btn){ btn.disabled=true; btn.textContent='กำลังบันทึก…'; }
+  try{
+    if(asiState && Object.keys(asiState).length){
+      const r=await supa.from('character_sheets').select('sheet').eq('character_id',myChar.id).maybeSingle();
+      const sheet=(r.data&&r.data.sheet)||{}; sheet.abilities=sheet.abilities||{};
+      for(const k in asiState){ sheet.abilities[k]=(+sheet.abilities[k]||10)+1; }
+      try{ persistCombatStats(sheet, myChar.class); }catch(e){}
+      await supa.from('character_sheets').update({sheet,updated_at:new Date().toISOString()}).eq('character_id',myChar.id); mySheet=sheet;
+    }
+    if(spells && spells.length){
+      const rows=spells.map(sp=>({campaign_id:campaign.id,character_id:myChar.id,name:sp.name,
+        description:(sp.effect||'')+(sp.damage?(' \u00b7 '+sp.damage+(sp.save?(' ('+sp.save+' save)'):'')):'')+' \u00b7 '+(sp.level===0?'cantrip':'เลเวล '+sp.level),
+        max_uses:(sp.level===0?0:2), used:0, recharge:(sp.level===0?'atwill':'long')}));
+      try{ await supa.from('skills').upsert(rows,{onConflict:'character_id,name',ignoreDuplicates:true}); }catch(e){}
+    }
+    const { data:lu, error }=await supa.rpc('levelup_submit',{p_campaign:campaign.id,p_char:myChar.id});
+    if(error) throw error;
+    if(lu){ worldState=worldState||{}; worldState.level_up=lu; }
+    toast('เลเวลอัพเสร็จ \u2713 รอเพื่อนให้ครบ'); renderMe();
+  }catch(e){ toast(e.message||'ยืนยันไม่สำเร็จ',true); if(btn){ btn.disabled=false; btn.textContent='\u2713 ยืนยันเลเวลอัพ'; } }
+}
 async function renderMe(){
   const p=$('panel-me'); p.innerHTML='';
   if(!myChar){ p.innerHTML='<div class="muted">No character yet</div>'; return; }
@@ -1761,6 +1827,7 @@ async function renderMe(){
   try{ const r=await supa.from('character_sheets').select('sheet').eq('character_id',myChar.id).maybeSingle(); if(!r.error&&r.data&&r.data.sheet) mySheet=r.data.sheet; }catch(e){}
   const sheet=mySheet||{};
   const ab=sheet.abilities||{}, cb=sheet.combat||{}, w=sheet.wallet||{}, ex=sheet.exp||{};
+  if(worldState&&worldState.level_up&&worldState.level_up.active){ try{ await renderLevelUpPanel(p); }catch(e){} }
   const esc=v=>escapeHtml(String(v)); const dash='—';
   const mod=s=>{ if(s==null||isNaN(s)) return null; return Math.floor((s-10)/2); };
   const sign=m=>(m==null?null:(m>=0?'+':'−')+Math.abs(m));
@@ -2630,7 +2697,7 @@ function subscribeRealtime(){
     .on('postgres_changes',{event:'*',schema:'public',table:'rounds',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); await loadRound(); if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'actions',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'characters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadCharacters(); if(activeTab()==='party') renderParty(); })
-    .on('postgres_changes',{event:'*',schema:'public',table:'campaign_state',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadState(); applyMood(); if(activeTab()==='story') renderClock(); if(activeTab()==='map') renderMap(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'campaign_state',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadState(); applyMood(); if(activeTab()==='story'){ renderClock(); renderRoundbar(); } if(activeTab()==='map') renderMap(); const _lu=worldState&&worldState.level_up; if(activeTab()==='me'){ const md=_lu&&_lu.active&&(_lu.done||[]).includes(myChar&&myChar.id); if(!_lu||!_lu.active||md) renderMe(); } })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_messages',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ await loadChat(); if(activeTab()==='party'){ renderChatList(); } else if(payload.new && payload.new.user_id!==me.id){ const t=document.querySelector('.tab[data-tab="party"]'); if(t) t.classList.add('blink'); } })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'chronicles',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='chron'){ renderChronicle(); } else { const t=document.querySelector('.tab[data-tab="chron"]'); if(t) t.classList.add('blink'); } })
     .on('postgres_changes',{event:'*',schema:'public',table:'combat_encounters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await refreshCombatTurn(); if(activeTab()==='mon') renderCombat(); if(activeTab()==='story') renderRoundbar(); })
