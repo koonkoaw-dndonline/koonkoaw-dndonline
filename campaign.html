@@ -1564,7 +1564,9 @@ async function renderRoundbar(){
   try{ const { data:prog } = await supa.rpc('round_progress',{p_round:curRound.id}); const row=Array.isArray(prog)?prog[0]:prog; if(row){ submitted=row.submitted; total=row.total; } }catch(e){}
   if(myseq!==roundbarSeq) return;       // มี render ใหม่กว่าเริ่มแล้ว ยกเลิกอันนี้
   const list=acts||[];
-  const mine=list.find(a=>a.user_id===me.id);
+  const _activeCid = gCombat.active ? gCombat.activeCharId : null;
+  const mine = _activeCid ? list.find(a=>a.character_id===_activeCid) : list.find(a=>a.user_id===me.id);
+  const myPet = (gCombat.active && gCombat.activeCharId) ? characters.find(c=>c.id===gCombat.activeCharId && c.is_companion && c.controller===me.id) : null;
   // ถ้าผู้เล่นกำลังพิมพ์ในช่อง action อยู่ และรอบ/สถานะไม่เปลี่ยน → อย่า rebuild ทั้งกล่อง (กันข้อความหาย+หลุดโฟกัส)
   // อัปเดตแค่ตัวนับ Submitted ในที่เดิม แล้วจบ
   const rbKey=`${curRound.id}|${curRound.phase}|${mine?1:0}`;
@@ -1580,6 +1582,18 @@ async function renderRoundbar(){
   list.forEach(a=>{ html+=`<div class="actionlog"><b>${escapeHtml(nameFor(a))}</b> ${escapeHtml(a.action_text)}</div>`; });
   bar.innerHTML=html;   // สร้างทีเดียว (synchronous ต่อจากนี้ ไม่มี await)
   // v2: ล็อกตาเดี่ยว — ถ้าอยู่ในคอมแบตและยังไม่ถึงตาเรา → รอ (ไม่ให้ส่ง)
+  if(myPet){
+    const ph=document.createElement('div'); ph.className='note'; ph.style.cssText='text-align:left;padding:6px 2px;color:#9ad;font-weight:600';
+    ph.innerHTML='⚔️ ถึงตา <b>'+escapeHtml(myPet.name)+'</b> (สัตว์เลี้ยงของคุณ) — สั่งการได้เลย'; bar.appendChild(ph);
+    const done=list.find(a=>a.character_id===myPet.id);
+    if(done){ const w=document.createElement('div'); w.className='note'; w.style.cssText='text-align:left;padding:6px 2px'; w.innerHTML='✓ สั่ง '+escapeHtml(myPet.name)+' แล้ว — รอ DM ดำเนินเรื่อง'; bar.appendChild(w); }
+    else {
+      const pta=document.createElement('textarea'); pta.id='petActInput'; pta.placeholder='จะให้ '+myPet.name+' ทำอะไร?'; bar.appendChild(pta);
+      const pb=document.createElement('button'); pb.className='btn'; pb.textContent='Submit ('+myPet.name+')'; pb.onclick=()=>submitAction(myPet.id); bar.appendChild(pb);
+    }
+    if(isHost){ const f=document.createElement('button'); f.className='btn warn sm'; f.textContent=resolving?'Resolving…':'⚡ Force Resolve'; f.disabled=resolving; f.onclick=()=>resolveRound(true); bar.appendChild(f); }
+    return;
+  }
   if(gCombat.active && gCombat.activeCharId && myChar && gCombat.activeCharId!==myChar.id){
     const w=document.createElement('div'); w.className='note'; w.style.cssText='text-align:left;padding:8px 2px;line-height:1.6';
     w.innerHTML='⏳ ถึงตา <b>'+escapeHtml(gCombat.activeName||'...')+'</b> — รอเทิร์นของคุณ (ระบบจะแจ้งเตือนเมื่อถึงตา)';
@@ -1719,11 +1733,13 @@ function insertRoll(n,who){
   ta.value=(ta.value?ta.value.trim()+'\n':'')+`[ทอย d20 = ${n} (${who}) · mods ${mods}]`;
   toast(`🎲 d20 = ${n}`);
 }
-async function submitAction(){
-  const txt=$('actInput')?.value.trim(); if(!txt){toast('Type your action first',true);return;}
+async function submitAction(charIdOverride){
+  const isPet=(typeof charIdOverride==='string');
+  const cid=isPet?charIdOverride:(myChar?.id||null);
+  const txt=$(isPet?'petActInput':'actInput')?.value.trim(); if(!txt){toast('Type your action first',true);return;}
   try{
     const { error } = await supa.from('actions').insert({
-      campaign_id:campaign.id, round_id:curRound.id, user_id:me.id, character_id:myChar?.id||null, action_text:txt
+      campaign_id:campaign.id, round_id:curRound.id, user_id:me.id, character_id:cid, action_text:txt
     });
     if(error) throw error;
     toast('Action submitted ✓');
@@ -1765,6 +1781,47 @@ function maxSpellLevelFor(ck, lvl){
   if(ck==='warlock') return lvl>=17?9:lvl>=15?8:lvl>=13?7:lvl>=11?6:Math.min(5,Math.ceil(lvl/2));   // pact + arcanum
   return Math.min(9, Math.ceil(lvl/2));                                                              // full caster
 }
+function renderWildShapeCard(p, ws){
+  const c=document.createElement('div'); c.className='item'; c.style.cssText='border:2px solid #6fbf73';
+  const num=(k,v)=>'<div class="kv"><span class="k">'+k+'</span><span class="dots"></span><span class="num">'+(v==null||v===''?'\u2014':escapeHtml(String(v)))+'</span></div>';
+  c.innerHTML='<div class="sectitle" style="color:#9fe0a0"><span style="display:inline-block;width:18px;height:18px;vertical-align:-3px;margin-right:5px">'+beastIconSvg(ws.beast)+'</span>WILD SHAPE: '+escapeHtml(ws.beast||'สัตว์')+'</div>'+
+    '<div class="note" style="text-align:left;margin-bottom:4px">ขณะแปลงร่างใช้ stat สัตว์ (STR/DEX/CON + AC + HP สัตว์) \u00b7 INT/WIS/CHA และความสามารถจิตคงเดิม</div>'+
+    num('Armor Class', ws.ac)+num('HP (สัตว์)', (ws.hp!=null?(ws.hp+'/'+(ws.max_hp!=null?ws.max_hp:ws.hp)):null))+num('STR / DEX / CON', (ws.str!=null?ws.str:'?')+' / '+(ws.dex!=null?ws.dex:'?')+' / '+(ws.con!=null?ws.con:'?'))+num('Speed', ws.speed)+
+    (ws.attacks?'<div class="kv"><span class="k">Attacks</span><span class="dots"></span><span class="num" style="font-size:12px;font-family:inherit">'+escapeHtml(ws.attacks)+'</span></div>':'')+
+    (ws.note?'<div class="note" style="text-align:left">'+escapeHtml(ws.note)+'</div>':'')+
+    '<div class="note" style="text-align:left;color:#f5c542;margin-top:4px">เลิกแปลง: สั่ง "เลิก Wild Shape" ในช่องสั่งการ \u2192 DM คืนร่าง</div>';
+  p.appendChild(c);
+}
+function beastIconSvg(name){
+  const n=String(name||'').toLowerCase();
+  const M={
+    bear:["11    11","11    11"," 111111 ","11111111","11111111","1 1111 1"," 111111 ","  1  1  "],
+    wolf:["1      1","11    11","11111111","11111111"," 111111 "," 1 11 1 ","  1111  ","   11   "],
+    bird:["   11   ","  1111  "," 111111 ","11111111","1111111 "," 11111  ","  1 1   ","  1 1   "],
+    snake:["  1111  "," 11  11 "," 1    1 ","      1 ","    111 ","   11   ","  11    ","1111    "],
+    spider:["1  11  1"," 1 11 1 ","  1111  ","11111111","  1111  "," 1 11 1 ","1  11  1","        "],
+    boar:["1      1"," 1    1 "," 111111 ","11111111","1 1111 1","11111111"," 1    1 "," 1    1 "],
+    horse:["  11    ","  111   ","  1111  ","11 111  ","111111  "," 11111  "," 1 11   ","   1 1  "],
+    fish:["   11   "," 1111 1 ","111111 1","1111111 ","111111 1"," 1111 1 ","   11   ","        "],
+    scorpion:["1      1"," 1 11 1 ","  1111  ","1 1111 1"," 111111 ","   11   ","   11   ","  1111  "],
+    ape:["        "," 111111 ","11111111","1 1111 1","11111111"," 111111 "," 1    1 ","11    11"],
+    rat:["1      1","11    11"," 111111 "," 1 11 1 "," 111111 ","  11111 ","      11","       1"],
+    paw:["        "," 1 1 1 1"," 1 1 1 1","        ","  1111  "," 111111 "," 111111 ","  1111  "]
+  };
+  let key='paw';
+  if(/bear/.test(n)) key='bear';
+  else if(/scorpion/.test(n)) key='scorpion';
+  else if(/spider|insect|swarm|beetle|wasp|centipede/.test(n)) key='spider';
+  else if(/snake|serpent|viper|cobra|python|constrictor/.test(n)) key='snake';
+  else if(/fish|shark|eel|crab|octopus|squid|frog|toad|crocodile|aquatic|sea/.test(n)) key='fish';
+  else if(/bird|eagle|hawk|owl|raven|crow|falcon|vulture|bat/.test(n)) key='bird';
+  else if(/boar|pig|hog|warthog/.test(n)) key='boar';
+  else if(/horse|elk|deer|stag|pony|mule|moose|ram|goat|bull|ox/.test(n)) key='horse';
+  else if(/ape|gorilla|monkey|baboon/.test(n)) key='ape';
+  else if(/rat|mouse|weasel|badger|ferret|rabbit|hare/.test(n)) key='rat';
+  else if(/wolf|wolv|dog|fox|hound|cat|panther|tiger|lion|leopard|cheetah|jaguar|beast/.test(n)) key='wolf';
+  return pxSvg(M[key], {'1':'#9fe0a0'});
+}
 function charClassKey(klass){ const c=String(klass||'').toLowerCase(); const L=['barbarian','bard','cleric','druid','fighter','monk','paladin','ranger','rogue','sorcerer','warlock','wizard']; for(const k of L){ if(c.includes(k)) return k; } return null; }
 async function renderLevelUpPanel(p){
   const lu=(worldState&&worldState.level_up)||{}; const done=lu.done||[];
@@ -1800,6 +1857,19 @@ async function renderLevelUpPanel(p){
         row.querySelector('input').onchange=(e)=>{ if(e.target.checked) picks.add(sp.slug); else picks.delete(sp.slug); };
         box.appendChild(row); }); });
     if(!avail.length){ const m=document.createElement('div'); m.className='muted'; m.textContent='ไม่มีเวทใหม่ให้เลือกในเลเวลนี้'; box.appendChild(m); }
+    card.appendChild(box);
+  }
+  // อาชีพนอกกฎ (ไม่อยู่ในคลัง) → เลือกเวทอิสระจากทุกคลาส (DM กำกับ)
+  if(!ck && SPELL_CAT.length){
+    const maxLv=Math.min(9, Math.ceil(lvl/2));
+    let known=new Set(); try{ const r=await supa.from('skills').select('name').eq('character_id',myChar.id); (r.data||[]).forEach(x=>known.add(String(x.name).toLowerCase())); }catch(e){}
+    const avail=SPELL_CAT.filter(sp=>sp.level<=maxLv && !known.has(String(sp.name).toLowerCase()));
+    const box=document.createElement('div'); box.innerHTML='<div class="sectitle" style="margin-top:8px">เวท/cantrip (อาชีพนอกกฎ \u2014 เลือกอิสระ DM กำกับ)</div>';
+    [0,1,2,3,4,5,6,7,8,9].forEach(L=>{ const grp=avail.filter(sp=>sp.level===L); if(!grp.length) return;
+      const h=document.createElement('div'); h.className='note'; h.style.cssText='text-align:left;margin-top:5px;color:#9ad'; h.textContent=(L===0?'Cantrip':'เลเวล '+L); box.appendChild(h);
+      grp.forEach(sp=>{ const row=document.createElement('label'); row.className='fld'; row.style.cssText='flex-direction:row;align-items:flex-start;gap:8px;cursor:pointer;margin:1px 0';
+        row.innerHTML='<input type="checkbox" style="margin-top:3px"><span><b>'+escapeHtml(sp.name)+'</b><div class="muted" style="font-size:11px;line-height:1.4">'+escapeHtml(sp.effect||'')+'</div></span>';
+        row.querySelector('input').onchange=(e)=>{ if(e.target.checked) picks.add(sp.slug); else picks.delete(sp.slug); }; box.appendChild(row); }); });
     card.appendChild(box);
   }
   // ความสามารถคลาสที่ได้รับเลเวลนี้ (auto-grant)
@@ -1844,6 +1914,7 @@ async function renderMe(){
   const sheet=mySheet||{};
   const ab=sheet.abilities||{}, cb=sheet.combat||{}, w=sheet.wallet||{}, ex=sheet.exp||{};
   if(worldState&&worldState.level_up&&worldState.level_up.active){ try{ await renderLevelUpPanel(p); }catch(e){} }
+  if(sheet.wildshape&&sheet.wildshape.active){ try{ renderWildShapeCard(p, sheet.wildshape); }catch(e){} }
   const esc=v=>escapeHtml(String(v)); const dash='—';
   const mod=s=>{ if(s==null||isNaN(s)) return null; return Math.floor((s-10)/2); };
   const sign=m=>(m==null?null:(m>=0?'+':'−')+Math.abs(m));
@@ -1992,7 +2063,7 @@ async function renderParty(){
     const conds=Array.isArray(ps.conditions)?ps.conditions:[];
     const chips=conds.length?'<div class="chips" style="margin-top:5px">'+conds.map(x=>`<span class="chip cond">${escapeHtml(String(x))}</span>`).join('')+'</div>':'';
     const info=document.createElement('div'); info.style.flex='1';
-    info.innerHTML=`<div class="nm">${escapeHtml(c.name)}${mine?' <span class="muted" style="font-size:13px">(คุณ)</span>':''}${c.is_companion?' <span class="chip" style="background:#1d3a5f;color:#9ad;border-color:#9ad">⚔ เพื่อนร่วมทาง</span>':''}</div><div class="sub">${escapeHtml(c.class||'-')} · Lv.${c.level}${hp}</div>`+chips;
+    info.innerHTML=`<div class="nm">${escapeHtml(c.name)}${mine?' <span class="muted" style="font-size:13px">(คุณ)</span>':''}${c.is_companion?' <span class="chip" style="background:#1d3a5f;color:#9ad;border-color:#9ad">⚔ เพื่อนร่วมทาง</span>':''}${(c.public_status&&c.public_status.wildshape)?' <span class="chip" style="background:#2d5f3a;color:#9fe0a0;border-color:#9fe0a0"><span style="display:inline-block;width:12px;height:12px;vertical-align:-2px;margin-right:3px">'+beastIconSvg(c.public_status.wildshape)+'</span>'+escapeHtml(c.public_status.wildshape)+'</span>':''}</div><div class="sub">${escapeHtml(c.class||'-')} · Lv.${c.level}${hp}</div>`+chips;
     row.appendChild(face); row.appendChild(info); it.appendChild(row); left.appendChild(it);
   });
   const noChar=members.filter(m=>!characters.find(c=>c.user_id===m.user_id));
