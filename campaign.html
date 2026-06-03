@@ -646,6 +646,8 @@ body.role-player .dm-only{display:none!important;}
       </select>
     </label>
     <input type="text" id="cClassCustom" class="hidden" oninput="suggestHP();renderSkillPick()" placeholder="ชื่ออาชีพนอกกฎ เช่น Blood Hunter" style="margin-top:6px"/>
+    <div class="sectitle" style="margin-top:6px">STARTING EQUIPMENT (ชุดเริ่มต้น)</div>
+    <div id="pkgWrap" class="note">เลือกอาชีพก่อน เพื่อดูชุดเริ่มต้นตามคลาส</div>
     <div class="sectitle" style="margin-top:4px">ABILITY SCORES · POINT BUY</div>
     <div id="pbInfo" class="note" style="text-align:center;font-family:'VT323',monospace;font-size:18px;color:#fff;margin:2px 0"></div>
     <div id="pbWrap" class="pbgrid"></div>
@@ -933,6 +935,7 @@ async function enterCampaign(){
 
 async function refreshAll(){
   await Promise.all([loadMembers(), loadCharacters(), loadRound(), loadNarrative(), loadState()]);
+  loadCatalogs();
   myChar = characters.find(c=>c.user_id===me.id) || null;
   if(myChar){ try{ const r=await supa.from('character_sheets').select('sheet').eq('character_id',myChar.id).maybeSingle(); if(r.error) throw r.error; mySheet=r.data?.sheet||{}; cacheSave('sheet_'+myChar.id, mySheet); }catch(e){ const c=cacheLoad('sheet_'+myChar.id); mySheet=c||mySheet||{}; } }
   updateCombatBadge();
@@ -1180,12 +1183,83 @@ function onClassChange(){
   const sel=$('cClass'); const cu=$('cClassCustom'); if(!sel||!cu) return;
   if(sel.value==='__custom'){ cu.classList.remove('hidden'); cu.focus(); }
   else { cu.classList.add('hidden'); cu.value=''; }
-  suggestHP(); renderSkillPick();
+  suggestHP(); renderSkillPick(); renderPackages();
 }
 function raceValue(){ const sel=$('cRace'); if(!sel) return ''; return sel.value==='__custom' ? (($('cRaceCustom')||{}).value||'').trim() : (sel.value||'').trim(); }
 function onRaceChange(){ const sel=$('cRace'),cu=$('cRaceCustom'); if(!sel||!cu) return; if(sel.value==='__custom'){ cu.classList.remove('hidden'); cu.focus(); } else { cu.classList.add('hidden'); cu.value=''; } }
 function weaponValue(){ const sel=$('cWeapon'); if(!sel) return ''; return sel.value==='__custom' ? (($('cWeaponCustom')||{}).value||'').trim() : (sel.value||'').trim(); }
 function onWeaponChange(){ const sel=$('cWeapon'),cu=$('cWeaponCustom'); if(!sel||!cu) return; if(sel.value==='__custom'){ cu.classList.remove('hidden'); cu.focus(); } else { cu.classList.add('hidden'); cu.value=''; } }
+// ── คลังไอเทม/คลาส (global catalog จาก DB) — โหลดครั้งเดียว แคชไว้ ──
+let ITEM_CAT={}, CLASS_CAT={}, ITEM_BY_NAME={}, _catLoaded=false, selectedPkg=null;
+async function loadCatalogs(){
+  if(_catLoaded) return;
+  try{
+    const [ic,cc]=await Promise.all([
+      supa.from('item_catalog').select('slug,name,category,subtype,damage_dice,damage_type,properties,range_ft,armor_base,dex_cap,str_req,stealth_disadv,is_magic,rarity,requires_attunement,bonuses,effect,cost_gp'),
+      supa.from('class_catalog').select('slug,name,hit_die,armor_prof,weapon_prof,saving_throws,starting_packages')
+    ]);
+    if(!ic.error&&ic.data){ ITEM_CAT={}; ic.data.forEach(r=>ITEM_CAT[r.slug]=r); cacheSave('itemcat',ic.data); }
+    if(!cc.error&&cc.data){ CLASS_CAT={}; cc.data.forEach(r=>CLASS_CAT[r.slug]=r); cacheSave('classcat',cc.data); }
+    if(!ic.error&&ic.data&&ic.data.length) _catLoaded=true;
+  }catch(e){}
+  if(!_catLoaded){ const i=cacheLoad('itemcat'),c=cacheLoad('classcat'); if(i){ITEM_CAT={};i.forEach(r=>ITEM_CAT[r.slug]=r);} if(c){CLASS_CAT={};c.forEach(r=>CLASS_CAT[r.slug]=r);} }
+  buildItemIndex();
+}
+function pkgItemNames(pk){ return (pk.items||[]).map(it=>{ const ci=ITEM_CAT[it.slug]; const nm=ci?ci.name:it.slug; return nm+(it.qty>1?(' x'+it.qty):''); }).join(', '); }
+function renderPackages(){
+  const w=$('pkgWrap'); if(!w) return; selectedPkg=null;
+  const ck=classKey(); const cd=ck?CLASS_CAT[ck]:null;
+  const pkgs=(cd&&Array.isArray(cd.starting_packages))?cd.starting_packages:[];
+  if(!pkgs.length){ w.innerHTML='<span class="muted">คลาสนี้ไม่มีชุดสำเร็จรูป — เลือกอาวุธด้านล่างเอง</span>'; return; }
+  w.innerHTML='';
+  pkgs.forEach((pk,idx)=>{
+    const row=document.createElement('label'); row.className='fld'; row.style.cssText='flex-direction:row;align-items:flex-start;gap:8px;cursor:pointer;margin:2px 0';
+    row.innerHTML='<input type="radio" name="startpkg" style="margin-top:3px"><span><b>'+esc(pk.label||('ชุด '+(idx+1)))+'</b><div class="muted" style="font-size:12px;line-height:1.4">'+esc(pkgItemNames(pk))+(pk.gold?(' · '+pk.gold+' gp'):'')+'</div></span>';
+    row.querySelector('input').onchange=()=>{ selectedPkg=pk; };
+    w.appendChild(row);
+  });
+  const first=w.querySelector('input'); if(first){ first.checked=true; selectedPkg=pkgs[0]; }
+}
+// ── เครื่องคำนวณโบนัสจากไอเทมที่สวมใส่ (อ้างอิง catalog) ──
+function itemByName(nm){ if(!nm) return null; return ITEM_BY_NAME[String(nm).toLowerCase().trim()]||null; }
+function buildItemIndex(){ ITEM_BY_NAME={}; Object.values(ITEM_CAT).forEach(r=>{ if(r&&r.name) ITEM_BY_NAME[String(r.name).toLowerCase()]=r; }); }
+function equippedAccessories(sheet){ const eq=(sheet&&sheet.equipment)||{}; const acc=[]; if(eq.accessory) acc.push(eq.accessory); if(Array.isArray(eq.accessories)) eq.accessories.forEach(a=>acc.push(typeof a==='string'?a:(a&&a.name))); return acc.filter(Boolean); }
+function equippedBonuses(sheet){
+  const out={add:{}, set:{}, attune:0, attuneList:[], effects:[]}; const eq=(sheet&&sheet.equipment)||{};
+  const armored=eq.armor && !/^(none|no armor|unarmored|-|—)$/i.test(String(eq.armor).trim());
+  const hasShield=eq.shield && !/^(none|no shield|-|—)$/i.test(String(eq.shield).trim());
+  const list=[...equippedAccessories(sheet).map(n=>({n,role:'accessory'})), {n:eq.weapon,role:'weapon'}, {n:eq.offhand,role:'weapon'}];
+  for(const {n,role} of list){ const ci=itemByName(n); if(!ci) continue; const b=ci.bonuses||{};
+    for(const k in b){ const v=b[k]; if(v==null) continue;
+      if(k.indexOf('set_')===0){ const a=k.slice(4); out.set[a]=Math.max(out.set[a]||0,+v); continue; }
+      if(k==='ac' && ci.slug==='bracers-of-defense' && (armored||hasShield)) continue;
+      if(role==='weapon' && !(k==='attack'||k==='damage')) continue;
+      out.add[k]=(out.add[k]||0)+(+v); }
+    if(ci.requires_attunement){ out.attune++; out.attuneList.push(ci.name); }
+    if(ci.effect) out.effects.push({name:ci.name, effect:ci.effect}); }
+  return out;
+}
+function effAbility(sheet,key,bon){ const base=((sheet&&sheet.abilities)||{})[key]; if(base==null) return base; bon=bon||equippedBonuses(sheet); let v=base+(bon.add[key]||0); if(bon.set[key]) v=Math.max(v,bon.set[key]); return v; }
+function calcAC(sheet, klass){
+  sheet=sheet||{}; const cb=sheet.combat||{}; const bon=equippedBonuses(sheet);
+  const eAb={}; ['str','dex','con','int','wis','cha'].forEach(k=>{ const v=effAbility(sheet,k,bon); eAb[k]=(v==null?(sheet.abilities||{})[k]:v); });
+  const md=x=>(x==null||isNaN(x))?0:Math.floor((x-10)/2);
+  if(cb.acOverride!=null) return {ac:cb.acOverride,label:'manual override',bon,eAb};
+  const dex=md(eAb.dex),con=md(eAb.con),wis=md(eAb.wis);
+  const cls=String(klass||'').toLowerCase(); const eq=sheet.equipment||{}; const a=(eq.armor||'').toLowerCase().trim();
+  const unarmored=!a||/^(none|no armor|unarmored|-|—)$/.test(a)||a.includes('unarmored');
+  const ARM={'padded':[11,'light'],'leather':[11,'light'],'studded leather':[12,'light'],'hide':[12,'medium'],'chain shirt':[13,'medium'],'scale mail':[14,'medium'],'breastplate':[14,'medium'],'half plate':[15,'medium'],'ring mail':[14,'heavy'],'chain mail':[16,'heavy'],'splint':[17,'heavy'],'plate':[18,'heavy']};
+  const capf=x=>x.replace(/\b\w/g,c=>c.toUpperCase()); let base,label;
+  if(unarmored){ if(cls.includes('barbarian')){base=10+dex+con;label='Unarmored Defense';} else if(cls.includes('monk')){base=10+dex+wis;label='Unarmored Defense';} else {base=10+dex;label='Unarmored';} }
+  else { const ci=itemByName(eq.armor);
+    if(ci&&ci.category==='armor'&&ci.armor_base!=null){ const b=+ci.armor_base,st=ci.subtype; base=(st==='medium')?b+Math.min(dex,2):(st==='heavy')?b:b+dex; label=ci.name; }
+    else { let e=null,key=null; for(const k of Object.keys(ARM).sort((x,y)=>y.length-x.length)){ if(a.includes(k)){e=ARM[k];key=k;break;} } if(!e){base=10+dex;label='?';} else { base=(e[1]==='medium')?e[0]+Math.min(dex,2):(e[1]==='heavy')?e[0]:e[0]+dex; label=capf(key);} } }
+  const sh=(eq.shield||'').toLowerCase().trim(); const hasShield=sh&&!/^(none|no shield|-|—)$/.test(sh); const acb=bon.add.ac||0;
+  return {ac:base+(hasShield?2:0)+acb, label, bon, eAb};
+}
+function itemBonusStr(bon){ const x=[]; const g=(lab,v)=>{ if(v) x.push(lab+' '+(v>=0?'+':'')+v); };
+  g('atk',bon.add.attack); g('dmg',bon.add.damage); g('save',bon.add.save); g('check',bon.add.ability_check); g('spellAtk',bon.add.spell_attack); g('spellDC',bon.add.spell_dc); if(bon.add.speed)x.push('speed +'+bon.add.speed); return x.join(', '); }
+function persistCombatStats(sheet, klass){ try{ const r=calcAC(sheet,klass); sheet.combat=sheet.combat||{}; sheet.combat.ac=r.ac; sheet.combat.attune=r.bon.attune; sheet.combat.item_bonus=itemBonusStr(r.bon); }catch(e){} return sheet; }
 function suggestHP(){
   const hpEl=$('cHp'); if(!hpEl) return;
   const cls=(classValue()||'').toLowerCase().trim();
@@ -1266,16 +1340,26 @@ async function createCharacter(){
       public_status:{ hp: maxhp?`${maxhp}/${maxhp}`:'100%' }
     }).select().single();
     if(error) throw error;
+    let eqp={ weapon:weaponValue(), offhand:'', armor:'', shield:'', accessory:'' }, invp=[], walletp={gp:0,sp:0,cp:0};
+    if(selectedPkg && Array.isArray(selectedPkg.items)){
+      for(const it of selectedPkg.items){ const ci=ITEM_CAT[it.slug]; const nm=ci?ci.name:it.slug; const qty=it.qty||1; const cat=ci?ci.category:'';
+        if(cat==='weapon' && !eqp.weapon) eqp.weapon=nm;
+        else if(cat==='armor' && !eqp.armor) eqp.armor=nm;
+        else if(cat==='shield' && !eqp.shield) eqp.shield=nm;
+        else invp.push({name:nm,qty:qty}); }
+      if(selectedPkg.gold) walletp.gp=selectedPkg.gold;
+    }
     const sheet={
       race:raceValue(), sex:$('cSex').value.trim(), age:$('cAge').value.trim(),
       abilities:{ str:finalAb('str'), dex:finalAb('dex'), con:finalAb('con'), int:finalAb('int'), wis:finalAb('wis'), cha:finalAb('cha') },
       skill_proficiencies: chosenSkills.slice(),
       combat:{ hp:maxhp, maxhp:maxhp, hitdice:'' },
-      equipment:{ weapon:weaponValue(), offhand:'', armor:'', shield:'', accessory:'' },
-      inventory:[], wallet:{gp:0,sp:0,cp:0}, exp:{current:0,next:300},
+      equipment:eqp,
+      inventory:invp, wallet:walletp, exp:{current:0,next:300},
       conditions:[], resistances:{resist:[],immune:[],vulnerable:[]}, effects:[],
       notes:$('cNotes').value.trim()
     };
+    persistCombatStats(sheet, classValue());
     await supa.from('character_sheets').insert({ character_id:ch.id, sheet });
     // ความสามารถเริ่มต้นตามคลาส → แท็บ Skills (ไม่พังถ้าตาราง skills ยังไม่ได้ migrate)
     try{
@@ -1403,7 +1487,7 @@ async function renderRoundbar(){
   // STAGE 2: อ่านปูมหลังแล้ว แต่ยังไม่มีตัวละคร → สร้างตัวละคร
   if(!myChar){
     bar.innerHTML='<div class="statusline">อ่านปูมหลังโลกด้านบนก่อน แล้วสร้างตัวละครของคุณให้เข้ากับโลกนี้</div>';
-    const b=document.createElement('button'); b.className='btn'; b.textContent='📝 Create your character'; b.onclick=()=>{ chosenSkills=[]; bonusMode='2-1'; bonusPick={a:'str',b:'dex',c:'con'}; show('charScreen'); fillJoinBriefing(); renderPB(); renderBonus(); suggestHP(); renderSkillPick(); }; bar.appendChild(b);
+    const b=document.createElement('button'); b.className='btn'; b.textContent='📝 Create your character'; b.onclick=()=>{ chosenSkills=[]; bonusMode='2-1'; bonusPick={a:'str',b:'dex',c:'con'}; show('charScreen'); fillJoinBriefing(); renderPB(); renderBonus(); suggestHP(); renderSkillPick(); loadCatalogs().then(renderPackages); }; bar.appendChild(b);
     return;
   }
   // STAGE 3: มีตัวละครแล้ว แต่ยังไม่เปิดฉาก → host เริ่มฉากแรก
@@ -1630,10 +1714,12 @@ async function renderMe(){
   const cap=s=>s.replace(/\b\w/g,c=>c.toUpperCase());
   const num=(k,v)=>`<div class="kv"><span class="k">${k}</span><span class="dots"></span><span class="num">${v==null||v===''?dash:esc(v)}</span></div>`;
   const abil=(k,s)=>{ const m=sign(mod(s)); const v=(s==null?dash:`${s}`)+(m?`  (${m})`:''); return num(k,v); };
+  const bon=equippedBonuses(sheet);
+  const eAb={}; ['str','dex','con','int','wis','cha'].forEach(k=>{ const v=effAbility(sheet,k,bon); eAb[k]=(v==null?ab[k]:v); });
   const ARMORS={'padded':{b:11,t:'light'},'leather':{b:11,t:'light'},'studded leather':{b:12,t:'light'},'hide':{b:12,t:'medium'},'chain shirt':{b:13,t:'medium'},'scale mail':{b:14,t:'medium'},'breastplate':{b:14,t:'medium'},'half plate':{b:15,t:'medium'},'ring mail':{b:14,t:'heavy'},'chain mail':{b:16,t:'heavy'},'splint':{b:17,t:'heavy'},'plate':{b:18,t:'heavy'}};
   function computeAC(){
     if(cb.acOverride!=null) return { ac:cb.acOverride, label:'manual override' };
-    const dex=mod(ab.dex)||0, con=mod(ab.con)||0, wis=mod(ab.wis)||0;
+    const dex=mod(eAb.dex)||0, con=mod(eAb.con)||0, wis=mod(eAb.wis)||0;
     const cls=(myChar.class||'').toLowerCase(); const eq=sheet.equipment||{};
     const a=(eq.armor||'').toLowerCase().trim();
     const unarmored=!a||/^(none|no armor|unarmored|-|—)$/.test(a)||a.includes('unarmored');
@@ -1643,30 +1729,44 @@ async function renderMe(){
       else if(cls.includes('monk')){ base=10+dex+wis; label='Unarmored Defense (10 + DEX + WIS)'; }
       else { base=10+dex; label='Unarmored (10 + DEX)'; }
     } else {
-      let e=null,key=null;
-      for(const k of Object.keys(ARMORS).sort((x,y)=>y.length-x.length)){ if(a.includes(k)){ e=ARMORS[k]; key=k; break; } }
-      if(!e){ base=10+dex; label='Unknown armor → 10 + DEX'; }
-      else if(e.t==='light'){ base=e.b+dex; label=`${cap(key)} (${e.b} + DEX)`; }
-      else if(e.t==='medium'){ base=e.b+Math.min(dex,2); label=`${cap(key)} (${e.b} + DEX, max 2)`; }
-      else { base=e.b; label=`${cap(key)} (${e.b}, no DEX)`; }
+      const ci=itemByName(eq.armor);
+      if(ci && ci.category==='armor' && ci.armor_base!=null){
+        const b=+ci.armor_base, st=ci.subtype;
+        if(st==='medium'){ base=b+Math.min(dex,2); label=ci.name+' ('+b+' + DEX\u2264 2)'; }
+        else if(st==='heavy'){ base=b; label=ci.name+' ('+b+')'; }
+        else { base=b+dex; label=ci.name+' ('+b+' + DEX)'; }
+      } else {
+        let e=null,key=null;
+        for(const k of Object.keys(ARMORS).sort((x,y)=>y.length-x.length)){ if(a.includes(k)){ e=ARMORS[k]; key=k; break; } }
+        if(!e){ base=10+dex; label='Unknown armor \u2192 10 + DEX'; }
+        else if(e.t==='light'){ base=e.b+dex; label=cap(key)+' ('+e.b+' + DEX)'; }
+        else if(e.t==='medium'){ base=e.b+Math.min(dex,2); label=cap(key)+' ('+e.b+' + DEX\u2264 2)'; }
+        else { base=e.b; label=cap(key)+' ('+e.b+')'; }
+      }
     }
-    const eq2=sheet.equipment||{}; const sh=(eq2.shield||'').toLowerCase().trim();
+    const sh=(eq.shield||'').toLowerCase().trim();
     const hasShield=sh&&!/^(none|no shield|-|—)$/.test(sh);
-    return { ac:base+(hasShield?2:0), label:label+(hasShield?' + Shield (2)':'') };
+    const acb=bon.add.ac||0;
+    return { ac:base+(hasShield?2:0)+acb, label:label+(hasShield?' + Shield (2)':'')+(acb?(' + items ('+(acb>=0?'+':'')+acb+')'):'') };
   }
   const acRes=computeAC();
   const prof=2+Math.floor(((myChar.level||1)-1)/4);
-  const initv=sign(mod(ab.dex));
+  const initv=sign(mod(eAb.dex));
   const hp=(cb.maxhp!=null)?`${cb.hp??cb.maxhp}/${cb.maxhp}`:((myChar.public_status||{}).hp||dash);
   const sub=[sheet.race, sheet.sex, sheet.age?('อายุ '+sheet.age):'', myChar.class||'Adventurer','Lv.'+myChar.level].filter(Boolean).join(' · ');
-
+  const spd=(cb.speed!=null)?(cb.speed+(bon.add.speed||0)):(bon.add.speed?('+'+bon.add.speed):null);
+  const bsum=[]; if(bon.add.attack) bsum.push('โจมตี '+sign(bon.add.attack)); if(bon.add.damage) bsum.push('ดาเมจ '+sign(bon.add.damage)); if(bon.add.save) bsum.push('save '+sign(bon.add.save)); if(bon.add.ability_check) bsum.push('ability check '+sign(bon.add.ability_check)); if(bon.add.spell_attack) bsum.push('spell atk '+sign(bon.add.spell_attack)); if(bon.add.spell_dc) bsum.push('spell DC '+sign(bon.add.spell_dc));
+  const abil2=(lab,key)=>{ const sc=eAb[key]; const m=sign(mod(sc)); const boosted=(sc!=null && ab[key]!=null && sc!==ab[key]); const v=(sc==null?dash:`${sc}`)+(m?`  (${m})`:'')+(boosted?' ✦':''); return num(lab,v); };
   // window 1: abilities + combat
   const it=document.createElement('div'); it.className='item';
   it.innerHTML=`<div class="nm">${esc(myChar.name)} <span class="meta-inline">${esc(sub)}</span></div>`+
-    `<div class="sectitle">ABILITY SCORES</div><div class="grid2">`+abil('STR',ab.str)+abil('DEX',ab.dex)+abil('CON',ab.con)+abil('INT',ab.int)+abil('WIS',ab.wis)+abil('CHA',ab.cha)+`</div>`+
+    `<div class="sectitle">ABILITY SCORES</div><div class="grid2">`+abil2('STR','str')+abil2('DEX','dex')+abil2('CON','con')+abil2('INT','int')+abil2('WIS','wis')+abil2('CHA','cha')+`</div>`+
     `<div class="sectitle">COMBAT</div>`+num('Armor Class (AC)',acRes.ac)+
     `<div class="note" style="margin:-2px 0 4px;">AC = ${esc(acRes.label)}</div>`+
-    num('Hit Points (HP)',hp)+num('Hit Dice',cb.hitdice)+num('Initiative',initv)+num('Speed (ft)',cb.speed)+num('Proficiency',sign(prof));
+    num('Hit Points (HP)',hp)+num('Hit Dice',cb.hitdice)+num('Initiative',initv)+num('Speed (ft)',spd==null?dash:spd)+num('Proficiency',sign(prof))+num('Attunement (เวท)',bon.attune+'/3')+
+    (bon.attune>3?'<div class="note" style="color:#FAC775">⚠ attunement เกิน 3 (กฎ 5e สูงสุด 3 ชิ้น)</div>':'')+
+    (bsum.length?`<div class="note" style="margin:2px 0">โบนัสไอเทม: ${esc(bsum.join(' · '))}</div>`:'')+
+    (bon.effects.length?`<div class="note" style="margin:2px 0;color:#9ad">ของเวท: ${esc(bon.effects.map(e=>e.name).join(', '))}</div>`:'');
   p.appendChild(it);
 
   // window 2: level + exp + wallet
@@ -1792,7 +1892,7 @@ async function renderItems(){
   const sheet=mySheet||{}; const eq=sheet.equipment||{}; const inv=sheet.inventory||[];
   const w=sheet.wallet||{};
   // EQUIPPED — มีปุ่ม "ถอด" ต่อช่องที่ใส่อยู่
-  const SLOTS=[['weapon','Weapon'],['offhand','Off-hand'],['armor','Armor'],['shield','Shield'],['accessory','Accessory']];
+  const SLOTS=[['weapon','Weapon'],['offhand','Off-hand'],['armor','Armor'],['shield','Shield']];
   const eqc=document.createElement('div'); eqc.className='item'; eqc.innerHTML='<div class="sectitle">EQUIPPED</div>';
   SLOTS.forEach(([key,lab])=>{
     const val=eq[key];
@@ -1801,6 +1901,11 @@ async function renderItems(){
     if(val){ const ub=document.createElement('button'); ub.className='btn ghost sm'; ub.style.marginLeft='8px'; ub.textContent='ถอด'; ub.onclick=()=>unequipItem(key); row.appendChild(ub); }
     eqc.appendChild(row);
   });
+  // เครื่องประดับ (หลายชิ้น) + attunement
+  const accList=equippedAccessories(sheet); const attuneN=equippedBonuses(sheet).attune;
+  const ah=document.createElement('div'); ah.className='kv'; ah.innerHTML=`<span class="k">Accessories</span><span class="dots"></span><span class="num" style="font-size:12px;color:${attuneN>3?'#FAC775':'#9a9a9a'}">attuned ${attuneN}/3</span>`; eqc.appendChild(ah);
+  if(!accList.length){ const e0=document.createElement('div'); e0.className='kv'; e0.innerHTML='<span class="k" style="color:#777">— ไม่มี —</span>'; eqc.appendChild(e0); }
+  accList.forEach(nm=>{ const ci=itemByName(nm); const att=(ci&&ci.requires_attunement)?' ⚜':''; const row=document.createElement('div'); row.className='kv'; row.style.alignItems='center'; row.innerHTML=`<span class="k" style="color:#fff;font-size:13px">▹ ${escapeHtml(nm)}${att}</span>`; const ub=document.createElement('button'); ub.className='btn ghost sm'; ub.style.marginLeft='8px'; ub.textContent='ถอด'; ub.onclick=()=>unequipAccessory(nm); row.appendChild(ub); eqc.appendChild(row); });
   p.appendChild(eqc);
   // BACKPACK — ปุ่ม "สวมใส่" เฉพาะของที่ใส่ได้ (อาวุธ/เกราะ/โล่/เครื่องประดับ)
   const bag=document.createElement('div'); bag.className='item';
@@ -1839,13 +1944,35 @@ async function equipItem(name){
   try{
     const r=await supa.from('character_sheets').select('sheet').eq('character_id',myChar.id).maybeSingle();
     const sheet=(r.data&&r.data.sheet)||{}; sheet.equipment=sheet.equipment||{};
+    const ci=itemByName(name);
+    if(ci&&ci.requires_attunement){ if(equippedBonuses(sheet).attune>=3){ toast('attunement เต็ม (สูงสุด 3 ชิ้น) — ถอดของเวทก่อน',true); return; } }
     let inv=Array.isArray(sheet.inventory)?sheet.inventory.slice():[];
     const idx=inv.findIndex(i=>(typeof i==='string'?i:(i.name||''))===name);
     if(idx>=0){ const it=inv[idx]; if(typeof it!=='string' && +it.qty>1){ inv[idx]={...it,qty:+it.qty-1}; } else { inv.splice(idx,1); } }
-    const prev=sheet.equipment[slot]; if(prev) inv.push({name:prev,qty:1});  // ของเดิมกลับกระเป๋า
-    sheet.equipment[slot]=name; sheet.inventory=inv;
-    await _saveSheet(sheet); tick(); toast('สวมใส่ '+name+' ✓'); renderItems();
+    if(slot==='accessory'){
+      const acc=Array.isArray(sheet.equipment.accessories)?sheet.equipment.accessories.slice():[];
+      if(sheet.equipment.accessory){ acc.push(sheet.equipment.accessory); sheet.equipment.accessory=''; }
+      acc.push(name); sheet.equipment.accessories=acc;
+    } else {
+      const prev=sheet.equipment[slot]; if(prev) inv.push({name:prev,qty:1});
+      sheet.equipment[slot]=name;
+    }
+    sheet.inventory=inv;
+    persistCombatStats(sheet, myChar.class); await _saveSheet(sheet); tick(); toast('สวมใส่ '+name+' ✓'); renderItems();
   }catch(e){ toast('สวมใส่ไม่สำเร็จ',true); }
+}
+async function unequipAccessory(name){
+  if(!myChar||!name) return;
+  try{
+    const r=await supa.from('character_sheets').select('sheet').eq('character_id',myChar.id).maybeSingle();
+    const sheet=(r.data&&r.data.sheet)||{}; sheet.equipment=sheet.equipment||{};
+    let acc=Array.isArray(sheet.equipment.accessories)?sheet.equipment.accessories.slice():[]; let removed=false;
+    const i=acc.findIndex(a=>(typeof a==='string'?a:(a&&a.name))===name);
+    if(i>=0){ acc.splice(i,1); removed=true; } else if(sheet.equipment.accessory===name){ sheet.equipment.accessory=''; removed=true; }
+    sheet.equipment.accessories=acc; if(!removed) return;
+    let inv=Array.isArray(sheet.inventory)?sheet.inventory.slice():[]; inv.push({name,qty:1}); sheet.inventory=inv;
+    persistCombatStats(sheet, myChar.class); await _saveSheet(sheet); tick(); toast('ถอด '+name+' ✓'); renderItems();
+  }catch(e){ toast('ถอดไม่สำเร็จ',true); }
 }
 // ถอด: ย้ายจากช่อง equipment → กระเป๋า
 async function unequipItem(slot){
@@ -1856,7 +1983,7 @@ async function unequipItem(slot){
     const val=sheet.equipment[slot]; if(!val) return;
     let inv=Array.isArray(sheet.inventory)?sheet.inventory.slice():[]; inv.push({name:val,qty:1});
     sheet.equipment[slot]=''; sheet.inventory=inv;
-    await _saveSheet(sheet); tick(); toast('ถอด '+val+' ✓'); renderItems();
+    persistCombatStats(sheet, myChar.class); await _saveSheet(sheet); tick(); toast('ถอด '+val+' ✓'); renderItems();
   }catch(e){ toast('ถอดไม่สำเร็จ',true); }
 }
 // ───────── render: skills (ตาราง skills + fallback) ─────────
