@@ -945,7 +945,8 @@ async function enterCampaign(){
   await refreshAll();
   if(activeTab()==='story') renderStory(); else switchTab(activeTab()||'story');
   await loadMusicLibrary();
-  try{ if(localStorage.getItem('ttrpg_music')==='1'){ musicOn=true; applyMood(); armMusicResume(); } }catch(e){}
+  try{ musicOn = (localStorage.getItem('ttrpg_music')!=='0'); }catch(e){ musicOn=true; }
+  if(musicOn){ applyMood(); } armMusicResume();
   updateMusicBtn();
   subscribeRealtime();
 }
@@ -1038,7 +1039,7 @@ async function loadMusicLibrary(){
 }
 function toggleMusic(){
   tick();
-  if(musicOn){ musicOn=false; try{localStorage.removeItem('ttrpg_music');}catch(e){} if(mAudio){ try{mAudio.pause();}catch(e){} } curMood=null; }
+  if(musicOn){ musicOn=false; try{localStorage.setItem('ttrpg_music','0');}catch(e){} if(mAudio){ try{mAudio.pause();}catch(e){} } curMood=null; }
   else { musicOn=true; try{localStorage.setItem('ttrpg_music','1');}catch(e){} applyMood(); }
   updateMusicBtn();
 }
@@ -1258,7 +1259,7 @@ function renderPackages(){
   w.innerHTML='';
   pkgs.forEach((pk,idx)=>{
     const row=document.createElement('label'); row.className='fld'; row.style.cssText='flex-direction:row;align-items:flex-start;gap:8px;cursor:pointer;margin:2px 0';
-    row.innerHTML='<input type="radio" name="startpkg" style="margin-top:3px"><span><b>'+esc(pk.label||('ชุด '+(idx+1)))+'</b><div class="muted" style="font-size:12px;line-height:1.4">'+esc(pkgItemNames(pk))+(pk.gold?(' · '+pk.gold+' gp'):'')+'</div></span>';
+    row.innerHTML='<input type="radio" name="startpkg" style="margin-top:3px"><span><b>'+escapeHtml(pk.label||('ชุด '+(idx+1)))+'</b><div class="muted" style="font-size:12px;line-height:1.4">'+escapeHtml(pkgItemNames(pk))+(pk.gold?(' · '+pk.gold+' gp'):'')+'</div></span>';
     row.querySelector('input').onchange=()=>{ selectedPkg=pk; };
     w.appendChild(row);
   });
