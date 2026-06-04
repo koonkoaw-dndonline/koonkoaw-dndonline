@@ -712,6 +712,55 @@ body.role-player .dm-only{display:none!important;}
 .cc-narr{width:100%;min-height:96px;background:#000;border:2px solid #fff;border-radius:8px;color:#fff;font-family:'IBM Plex Sans Thai',sans-serif;font-size:14px;line-height:1.55;padding:11px;resize:vertical;box-sizing:border-box;}
 .cc-narr:focus{outline:none;box-shadow:0 0 0 2px rgba(255,255,255,.3);}
 .cc-narr-wrap .cc-btn-row{margin-top:9px;}
+
+/* ========== Battle Scene (RPG cut-in overlay) ========== */
+.tab[data-tab="mon"]{display:none;}
+.bscene{position:fixed;inset:0;z-index:4000;background:#05070c;display:none;}
+.bscene.on{display:block;animation:bsfade .22s ease;}
+@keyframes bsfade{from{opacity:0}to{opacity:1}}
+.bscene-flash{position:absolute;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;background:#000;opacity:0;pointer-events:none;}
+.bscene-flash.go{animation:bsflash .8s ease forwards;}
+.bscene-flash .bsf-txt{font-family:'Press Start 2P',monospace;font-size:30px;color:#fff;letter-spacing:4px;text-shadow:0 0 22px #fff;transform:scale(.6);opacity:0;}
+.bscene-flash.go .bsf-txt{animation:bsftxt .8s ease forwards;}
+@keyframes bsflash{0%{opacity:1}12%{opacity:.15}24%{opacity:1}40%{opacity:.8}100%{opacity:0}}
+@keyframes bsftxt{0%{transform:scale(.6);opacity:0}28%{transform:scale(1.12);opacity:1}72%{transform:scale(1);opacity:1}100%{transform:scale(1);opacity:0}}
+.bscene-stage{position:absolute;inset:0;display:flex;flex-direction:column;gap:10px;padding:12px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.bs-box{min-height:0;}
+.bs-hud{order:0;display:flex;flex-direction:column;gap:6px;}
+.bs-board{order:1;border:2px solid #fff;border-radius:8px;background:#0d1018;padding:6px;overflow-x:auto;}
+.bs-board .item{border:0;padding:0;background:transparent;}
+.bs-init{order:2;border:2px solid #fff;border-radius:8px;background:#000;padding:8px 10px;}
+.bs-log{order:3;border:2px solid #fff;border-radius:8px;background:#000;padding:8px 10px;}
+.bs-narr{order:4;border:2px solid #fff;border-radius:8px;background:#000;padding:8px 12px;overflow-y:auto;}
+.bs-cmd{order:5;}
+.bs-panelttl{font-family:'Press Start 2P',monospace;font-size:8px;letter-spacing:1px;color:#fff;border-bottom:2px solid #fff;padding:3px 2px 7px;margin-bottom:7px;}
+.bs-init-list,.bs-log-list{display:flex;flex-direction:column;gap:5px;}
+.bs-log-list{max-height:240px;overflow-y:auto;font-family:'IBM Plex Sans Thai',sans-serif;font-size:13px;line-height:1.5;color:#fff;}
+.bs-logrow{padding:1px 0;}
+.bs-initrow{display:flex;align-items:center;gap:8px;border:2px solid #fff;border-radius:6px;padding:6px 8px;font-family:'IBM Plex Sans Thai',sans-serif;}
+.bs-initrow.me{box-shadow:0 0 0 2px #000,0 0 0 4px #5cc8ff;}
+.bs-ini{min-width:24px;text-align:center;font-weight:700;color:#fff;font-size:14px;}
+.bs-iname{flex:1;color:#fff;font-size:13.5px;line-height:1.25;}
+.bs-ihp{font-size:12px;font-weight:700;white-space:nowrap;}
+.bs-hpbar{height:5px;border:1px solid rgba(255,255,255,.5);border-radius:3px;margin-top:4px;overflow:hidden;background:#000;}
+.bs-hpbar>div{height:100%;}
+#battleScene #narrFeed{padding:0;display:flex;flex-direction:column;gap:10px;}
+#battleScene #roundbar{border:0;padding:0;margin:0;max-width:none;}
+@media (min-width:1024px){
+  .bscene-stage{
+    display:grid;
+    grid-template-columns:300px minmax(0,1fr) 360px;
+    grid-template-rows:auto minmax(0,1fr);
+    grid-template-areas:"hud board cmd" "init narr log";
+    gap:12px;
+  }
+  .bs-hud{grid-area:hud;}
+  .bs-init{grid-area:init;overflow-y:auto;}
+  .bs-board{grid-area:board;align-self:start;}
+  .bs-narr{grid-area:narr;}
+  .bs-log{grid-area:log;overflow-y:auto;}
+  .bs-cmd{grid-area:cmd;overflow-y:auto;}
+}
 </style>
 </head>
 <body>
@@ -1120,6 +1169,7 @@ async function refreshAll(){
   if(myChar){ try{ const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle(); if(r.error) throw r.error; mySheet=r.data?.sheet||{}; mySheetUpdatedAt=r.data?.updated_at||null; cacheSave('sheet_'+myChar.id, mySheet); }catch(e){ const c=cacheLoad('sheet_'+myChar.id); mySheet=c||mySheet||{}; } }
   updateCombatBadge();
   refreshCombatTurn();   // v2: อัปเดต "ถึงตาใคร"
+  scheduleBattleScene();
 }
 // ไอคอน Monster กระพริบเมื่อมี combat active (combat_state) — เงียบถ้ายังไม่ได้รัน migration
 async function updateCombatBadge(){
@@ -2630,6 +2680,105 @@ async function _renderCombatImpl(){
   });
 }
 
+// ───────── Battle Scene (RPG cut-in overlay) ─────────
+var _bsShown=false, _bsRelocated=false, _bsRenderT=null;
+function ensureBattleScene(){
+  var el=document.getElementById('battleScene');
+  if(!el){
+    el=document.createElement('div'); el.id='battleScene'; el.className='bscene';
+    el.innerHTML=
+      '<div class="bscene-flash" id="bsFlash"><div class="bsf-txt">\u2694 BATTLE</div></div>'+
+      '<div class="bscene-stage">'+
+        '<div class="bs-hud bs-box" id="bsHud"></div>'+
+        '<div class="bs-init bs-box"><div class="bs-panelttl">\u2694 INITIATIVE</div><div class="bs-init-list" id="bsInit"></div></div>'+
+        '<div class="bs-board bs-box" id="bsBoard"></div>'+
+        '<div class="bs-narr bs-box"><div class="bs-panelttl">DM</div><div id="bsNarrWrap"></div></div>'+
+        '<div class="bs-log bs-box"><div class="bs-panelttl">COMBAT LOG</div><div class="bs-log-list" id="bsLog"></div></div>'+
+        '<div class="bs-cmd bs-box" id="bsCmdWrap"></div>'+
+      '</div>';
+    document.body.appendChild(el);
+  }
+  return el;
+}
+function relocateForBattle(on){
+  var nf=document.getElementById('narrFeed'), rb=document.getElementById('roundbar'), ps=document.getElementById('panel-story');
+  if(on){
+    if(_bsRelocated) return;
+    var nw=document.getElementById('bsNarrWrap'), cw=document.getElementById('bsCmdWrap');
+    if(nf&&nw) nw.appendChild(nf);
+    if(rb&&cw) cw.appendChild(rb);
+    _bsRelocated=true;
+  } else {
+    if(!_bsRelocated) return;
+    if(ps){ if(nf) ps.appendChild(nf); if(rb) ps.appendChild(rb); }
+    _bsRelocated=false;
+  }
+}
+function scheduleBattleScene(){ clearTimeout(_bsRenderT); _bsRenderT=setTimeout(function(){ syncBattleScene(); }, 150); }
+async function syncBattleScene(){
+  if(typeof campaign==='undefined' || !campaign) return;
+  let enc=null;
+  try{ const r=await supa.from('combat_encounters').select('id,status').eq('campaign_id',campaign.id).neq('status','ended').maybeSingle(); if(!r.error) enc=r.data; }catch(e){}
+  const active = !!enc || !!window._combatActive;
+  if(active){ if(!_bsShown){ enterBattleScene(); } await renderBattleScene(); }
+  else { if(_bsShown){ exitBattleScene(); } }
+}
+function enterBattleScene(){
+  _bsShown=true;
+  var el=ensureBattleScene();
+  relocateForBattle(true);
+  el.classList.add('on');
+  try{ document.body.classList.add('in-battle'); }catch(e){}
+  var f=document.getElementById('bsFlash'); if(f){ f.classList.remove('go'); void f.offsetWidth; f.classList.add('go'); }
+  try{ tick(); setTimeout(tick,150); }catch(e){}
+  try{ renderClock(); }catch(e){}
+  try{ renderStory(); }catch(e){}
+}
+function exitBattleScene(){
+  _bsShown=false;
+  var el=document.getElementById('battleScene');
+  relocateForBattle(false);
+  if(el) el.classList.remove('on');
+  try{ document.body.classList.remove('in-battle'); }catch(e){}
+  try{ renderStory(); }catch(e){}
+}
+async function renderBattleScene(){
+  if(!_bsShown) return;
+  ensureBattleScene();
+  try{ renderClock(); var wc=document.getElementById('worldClock'), hud=document.getElementById('bsHud'); if(wc&&hud) hud.innerHTML=wc.innerHTML; }catch(e){}
+  var board=document.getElementById('bsBoard'); if(board){ board.innerHTML=''; try{ await renderBattleGrid(board); }catch(e){} if(!board.children.length){ board.innerHTML='<div class="note" style="text-align:center;padding:16px;color:#9a9a9a">— ยังไม่มีสนามรบ —</div>'; } }
+  try{ await renderBattleInitLog(document.getElementById('bsInit'), document.getElementById('bsLog')); }catch(e){}
+}
+async function renderBattleInitLog(initEl, logEl){
+  if(initEl) initEl.innerHTML=''; if(logEl) logEl.innerHTML='';
+  let enc=null;
+  try{ const r=await supa.from('combat_encounters').select('*').eq('campaign_id',campaign.id).neq('status','ended').maybeSingle(); if(!r.error) enc=r.data; }catch(e){}
+  if(!enc) return;
+  let ents=[]; try{ const r=await supa.from('initiative_entries').select('*').eq('encounter_id',enc.id).order('sort',{ascending:true,nullsFirst:false}); ents=r.data||[]; }catch(e){}
+  let csMap={}; try{ const r=await supa.from('combat_state').select('id,cur_hp,monsters(max_hp,name)').eq('campaign_id',campaign.id); (r.data||[]).forEach(x=>csMap[x.id]=x); }catch(e){}
+  if(initEl){
+    ents.filter(e=>e.is_active).forEach(e=>{
+      const isParty=e.side==='party'; let hpTxt='', pct=null;
+      if(isParty){ const c=characters.find(x=>x.id===e.character_id); const hp=(c&&c.public_status&&c.public_status.hp)||''; hpTxt=hp; if(/^\d+\/\d+/.test(String(hp))){ const m=String(hp).split('/'); pct=Math.max(0,Math.min(1,(+m[0])/(+m[1]||1))); } }
+      else { const cs=csMap[e.combat_state_id]; if(cs){ const mx=cs.monsters&&cs.monsters.max_hp; hpTxt=cs.cur_hp+(mx?('/'+mx):''); if(mx) pct=Math.max(0,Math.min(1,cs.cur_hp/mx)); } }
+      const mine=isParty&&myChar&&e.character_id===myChar.id; const col=isParty?'#5cc8ff':'#ff6b6b';
+      const conds=(Array.isArray(e.conditions)&&e.conditions.length)?(' ['+e.conditions.map(escapeHtml).join(',')+']'):'';
+      let bar=''; if(pct!=null){ const co=pct<=0.34?'#E24B4A':pct<=0.67?'#EF9F27':'#97C459'; bar='<div class="bs-hpbar"><div style="width:'+Math.round(pct*100)+'%;background:'+co+'"></div></div>'; }
+      const row=document.createElement('div'); row.className='bs-initrow'+(mine?' me':''); row.style.borderColor=col;
+      row.innerHTML='<span class="bs-ini">'+(e.initiative==null?'?':e.initiative)+'</span><span class="bs-iname">'+escapeHtml(e.display_name)+(mine?' (คุณ)':'')+'<span class="muted" style="font-size:11px">'+conds+'</span>'+bar+'</span><span class="bs-ihp" style="color:'+col+'">'+escapeHtml(hpTxt||'')+'</span>';
+      initEl.appendChild(row);
+    });
+    if(!initEl.children.length) initEl.innerHTML='<div class="note" style="color:#9a9a9a">— รอลำดับการรบ —</div>';
+  }
+  if(logEl){
+    let logs=[]; try{ const r=await supa.from('combat_log').select('*').eq('encounter_id',enc.id).order('created_at',{ascending:true}).limit(80); logs=r.data||[]; }catch(e){}
+    const ICON={initiative:'🎲',attack:'🎲',damage:'💥',heal:'💚',save:'🛡',check:'🎯',move:'👣',condition:'⭐',death:'☠',flee:'🏃',round_advance:'🔄',note:'📝'};
+    logs.forEach(l=>{ const d=document.createElement('div'); d.className='bs-logrow'; if(l.entry_type==='round_advance') d.style.color='#9a9a9a'; d.innerHTML=(ICON[l.entry_type]||'•')+' '+escapeHtml(l.summary); logEl.appendChild(d); });
+    if(!logEl.children.length) logEl.innerHTML='<div class="note" style="color:#9a9a9a">— ยังไม่มีบันทึกการรบ —</div>';
+    setTimeout(function(){ logEl.scrollTop=logEl.scrollHeight; },0);
+  }
+}
+
 // ───────── AoE: เล็งเวท/สกิลแบบพื้นที่บน Map ─────────
 function aoeCellsFor(c,r){
   const g=_lastGrid; if(!g) return [];
@@ -2638,11 +2787,11 @@ function aoeCellsFor(c,r){
   for(let rr=0;rr<g.rows;rr++)for(let cc=0;cc<g.cols;cc++){ if(Math.max(Math.abs(cc-c),Math.abs(rr-r))<=cr) out.push((L[cc]||'?')+(rr+1)); }
   return out;
 }
-function aoePickCell(c,r){ if(!aoeMode) return; aoeCenter={c:c,r:r}; renderCombat(); }
+function aoePickCell(c,r){ if(!aoeMode) return; aoeCenter={c:c,r:r}; if(_bsShown) renderBattleScene(); else renderCombat(); }
 // เปิดตัวเลือกพื้นที่บน Map ให้ Command Menu (คืนผลผ่าน callback) — รัศมีจาก target เช่น sphere_20/cone_15/line_30
 function ccGridPick(target, cb){
   const m=/^(?:sphere|cone|line|cube|square|cylinder)_?(\d+)/.exec(String(target||'')); const ft=m?parseInt(m[1]):20;
-  aoeMode={radiusFt:ft, cb:cb}; aoeCenter=null; switchTab('mon');
+  aoeMode={radiusFt:ft, cb:cb}; aoeCenter=null; if(_bsShown){ renderBattleScene(); } else { switchTab('mon'); }
   toast('แตะช่องศูนย์กลางบน Map แล้วกด ✓ ยืนยันพื้นที่');
 }
 function aoeConfirm(){
@@ -2650,11 +2799,11 @@ function aoeConfirm(){
   const L="ABCDEFGHIJKLMNOPQRST"; const center=(L[aoeCenter.c]||'?')+(aoeCenter.r+1);
   const cells=aoeCellsFor(aoeCenter.c,aoeCenter.r); const ft=aoeMode.radiusFt; const cb=aoeMode.cb;
   aoeMode=null; aoeCenter=null;
-  if(cb){ switchTab('story'); try{ cb({center:center, cells:cells, radiusFt:ft}); }catch(e){} return; }   // เส้นทาง Command Menu
+  if(cb){ if(!_bsShown) switchTab('story'); try{ cb({center:center, cells:cells, radiusFt:ft}); }catch(e){} if(_bsShown) renderBattleScene(); return; }   // เส้นทาง Command Menu
   pendingAoE={centerCell:center, cells:cells, radiusFt:ft};
   switchTab('story'); toast('ปักพื้นที่แล้ว ✓ — พิมพ์คำสั่งแล้วกด Submit');
 }
-function aoeCancel(){ const cb=aoeMode&&aoeMode.cb; aoeMode=null; aoeCenter=null; if(cb){ try{ cb(null); }catch(e){} return; } renderCombat(); }
+function aoeCancel(){ const cb=aoeMode&&aoeMode.cb; aoeMode=null; aoeCenter=null; if(cb){ try{ cb(null); }catch(e){} if(_bsShown) renderBattleScene(); return; } if(_bsShown) renderBattleScene(); else renderCombat(); }
 function aoeTag(sp){ if(!sp||!sp.area_shape) return ''; const M={sphere:'วง',cube:'ลูกบาศก์',cone:'กรวย',line:'เส้น',cylinder:'ทรงกระบอก',square:'สี่เหลี่ยม'}; return ' <span class="chip" style="background:#3a1a1a;color:#f09595;border-color:#f09595;font-size:10px">🎯 '+(sp.area_size?sp.area_size+'ft ':'')+(M[sp.area_shape]||sp.area_shape)+'</span>'; }
 
 // ───────── battle grid (2.5D squashed square — pattern จากเกม motley crews) ─────────
@@ -3105,11 +3254,11 @@ function subscribeRealtime(){
     .on('postgres_changes',{event:'*',schema:'public',table:'campaign_state',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadState(); applyMood(); if(activeTab()==='story'){ renderClock(); renderRoundbar(); } if(activeTab()==='map') renderMap(); const _lu=worldState&&worldState.level_up; if(activeTab()==='me'){ const md=_lu&&_lu.active&&(_lu.done||[]).includes(myChar&&myChar.id); if(!_lu||!_lu.active||md) renderMe(); } })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_messages',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ const row=payload.new; if(row&&row.id&&!chatMsgs.some(m=>m.id===row.id)){ chatMsgs.push(row); if(chatMsgs.length>300) chatMsgs=chatMsgs.slice(-300); cacheSave('chat',chatMsgs); } if(activeTab()==='party'){ renderChatList(); } else if(row && row.user_id!==me.id){ const t=document.querySelector('.tab[data-tab="party"]'); if(t) t.classList.add('blink'); } })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'chronicles',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='chron'){ renderChronicle(); } else { const t=document.querySelector('.tab[data-tab="chron"]'); if(t) t.classList.add('blink'); } })
-    .on('postgres_changes',{event:'*',schema:'public',table:'combat_encounters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await refreshCombatTurn(); scheduleCombatRender(); if(activeTab()==='story') renderRoundbar(); })
-    .on('postgres_changes',{event:'*',schema:'public',table:'initiative_entries',filter:'campaign_id=eq.'+campaign.id}, async()=>{ scheduleCombatRender(); })
-    .on('postgres_changes',{event:'INSERT',schema:'public',table:'combat_log',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='mon'){ scheduleCombatRender(); } else { const t=document.querySelector('.tab[data-tab="mon"]'); if(t) t.classList.add('blink'); } })
-    .on('postgres_changes',{event:'*',schema:'public',table:'battle_grids',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='mon') scheduleCombatRender(); })
-    .on('postgres_changes',{event:'*',schema:'public',table:'grid_tokens',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='mon') scheduleCombatRender(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'combat_encounters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await refreshCombatTurn(); scheduleBattleScene(); if(activeTab()==='story') renderRoundbar(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'initiative_entries',filter:'campaign_id=eq.'+campaign.id}, async()=>{ scheduleBattleScene(); })
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'combat_log',filter:'campaign_id=eq.'+campaign.id}, async()=>{ scheduleBattleScene(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'battle_grids',filter:'campaign_id=eq.'+campaign.id}, async()=>{ scheduleBattleScene(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'grid_tokens',filter:'campaign_id=eq.'+campaign.id}, async()=>{ scheduleBattleScene(); })
     .subscribe((status)=>{
       if(status==='SUBSCRIBED'){ rtLastSyncTs=Date.now(); }
       else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){
@@ -3126,6 +3275,7 @@ async function resyncAll(force){
   try{
     await Promise.all([loadRound(), loadNarrative(), loadCharacters(), loadState()]);
     if(typeof refreshCombatTurn==='function'){ try{ await refreshCombatTurn(); }catch(e){} }
+    if(typeof scheduleBattleScene==='function'){ try{ scheduleBattleScene(); }catch(e){} }
     rtLastSyncTs=Date.now();
     const narrSig=narrative.length+'|'+((narrative[narrative.length-1]||{}).id||'');
     const roundSig=((curRound&&curRound.id)||'')+'|'+((curRound&&curRound.phase)||'');
