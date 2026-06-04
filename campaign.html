@@ -363,6 +363,24 @@ body.ui-min #worldClock{display:none!important;}
 @media (min-width:1300px){
   .panel[data-tab="story"].active{padding-left:236px;}
 }
+/* Desktop: หน้า Character (me) จัด 3 คอลัมน์สมดุลให้เต็มจอ ไม่เหลือช่องว่างใหญ่ ไม่ต้องเลื่อน */
+@media (min-width:1024px){
+  .panel[data-tab="me"].active{
+    grid-template-columns:1fr 1.15fr 1fr;
+    grid-template-areas:"portrait stats level" "status stats notes";
+    grid-template-rows:auto 1fr;
+    align-content:stretch;align-items:stretch;
+    max-width:1320px;
+  }
+  .panel[data-tab="me"].active .avatarwin{grid-area:portrait;order:0;}
+  .panel[data-tab="me"].active .mecard-stats{grid-area:stats;}
+  .panel[data-tab="me"].active .mecard-level{grid-area:level;}
+  .panel[data-tab="me"].active .mecard-status{grid-area:status;}
+  .panel[data-tab="me"].active .mecard-notes{grid-area:notes;display:flex;flex-direction:column;}
+  .panel[data-tab="me"].active .mecard-notes .fld{flex:1;display:flex;flex-direction:column;}
+  .panel[data-tab="me"].active .mecard-notes textarea{flex:1;min-height:90px;}
+}
+
 
 /* ===== Phase 5 components ===== */
 .mapbox{border:2px solid #fff;background:#000;width:100%;aspect-ratio:10/7;display:block;}
@@ -428,6 +446,29 @@ body.ui-min #worldClock{display:none!important;}
 .pip.spent{background:#000;}
 .pips .cnt{font-family:'VT323',monospace;font-size:15px;color:#9a9a9a;margin-left:4px;}
 .skill .desc{font-size:12px;color:#9a9a9a;line-height:1.55;}
+/* ── Skills tab v2: grouped grid + popup, readable TH/ENG (non-pixel) ── */
+.sk-cat{font-family:'Press Start 2P',monospace;font-size:7px;letter-spacing:1px;color:#9a9a9a;display:block;margin:16px 2px 8px;}
+.sk-cat.first{margin-top:4px;}
+.sk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(208px,1fr));gap:8px;}
+.sk-chip{border:2px solid #fff;border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:8px;cursor:pointer;font-family:'IBM Plex Sans Thai',sans-serif;transition:background .08s;}
+.sk-chip:hover,.sk-chip:active{background:#fff;}
+.sk-chip .sk-nm{font-weight:700;font-size:15px;color:#fff;flex:1;line-height:1.25;}
+.sk-chip .sk-use{font-size:13px;font-weight:700;color:#9a9a9a;}
+.sk-chip .sk-bdg{font-size:10px;font-weight:700;letter-spacing:.5px;border:2px solid #fff;border-radius:4px;padding:3px 6px;color:#fff;white-space:nowrap;}
+.sk-chip .sk-bdg.on{background:#fff;color:#000;}
+.sk-chip:hover .sk-nm,.sk-chip:active .sk-nm,.sk-chip:hover .sk-use,.sk-chip:active .sk-use{color:#000;}
+.sk-chip:hover .sk-bdg,.sk-chip:active .sk-bdg{border-color:#000;color:#000;}
+.sk-chip:hover .sk-bdg.on,.sk-chip:active .sk-bdg.on{background:#000;color:#fff;border-color:#000;}
+.sk-modal{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;display:none;align-items:center;justify-content:center;padding:18px;}
+.sk-modal.on{display:flex;}
+.sk-box{background:#000;border:2px solid #fff;border-radius:12px;max-width:440px;width:100%;padding:16px 18px 20px;font-family:'IBM Plex Sans Thai',sans-serif;}
+.sk-box .sk-h{display:flex;align-items:flex-start;gap:10px;border-bottom:2px solid #fff;padding-bottom:10px;margin-bottom:12px;}
+.sk-box .sk-h .t{font-weight:700;font-size:20px;color:#fff;flex:1;line-height:1.25;}
+.sk-box .sk-x{background:transparent;border:0;color:#fff;font-size:22px;cursor:pointer;line-height:1;padding:0 2px;}
+.sk-box .sk-tags{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:13px;}
+.sk-box .sk-tag{font-size:12px;font-weight:700;border:2px solid #fff;border-radius:5px;padding:4px 9px;color:#fff;}
+.sk-box .sk-tag.on{background:#fff;color:#000;}
+.sk-box .sk-d{font-size:15px;line-height:1.7;color:#d8d8d8;}
 .acc{border:3px solid #fff;border-radius:8px;overflow:hidden;}
 .acc > .acc-head{width:100%;text-align:left;background:#000;color:#fff;border:0;padding:12px 13px;font-weight:700;font-size:14px;display:flex;align-items:center;gap:9px;}
 .acc > .acc-head::before{content:"\25B6";font-size:10px;}
@@ -1512,6 +1553,8 @@ const RACE_FEATURES={
 };
 function raceKey(){ const r=(raceValue()||'').toLowerCase(); if(/drow|dark.?elf/.test(r)) return 'drow'; if(/half.?elf/.test(r)) return 'halfelf'; if(/half.?orc/.test(r)) return 'halforc'; for(const k in RACE_FEATURES){ if(r.includes(k)) return k; } return null; }
 function classKey(){ const c=(classValue()||'').toLowerCase(); for(const k in CLASS_SKILLS){ if(c.includes(k)) return k; } return null; }
+// เงินเริ่มต้นตาม PHB (class starting wealth, เฉลี่ย gp) — monk = 5d4 gp
+const CLASS_START_GOLD={barbarian:50,bard:125,cleric:125,druid:50,fighter:125,monk:13,paladin:125,ranger:125,rogue:100,sorcerer:75,warlock:100,wizard:100,artificer:125};
 function skillDef(){ const k=classKey(); return k? CLASS_SKILLS[k] : {n:2,list:'ALL'}; }
 function renderSkillPick(){
   const wrap=$('skillWrap'); if(!wrap) return;
@@ -1584,12 +1627,13 @@ async function createCharacter(){
     let eqp={ weapon:weaponValue(), offhand:'', armor:'', shield:'', accessory:'' }, invp=[], walletp={gp:0,sp:0,cp:0};
     if(selectedPkg && Array.isArray(selectedPkg.items)){
       for(const it of selectedPkg.items){ const ci=ITEM_CAT[it.slug]; const nm=ci?ci.name:it.slug; const qty=it.qty||1; const cat=ci?ci.category:'';
-        if(cat==='weapon' && !eqp.weapon) eqp.weapon=nm;
-        else if(cat==='armor' && !eqp.armor) eqp.armor=nm;
+        if(cat==='weapon'){ if(!eqp.weapon) eqp.weapon=nm; /* เหลือแค่อาวุธที่เลือก — ตัดอาวุธชุดเริ่มต้นที่เกินออก */ continue; }
+        if(cat==='armor' && !eqp.armor) eqp.armor=nm;
         else if(cat==='shield' && !eqp.shield) eqp.shield=nm;
         else invp.push({name:nm,qty:qty}); }
-      if(selectedPkg.gold) walletp.gp=selectedPkg.gold;
     }
+    // เงินเริ่มต้น: ถ้าชุดกำหนด gold เองใช้ค่านั้น, ไม่งั้นใช้ตาราง PHB ตามคลาส (ดีฟอลต์ 15 gp = เงิน background)
+    { const _ck=classKey(); walletp.gp = (selectedPkg && selectedPkg.gold) ? selectedPkg.gold : (CLASS_START_GOLD[_ck]||15); }
     const sheet={
       race:raceValue(), sex:$('cSex').value.trim(), age:$('cAge').value.trim(),
       abilities:{ str:finalAb('str'), dex:finalAb('dex'), con:finalAb('con'), int:finalAb('int'), wis:finalAb('wis'), cha:finalAb('cha') },
@@ -2166,7 +2210,7 @@ async function renderMe(){
   const bsum=[]; if(bon.add.attack) bsum.push('โจมตี '+sign(bon.add.attack)); if(bon.add.damage) bsum.push('ดาเมจ '+sign(bon.add.damage)); if(bon.add.save) bsum.push('save '+sign(bon.add.save)); if(bon.add.ability_check) bsum.push('ability check '+sign(bon.add.ability_check)); if(bon.add.spell_attack) bsum.push('spell atk '+sign(bon.add.spell_attack)); if(bon.add.spell_dc) bsum.push('spell DC '+sign(bon.add.spell_dc));
   const abil2=(lab,key)=>{ const sc=eAb[key]; const m=sign(mod(sc)); const boosted=(sc!=null && ab[key]!=null && sc!==ab[key]); const v=(sc==null?dash:`${sc}`)+(m?`  (${m})`:'')+(boosted?' ✦':''); return num(lab,v); };
   // window 1: abilities + combat
-  const it=document.createElement('div'); it.className='item';
+  const it=document.createElement('div'); it.className='item mecard-stats';
   it.innerHTML=`<div class="nm">${esc(myChar.name)} <span class="meta-inline">${esc(sub)}</span></div>`+
     `<div class="sectitle">ABILITY SCORES</div><div class="grid2">`+abil2('STR','str')+abil2('DEX','dex')+abil2('CON','con')+abil2('INT','int')+abil2('WIS','wis')+abil2('CHA','cha')+`</div>`+
     `<div class="sectitle">COMBAT</div>`+num('Armor Class (AC)',acRes.ac)+
@@ -2178,7 +2222,7 @@ async function renderMe(){
   p.appendChild(it);
 
   // window 2: level + exp + wallet
-  const w2=document.createElement('div'); w2.className='item';
+  const w2=document.createElement('div'); w2.className='item mecard-level';
   const cur=ex.current||0, nxt=ex.next||0; const pct=nxt?Math.min(100,Math.round(cur/nxt*100)):0;
   w2.innerHTML=`<div class="winhead"><div class="sectitle" style="margin:0">LEVEL & EXP</div><div class="lvbadge">Lv ${myChar.level}</div></div>`+
     `<div class="barwrap"><div class="barlabel"><span>Experience</span><span class="num">${cur} / ${nxt||dash}</span></div><div class="bar"><div class="fill" style="width:${pct}%"></div></div></div>`+
@@ -2187,7 +2231,7 @@ async function renderMe(){
 
   // window 3: status / conditions / resistances
   const eff=sheet.effects||[], conds=sheet.conditions||[], res=sheet.resistances||{};
-  const w3=document.createElement('div'); w3.className='item';
+  const w3=document.createElement('div'); w3.className='item mecard-status';
   let h='<div class="sectitle">STATUS & EFFECTS</div>';
   if(eff.length) eff.forEach(e=>{ const dir=(e.kind==='debuff'||e.kind==='down')?'down':'up'; h+=`<div class="fx ${dir}"><span class="ar"></span><b>${esc(e.name||'')}</b> ${esc(e.desc||'')} <span class="dur">${esc(e.dur||'')}</span></div>`; });
   else h+='<div class="note">No active effects</div>';
@@ -2205,7 +2249,7 @@ async function renderMe(){
   w3.innerHTML=h; p.appendChild(w3);
 
   // private notes editor
-  const it4=document.createElement('div'); it4.className='item';
+  const it4=document.createElement('div'); it4.className='item mecard-notes';
   const notes=document.createElement('label'); notes.className='fld';
   notes.innerHTML='<div class="sectitle" style="margin-top:0">NOTES (private)</div>';
   const ta=document.createElement('textarea'); ta.id='meNotes'; ta.value=sheet.notes||''; notes.appendChild(ta);
@@ -2415,6 +2459,10 @@ async function unequipItem(slot){
   }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ของเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderItems(); } else toast('ถอดไม่สำเร็จ',true); }
 }
 // ───────── render: skills (ตาราง skills + fallback) ─────────
+const _RACE_NAMES=(()=>{const x=new Set();try{Object.values(RACE_FEATURES).forEach(a=>a.forEach(f=>x.add((f.name||'').toLowerCase())));}catch(e){}return x;})();
+const _CLASS_FNAMES=(()=>{const x=new Set();try{Object.values(CLASS_FEATURES).forEach(a=>a.forEach(f=>x.add((f.name||'').toLowerCase())));}catch(e){}return x;})();
+function skillCat(s){ const n=(s.name||'').toLowerCase(); if(_RACE_NAMES.has(n)) return 'race'; if(_CLASS_FNAMES.has(n)) return 'class'; return 'spell'; }
+function rechLabel(r){ return ({long:'LONG REST',short:'SHORT REST',atwill:'AT WILL',passive:'PASSIVE'})[r]||String(r||'').toUpperCase(); }
 async function renderSkills(){
   const p=$('panel-skills'); p.innerHTML='';
   if(!myChar){ p.innerHTML='<div class="muted">No character yet</div>'; return; }
@@ -2422,21 +2470,37 @@ async function renderSkills(){
   try{ const r=await supa.from('skills').select('*').eq('character_id',myChar.id).order('sort'); if(!r.error) rows=r.data||[]; }catch(e){}
   if(rows===null){ p.innerHTML='<div class="muted">Skills system not enabled yet</div>'; return; }
   if(!rows.length){ p.innerHTML='<div class="muted">ยังไม่มีความสามารถ<br>ความสามารถจะปรากฏหลังสร้างตัวละคร (ตามเผ่า/คลาส) หรือเมื่อ DM มอบให้</div>'; return; }
-  // รายการความสามารถอย่างเดียว — แตะเพื่อดูคำอธิบายผล (ไม่มีปุ่มใช้; การใช้จริงสั่งผ่านเมนูคอมแบต/เนื้อเรื่อง)
   const card=document.createElement('div'); card.className='item';
-  card.innerHTML='<div class="sectitle">ความสามารถ (ABILITIES)</div><div class="note" style="text-align:left;padding:0 2px 6px">แตะที่ความสามารถเพื่อดูรายละเอียด</div>';
-  rows.forEach(s=>{
-    const rech=s.recharge||'long';
-    const lab={long:'LONG REST',short:'SHORT REST',atwill:'AT WILL',passive:'PASSIVE'}[rech]||String(rech).toUpperCase();
-    const at=(rech==='atwill'||rech==='passive')?' at':'';
-    const uses=(s.max_uses>0)?`<span class="cnt">${s.max_uses-(s.used||0)}/${s.max_uses}</span>`:'';
-    const d=document.createElement('div'); d.className='skill'; d.style.cursor='pointer';
-    d.innerHTML=`<div class="top"><span class="nm">${escapeHtml(s.name)}</span>${uses}<span class="rech${at}">${lab}</span></div><div class="desc" style="display:none">${escapeHtml(s.description||'(ไม่มีคำอธิบาย)')}</div>`;
-    d.onclick=()=>{ const dd=d.querySelector('.desc'); if(dd){ dd.style.display = (dd.style.display==='none'?'block':'none'); } try{tick();}catch(e){} };
-    card.appendChild(d);
+  card.innerHTML='<div class="sectitle">ความสามารถ (ABILITIES)</div><div class="note" style="text-align:left;padding:0 2px 4px">แตะที่ความสามารถเพื่อดูรายละเอียด</div>';
+  const buckets={class:[],race:[],spell:[]};
+  rows.forEach(s=>buckets[skillCat(s)].push(s));
+  const cats=[['class','ความสามารถคลาส · CLASS'],['race','ความสามารถเผ่าพันธุ์ · RACE'],['spell','เวทมนตร์ & ความสามารถอื่น · SPELLS']];
+  let firstCat=true;
+  cats.forEach(([key,label])=>{
+    const list=buckets[key]; if(!list.length) return;
+    const h=document.createElement('span'); h.className='sk-cat'+(firstCat?' first':''); h.textContent=label; card.appendChild(h); firstCat=false;
+    const grid=document.createElement('div'); grid.className='sk-grid';
+    list.forEach(s=>{
+      const rech=s.recharge||'long'; const on=(rech==='atwill'||rech==='passive');
+      const uses=(s.max_uses>0)?`<span class="sk-use">${s.max_uses-(s.used||0)}/${s.max_uses}</span>`:'';
+      const chip=document.createElement('div'); chip.className='sk-chip';
+      chip.innerHTML=`<span class="sk-nm">${escapeHtml(s.name)}</span>${uses}<span class="sk-bdg${on?' on':''}">${rechLabel(rech)}</span>`;
+      chip.onclick=()=>{ openSkillModal(s); try{tick();}catch(e){} };
+      grid.appendChild(chip);
+    });
+    card.appendChild(grid);
   });
   p.appendChild(card);
 }
+function openSkillModal(s){
+  let m=$('skModal');
+  if(!m){ m=document.createElement('div'); m.id='skModal'; m.className='sk-modal'; m.onclick=(e)=>{ if(e.target===m) closeSkillModal(); }; document.body.appendChild(m); }
+  const rech=s.recharge||'long'; const on=(rech==='atwill'||rech==='passive');
+  const usesTag=(s.max_uses>0)?`<span class="sk-tag">เหลือ ${s.max_uses-(s.used||0)}/${s.max_uses}</span>`:'';
+  m.innerHTML=`<div class="sk-box"><div class="sk-h"><span class="t">${escapeHtml(s.name)}</span><button class="sk-x" onclick="closeSkillModal()">✕</button></div><div class="sk-tags"><span class="sk-tag${on?' on':''}">${rechLabel(rech)}</span>${usesTag}</div><div class="sk-d">${escapeHtml(s.description||'(ไม่มีคำอธิบาย)')}</div></div>`;
+  m.classList.add('on');
+}
+function closeSkillModal(){ const m=$('skModal'); if(m) m.classList.remove('on'); }
 async function useSkill(id,used,max,name,desc){
   if(max>0){ if(used>=max) return; const { error }=await supa.from('skills').update({used:used+1}).eq('id',id); if(error){ toast(error.message||'Failed',true); return; } }
   tick();
