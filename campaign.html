@@ -471,10 +471,10 @@ body.role-player .dm-only{display:none!important;}
 /* World HUD (clock + location) — ติดอยู่เห็นตลอด, มือถือ=แถบบน, จอใหญ่=ลอยขวา */
 .worldhud{position:sticky;top:0;z-index:5;display:flex;flex-direction:column;gap:6px;}
 .whbox{border:var(--px) solid #fff;border-radius:8px;padding:6px 9px;background:#000;display:flex;flex-wrap:wrap;gap:5px 12px;align-items:center;box-shadow:0 0 0 var(--px) #000;}
-.whlabel{font-family:'Press Start 2P',monospace;font-size:7px;color:#fff;letter-spacing:1px;}
+.whlabel{font-family:'Press Start 2P',monospace;font-size:8px;color:#fff;letter-spacing:1px;}
 .wh{display:flex;align-items:center;gap:5px;font-size:11px;color:#9a9a9a;}
 .wh svg{width:14px;height:14px;display:block;image-rendering:pixelated;}
-.wh b{color:#fff;font-family:'VT323',monospace;font-size:15px;font-weight:400;letter-spacing:.5px;}
+.wh b{color:#fff;font-family:'VT323',monospace;font-size:16px;font-weight:400;letter-spacing:.5px;}
 .whtxt{font-family:'Press Start 2P',monospace;font-size:7px;color:#9a9a9a;letter-spacing:.5px;}
 @media (min-width:1300px){
   .worldhud{position:fixed;top:104px;left:16px;width:208px;z-index:6;}  /* ฝั่งซ้าย ใต้แท็บ ไม่ขวาง */
@@ -642,6 +642,15 @@ body.role-player .dm-only{display:none!important;}
 }
 .cc-open-btn:hover{ background:#fff; color:#000; }
 .cc-open-hint{ font-size:11px; color:#9a9a9a; line-height:1.6; flex:1; }
+/* combat panel — DQ clean */
+.cstat{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:2px;}
+.cstat .cs{font-family:'Press Start 2P',monospace;font-size:9px;line-height:1;letter-spacing:.5px;border:2px solid #fff;border-radius:4px;padding:7px 8px;color:#fff;background:#000;}
+.cstat .cs.done{background:#fff;color:#000;}
+.cstat .cs.wait{border-style:dashed;}
+.copt{display:flex;flex-direction:column;gap:6px;margin:2px 0;}
+.copt button{font-family:'Noto Sans Thai',sans-serif;font-size:13px;font-weight:600;text-align:left;border:2px dashed #fff;border-radius:6px;padding:9px 12px;background:#000;color:#fff;line-height:1.4;cursor:pointer;}
+.copt button:hover{background:#fff;color:#000;border-style:solid;}
+.whbox{border:2px solid #fff;border-radius:6px;padding:6px 9px;display:flex;flex-direction:column;gap:4px;}
 </style>
 </head>
 <body>
@@ -790,6 +799,9 @@ body.role-player .dm-only{display:none!important;}
     <div class="sectitle" style="margin-top:4px">SKILL PROFICIENCIES</div>
     <div id="skillInfo" class="note"></div>
     <div id="skillWrap" class="skgrid"></div>
+    <div class="sectitle" id="spellSecTitle" style="margin-top:4px;display:none">CANTRIP / เวทเริ่มต้น</div>
+    <div id="spellInfo" class="note" style="display:none"></div>
+    <div id="spellWrap" class="skgrid" style="display:none"></div>
     <label class="fld">Background / notes (private)<textarea id="cNotes" placeholder="ภูมิหลัง ความลับ ฯลฯ (เห็นเฉพาะคุณ)"></textarea></label>
     <button class="btn" id="charBtn" onclick="createCharacter()">Enter the World</button>
   </div>
@@ -1317,7 +1329,7 @@ function onClassChange(){
   const sel=$('cClass'); const cu=$('cClassCustom'); if(!sel||!cu) return;
   if(sel.value==='__custom'){ cu.classList.remove('hidden'); cu.focus(); }
   else { cu.classList.add('hidden'); cu.value=''; }
-  suggestHP(); renderSkillPick(); renderPackages();
+  suggestHP(); renderSkillPick(); renderPackages(); renderSpellPick();
 }
 function raceValue(){ const sel=$('cRace'); if(!sel) return ''; return sel.value==='__custom' ? (($('cRaceCustom')||{}).value||'').trim() : (sel.value||'').trim(); }
 function onRaceChange(){ const sel=$('cRace'),cu=$('cRaceCustom'); if(!sel||!cu) return; if(sel.value==='__custom'){ cu.classList.remove('hidden'); cu.focus(); } else { cu.classList.add('hidden'); cu.value=''; } }
@@ -1453,6 +1465,7 @@ const CLASS_FEATURES={
              {name:'Spellcasting',description:'Cast artificer spells (INT)',max_uses:0,recharge:'atwill'}],
 };
 let chosenSkills=[];
+let chosenSpells=[];   // {slug,name,level,effect} ที่เลือกตอนสร้างตัว (สายเวท)
 function classKey(){ const c=(classValue()||'').toLowerCase(); for(const k in CLASS_SKILLS){ if(c.includes(k)) return k; } return null; }
 function skillDef(){ const k=classKey(); return k? CLASS_SKILLS[k] : {n:2,list:'ALL'}; }
 function renderSkillPick(){
@@ -1467,6 +1480,51 @@ function toggleSkill(s){
   if(i>=0) chosenSkills.splice(i,1);
   else { if(chosenSkills.length>=def.n){ toast(`เลือกได้ ${def.n} สกิลตามคลาส`,true); return; } chosenSkills.push(s); }
   renderSkillPick();
+}
+// ───────── เลือก cantrip/เวทเริ่มต้น (สายเวท) ตอนสร้างตัวละคร ─────────
+const CANTRIP_N={bard:2,cleric:3,druid:2,sorcerer:4,warlock:2,wizard:3,ranger:0,paladin:0};
+const SPELL1_N ={bard:4,cleric:3,druid:3,sorcerer:2,warlock:1,wizard:6,ranger:0,paladin:0};
+function spellCaps(){
+  const ck=classKey();
+  if(ck && (CANTRIP_N[ck]!==undefined)) return { ck, cantrip:CANTRIP_N[ck]||0, lvl1:SPELL1_N[ck]||0, custom:false };
+  if(!ck) return { ck:null, cantrip:2, lvl1:2, custom:true };   // อาชีพนอกกฎ → เลือกได้บ้าง (DM กำกับ)
+  return { ck, cantrip:0, lvl1:0, custom:false };               // คลาสไม่ร่ายเวท
+}
+function renderSpellPick(){
+  const wrap=$('spellWrap'), info=$('spellInfo'), ttl=$('spellSecTitle'); if(!wrap||!ttl) return;
+  const caps=spellCaps();
+  const show = (caps.cantrip>0 || caps.lvl1>0);
+  [ttl,info,wrap].forEach(el=>{ if(el) el.style.display = show?'':'none'; });
+  if(!show){ chosenSpells=[]; wrap.innerHTML=''; return; }
+  if(!SPELL_CAT.length){ wrap.innerHTML='<span class="note">กำลังโหลดคลังเวท…</span>'; if(!window._spellPickLoading){ window._spellPickLoading=1; loadCatalogs().then(()=>{ window._spellPickLoading=0; renderSpellPick(); }); } return; }
+  const ckClasses=(sp)=>Array.isArray(sp.classes)?sp.classes:[];
+  const avail=SPELL_CAT.filter(sp=> sp.level<=1 && (caps.custom || ckClasses(sp).includes(caps.ck)) );
+  chosenSpells=chosenSpells.filter(x=>avail.some(sp=>sp.slug===x.slug));   // กันค้างของคลาสเก่า
+  const nC=chosenSpells.filter(x=>x.level===0).length, n1=chosenSpells.filter(x=>x.level===1).length;
+  if(info) info.innerHTML=`เลือก cantrip ${nC}/${caps.cantrip}`+(caps.lvl1>0?` · เวทเลเวล 1 ${n1}/${caps.lvl1}`:'')+(caps.custom?' · อาชีพนอกกฎ (เลือกอิสระ DM กำกับ)':'');
+  const grp=(L)=>avail.filter(sp=>sp.level===L);
+  let html='';
+  [[0,'Cantrip',caps.cantrip],[1,'เลเวล 1',caps.lvl1]].forEach(([L,lab,cap])=>{
+    if(cap<=0) return; const g=grp(L); if(!g.length) return;
+    html+=`<div class="note" style="grid-column:1/-1;color:#9ad;text-align:left;margin-top:4px">${lab}</div>`;
+    html+=g.map(sp=>{ const on=chosenSpells.some(x=>x.slug===sp.slug);
+      const area=sp.area_shape?` 🎯`:''; const dmg=sp.damage?` ${sp.damage}`:'';
+      return `<button type="button" class="skbtn${on?' on':''}" onclick="toggleSpell('${sp.slug}')" title="${escapeHtml((sp.effect||'')+dmg)}">${escapeHtml(sp.name)}${area}</button>`;
+    }).join('');
+  });
+  wrap.innerHTML=html;
+}
+function toggleSpell(slug){
+  const sp=SPELL_CAT.find(x=>x.slug===slug); if(!sp) return;
+  const caps=spellCaps(); const i=chosenSpells.findIndex(x=>x.slug===slug);
+  if(i>=0){ chosenSpells.splice(i,1); }
+  else {
+    const cap = sp.level===0?caps.cantrip:caps.lvl1;
+    const cur = chosenSpells.filter(x=>x.level===sp.level).length;
+    if(cur>=cap){ toast(sp.level===0?`เลือก cantrip ได้ ${cap}`:`เลือกเวทเลเวล 1 ได้ ${cap}`,true); return; }
+    chosenSpells.push({ slug:sp.slug, name:sp.name, level:sp.level, effect:sp.effect||'' });
+  }
+  renderSpellPick();
 }
 async function createCharacter(){
   const name=$('cName').value.trim(); if(!name){toast('Name your character first',true);return;}
@@ -1502,10 +1560,11 @@ async function createCharacter(){
     // ความสามารถเริ่มต้นตามคลาส → แท็บ Skills (ไม่พังถ้าตาราง skills ยังไม่ได้ migrate)
     try{
       const ck=classKey(); const feats=ck?CLASS_FEATURES[ck]:null;
-      if(feats&&feats.length){
-        const rows=feats.map((f,i)=>({campaign_id:campaign.id,character_id:ch.id,name:f.name,description:f.description,max_uses:f.max_uses,used:0,recharge:f.recharge,sort:i}));
-        await supa.from('skills').insert(rows);
-      }
+      const rows=[];
+      if(feats&&feats.length) feats.forEach((f,i)=>rows.push({campaign_id:campaign.id,character_id:ch.id,name:f.name,description:f.description,max_uses:f.max_uses,used:0,recharge:f.recharge,sort:i}));
+      // เวท/cantrip ที่เลือกตอนสร้างตัว → ลง skills (cantrip=at-will ไม่จำกัด · เลเวล1=2 ครั้ง/long rest) → โผล่แท็บ Skills + Command Menu
+      chosenSpells.forEach((sp,i)=>rows.push({campaign_id:campaign.id,character_id:ch.id,name:sp.name,description:sp.effect||'',max_uses:sp.level===0?0:2,used:0,recharge:sp.level===0?'atwill':'long',sort:100+i}));
+      if(rows.length) await supa.from('skills').insert(rows);
     }catch(e){}
     try{ localStorage.setItem('ttrpg_bg_'+campaign.id, sheet.notes||''); }catch(e){}
     myChar=ch; mySheet=sheet; await refreshAll(); show('campaign'); switchTab('story');
@@ -1635,7 +1694,7 @@ async function renderRoundbar(){
   // STAGE 2: อ่านปูมหลังแล้ว แต่ยังไม่มีตัวละคร → สร้างตัวละคร
   if(!myChar){
     bar.innerHTML='<div class="statusline">อ่านปูมหลังโลกด้านบนก่อน แล้วสร้างตัวละครของคุณให้เข้ากับโลกนี้</div>';
-    const b=document.createElement('button'); b.className='btn'; b.textContent='📝 Create your character'; b.onclick=()=>{ chosenSkills=[]; bonusMode='2-1'; bonusPick={a:'str',b:'dex',c:'con'}; show('charScreen'); fillJoinBriefing(); renderPB(); renderBonus(); suggestHP(); renderSkillPick(); loadCatalogs().then(renderPackages); }; bar.appendChild(b);
+    const b=document.createElement('button'); b.className='btn'; b.textContent='📝 Create your character'; b.onclick=()=>{ chosenSkills=[]; chosenSpells=[]; bonusMode='2-1'; bonusPick={a:'str',b:'dex',c:'con'}; show('charScreen'); fillJoinBriefing(); renderPB(); renderBonus(); suggestHP(); renderSkillPick(); loadCatalogs().then(()=>{ renderPackages(); renderSpellPick(); }); }; bar.appendChild(b);
     return;
   }
   // STAGE 3: มีตัวละครแล้ว แต่ยังไม่เปิดฉาก → host เริ่มฉากแรก
@@ -1664,12 +1723,14 @@ async function renderRoundbar(){
   const typingNow=document.activeElement && document.activeElement.id==='actInput';
   if(typingNow && rbKey===_lastRoundbarKey){
     const sl=bar.querySelector('.statusline');
-    if(sl) sl.innerHTML=`<span class="pill">Round ${curRound.round_number}</span><span class="pill ${submitted>=total?'done':'wait'}">Submitted ${submitted}/${total}</span>`;
+    const _cbq=(curRound.meta||{}).combat||{}; const _rngq=(_cbq.active&&_cbq.range)?`<span class="cs">${escapeHtml(_cbq.range)}</span>`:'';
+    if(sl) sl.innerHTML=`<div class="cstat"><span class="cs">Round ${curRound.round_number}</span><span class="cs ${submitted>=total?'done':'wait'}">Submitted ${submitted}/${total}</span>${_rngq}</div>`;
     return;
   }
   _lastRoundbarKey=rbKey;
   const keepAct=(document.getElementById('actInput')||{}).value||'';   // กันข้อความที่พิมพ์ค้างหายตอน re-render (placeholder/realtime)
-  let html=`<div class="statusline"><span class="pill">Round ${curRound.round_number}</span><span class="pill ${submitted>=total?'done':'wait'}">Submitted ${submitted}/${total}</span></div>`;
+  const _cbS=(curRound.meta||{}).combat||{}; const _rng=(_cbS.active&&_cbS.range)?`<span class="cs">${escapeHtml(_cbS.range)}</span>`:'';
+  let html=`<div class="cstat"><span class="cs">Round ${curRound.round_number}</span><span class="cs ${submitted>=total?'done':'wait'}">Submitted ${submitted}/${total}</span>${_rng}</div>`;
   list.forEach(a=>{ html+=`<div class="actionlog"><b>${escapeHtml(nameFor(a))}</b> ${escapeHtml(a.action_text)}</div>`; });
   bar.innerHTML=html;   // สร้างทีเดียว (synchronous ต่อจากนี้ ไม่มี await)
   // v2: ล็อกตาเดี่ยว — ถ้าอยู่ในคอมแบตและยังไม่ถึงตาเรา → รอ (ไม่ให้ส่ง)
@@ -1698,71 +1759,20 @@ async function renderRoundbar(){
     const meta=curRound.meta||{};
     const cb=meta.combat||{}, rr=meta.roll_request||{}, inter=meta.interactables||[];
     if(econUsedRound!==curRound.id){ econUsed={}; econUsedRound=curRound.id; }  // รีเซ็ตมาร์กทุกรอบ
-    // D: คอมแบต — ระยะ + action economy (แตะมาร์กว่าใช้แล้ว) + 3 ทางเลือก
-    if(cb.active){
-      const ci=document.createElement('div'); ci.className='combatbar';
-      ci.innerHTML='<span class="cbtag">⚔ COMBAT</span>'+(cb.range?`<span class="cbrange">ระยะ: ${escapeHtml(cb.range)}</span>`:'');
-      bar.appendChild(ci);
-      const ec=cb.economy||{};
-      const moveOk = ec.move!==undefined ? (String(ec.move)!=='0'&&String(ec.move).toLowerCase()!=='0 ft') : true;
-      const econ=document.createElement('div'); econ.className='econrow';
-      const lbl=document.createElement('span'); lbl.className='econlbl'; lbl.textContent='เทิร์นนี้ทำได้ (ระบบไฮไลต์ให้อัตโนมัติตามที่คุณพิมพ์/เลือก):'; econ.appendChild(lbl);
-      // chip แสดงผลอย่างเดียว — 'ระบบ' มาร์กให้เองตามการตีความข้อความ (ไม่ให้ผู้เล่นแตะเลือกเอง)
-      const mkChip=(key,lab,baseAvail)=>{
-        const c=document.createElement('button'); c.type='button'; c.id='econchip-'+key; c.dataset.avail=baseAvail?'1':'0'; c.tabIndex=-1;
-        c.className='econ '+(baseAvail?'avail':'used'); c.textContent=lab; c.disabled=!baseAvail;
-        return c;
-      };
-      econ.appendChild(mkChip('action','Action', ec.action!==false));
-      econ.appendChild(mkChip('bonus','Bonus', ec.bonus!==false));
-      econ.appendChild(mkChip('move','Move'+(ec.move?(' '+String(ec.move)):''), moveOk));
-      econ.appendChild(mkChip('reaction','Reaction', ec.reaction!==false));
-      bar.appendChild(econ);
-      const leg=document.createElement('div'); leg.className='econleg'; leg.textContent='ระบบจะไฮไลต์เองว่าการกระทำของคุณใช้ Action/Bonus/Move/Reaction ใด (ช่วยมือใหม่) — DM ตัดสินผลจริงอีกที'; bar.appendChild(leg);
-      if(Array.isArray(cb.options)&&cb.options.length){
-        const opts=document.createElement('div'); opts.className='optrow'; opts.innerHTML='<span class="dicelbl">แนวทาง:</span>';
-        cb.options.slice(0,3).forEach(o=>{ const ob=document.createElement('button'); ob.className='btn ghost sm'; ob.textContent=o; ob.onclick=()=>appendAct(o); opts.appendChild(ob); });
-        bar.appendChild(opts);
-      }
-    }
-    // 🎯 เล็งเวท/สกิลแบบพื้นที่ (AoE) บนแท็บ Map
-    if(cb.active){
-      const aw=document.createElement('div'); aw.className='optrow';
-      if(pendingAoE){
-        aw.innerHTML='<span class="dicelbl">🎯 พื้นที่:</span>';
-        const tg=document.createElement('span'); tg.className='chip'; tg.style.cssText='background:#3a1a1a;color:#f09595;border-color:#f09595'; tg.textContent=`${pendingAoE.centerCell} · ${pendingAoE.radiusFt?('รัศมี '+pendingAoE.radiusFt+'ft'):'จุดเดียว'} · ${pendingAoE.cells.length} ช่อง`; aw.appendChild(tg);
-        const ed=document.createElement('button'); ed.className='btn ghost sm'; ed.textContent='แก้'; ed.onclick=()=>{ aoeMode={radiusFt:pendingAoE.radiusFt}; aoeCenter=null; switchTab('map'); toast('แตะช่องศูนย์กลางบน Map'); }; aw.appendChild(ed);
-        const cl=document.createElement('button'); cl.className='btn ghost sm'; cl.textContent='✕'; cl.onclick=()=>{ pendingAoE=null; renderRoundbar(); }; aw.appendChild(cl);
-      } else if(aoePickOpen){
-        aw.innerHTML='<span class="dicelbl">🎯 รัศมีพื้นที่:</span>';
-        [['จุดเดียว',0],['10ft',10],['15ft',15],['20ft',20],['30ft',30]].forEach(pr=>{ const b=document.createElement('button'); b.className='btn ghost sm'; b.textContent=pr[0]; b.onclick=()=>{ aoeMode={radiusFt:pr[1]}; aoeCenter=null; aoePickOpen=false; switchTab('map'); toast('แตะช่องศูนย์กลางบน Map แล้วกด ยืนยัน'); }; aw.appendChild(b); });
-        const x=document.createElement('button'); x.className='btn ghost sm'; x.textContent='ยกเลิก'; x.onclick=()=>{ aoePickOpen=false; renderRoundbar(); }; aw.appendChild(x);
-      } else {
-        const b=document.createElement('button'); b.className='btn ghost sm'; b.textContent='🎯 เล็งพื้นที่ (AoE) บน Map'; b.onclick=()=>{ aoePickOpen=true; renderRoundbar(); }; aw.appendChild(b);
-      }
-      bar.appendChild(aw);
-    }
-    // ── Combat Command launcher (DQ-style structured turn picker) ──
-    //   โผล่ในคอมแบตเท่านั้น · เปิด overlay ที่ #combatCommandPanel · ไม่แตะ free-text flow
+    // คอมแบต (DQ-clean): COMMAND MENU → 3 แนวทาง → ช่องพิมพ์อิสระ
+    //   (action economy / ของที่ใช้ / เล็งพื้นที่ ย้ายเข้าไปใน Command Menu แล้ว — ลดความรก)
     if(cb.active && typeof window.cc==='object' && window.cc && typeof window.cc.open==='function'){
-      const ccRow=document.createElement('div'); ccRow.className='cc-open-row';
-      const ccBtn=document.createElement('button'); ccBtn.type='button'; ccBtn.className='cc-open-btn';
+      const ccBtn=document.createElement('button'); ccBtn.type='button'; ccBtn.className='cc-open-btn'; ccBtn.style.width='100%';
       ccBtn.textContent='🎮 COMMAND MENU';
       ccBtn.onclick=async()=>{ try{ await prepCommandContext(); }catch(e){} try{ window.cc.open(); }catch(e){ toast('Open menu failed: '+(e.message||e),true); } };
-      ccRow.appendChild(ccBtn);
-      const ccHint=document.createElement('span'); ccHint.className='cc-open-hint';
-      ccHint.textContent='สั่งการแบบ DQ — เลือก action/bonus/move/etc แล้วทอยเต๋า';
-      ccRow.appendChild(ccHint);
-      bar.appendChild(ccRow);
+      bar.appendChild(ccBtn);
     }
-    const ta=document.createElement('textarea'); ta.id='actInput'; ta.placeholder='จะให้ตัวละครทำอะไร? พิมพ์ได้อิสระ'; if(keepAct) ta.value=keepAct; ta.oninput=markEconomyFromText; bar.appendChild(ta);
-    markEconomyFromText();   // ไฮไลต์ตามข้อความที่ค้างอยู่ (ถ้ามี)
-    // E: ปุ่มปฏิสัมพันธ์สิ่งแวดล้อม
-    if(Array.isArray(inter)&&inter.length){
-      const ir=document.createElement('div'); ir.className='optrow'; ir.innerHTML='<span class="dicelbl">🛠 ใช้:</span>';
-      inter.slice(0,6).forEach(it=>{ const ib=document.createElement('button'); ib.className='btn ghost sm'; ib.title=it.desc||''; ib.textContent=it.label; ib.onclick=()=>appendAct('ใช้ '+it.label+(it.desc?` (${it.desc})`:'')); ir.appendChild(ib); });
-      bar.appendChild(ir);
+    if(cb.active && Array.isArray(cb.options) && cb.options.length){
+      const opts=document.createElement('div'); opts.className='copt';
+      cb.options.slice(0,3).forEach(o=>{ const ob=document.createElement('button'); ob.type='button'; ob.textContent=o; ob.onclick=()=>appendAct(o); opts.appendChild(ob); });
+      bar.appendChild(opts);
     }
+    const ta=document.createElement('textarea'); ta.id='actInput'; ta.placeholder=cb.active?'หรือพิมพ์อิสระ… (DM จะถือเป็น Narrate)':'จะให้ตัวละครทำอะไร? พิมพ์ได้อิสระ'; if(keepAct) ta.value=keepAct; bar.appendChild(ta);
     // เต๋า — โผล่เฉพาะตอน DM 'เรียกให้ทอย' เท่านั้น (ชัดเจนว่าทอยเมื่อไหร่/ทอยอะไร)
     if(rr.needed){
       const dice=document.createElement('div'); dice.className='dicerow';
@@ -1773,8 +1783,6 @@ async function renderRoundbar(){
       const sf=document.createElement('button'); sf.className='btn ghost sm'; sf.textContent='ทอยเอง'; sf.onclick=rollSelf; dice.appendChild(sf);
       bar.appendChild(dice);
       const dn=document.createElement('div'); dn.className='econleg'; dn.textContent='“DM ทอยให้” = server สุ่มจริง 100% · “ทอยเอง” = ทอยเต๋าจริงในมือแล้วใส่เลข'; bar.appendChild(dn);
-    } else if(cb.active){
-      const hint=document.createElement('div'); hint.className='econleg'; hint.textContent='ยังไม่ต้องทอยตอนนี้ — พิมพ์สิ่งที่จะทำแล้วกด Submit; DM จะบอกเมื่อถึงจังหวะต้องทอย'; bar.appendChild(hint);
     }
     const b=document.createElement('button'); b.className='btn'; b.textContent='Submit Action'; b.onclick=submitAction; bar.appendChild(b);
   } else {
@@ -3055,6 +3063,7 @@ async function prepCommandContext(){
     spells.sort((a,b)=>a.level-b.level);
     ctx.character={ speed_ft:(mySheet&&mySheet.combat&&mySheet.combat.speed)||30, slots:{}, spells, features:{bonus:fb, reaction:fr} };
   }catch(e){}
+  try{ ctx.interactables=(typeof curRound!=='undefined'&&curRound&&curRound.meta&&Array.isArray(curRound.meta.interactables))?curRound.meta.interactables:[]; }catch(e){ ctx.interactables=[]; }
   window.__ccCtx=ctx;
 }
 window.cc = (function(){
@@ -3268,11 +3277,14 @@ window.cc = (function(){
       {label:'Ready Cast (if X)',   commit:{slot:'action', label:'Ready Cast'}}
     ]};
 
-    if(last==='use_object') return { items:[
-      {label:'Drink Potion',      commit:{slot:'action', label:'Drink Potion', dice:'2d4+2 heal'}},
-      {label:'Light Torch',       commit:{slot:'action', label:'Light Torch'}},
-      {label:'Unlock door (Dex)', commit:{slot:'action', label:'Unlock door', dice:'1d20+3 vs DC'}}
-    ]};
+    if(last==='use_object'){
+      var uobj=[];
+      try{ ((window.__ccCtx&&window.__ccCtx.interactables)||[]).slice(0,6).forEach(function(it){ uobj.push({label:it.label, meta:it.desc||'', commit:{slot:'action', label:'ใช้ '+it.label}}); }); }catch(e){}
+      uobj.push({label:'Drink Potion',      commit:{slot:'action', label:'Drink Potion', dice:'2d4+2 heal'}});
+      uobj.push({label:'Light Torch',       commit:{slot:'action', label:'Light Torch'}});
+      uobj.push({label:'Unlock door (Dex)', commit:{slot:'action', label:'Unlock door', dice:'1d20+3 vs DC'}});
+      return { items: uobj };
+    }
 
     if(last==='help_target' || last==='grapple_target'){
       var isHelp = (last==='help_target');
