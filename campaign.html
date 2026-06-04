@@ -651,6 +651,8 @@ body.role-player .dm-only{display:none!important;}
 .copt button{font-family:'Noto Sans Thai',sans-serif;font-size:13px;font-weight:600;text-align:left;border:2px dashed #fff;border-radius:6px;padding:9px 12px;background:#000;color:#fff;line-height:1.4;cursor:pointer;}
 .copt button:hover{background:#fff;color:#000;border-style:solid;}
 .whbox{border:2px solid #fff;border-radius:6px;padding:6px 9px;display:flex;flex-direction:column;gap:4px;}
+.cc-inline{border:3px solid #fff;border-radius:10px;padding:12px;background:#000;}
+.cc-inline .cc-close{display:none;}
 </style>
 </head>
 <body>
@@ -1719,6 +1721,8 @@ async function renderRoundbar(){
   const myPet = (gCombat.active && gCombat.activeCharId) ? characters.find(c=>c.id===gCombat.activeCharId && c.is_companion && c.controller===me.id) : null;
   // ถ้าผู้เล่นกำลังพิมพ์ในช่อง action อยู่ และรอบ/สถานะไม่เปลี่ยน → อย่า rebuild ทั้งกล่อง (กันข้อความหาย+หลุดโฟกัส)
   // อัปเดตแค่ตัวนับ Submitted ในที่เดิม แล้วจบ
+  const _cbBusy=(curRound.meta||{}).combat||{};
+  if(_cbBusy.active && typeof window.cc==='object' && window.cc.isBusy && window.cc.isBusy() && document.getElementById('ccFrame')){ return; }   // กำลังสร้างเทิร์นในเมนู — อย่า rebuild แถบ
   const rbKey=`${curRound.id}|${curRound.phase}|${mine?1:0}`;
   const typingNow=document.activeElement && document.activeElement.id==='actInput';
   if(typingNow && rbKey===_lastRoundbarKey){
@@ -1759,21 +1763,25 @@ async function renderRoundbar(){
     const meta=curRound.meta||{};
     const cb=meta.combat||{}, rr=meta.roll_request||{}, inter=meta.interactables||[];
     if(econUsedRound!==curRound.id){ econUsed={}; econUsedRound=curRound.id; }  // รีเซ็ตมาร์กทุกรอบ
-    // คอมแบต (DQ-clean): COMMAND MENU → 3 แนวทาง → ช่องพิมพ์อิสระ
-    //   (action economy / ของที่ใช้ / เล็งพื้นที่ ย้ายเข้าไปใน Command Menu แล้ว — ลดความรก)
-    if(cb.active && typeof window.cc==='object' && window.cc && typeof window.cc.open==='function'){
-      const ccBtn=document.createElement('button'); ccBtn.type='button'; ccBtn.className='cc-open-btn'; ccBtn.style.width='100%';
-      ccBtn.textContent='🎮 COMMAND MENU';
-      ccBtn.onclick=async()=>{ try{ await prepCommandContext(); }catch(e){} try{ window.cc.open(); }catch(e){ toast('Open menu failed: '+(e.message||e),true); } };
-      bar.appendChild(ccBtn);
+    if(cb.active){
+      // 3 แนวทางจาก DM — กดส่งได้ทันที (โอกาสสำเร็จสูง เข้ากับ narrative)
+      if(Array.isArray(cb.options) && cb.options.length){
+        const opts=document.createElement('div'); opts.className='copt';
+        cb.options.slice(0,3).forEach(o=>{ const ob=document.createElement('button'); ob.type='button'; ob.textContent=o; ob.onclick=()=>quickSubmit(o); opts.appendChild(ob); });
+        bar.appendChild(opts);
+      }
+      // เมนู COMBAT COMMAND ฝังในแถบเลย (แทนปุ่ม) — เรนเดอร์ผ่าน window.cc
+      if(typeof window.cc==='object' && window.cc && typeof window.cc.openInline==='function'){
+        const frame=document.createElement('div'); frame.id='ccFrame'; frame.className='cc-frame cc-inline';
+        bar.appendChild(frame);
+        if(window.__ccRound!==curRound.id){ window.__ccRound=curRound.id; prepCommandContext().then(()=>{ try{ window.cc.openInline(); }catch(e){} }); }
+        else { try{ window.cc.openInline(); }catch(e){} }
+      }
+    } else {
+      const ta=document.createElement('textarea'); ta.id='actInput'; ta.placeholder='จะให้ตัวละครทำอะไร? พิมพ์ได้อิสระ'; if(keepAct) ta.value=keepAct; bar.appendChild(ta);
     }
-    if(cb.active && Array.isArray(cb.options) && cb.options.length){
-      const opts=document.createElement('div'); opts.className='copt';
-      cb.options.slice(0,3).forEach(o=>{ const ob=document.createElement('button'); ob.type='button'; ob.textContent=o; ob.onclick=()=>appendAct(o); opts.appendChild(ob); });
-      bar.appendChild(opts);
-    }
-    const ta=document.createElement('textarea'); ta.id='actInput'; ta.placeholder=cb.active?'หรือพิมพ์อิสระ… (DM จะถือเป็น Narrate)':'จะให้ตัวละครทำอะไร? พิมพ์ได้อิสระ'; if(keepAct) ta.value=keepAct; bar.appendChild(ta);
-    // เต๋า — โผล่เฉพาะตอน DM 'เรียกให้ทอย' เท่านั้น (ชัดเจนว่าทอยเมื่อไหร่/ทอยอะไร)
+    // เต๋า + ปุ่มส่ง (เฉพาะนอกคอมแบต — ในคอมแบตใช้ SUBMIT ในเมนู)
+    if(!cb.active){
     if(rr.needed){
       const dice=document.createElement('div'); dice.className='dicerow';
       const reason = rr.reason? escapeHtml(rr.reason) : 'DM ขอให้ทอยเต๋า';
@@ -1785,6 +1793,7 @@ async function renderRoundbar(){
       const dn=document.createElement('div'); dn.className='econleg'; dn.textContent='“DM ทอยให้” = server สุ่มจริง 100% · “ทอยเอง” = ทอยเต๋าจริงในมือแล้วใส่เลข'; bar.appendChild(dn);
     }
     const b=document.createElement('button'); b.className='btn'; b.textContent='Submit Action'; b.onclick=submitAction; bar.appendChild(b);
+    }
   } else {
     // ส่งแล้ว — บอกชัดว่ารอใคร / DM กำลังดำเนินเรื่อง
     const submittedIds=new Set(list.map(a=>a.user_id));
@@ -1879,6 +1888,16 @@ async function submitAction(charIdOverride){
   }catch(e){ toast(e.message||'Submit failed',true); }
 }
 
+async function quickSubmit(text){
+  if(!curRound || !text) return;
+  if(window._quickBusy) return; window._quickBusy=true;
+  try{
+    const { error } = await supa.from('actions').insert({ campaign_id:campaign.id, round_id:curRound.id, user_id:me.id, character_id:myChar?.id||null, action_text:text });
+    if(error) throw error;
+    toast('ส่งแล้ว ✓'); await loadRound(); renderRoundbar(); resolveRound(false);
+  }catch(e){ toast(e.message||'ส่งไม่สำเร็จ',true); }
+  finally{ window._quickBusy=false; }
+}
 async function introAdventure(){ resolveRound(false,'intro'); }
 async function startFirstScene(){ resolveRound(false); }
 
@@ -3063,6 +3082,18 @@ async function prepCommandContext(){
     spells.sort((a,b)=>a.level-b.level);
     ctx.character={ speed_ft:(mySheet&&mySheet.combat&&mySheet.combat.speed)||30, slots:{}, spells, features:{bonus:fb, reaction:fr} };
   }catch(e){}
+  // ค่าโจมตีจริงจากอาวุธ + สถิติ + โปรฯ (แทนค่าฮาร์ดโค้ด)
+  try{
+    const _lvl=myChar.level||1; const _prof=Math.ceil(_lvl/4)+1;
+    const _ab=(mySheet&&mySheet.abilities)||{}; const _mod=k=>Math.floor(((+_ab[k]||10)-10)/2);
+    const _wn=(mySheet&&mySheet.equipment&&mySheet.equipment.weapon)||'';
+    const _wi=(typeof itemByName==='function')?itemByName(_wn):null;
+    const _fin=_wi&&Array.isArray(_wi.properties)&&_wi.properties.some(x=>/finesse/i.test(x));
+    const _am=_fin?Math.max(_mod('str'),_mod('dex')):_mod('str');
+    const _dd=(_wi&&_wi.damage_dice)||'1d6';
+    const _sg=n=>(n>=0?'+'+n:''+n);
+    ctx.attack={ name:_wn||'อาวุธ', line:`1d20${_sg(_prof+_am)} atk, ${_dd}${_sg(_am)} dmg` };
+  }catch(e){ ctx.attack={name:'อาวุธ',line:'1d20 atk'}; }
   try{ ctx.interactables=(typeof curRound!=='undefined'&&curRound&&curRound.meta&&Array.isArray(curRound.meta.interactables))?curRound.meta.interactables:[]; }catch(e){ ctx.interactables=[]; }
   window.__ccCtx=ctx;
 }
@@ -3128,6 +3159,7 @@ window.cc = (function(){
   var rollQueue = [];
   var rollResults = [];
   var isOpen = false;
+  var submitting = false;
 
   function resetTurn(){
     turn = { action:null, bonus:null, reaction:null, movement:null, free:null, narrate:'' };
@@ -3202,9 +3234,9 @@ window.cc = (function(){
     ]};
 
     if(last==='attack'){
+      var atk=(window.__ccCtx&&window.__ccCtx.attack)||{name:'อาวุธ',line:'1d20 atk'};
       return { items: enemies.map(function(e){
-        return { label: e.name, mapPick:true, target:'creature',
-          commit:{slot:'action', label:'Attack ▸ '+e.name, dice:'1d20+5 atk, 1d8+3 dmg'} };
+        return { label: e.name, meta: atk.line, commit:{slot:'action', label:'โจมตี '+e.name+' ('+atk.name+')', dice: atk.line} };
       })};
     }
 
@@ -3257,17 +3289,13 @@ window.cc = (function(){
       if(!spell) return { items:[] };
       var opts = [];
       if(spell.target==='self'){
-        opts.push({ label:'Cast on Self', commit:{slot:slotName, label: spell.name+' ▸ Self', dice: spell.dice, skillId: spell._skillId||null} });
-      } else {
-        opts.push({ label:'Pick on MAP', meta:'('+spell.target+')', mapPick:true, target:spell.target,
+        opts.push({ label:'ร่ายใส่ตัวเอง', commit:{slot:slotName, label: spell.name+' ▸ ตัวเอง', dice: spell.dice, skillId: spell._skillId||null} });
+      } else if(/^(sphere_|cone_|line_)/.test(spell.target||'')){
+        opts.push({ label:'🎯 เล็งพื้นที่บน Map', meta:'('+spell.target+')', mapPick:true, target:spell.target,
           commit:{slot:slotName, label: spell.name+' ▸ MAP', dice: spell.dice, skillId: spell._skillId||null} });
-      }
-      if(spell.level>=1 && spell.level<3){
-        for(var u=spell.level+1; u<=3; u++){
-          var dimU = slotsLeft(u)<=0;
-          opts.push({ label:'Upcast L'+u, dim: dimU, mapPick:true, target:spell.target,
-            commit:{slot:slotName, label: spell.name+' (upcast L'+u+') ▸ MAP', dice: spell.dice, skillId: spell._skillId||null} });
-        }
+      } else {
+        enemies.forEach(function(e){ opts.push({ label:e.name, commit:{slot:slotName, label: spell.name+' ▸ '+e.name, dice: spell.dice, skillId: spell._skillId||null} }); });
+        opts.push({ label:'(เป้าอื่น / พันธมิตร / ตนเอง)', commit:{slot:slotName, label: spell.name, dice: spell.dice, skillId: spell._skillId||null} });
       }
       return { items: opts };
     }
@@ -3320,10 +3348,10 @@ window.cc = (function(){
     }
 
     if(last==='move') return { items:[
-      {label:'Walk', meta:'pick destination on MAP', mapPick:true, target:'point',
-        commit:{slot:'movement', label:'Walk'}},
-      {label:'Climb', meta:'x2 cost', commit:{slot:'movement', label:'Climb'}},
-      {label:'Jump',  meta:'Str/Acro check', commit:{slot:'movement', label:'Jump', dice:'1d20+1 Str'}},
+      {label:'เข้าประชิดศัตรู',  commit:{slot:'movement', label:'เคลื่อนเข้าประชิด'}},
+      {label:'ถอยห่าง',         commit:{slot:'movement', label:'ถอยห่างจากศัตรู'}},
+      {label:'หาที่กำบัง',       commit:{slot:'movement', label:'เคลื่อนไปหาที่กำบัง'}},
+      {label:'ปีน/กระโดด',      commit:{slot:'movement', label:'ปีน/กระโดด', dice:'1d20 Athletics'}},
       {label:'Stand up', meta:'1/2 cost', commit:{slot:'movement', label:'Stand'}}
     ]};
 
@@ -3448,25 +3476,20 @@ window.cc = (function(){
       stack = ['root']; renderAll(); return;
     }
     if(it.mapPick){
-      // เวทแบบพื้นที่ (sphere/cone/line) → ใช้ตัวเลือกพื้นที่บน Map จริง (แทน prompt) แล้วเปิดเมนูกลับโดยไม่ล้างเทิร์น
       var _t = it.target || '';
       if(it.commit && /^(sphere_|cone_|line_)/.test(_t) && typeof window.ccGridPick === 'function'){
         var _c = it.commit;
-        close();
         window.ccGridPick(_t, function(picked){
           if(picked && picked.center){
             turn[_c.slot] = { label: String(_c.label).replace(/ ▸ MAP$/, '') + ' ▸ ' + picked.center, mapTarget: picked.center, area: picked.cells || null, dice: _c.dice || null, skillId: _c.skillId || null };
           }
-          isOpen = true; var root = ensureRoot(); if(root) root.classList.add('cc-show'); stack = ['root']; renderAll();
+          stack = ['root'];
+          if(typeof renderRoundbar === 'function') renderRoundbar();   // อินไลน์: เรนเดอร์แถบใหม่ → เมนูกลับมา
         });
         return;
       }
-      var result = fakeMapPick(it.target);
-      if(!result) return;
-      if(it.commit){
-        turn[it.commit.slot] = { label: it.commit.label + ' @ ' + result, mapTarget: result, dice: it.commit.dice || null, skillId: it.commit.skillId || null };
-        stack = ['root']; renderAll();
-      }
+      // เป้าหมายเดี่ยว/จุด → commit ตรงๆ (เลิกใช้ prompt ที่น่าเกลียด)
+      if(it.commit){ turn[it.commit.slot] = { label: it.commit.label, dice: it.commit.dice || null, skillId: it.commit.skillId || null }; stack=['root']; renderAll(); }
       return;
     }
     if(it.drill){ stack.push(it.drill); renderAll(); return; }
@@ -3505,6 +3528,7 @@ window.cc = (function(){
   }
 
   async function sendToBackend(results){
+    if(submitting) return; submitting=true;
     try{
       var narrative = compileNarrative(results);
       // Mark the action_text so the DM/log can tell this came from the structured menu
@@ -3574,10 +3598,10 @@ window.cc = (function(){
     }catch(err){
       if (window.console) console.error('[cc] submit failed', err);
       if (typeof toast==='function') toast('Submit failed: '+((err && err.message) || err), true);
-    }
+    } finally { submitting=false; }
   }
 
-  function onContinue(){ resetTurn(); close(); }
+  function onContinue(){ resetTurn(); close(); if(typeof renderRoundbar==='function') renderRoundbar(); }
   function onBackToBuild(){ phase = 'building'; rollQueue=[]; rollResults=[]; renderAll(); }
 
   /* ---------- RENDER ---------- */
@@ -3605,6 +3629,8 @@ window.cc = (function(){
       crumbHtml += '<a data-idx="'+i+'">'+esc(lab)+'</a>';
     }
     var m = getMenu(stack);
+    var hasAny = !!(turn.action||turn.bonus||turn.reaction||turn.movement||turn.free||turn.narrate);
+    var backHtml = stack.length>1 ? '<button class="cc-btn cc-alt" id="ccBack2" style="width:100%;margin-bottom:8px">\u25c0 BACK</button>' : '';
     var menuHtml = '';
     for(var k=0;k<m.items.length;k++){
       var it = m.items[k];
@@ -3618,10 +3644,11 @@ window.cc = (function(){
     }
     frame.innerHTML =
       '<div class="cc-crumb" id="ccCrumb">'+crumbHtml+'</div>' +
+      backHtml +
       '<div id="ccMenu">'+menuHtml+'</div>' +
       '<hr class="cc-divider">' +
       '<div class="cc-btn-row">' +
-        '<button class="cc-btn" id="ccSubmit">SUBMIT</button>' +
+        '<button class="cc-btn" id="ccSubmit"'+(hasAny?'':' disabled')+'>SUBMIT</button>' +
         '<button class="cc-btn cc-alt" id="ccReset">RESET</button>' +
       '</div>';
     var as = frame.querySelectorAll('#ccCrumb a');
@@ -3645,6 +3672,7 @@ window.cc = (function(){
       resetTurn(); renderAll();
     });
     document.getElementById('ccCloseBtn').addEventListener('click', close);
+    var bb=document.getElementById('ccBack2'); if(bb) bb.addEventListener('click', function(){ stack=stack.slice(0,-1); renderAll(); });
   }
   function renderRolling(){
     var frame = document.getElementById('ccFrame');
@@ -3715,6 +3743,8 @@ window.cc = (function(){
     root.classList.add('cc-show');
     renderAll();
   }
+  function openInline(){ isOpen=true; character=getCharacter(); enemies=getEnemies(); allies=getAllies(); renderAll(); }
+  function isBusy(){ return phase==='rolling' || (phase==='building' && (stack.length>1 || !!(turn.action||turn.bonus||turn.reaction||turn.movement||turn.free||turn.narrate))); }
   function close(){
     isOpen = false;
     var root = document.getElementById('combatCommandPanel');
@@ -3723,6 +3753,8 @@ window.cc = (function(){
 
   return {
     open: open,
+    openInline: openInline,
+    isBusy: isBusy,
     close: close,
     isOpen: function(){ return isOpen; }
   };
