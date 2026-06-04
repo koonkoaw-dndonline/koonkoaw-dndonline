@@ -554,6 +554,94 @@ body.role-player .dm-only{display:none!important;}
   }
   .panel[data-tab="chron"]{max-width:820px;}
 }
+
+/* ============================================================
+   COMBAT COMMAND UI (DQ-style structured turn picker) — Phase 1
+   class prefix: .cc-*  · isolated from existing styles (no collisions)
+   ============================================================ */
+.cc-overlay{
+  position:fixed; inset:0; background:rgba(0,0,0,.92);
+  z-index:9999; display:none; align-items:flex-start; justify-content:center;
+  padding:14px; overflow-y:auto;
+}
+.cc-overlay.cc-show{ display:flex; }
+.cc-wrap{ width:100%; max-width:520px; }
+.cc-frame{
+  background:#000; border:2px solid #fff; border-radius:12px;
+  padding:12px 14px; font-family:'Press Start 2P','VT323',monospace;
+  font-size:12px; line-height:1.5; color:#fff;
+}
+.cc-crumb{ font-size:10px; color:#888; letter-spacing:1px; margin-bottom:8px; min-height:18px; }
+.cc-crumb a{ color:#fff; cursor:pointer; padding:2px 4px; border-radius:4px; text-decoration:none; }
+.cc-crumb a:hover{ background:#fff; color:#000; }
+.cc-close{
+  float:right; background:transparent; border:0; color:#fff;
+  cursor:pointer; font-size:14px; padding:0 4px; font-family:inherit; line-height:1;
+}
+.cc-item{
+  display:block; padding:10px 8px 10px 24px; font-size:12px;
+  cursor:pointer; user-select:none; position:relative;
+  color:#fff; border-radius:6px; margin:1px 0;
+}
+.cc-item:hover, .cc-item:active{ background:#fff; color:#000; }
+.cc-item:hover::before, .cc-item:active::before{
+  content:"\25B6"; position:absolute; left:8px; color:#000;
+}
+.cc-item.cc-dim{ opacity:.32; cursor:default; }
+.cc-item.cc-dim:hover{ background:transparent; color:#fff; }
+.cc-item.cc-dim:hover::before{ content:""; }
+.cc-item.cc-locked::before{
+  content:"\2713"; position:absolute; left:8px; color:#fff; font-size:11px;
+}
+.cc-item.cc-locked:hover::before, .cc-item.cc-locked:active::before{
+  content:"\270E"; color:#000;
+}
+.cc-item .cc-meta{ display:block; color:#888; font-size:9px; margin-top:4px; }
+.cc-item:hover .cc-meta, .cc-item:active .cc-meta{ color:#444; }
+.cc-item.cc-locked .cc-meta{ color:#ccc; }
+.cc-item.cc-locked:hover .cc-meta, .cc-item.cc-locked:active .cc-meta{ color:#444; }
+.cc-item .cc-tag{
+  display:inline-block; border:1px solid #fff; border-radius:4px;
+  padding:1px 4px; font-size:8px; margin-left:4px; vertical-align:middle;
+}
+.cc-item:hover .cc-tag, .cc-item:active .cc-tag,
+.cc-item.cc-locked:hover .cc-tag, .cc-item.cc-locked:active .cc-tag{
+  border-color:#000; color:#000;
+}
+.cc-divider{ border:0; border-top:1px dashed #555; margin:10px 0 8px; }
+.cc-btn-row{ display:flex; gap:8px; }
+.cc-btn{
+  flex:1; background:#000; color:#fff; border:2px solid #fff;
+  border-radius:8px; padding:12px 8px;
+  font-family:'Press Start 2P','VT323',monospace;
+  font-size:11px; cursor:pointer; letter-spacing:1px;
+}
+.cc-btn:hover, .cc-btn:active{ background:#fff; color:#000; }
+.cc-btn.cc-alt{ color:#aaa; border-color:#888; }
+.cc-btn.cc-alt:hover, .cc-btn.cc-alt:active{ background:#444; color:#fff; border-color:#fff; }
+.cc-phase-ttl{
+  font-size:11px; letter-spacing:2px; text-align:center;
+  padding:4px 0 8px; border-bottom:1.5px solid #fff; margin-bottom:8px;
+}
+.cc-dice-row{
+  padding:8px 8px 8px 14px; font-size:11px; color:#fff;
+  border-radius:6px; margin:2px 0; position:relative;
+}
+.cc-dice-row .cc-lab{ font-size:10px; color:#aaa; letter-spacing:1px; }
+.cc-dice-row .cc-expr{ color:#fff; }
+.cc-dice-row .cc-out{ color:#fff; margin-top:4px; display:block; font-size:11px; }
+.cc-dice-row .cc-out .cc-total{ border:1px solid #fff; border-radius:4px; padding:1px 6px; margin-left:6px; }
+.cc-dice-row.cc-pending{ opacity:.6; }
+/* launcher button shown in the combat roundbar */
+.cc-open-row{ display:flex; gap:8px; align-items:center; margin:6px 0; }
+.cc-open-btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  background:#000; color:#fff; border:3px solid #fff; border-radius:7px;
+  padding:11px 14px; font-size:14px; font-weight:700; letter-spacing:.5px;
+  line-height:1.2; cursor:pointer; font-family:inherit; flex:1;
+}
+.cc-open-btn:hover{ background:#fff; color:#000; }
+.cc-open-hint{ font-size:11px; color:#9a9a9a; line-height:1.6; flex:1; }
 </style>
 </head>
 <body>
@@ -1654,6 +1742,19 @@ async function renderRoundbar(){
       }
       bar.appendChild(aw);
     }
+    // ── Combat Command launcher (DQ-style structured turn picker) ──
+    //   โผล่ในคอมแบตเท่านั้น · เปิด overlay ที่ #combatCommandPanel · ไม่แตะ free-text flow
+    if(cb.active && typeof window.cc==='object' && window.cc && typeof window.cc.open==='function'){
+      const ccRow=document.createElement('div'); ccRow.className='cc-open-row';
+      const ccBtn=document.createElement('button'); ccBtn.type='button'; ccBtn.className='cc-open-btn';
+      ccBtn.textContent='🎮 COMMAND MENU';
+      ccBtn.onclick=async()=>{ try{ await prepCommandContext(); }catch(e){} try{ window.cc.open(); }catch(e){ toast('Open menu failed: '+(e.message||e),true); } };
+      ccRow.appendChild(ccBtn);
+      const ccHint=document.createElement('span'); ccHint.className='cc-open-hint';
+      ccHint.textContent='สั่งการแบบ DQ — เลือก action/bonus/move/etc แล้วทอยเต๋า';
+      ccRow.appendChild(ccHint);
+      bar.appendChild(ccRow);
+    }
     const ta=document.createElement('textarea'); ta.id='actInput'; ta.placeholder='จะให้ตัวละครทำอะไร? พิมพ์ได้อิสระ'; if(keepAct) ta.value=keepAct; ta.oninput=markEconomyFromText; bar.appendChild(ta);
     markEconomyFromText();   // ไฮไลต์ตามข้อความที่ค้างอยู่ (ถ้ามี)
     // E: ปุ่มปฏิสัมพันธ์สิ่งแวดล้อม
@@ -2403,13 +2504,22 @@ function aoeCellsFor(c,r){
   return out;
 }
 function aoePickCell(c,r){ if(!aoeMode) return; aoeCenter={c:c,r:r}; renderMap(); }
+// เปิดตัวเลือกพื้นที่บน Map ให้ Command Menu (คืนผลผ่าน callback) — รัศมีจาก target เช่น sphere_20/cone_15/line_30
+function ccGridPick(target, cb){
+  const m=/^(?:sphere|cone|line|cube|square|cylinder)_?(\d+)/.exec(String(target||'')); const ft=m?parseInt(m[1]):20;
+  aoeMode={radiusFt:ft, cb:cb}; aoeCenter=null; switchTab('map');
+  toast('แตะช่องศูนย์กลางบน Map แล้วกด ✓ ยืนยันพื้นที่');
+}
 function aoeConfirm(){
   if(!aoeMode||!aoeCenter){ toast('แตะช่องศูนย์กลางก่อน',true); return; }
   const L="ABCDEFGHIJKLMNOPQRST"; const center=(L[aoeCenter.c]||'?')+(aoeCenter.r+1);
-  pendingAoE={centerCell:center, cells:aoeCellsFor(aoeCenter.c,aoeCenter.r), radiusFt:aoeMode.radiusFt};
-  aoeMode=null; aoeCenter=null; switchTab('story'); toast('ปักพื้นที่แล้ว ✓ — พิมพ์คำสั่งแล้วกด Submit');
+  const cells=aoeCellsFor(aoeCenter.c,aoeCenter.r); const ft=aoeMode.radiusFt; const cb=aoeMode.cb;
+  aoeMode=null; aoeCenter=null;
+  if(cb){ switchTab('story'); try{ cb({center:center, cells:cells, radiusFt:ft}); }catch(e){} return; }   // เส้นทาง Command Menu
+  pendingAoE={centerCell:center, cells:cells, radiusFt:ft};
+  switchTab('story'); toast('ปักพื้นที่แล้ว ✓ — พิมพ์คำสั่งแล้วกด Submit');
 }
-function aoeCancel(){ aoeMode=null; aoeCenter=null; renderMap(); }
+function aoeCancel(){ const cb=aoeMode&&aoeMode.cb; aoeMode=null; aoeCenter=null; if(cb){ try{ cb(null); }catch(e){} return; } renderMap(); }
 function aoeTag(sp){ if(!sp||!sp.area_shape) return ''; const M={sphere:'วง',cube:'ลูกบาศก์',cone:'กรวย',line:'เส้น',cylinder:'ทรงกระบอก',square:'สี่เหลี่ยม'}; return ' <span class="chip" style="background:#3a1a1a;color:#f09595;border-color:#f09595;font-size:10px">🎯 '+(sp.area_size?sp.area_size+'ft ':'')+(M[sp.area_shape]||sp.area_shape)+'</span>'; }
 
 // ───────── battle grid (2.5D squashed square — pattern จากเกม motley crews) ─────────
@@ -2910,6 +3020,701 @@ function startRtFallback(){
 }
 function activeTab(){ return document.querySelector('.tab.active')?.dataset.tab; }
 function escapeHtml(s){ return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/* ============================================================
+   COMBAT COMMAND UI (DQ-style structured turn picker) — Phase 1
+   - Opens via window.cc.open(); submits via internal flow → inserts action row
+   - Styles prefixed .cc-*  · DOM root: #combatCommandPanel (created on demand)
+   - Coexists with existing free-text Submit Action flow (does NOT replace it)
+   - TODO Phase 2: pull spell/feature lists from characters.spellbook DB column
+   - TODO Phase 2: real map targeting (replace prompt() placeholders)
+   - TODO Phase 2: spell slot / resource enforcement (currently display-only)
+   ============================================================ */
+// ── ป้อนข้อมูลจริงให้ Command Menu (ศัตรูจาก combat_state + เวท/สกิลจากคลังของผู้เล่น) ──
+function _ccCastAbbr(t){ const x=String(t||'').toLowerCase(); if(x.includes('bonus'))return '1B'; if(x.includes('reaction'))return '1R'; return '1A'; }
+function _ccTarget(sp){ const sh=sp.area_shape, sz=sp.area_size; if(sh==='sphere'||sh==='cylinder')return 'sphere_'+(sz||20); if(sh==='cube'||sh==='square')return 'sphere_'+(sz||15); if(sh==='cone')return 'cone_'+(sz||15); if(sh==='line')return 'line_'+(sz||30); const r=String(sp.range_||'').toLowerCase(); if(r==='self')return 'self'; if(r==='touch'||r.includes('ft')||r.includes('feet'))return sp.save?'creatures_3':'creature'; return 'creature'; }
+async function prepCommandContext(){
+  const ctx={enemies:[], character:null};
+  // ศัตรูจริงจากสนามรบ (label A/B เมื่อชื่อซ้ำ)
+  try{
+    const r=await supa.from('combat_state').select('id,cur_hp,monsters(name)').eq('campaign_id',campaign.id).eq('active',true).order('id',{ascending:true});
+    const rows=(r.data||[]).filter(x=>x.cur_hp==null||x.cur_hp>0); const grp={};
+    rows.forEach(x=>{ const n=(x.monsters&&x.monsters.name)||'ศัตรู'; (grp[n]=grp[n]||[]).push(x); });
+    rows.forEach(x=>{ const n=(x.monsters&&x.monsters.name)||'ศัตรู'; const g=grp[n]; const lbl=g.length>1?(n+' '+String.fromCharCode(65+g.indexOf(x))):n; ctx.enemies.push({id:x.id,name:lbl}); });
+  }catch(e){}
+  // เวท/สกิลจริงของผู้เล่น (skills ∩ SPELL_CAT) — รูปแบบเดียวกับ sample เพื่อให้เมนูทำงานเหมือนเดิม
+  try{
+    if(!SPELL_CAT.length) await loadCatalogs();
+    const kr=await supa.from('skills').select('*').eq('character_id',myChar.id);
+    const known=kr.data||[]; const spells=[], fb=[], fr=[]; const byName={}; (SPELL_CAT||[]).forEach(x=>byName[String(x.name).toLowerCase()]=x);
+    known.forEach(sk=>{
+      const sp=byName[String(sk.name).toLowerCase()];
+      if(sp){ spells.push({ id:sp.slug, _skillId:sk.id, name:sp.name, level:sp.level||0, cast:_ccCastAbbr(sp.casting_time), range:sp.range_||'', desc:sp.effect||sp.damage||'', target:_ccTarget(sp), concentration:!!sp.concentration, dice:sp.damage||null, maxUses:sk.max_uses||0, used:sk.used||0 }); }
+      else { const usesTxt=(sk.max_uses>0)?((sk.max_uses-(sk.used||0))+'/'+sk.max_uses):(sk.recharge||'passive'); const f={id:sk.id,name:sk.name,uses:usesTxt}; if(/reaction|ตอบโต้|สวนกลับ|riposte|parry/i.test(sk.description||'')) fr.push(f); else fb.push(f); }
+    });
+    spells.sort((a,b)=>a.level-b.level);
+    ctx.character={ speed_ft:(mySheet&&mySheet.combat&&mySheet.combat.speed)||30, slots:{}, spells, features:{bonus:fb, reaction:fr} };
+  }catch(e){}
+  window.__ccCtx=ctx;
+}
+window.cc = (function(){
+  'use strict';
+
+  /* ---------- DATA (Phase 1: hardcoded sample — TODO move to DB) ---------- */
+  // Default = Wizard L5 (Eliot template from prototype). Phase 2 reads from characters.spellbook.
+  function defaultLoadout(){
+    return {
+      speed_ft: 30,
+      slots: {1:[1,4], 2:[1,3], 3:[1,2]},
+      spells: [
+        {id:'fire_bolt',     name:'Fire Bolt',        level:0, cast:'1A', range:'120ft', desc:'1d10 fire',           target:'creature',    dice:'1d20+5 atk, 1d10 fire'},
+        {id:'mage_hand',     name:'Mage Hand',        level:0, cast:'1A', range:'30ft',  desc:'invisible hand',      target:'point',       dice:null},
+        {id:'prestidig',     name:'Prestidigitation', level:0, cast:'1A', range:'10ft',  desc:'minor magic',         target:'point',       dice:null},
+        {id:'magic_missile', name:'Magic Missile',    level:1, cast:'1A', range:'120ft', desc:'3 darts d4+1 (auto)', target:'creatures_3', dice:'3d4+3'},
+        {id:'shield',        name:'Shield',           level:1, cast:'1R', range:'Self',  desc:'+5 AC vs hit',        target:'self',        dice:null},
+        {id:'mage_armor',    name:'Mage Armor',       level:1, cast:'1A', range:'Touch', desc:'AC=13+Dex (Conc)',    target:'creature',    concentration:true, dice:null},
+        {id:'scorching_ray', name:'Scorching Ray',    level:2, cast:'1A', range:'120ft', desc:'3 rays 2d6 fire',     target:'creatures_3', dice:'3x(1d20+5), 2d6 ea'},
+        {id:'misty_step',    name:'Misty Step',       level:2, cast:'1B', range:'30ft',  desc:'teleport',            target:'point',       dice:null},
+        {id:'fireball',      name:'Fireball',         level:3, cast:'1A', range:'150ft', desc:'8d6 fire 20ft sphr',  target:'sphere_20',   dice:'8d6'},
+        {id:'counterspell',  name:'Counterspell',     level:3, cast:'1R', range:'60ft',  desc:'interrupt spell',     target:'creature',    dice:'1d20+3 check'}
+      ],
+      features: {
+        bonus:    [{id:'arcane_recovery', name:'Arcane Recovery', uses:'1/day'}],
+        reaction: [{id:'sculpt_spells',   name:'Sculpt Spells',   note:'passive'}]
+      }
+    };
+  }
+
+  function getCharacter(){
+    // ใช้ข้อมูลจริงถ้ามี (prepCommandContext เตรียมไว้ตอนกดเปิดเมนู) — ไม่งั้น fallback sample
+    try{ if(window.__ccCtx && window.__ccCtx.character && Array.isArray(window.__ccCtx.character.spells)) return window.__ccCtx.character; }catch(e){}
+    return defaultLoadout();
+  }
+  function getEnemies(){
+    // ใช้ศัตรูจริงจากสนามรบถ้ามี (prepCommandContext) — ไม่งั้น fallback generic
+    try{ if(window.__ccCtx && Array.isArray(window.__ccCtx.enemies) && window.__ccCtx.enemies.length) return window.__ccCtx.enemies; }catch(e){}
+    return [ {id:'enemy_a', name:'ศัตรู A'}, {id:'enemy_b', name:'ศัตรู B'}, {id:'enemy_c', name:'ศัตรู C'} ];
+  }
+  function getAllies(){
+    var out = [];
+    try{
+      if (typeof characters !== 'undefined' && Array.isArray(characters)) {
+        characters.forEach(function(c){
+          if (typeof myChar !== 'undefined' && myChar && c.id === myChar.id) return;
+          if (c && c.name) out.push({ id: c.id, name: c.name });
+        });
+      }
+    } catch(e){}
+    if (!out.length) out = [{id:'ally_a', name:'พันธมิตร'}];
+    return out;
+  }
+
+  /* ---------- STATE ---------- */
+  var character = null;
+  var enemies = [];
+  var allies = [];
+  var turn = { action:null, bonus:null, reaction:null, movement:null, free:null, narrate:'' };
+  var stack = ['root'];
+  var phase = 'building';   // 'building' | 'rolling' | 'resolved'
+  var rollQueue = [];
+  var rollResults = [];
+  var isOpen = false;
+
+  function resetTurn(){
+    turn = { action:null, bonus:null, reaction:null, movement:null, free:null, narrate:'' };
+    stack = ['root']; phase='building'; rollQueue=[]; rollResults=[];
+  }
+
+  function slotsLeft(level){
+    var s = character && character.slots && character.slots[level];
+    return s ? (s[1]-s[0]) : 0;
+  }
+  // เวทใช้ได้กี่ครั้ง: ข้อมูลจริงใช้ maxUses/used (max_uses=0 = ไม่จำกัด); sample ใช้ slot table เดิม
+  function spellLeft(s){
+    if(s && s.maxUses!=null){ return s.maxUses>0 ? (s.maxUses-(s.used||0)) : Infinity; }
+    return (s && s.level===0) ? Infinity : slotsLeft(s ? s.level : 0);
+  }
+
+  function fakeMapPick(targetType){
+    // TODO Phase 2: integrate with the real battle grid (replace prompt() placeholders).
+    if(targetType==='self') return 'Self';
+    if(targetType==='point') return prompt('[MAP] destination (x,y):', '12,8') || null;
+    if(targetType==='creature') return prompt('[MAP] target:', (enemies[0]&&enemies[0].name)||'enemy') || null;
+    if(targetType==='creatures_3') return prompt('[MAP] up to 3 targets (comma sep):', enemies.slice(0,3).map(function(e){return e.name;}).join(', ')) || null;
+    if(targetType && targetType.indexOf('sphere_')===0){
+      var r = targetType.split('_')[1];
+      return prompt('[MAP] sphere center (x,y) radius '+r+'ft:', '12,8') || null;
+    }
+    if(targetType && targetType.indexOf('cone_')===0) return prompt('[MAP] cone direction (x,y):', '15,5') || null;
+    if(targetType && targetType.indexOf('line_')===0) return prompt('[MAP] line endpoint (x,y):', '15,11') || null;
+    return prompt('[MAP] target:', '12,8') || null;
+  }
+
+  var slotEditMenu = {
+    action: 'action', bonus: 'bonus', reaction: 'reaction',
+    movement: 'move', free: 'free', narrate: 'narrate'
+  };
+
+  /* ---------- MENU TREE ---------- */
+  function getMenu(path){
+    var last = path[path.length-1];
+
+    if(last==='root') return { items:[
+      makeRootItem('ACTION',  'action',   'action'),
+      makeRootItem('BONUS',   'bonus',    'bonus'),
+      makeRootItem('REACTION','reaction', 'reaction'),
+      makeRootItem('MOVE',    'movement', 'move'),
+      makeRootItem('FREE',    'free',     'free'),
+      makeRootItem('NARRATE', 'narrate',  'narrate')
+    ]};
+
+    if(last && last.indexOf('filled_')===0){
+      var slot = last.substr(7);
+      var current = (slot==='narrate' ? (turn.narrate ? '"'+turn.narrate+'"' : '(empty)') : ((turn[slot] && turn[slot].label) || '(empty)'));
+      return { items:[
+        {label:'CURRENT', meta: current, dim: true},
+        {label:'EDIT', editSlot: slot},
+        {label:'CLEAR', clearSlot: slot}
+      ]};
+    }
+
+    if(last==='action') return { items:[
+      {label:'Attack',         drill:'attack'},
+      {label:'Cast Spell',     drill:'cast_action'},
+      {label:'Dash',           commit:{slot:'action', label:'Dash'}},
+      {label:'Disengage',      commit:{slot:'action', label:'Disengage'}},
+      {label:'Dodge',          commit:{slot:'action', label:'Dodge'}},
+      {label:'Help',           drill:'help_target'},
+      {label:'Hide',           commit:{slot:'action', label:'Hide'}},
+      {label:'Ready',          drill:'ready'},
+      {label:'Search',         commit:{slot:'action', label:'Search'}},
+      {label:'Use Object',     drill:'use_object'},
+      {label:'Grapple/Shove',  drill:'grapple_target'}
+    ]};
+
+    if(last==='attack'){
+      return { items: enemies.map(function(e){
+        return { label: e.name, mapPick:true, target:'creature',
+          commit:{slot:'action', label:'Attack ▸ '+e.name, dice:'1d20+5 atk, 1d8+3 dmg'} };
+      })};
+    }
+
+    if(last==='cast_action'){
+      return { items: character.spells.filter(function(s){return s.cast==='1A';}).map(function(s){
+        var left = spellLeft(s);
+        var dim = left<=0;
+        var tag = (s.level===0?'CANT':'L'+s.level) + (s.concentration?' [C]':'');
+        return {
+          label: s.name,
+          meta: tag + ' · ' + s.range + ' · ' + s.desc,
+          drill: dim ? null : 'spell_'+s.id+'_action',
+          dim: dim
+        };
+      })};
+    }
+
+    if(last==='cast_bonus'){
+      return { items: character.spells.filter(function(s){return s.cast==='1B';}).map(function(s){
+        var left = spellLeft(s);
+        var dim = left<=0;
+        return {
+          label: s.name,
+          meta: 'L'+s.level+' [B] · '+s.range+' · '+s.desc,
+          drill: dim ? null : 'spell_'+s.id+'_bonus',
+          dim: dim
+        };
+      })};
+    }
+
+    if(last==='cast_reaction'){
+      return { items: character.spells.filter(function(s){return s.cast==='1R';}).map(function(s){
+        var left = spellLeft(s);
+        var dim = left<=0;
+        return {
+          label: s.name,
+          meta: 'L'+s.level+' [R] · '+s.range+' · '+s.desc,
+          drill: dim ? null : 'spell_'+s.id+'_reaction',
+          dim: dim
+        };
+      })};
+    }
+
+    if(last && last.indexOf('spell_')===0){
+      var parts = last.split('_');
+      var slotName = parts[parts.length-1];
+      var id = parts.slice(1, -1).join('_');
+      var spell = null;
+      for(var i=0;i<character.spells.length;i++) if(character.spells[i].id===id) spell = character.spells[i];
+      if(!spell) return { items:[] };
+      var opts = [];
+      if(spell.target==='self'){
+        opts.push({ label:'Cast on Self', commit:{slot:slotName, label: spell.name+' ▸ Self', dice: spell.dice, skillId: spell._skillId||null} });
+      } else {
+        opts.push({ label:'Pick on MAP', meta:'('+spell.target+')', mapPick:true, target:spell.target,
+          commit:{slot:slotName, label: spell.name+' ▸ MAP', dice: spell.dice, skillId: spell._skillId||null} });
+      }
+      if(spell.level>=1 && spell.level<3){
+        for(var u=spell.level+1; u<=3; u++){
+          var dimU = slotsLeft(u)<=0;
+          opts.push({ label:'Upcast L'+u, dim: dimU, mapPick:true, target:spell.target,
+            commit:{slot:slotName, label: spell.name+' (upcast L'+u+') ▸ MAP', dice: spell.dice, skillId: spell._skillId||null} });
+        }
+      }
+      return { items: opts };
+    }
+
+    if(last==='ready') return { items:[
+      {label:'Ready Attack (if X)', commit:{slot:'action', label:'Ready Attack'}},
+      {label:'Ready Cast (if X)',   commit:{slot:'action', label:'Ready Cast'}}
+    ]};
+
+    if(last==='use_object') return { items:[
+      {label:'Drink Potion',      commit:{slot:'action', label:'Drink Potion', dice:'2d4+2 heal'}},
+      {label:'Light Torch',       commit:{slot:'action', label:'Light Torch'}},
+      {label:'Unlock door (Dex)', commit:{slot:'action', label:'Unlock door', dice:'1d20+3 vs DC'}}
+    ]};
+
+    if(last==='help_target' || last==='grapple_target'){
+      var isHelp = (last==='help_target');
+      var tlist = isHelp ? allies.concat(enemies) : enemies;
+      return { items: tlist.map(function(t){
+        return { label: t.name, mapPick:true, target:'creature',
+          commit:{slot:'action',
+            label: (isHelp?'Help':'Grapple')+' ▸ '+t.name,
+            dice: isHelp ? null : '1d20+2 Athletics vs target'} };
+      })};
+    }
+
+    if(last==='bonus'){
+      var items = [
+        {label:'Cast Bonus Spell', drill:'cast_bonus'},
+        {label:'Two-Weapon', meta:'(n/a)', dim:true}
+      ];
+      ((character.features&&character.features.bonus)||[]).forEach(function(f){
+        items.push({label:f.name, meta:f.uses, commit:{slot:'bonus', label:f.name, skillId:f.id||null}});
+      });
+      return { items: items };
+    }
+
+    if(last==='reaction'){
+      var ritems = [
+        {label:'Ready Reaction Spell', drill:'cast_reaction'},
+        {label:'Opportunity Attack', meta:'auto', commit:{slot:'reaction', label:'OpAttack (auto)', dice:'1d20+5 atk, 1d8+3 dmg if triggered'}}
+      ];
+      ((character.features&&character.features.reaction)||[]).forEach(function(f){
+        ritems.push({label:f.name, meta:'passive', dim:true});
+      });
+      return { items: ritems };
+    }
+
+    if(last==='move') return { items:[
+      {label:'Walk', meta:'pick destination on MAP', mapPick:true, target:'point',
+        commit:{slot:'movement', label:'Walk'}},
+      {label:'Climb', meta:'x2 cost', commit:{slot:'movement', label:'Climb'}},
+      {label:'Jump',  meta:'Str/Acro check', commit:{slot:'movement', label:'Jump', dice:'1d20+1 Str'}},
+      {label:'Stand up', meta:'1/2 cost', commit:{slot:'movement', label:'Stand'}}
+    ]};
+
+    if(last==='free') return { items:[
+      {label:'Draw Weapon', commit:{slot:'free', label:'Draw shortbow'}},
+      {label:'Open Door',   commit:{slot:'free', label:'Open door'}},
+      {label:'Pick Up',     commit:{slot:'free', label:'Pick up torch'}},
+      {label:'Hand Item',   commit:{slot:'free', label:'Hand item'}}
+    ]};
+
+    if(last==='narrate') return { items:[
+      {label:'TYPE NARRATION ...', narrate:true}
+    ]};
+
+    return { items:[] };
+  }
+
+  function makeRootItem(label, slot, drillEmpty){
+    var filled = false;
+    if(slot==='narrate') filled = !!turn.narrate;
+    else filled = !!turn[slot];
+    var summary = null;
+    if(filled){
+      if(slot==='narrate'){
+        var t = turn.narrate;
+        summary = '"' + t.slice(0,16) + (t.length>16 ? '..."' : '"');
+      } else summary = turn[slot].label;
+    }
+    return {
+      label: label,
+      summary: summary,
+      drill: filled ? 'filled_'+slot : drillEmpty
+    };
+  }
+
+  /* ---------- DICE ---------- */
+  function rollDie(sides){ return Math.floor(Math.random()*sides)+1; }
+  function parseDice(expr){
+    var clauses = String(expr||'').split(',').map(function(s){return s.trim();}).filter(Boolean);
+    var out = [];
+    for(var ci=0; ci<clauses.length; ci++){
+      var c = clauses[ci];
+      var multMatch = c.match(/^(\d+)\s*[×xX]\s*\(?\s*(.+?)\s*\)?$/);
+      var times = 1, inner = c;
+      if(multMatch){ times = parseInt(multMatch[1],10); inner = multMatch[2]; }
+      for(var t=0; t<times; t++){
+        out.push(rollClause(inner, times>1 ? (t+1)+'/'+times+' · ' : ''));
+      }
+    }
+    return out;
+  }
+  function rollClause(s, pfx){
+    var m = s.match(/^(\d+)\s*d\s*(\d+)\s*([+-]\s*\d+)?\s*(.*)$/i);
+    if(!m){
+      return { expr:s, rolls:[], modifier:0, label:pfx+s, total:null };
+    }
+    var n = parseInt(m[1],10);
+    var sides = parseInt(m[2],10);
+    var mod = m[3] ? parseInt(m[3].replace(/\s+/g,''),10) : 0;
+    var lab = (m[4]||'').trim();
+    var rolls = [];
+    var sum = 0;
+    for(var i=0;i<n;i++){ var r = rollDie(sides); rolls.push(r); sum += r; }
+    var total = sum + mod;
+    return {
+      expr: n+'d'+sides+(mod?(mod>0?'+'+mod:mod):''),
+      rolls: rolls, modifier: mod,
+      label: pfx + (lab || ''), total: total
+    };
+  }
+  function collectDice(){
+    var out = [];
+    ['action','bonus','reaction','movement','free'].forEach(function(slot){
+      if(turn[slot] && turn[slot].dice){
+        out.push({ slot: slot, label: turn[slot].label, dice: turn[slot].dice });
+      }
+    });
+    return out;
+  }
+
+  /* ---------- NARRATIVE COMPILE ---------- */
+  function compileNarrative(results){
+    var parts = [];
+    var slotNames = {action:'Action', bonus:'Bonus', reaction:'Reaction', movement:'Move', free:'Free'};
+    ['action','bonus','reaction','movement','free'].forEach(function(slot){
+      var t = turn[slot]; if (!t) return;
+      var label = slotNames[slot]+': '+t.label;
+      var rr = (results && results.length) ? results.filter(function(x){return x.slot===slot;})[0] : null;
+      if (rr) {
+        var dicebits = rr.parts.map(function(p){
+          if (p.total===null) return p.expr;
+          return p.expr+'=['+p.rolls.join(',')+']'+(p.modifier?(p.modifier>0?'+'+p.modifier:p.modifier):'')+'='+p.total+(p.label?(' '+p.label):'');
+        }).join('; ');
+        label += ' [rolled '+dicebits+']';
+      } else if (t.dice) {
+        label += ' (dice: '+t.dice+')';
+      }
+      parts.push(label);
+    });
+    if (turn.narrate) parts.push('Narrate: "'+turn.narrate+'"');
+    if (!parts.length) parts.push('(ตั้งรับ/ไม่ระบุ)');
+    return parts.join('. ');
+  }
+
+  /* ---------- ACTIONS ---------- */
+  function handleClick(it){
+    if(it.editSlot){
+      var slot = it.editSlot;
+      turn[slot] = (slot==='narrate') ? '' : null;
+      if(slot==='narrate'){
+        var txt = prompt('Type narration:', '');
+        if(txt!==null) turn.narrate = txt;
+        stack = ['root'];
+      } else {
+        stack = ['root', slotEditMenu[slot]];
+      }
+      renderAll(); return;
+    }
+    if(it.clearSlot){
+      var s2 = it.clearSlot;
+      turn[s2] = (s2==='narrate') ? '' : null;
+      stack = ['root']; renderAll(); return;
+    }
+    if(it.mapPick){
+      // เวทแบบพื้นที่ (sphere/cone/line) → ใช้ตัวเลือกพื้นที่บน Map จริง (แทน prompt) แล้วเปิดเมนูกลับโดยไม่ล้างเทิร์น
+      var _t = it.target || '';
+      if(it.commit && /^(sphere_|cone_|line_)/.test(_t) && typeof window.ccGridPick === 'function'){
+        var _c = it.commit;
+        close();
+        window.ccGridPick(_t, function(picked){
+          if(picked && picked.center){
+            turn[_c.slot] = { label: String(_c.label).replace(/ ▸ MAP$/, '') + ' ▸ ' + picked.center, mapTarget: picked.center, area: picked.cells || null, dice: _c.dice || null, skillId: _c.skillId || null };
+          }
+          isOpen = true; var root = ensureRoot(); if(root) root.classList.add('cc-show'); stack = ['root']; renderAll();
+        });
+        return;
+      }
+      var result = fakeMapPick(it.target);
+      if(!result) return;
+      if(it.commit){
+        turn[it.commit.slot] = { label: it.commit.label + ' @ ' + result, mapTarget: result, dice: it.commit.dice || null, skillId: it.commit.skillId || null };
+        stack = ['root']; renderAll();
+      }
+      return;
+    }
+    if(it.drill){ stack.push(it.drill); renderAll(); return; }
+    if(it.commit){
+      turn[it.commit.slot] = { label: it.commit.label, dice: it.commit.dice || null, skillId: it.commit.skillId || null };
+      stack = ['root']; renderAll(); return;
+    }
+    if(it.narrate){
+      var txt2 = prompt('Type your narration:', turn.narrate || '');
+      if(txt2!==null){ turn.narrate = txt2; stack=['root']; renderAll(); }
+    }
+  }
+
+  async function onSubmit(){
+    var diceList = collectDice();
+    if(diceList.length === 0){
+      rollResults = [];
+      await sendToBackend([]);
+      phase = 'resolved';
+      renderAll();
+      return;
+    }
+    rollQueue = diceList;
+    rollResults = [];
+    phase = 'rolling';
+    renderAll();
+  }
+  async function onRoll(){
+    rollResults = rollQueue.map(function(q){
+      var parts = parseDice(q.dice);
+      return { slot:q.slot, label:q.label, dice:q.dice, parts: parts };
+    });
+    await sendToBackend(rollResults);
+    phase = 'resolved';
+    renderAll();
+  }
+
+  async function sendToBackend(results){
+    try{
+      var narrative = compileNarrative(results);
+      // Mark the action_text so the DM/log can tell this came from the structured menu
+      var narrativeTagged = '[CMD] '+narrative;
+      var structured = {
+        version: 1,
+        turn: {
+          action:   turn.action   || null,
+          bonus:    turn.bonus    || null,
+          reaction: turn.reaction || null,
+          movement: turn.movement || null,
+          free:     turn.free     || null,
+          narrate:  turn.narrate  || ''
+        },
+        rolls: results || [],
+        compiled_at: new Date().toISOString()
+      };
+      if (typeof supa==='undefined' || typeof campaign==='undefined' || !campaign) {
+        if (window.console) console.warn('[cc] supa/campaign missing — preview only', structured, narrativeTagged);
+        return;
+      }
+      if (typeof curRound==='undefined' || !curRound) {
+        if (typeof toast==='function') toast('ยังไม่มีรอบที่เปิดอยู่', true);
+        return;
+      }
+      var cid = (typeof myChar!=='undefined' && myChar) ? myChar.id : null;
+      var uid = (typeof me!=='undefined' && me) ? me.id : null;
+      if (!cid || !uid) {
+        if (typeof toast==='function') toast('ยังไม่มีตัวละคร', true);
+        return;
+      }
+      // Insert action row. Best-effort: include structured_turn JSON if column exists; fall back without it.
+      var rowFull = {
+        campaign_id: campaign.id, round_id: curRound.id, user_id: uid,
+        character_id: cid, action_text: narrativeTagged, structured_turn: structured
+      };
+      var ins = await supa.from('actions').insert(rowFull);
+      if (ins.error) {
+        // Column likely missing — retry without structured_turn (Phase 1 backward compat)
+        var rowMin = {
+          campaign_id: campaign.id, round_id: curRound.id, user_id: uid,
+          character_id: cid, action_text: narrativeTagged
+        };
+        var ins2 = await supa.from('actions').insert(rowMin);
+        if (ins2.error) {
+          if (typeof toast==='function') toast(ins2.error.message || 'Submit failed', true);
+          return;
+        }
+      }
+      if (typeof toast==='function') toast('Action submitted ✓');
+      // ── B: หักทรัพยากรจริง (skills.used) สำหรับเวท/ความสามารถจำกัดครั้งที่ใช้ในเทิร์นนี้ ──
+      try{
+        var _usedIds = [turn.action, turn.bonus, turn.reaction].filter(function(t){return t && t.skillId;}).map(function(t){return t.skillId;});
+        var _seen = {};
+        for (var _i=0; _i<_usedIds.length; _i++){
+          var _sid=_usedIds[_i]; if(_seen[_sid]) continue; _seen[_sid]=1;
+          var _r = await supa.from('skills').select('id,used,max_uses').eq('id',_sid).maybeSingle();
+          var _sk = _r && _r.data;
+          if (_sk && _sk.max_uses>0 && (_sk.used||0) < _sk.max_uses){ await supa.from('skills').update({used:(_sk.used||0)+1}).eq('id',_sid); }
+        }
+        if (typeof activeTab==='function' && activeTab()==='skills' && typeof renderSkills==='function') renderSkills();
+      }catch(e){ if(window.console) console.warn('[cc] resource decrement skipped', e); }
+      try{ if (typeof loadRound==='function') await loadRound(); if (typeof renderRoundbar==='function') renderRoundbar(); }catch(e){}
+      try{
+        if (typeof resolveRound==='function') resolveRound(false);
+      }catch(e){}
+    }catch(err){
+      if (window.console) console.error('[cc] submit failed', err);
+      if (typeof toast==='function') toast('Submit failed: '+((err && err.message) || err), true);
+    }
+  }
+
+  function onContinue(){ resetTurn(); close(); }
+  function onBackToBuild(){ phase = 'building'; rollQueue=[]; rollResults=[]; renderAll(); }
+
+  /* ---------- RENDER ---------- */
+  function ensureRoot(){
+    var el = document.getElementById('combatCommandPanel');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'combatCommandPanel';
+      el.className = 'cc-overlay';
+      el.innerHTML = '<div class="cc-wrap"><div class="cc-frame" id="ccFrame"></div></div>';
+      document.body.appendChild(el);
+    }
+    return el;
+  }
+  function esc(s){
+    if (typeof escapeHtml==='function') return escapeHtml(s);
+    return String(s||'').replace(/[&<>"]/g,function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c];});
+  }
+  function renderBuilding(){
+    var frame = document.getElementById('ccFrame');
+    var crumbHtml = '<button class="cc-close" id="ccCloseBtn" title="ปิด">✕</button>';
+    for(var i=0;i<stack.length;i++){
+      var lab = stack[i]==='root' ? 'COMBAT COMMAND' : stack[i].toUpperCase().replace(/_/g,' ');
+      if(i>0) crumbHtml += ' &gt; ';
+      crumbHtml += '<a data-idx="'+i+'">'+esc(lab)+'</a>';
+    }
+    var m = getMenu(stack);
+    var menuHtml = '';
+    for(var k=0;k<m.items.length;k++){
+      var it = m.items[k];
+      var cls = 'cc-item';
+      if(it.dim) cls += ' cc-dim';
+      if(it.summary) cls += ' cc-locked';
+      var text = esc(it.label);
+      if(it.summary) text += ' <span class="cc-tag">' + esc(it.summary) + '</span>';
+      if(it.meta) text += '<span class="cc-meta">' + esc(it.meta) + '</span>';
+      menuHtml += '<div class="' + cls + '" data-idx="' + k + '">' + text + '</div>';
+    }
+    frame.innerHTML =
+      '<div class="cc-crumb" id="ccCrumb">'+crumbHtml+'</div>' +
+      '<div id="ccMenu">'+menuHtml+'</div>' +
+      '<hr class="cc-divider">' +
+      '<div class="cc-btn-row">' +
+        '<button class="cc-btn" id="ccSubmit">SUBMIT</button>' +
+        '<button class="cc-btn cc-alt" id="ccReset">RESET</button>' +
+      '</div>';
+    var as = frame.querySelectorAll('#ccCrumb a');
+    for(var j=0;j<as.length;j++){
+      as[j].addEventListener('click', function(ev){
+        var idx = parseInt(ev.target.getAttribute('data-idx'),10);
+        stack = stack.slice(0, idx+1); renderAll();
+      });
+    }
+    var items = frame.querySelectorAll('#ccMenu .cc-item');
+    for(var n=0;n<items.length;n++){
+      items[n].addEventListener('click', function(ev){
+        var idx = parseInt(ev.currentTarget.getAttribute('data-idx'),10);
+        var item = m.items[idx];
+        if(item.dim) return;
+        handleClick(item);
+      });
+    }
+    document.getElementById('ccSubmit').addEventListener('click', onSubmit);
+    document.getElementById('ccReset').addEventListener('click', function(){
+      resetTurn(); renderAll();
+    });
+    document.getElementById('ccCloseBtn').addEventListener('click', close);
+  }
+  function renderRolling(){
+    var frame = document.getElementById('ccFrame');
+    var rows = '';
+    for(var i=0;i<rollQueue.length;i++){
+      var q = rollQueue[i];
+      rows += '<div class="cc-dice-row cc-pending"><span class="cc-lab">['+esc(q.slot.toUpperCase())+']</span> '+esc(q.label)+
+              '<span class="cc-out">DICE: <span class="cc-expr">'+esc(q.dice)+'</span></span></div>';
+    }
+    frame.innerHTML =
+      '<div class="cc-phase-ttl">DICE TO ROLL</div>' +
+      '<div>'+rows+'</div>' +
+      '<hr class="cc-divider">' +
+      '<div class="cc-btn-row">' +
+        '<button class="cc-btn" id="ccRoll">ROLL ALL</button>' +
+        '<button class="cc-btn cc-alt" id="ccBack">BACK</button>' +
+      '</div>';
+    document.getElementById('ccRoll').addEventListener('click', onRoll);
+    document.getElementById('ccBack').addEventListener('click', onBackToBuild);
+  }
+  function renderResolved(){
+    var frame = document.getElementById('ccFrame');
+    var rows = '';
+    if(rollResults.length === 0){
+      rows = '<div class="cc-dice-row"><span class="cc-lab">[NARRATIVE]</span> turn sent without dice</div>';
+    } else {
+      for(var i=0;i<rollResults.length;i++){
+        var r = rollResults[i];
+        var partRows = '';
+        for(var p=0;p<r.parts.length;p++){
+          var pp = r.parts[p];
+          if(pp.total===null){
+            partRows += '<span class="cc-out">'+esc(pp.label)+': <span class="cc-expr">'+esc(pp.expr)+'</span></span>';
+          } else {
+            partRows += '<span class="cc-out">'+(pp.label?esc(pp.label)+': ':'')+'<span class="cc-expr">'+esc(pp.expr)+'</span> = ['+pp.rolls.join(',')+']'+(pp.modifier?(pp.modifier>0?'+'+pp.modifier:pp.modifier):'')+'<span class="cc-total">'+pp.total+'</span></span>';
+          }
+        }
+        rows += '<div class="cc-dice-row"><span class="cc-lab">['+esc(r.slot.toUpperCase())+']</span> '+esc(r.label)+partRows+'</div>';
+      }
+    }
+    frame.innerHTML =
+      '<div class="cc-phase-ttl">RESOLVED — SENT TO DM</div>' +
+      '<div>'+rows+'</div>' +
+      '<hr class="cc-divider">' +
+      '<div class="cc-btn-row">' +
+        '<button class="cc-btn" id="ccCont">DONE</button>' +
+      '</div>';
+    document.getElementById('ccCont').addEventListener('click', onContinue);
+  }
+  function renderAll(){
+    try {
+      if(phase==='building') renderBuilding();
+      else if(phase==='rolling') renderRolling();
+      else if(phase==='resolved') renderResolved();
+    } catch(err){
+      var f=document.getElementById('ccFrame');
+      if (f) f.innerHTML = '<div class="cc-dice-row">ERROR: '+esc((err && err.message) || String(err))+'</div>';
+    }
+  }
+
+  function open(){
+    isOpen = true;
+    character = getCharacter();
+    enemies   = getEnemies();
+    allies    = getAllies();
+    resetTurn();
+    var root = ensureRoot();
+    root.classList.add('cc-show');
+    renderAll();
+  }
+  function close(){
+    isOpen = false;
+    var root = document.getElementById('combatCommandPanel');
+    if (root) root.classList.remove('cc-show');
+  }
+
+  return {
+    open: open,
+    close: close,
+    isOpen: function(){ return isOpen; }
+  };
+})();
 </script>
 </body>
 </html>
