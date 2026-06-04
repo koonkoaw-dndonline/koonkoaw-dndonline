@@ -746,7 +746,7 @@ body.role-player .dm-only{display:none!important;}
     <div id="joinBrief" class="hidden" style="text-align:left;border:var(--px) solid var(--white);border-radius:8px;padding:12px 14px;margin:4px 0 12px;background:rgba(255,255,255,.04);max-height:220px;overflow:auto"></div>
     <label class="fld">Name<input type="text" id="cName" placeholder="e.g. Kael"/></label>
     <div class="srow3">
-      <label class="fld">Race<select id="cRace" onchange="onRaceChange()"><option value="">— เลือกเผ่า —</option><option>Human</option><option>Elf</option><option>Dwarf</option><option>Halfling</option><option>Half-Elf</option><option>Half-Orc</option><option>Tiefling</option><option>Dragonborn</option><option>Gnome</option><option>Aasimar</option><option>Goliath</option><option>Orc</option><option value="__custom">อื่นๆ (พิมพ์เอง)</option></select></label>
+      <label class="fld">Race<select id="cRace" onchange="onRaceChange()"><option value="">— เลือกเผ่า —</option><option>Human</option><option>Elf</option><option>Drow (Dark Elf)</option><option>Dwarf</option><option>Halfling</option><option>Half-Elf</option><option>Half-Orc</option><option>Tiefling</option><option>Dragonborn</option><option>Gnome</option><option>Aasimar</option><option>Goliath</option><option>Orc</option><option value="__custom">อื่นๆ (พิมพ์เอง)</option></select></label>
       <label class="fld">Sex<select id="cSex"><option value="">— เลือก —</option><option value="ชาย">ชาย (M)</option><option value="หญิง">หญิง (F)</option><option value="อื่นๆ">อื่นๆ/ไม่ระบุ</option></select></label>
       <label class="fld">Age<input type="text" id="cAge" placeholder="e.g. 24"/></label>
     </div>
@@ -1066,6 +1066,7 @@ async function refreshAll(){
 async function updateCombatBadge(){
   let active=false;
   try{ const r=await supa.from('combat_state').select('id').eq('campaign_id',campaign.id).eq('active',true).limit(1); active=!r.error && (r.data||[]).length>0; }catch(e){}
+  window._combatActive = active;   // server-truth: มีศัตรู active ไหม (ใช้เปิดเมนูคอมแบตโดยไม่พึ่ง DM flag)
   const t=document.querySelector('.tab[data-tab="mon"]'); if(t) t.classList.toggle('combat',active);
 }
 // ───────── local cache (โหลดไว + ดูย้อนหลังตอนเน็ตหลุด — DB ยังเป็นตัวหลัก) ─────────
@@ -1468,6 +1469,48 @@ const CLASS_FEATURES={
 };
 let chosenSkills=[];
 let chosenSpells=[];   // {slug,name,level,effect} ที่เลือกตอนสร้างตัว (สายเวท)
+const RACE_FEATURES={
+  human:[{name:'Versatile (Human)',description:'มนุษย์ปรับตัวเก่ง — ค่าสถานะกระจายและทักษะหลากหลายตามพื้นเพ',max_uses:0,recharge:'passive'}],
+  elf:[{name:'Darkvision',description:'มองเห็นในที่มืดสลัวได้ไกล 60 ฟุต (เป็นโทนสีเทา)',max_uses:0,recharge:'passive'},
+       {name:'Fey Ancestry',description:'ได้เปรียบเซฟต้านการสะกดจิต (charm) และเวทมนตร์ทำให้คุณหลับไม่ได้',max_uses:0,recharge:'passive'},
+       {name:'Trance',description:'พักผ่อนเต็มที่ด้วยการเข้าภวังค์เพียง 4 ชม. (แทน 8 ชม.)',max_uses:0,recharge:'passive'},
+       {name:'Keen Senses',description:'ชำนาญทักษะ Perception',max_uses:0,recharge:'passive'}],
+  drow:[{name:'Superior Darkvision',description:'มองเห็นในที่มืดไกลถึง 120 ฟุต',max_uses:0,recharge:'passive'},
+        {name:'Fey Ancestry',description:'ได้เปรียบเซฟต้าน charm และเวทไม่ทำให้หลับ',max_uses:0,recharge:'passive'},
+        {name:'Sunlight Sensitivity',description:'เสียเปรียบการโจมตี/Perception ด้วยสายตา เมื่ออยู่ในแสงแดดจ้า',max_uses:0,recharge:'passive'},
+        {name:'Drow Magic',description:'ร่าย Dancing Lights ได้; เลเวล 3 ได้ Faerie Fire, เลเวล 5 ได้ Darkness (อย่างละ 1/long rest)',max_uses:0,recharge:'atwill'}],
+  dwarf:[{name:'Darkvision',description:'มองเห็นในที่มืด 60 ฟุต',max_uses:0,recharge:'passive'},
+         {name:'Dwarven Resilience',description:'ได้เปรียบเซฟต้านพิษ + ลดดาเมจพิษลงครึ่งหนึ่ง',max_uses:0,recharge:'passive'},
+         {name:'Stonecunning',description:'เชี่ยวชาญเรื่องหินและงานหิน (ได้โบนัสตรวจสอบเกี่ยวกับหิน)',max_uses:0,recharge:'passive'}],
+  halfling:[{name:'Lucky',description:'เมื่อทอย 1 บน d20 (attack/check/save) → ทอยใหม่และใช้ผลใหม่',max_uses:0,recharge:'passive'},
+            {name:'Brave',description:'ได้เปรียบเซฟต้านความหวาดกลัว',max_uses:0,recharge:'passive'},
+            {name:'Halfling Nimbleness',description:'เคลื่อนผ่านช่องของสิ่งมีชีวิตที่ตัวใหญ่กว่าได้',max_uses:0,recharge:'passive'}],
+  halfelf:[{name:'Darkvision',description:'มองเห็นในที่มืด 60 ฟุต',max_uses:0,recharge:'passive'},
+           {name:'Fey Ancestry',description:'ได้เปรียบเซฟต้าน charm และเวทไม่ทำให้หลับ',max_uses:0,recharge:'passive'},
+           {name:'Skill Versatility',description:'ชำนาญทักษะเพิ่มอีก 2 อย่างตามที่เลือก',max_uses:0,recharge:'passive'}],
+  halforc:[{name:'Darkvision',description:'มองเห็นในที่มืด 60 ฟุต',max_uses:0,recharge:'passive'},
+           {name:'Relentless Endurance',description:'เมื่อ HP จะเหลือ 0 (ไม่ถึงตายทันที) ให้คงเหลือ 1 HP แทน (1/long rest)',max_uses:1,recharge:'long'},
+           {name:'Savage Attacks',description:'เมื่อคริติคอลด้วยอาวุธประชิด → ทอยลูกเต๋าดาเมจของอาวุธเพิ่มอีก 1 ลูก',max_uses:0,recharge:'passive'}],
+  tiefling:[{name:'Darkvision',description:'มองเห็นในที่มืด 60 ฟุต',max_uses:0,recharge:'passive'},
+            {name:'Hellish Resistance',description:'ลดดาเมจไฟลงครึ่งหนึ่ง',max_uses:0,recharge:'passive'},
+            {name:'Infernal Legacy',description:'ร่าย Thaumaturgy ได้; เลเวล 3 ได้ Hellish Rebuke, เลเวล 5 ได้ Darkness (อย่างละ 1/long rest)',max_uses:0,recharge:'atwill'}],
+  dragonborn:[{name:'Draconic Ancestry',description:'สืบสายมังกร กำหนดธาตุของลมหายใจและความต้านทาน',max_uses:0,recharge:'passive'},
+              {name:'Breath Weapon',description:'พ่นลมหายใจธาตุใส่ศัตรู (2d6 ตามธาตุ, เซฟครึ่ง) — 1/short rest',max_uses:1,recharge:'short'},
+              {name:'Damage Resistance',description:'ลดดาเมจครึ่งหนึ่งตามธาตุของสายมังกร',max_uses:0,recharge:'passive'}],
+  gnome:[{name:'Darkvision',description:'มองเห็นในที่มืด 60 ฟุต',max_uses:0,recharge:'passive'},
+         {name:'Gnome Cunning',description:'ได้เปรียบเซฟ INT/WIS/CHA ในการต้านทานเวทมนตร์',max_uses:0,recharge:'passive'}],
+  aasimar:[{name:'Darkvision',description:'มองเห็นในที่มืด 60 ฟุต',max_uses:0,recharge:'passive'},
+           {name:'Celestial Resistance',description:'ลดดาเมจ necrotic และ radiant ลงครึ่งหนึ่ง',max_uses:0,recharge:'passive'},
+           {name:'Healing Hands',description:'สัมผัสเพื่อรักษา = ทอย d4 จำนวนเท่าเลเวล รวมเป็น HP (1/long rest)',max_uses:1,recharge:'long'},
+           {name:'Light Bearer',description:'ร่าย Light ได้',max_uses:0,recharge:'atwill'}],
+  goliath:[{name:"Stone's Endurance",description:'ลดดาเมจที่ได้รับลง = 1d12 + CON modifier (1/short rest)',max_uses:1,recharge:'short'},
+           {name:'Powerful Build',description:'นับเป็นตัวใหญ่ขึ้น 1 ขั้นในการแบก/ดัน/ลาก/ยก',max_uses:0,recharge:'passive'},
+           {name:'Mountain Born',description:'ทนความหนาว + ปรับตัวกับที่สูงได้ดี',max_uses:0,recharge:'passive'}],
+  orc:[{name:'Darkvision',description:'มองเห็นในที่มืด 60 ฟุต',max_uses:0,recharge:'passive'},
+       {name:'Aggressive',description:'ใช้ bonus action พุ่งเข้าหาศัตรูเป็นระยะเท่าความเร็วของคุณ',max_uses:0,recharge:'passive'},
+       {name:'Relentless Endurance',description:'เมื่อ HP จะเหลือ 0 ให้คงเหลือ 1 HP แทน (1/long rest)',max_uses:1,recharge:'long'}],
+};
+function raceKey(){ const r=(raceValue()||'').toLowerCase(); if(/drow|dark.?elf/.test(r)) return 'drow'; if(/half.?elf/.test(r)) return 'halfelf'; if(/half.?orc/.test(r)) return 'halforc'; for(const k in RACE_FEATURES){ if(r.includes(k)) return k; } return null; }
 function classKey(){ const c=(classValue()||'').toLowerCase(); for(const k in CLASS_SKILLS){ if(c.includes(k)) return k; } return null; }
 function skillDef(){ const k=classKey(); return k? CLASS_SKILLS[k] : {n:2,list:'ALL'}; }
 function renderSkillPick(){
@@ -1564,9 +1607,14 @@ async function createCharacter(){
       const ck=classKey(); const feats=ck?CLASS_FEATURES[ck]:null;
       const rows=[];
       if(feats&&feats.length) feats.forEach((f,i)=>rows.push({campaign_id:campaign.id,character_id:ch.id,name:f.name,description:f.description,max_uses:f.max_uses,used:0,recharge:f.recharge,sort:i}));
+      // ความสามารถเฉพาะเผ่า (racial traits: passive/active) → ลง skills เช่นกัน
+      const rk=raceKey(); const rfeats=rk?RACE_FEATURES[rk]:null;
+      if(rfeats&&rfeats.length) rfeats.forEach((f,i)=>rows.push({campaign_id:campaign.id,character_id:ch.id,name:f.name,description:f.description,max_uses:f.max_uses,used:0,recharge:f.recharge,sort:50+i}));
       // เวท/cantrip ที่เลือกตอนสร้างตัว → ลง skills (cantrip=at-will ไม่จำกัด · เลเวล1=2 ครั้ง/long rest) → โผล่แท็บ Skills + Command Menu
       chosenSpells.forEach((sp,i)=>rows.push({campaign_id:campaign.id,character_id:ch.id,name:sp.name,description:sp.effect||'',max_uses:sp.level===0?0:2,used:0,recharge:sp.level===0?'atwill':'long',sort:100+i}));
-      if(rows.length) await supa.from('skills').insert(rows);
+      // กันชื่อซ้ำ (เช่น Fey Ancestry/Darkvision จากหลายแหล่ง) ก่อน insert
+      const _seen={}; const _uniq=rows.filter(r=>{ const k=(r.name||'').toLowerCase(); if(_seen[k]) return false; _seen[k]=1; return true; });
+      if(_uniq.length) await supa.from('skills').insert(_uniq);
     }catch(e){}
     try{ localStorage.setItem('ttrpg_bg_'+campaign.id, sheet.notes||''); }catch(e){}
     myChar=ch; mySheet=sheet; await refreshAll(); show('campaign'); switchTab('story');
@@ -1727,13 +1775,13 @@ async function renderRoundbar(){
   const typingNow=document.activeElement && document.activeElement.id==='actInput';
   if(typingNow && rbKey===_lastRoundbarKey){
     const sl=bar.querySelector('.statusline');
-    const _cbq=(curRound.meta||{}).combat||{}; const _rngq=(_cbq.active&&_cbq.range)?`<span class="cs">${escapeHtml(_cbq.range)}</span>`:'';
+    const _cbq=(curRound.meta||{}).combat||{}; const _incq=_cbq.active||!!window._combatActive; const _rngq=_incq?`<span class="cs">${escapeHtml(_cbq.range||'COMBAT')}</span>`:'';
     if(sl) sl.innerHTML=`<div class="cstat"><span class="cs">Round ${curRound.round_number}</span><span class="cs ${submitted>=total?'done':'wait'}">Submitted ${submitted}/${total}</span>${_rngq}</div>`;
     return;
   }
   _lastRoundbarKey=rbKey;
   const keepAct=(document.getElementById('actInput')||{}).value||'';   // กันข้อความที่พิมพ์ค้างหายตอน re-render (placeholder/realtime)
-  const _cbS=(curRound.meta||{}).combat||{}; const _rng=(_cbS.active&&_cbS.range)?`<span class="cs">${escapeHtml(_cbS.range)}</span>`:'';
+  const _cbS=(curRound.meta||{}).combat||{}; const _incS=_cbS.active||!!window._combatActive; const _rng=_incS?`<span class="cs">${escapeHtml(_cbS.range||'COMBAT')}</span>`:'';
   let html=`<div class="cstat"><span class="cs">Round ${curRound.round_number}</span><span class="cs ${submitted>=total?'done':'wait'}">Submitted ${submitted}/${total}</span>${_rng}</div>`;
   list.forEach(a=>{ html+=`<div class="actionlog"><b>${escapeHtml(nameFor(a))}</b> ${escapeHtml(a.action_text)}</div>`; });
   bar.innerHTML=html;   // สร้างทีเดียว (synchronous ต่อจากนี้ ไม่มี await)
@@ -1762,8 +1810,9 @@ async function renderRoundbar(){
   if(!mine){
     const meta=curRound.meta||{};
     const cb=meta.combat||{}, rr=meta.roll_request||{}, inter=meta.interactables||[];
+    const inCombat = cb.active || !!window._combatActive;   // server-authority: เปิดคอมแบตเองเมื่อมีศัตรู active (Gemini อาจลืม flag)
     if(econUsedRound!==curRound.id){ econUsed={}; econUsedRound=curRound.id; }  // รีเซ็ตมาร์กทุกรอบ
-    if(cb.active){
+    if(inCombat){
       // 3 แนวทางจาก DM — กดส่งได้ทันที (โอกาสสำเร็จสูง เข้ากับ narrative)
       if(Array.isArray(cb.options) && cb.options.length){
         const opts=document.createElement('div'); opts.className='copt';
@@ -1781,7 +1830,7 @@ async function renderRoundbar(){
       const ta=document.createElement('textarea'); ta.id='actInput'; ta.placeholder='จะให้ตัวละครทำอะไร? พิมพ์ได้อิสระ'; if(keepAct) ta.value=keepAct; bar.appendChild(ta);
     }
     // เต๋า + ปุ่มส่ง (เฉพาะนอกคอมแบต — ในคอมแบตใช้ SUBMIT ในเมนู)
-    if(!cb.active){
+    if(!inCombat){
     if(rr.needed){
       const dice=document.createElement('div'); dice.className='dicerow';
       const reason = rr.reason? escapeHtml(rr.reason) : 'DM ขอให้ทอยเต๋า';
@@ -2371,31 +2420,19 @@ async function renderSkills(){
   if(!myChar){ p.innerHTML='<div class="muted">No character yet</div>'; return; }
   let rows=null;
   try{ const r=await supa.from('skills').select('*').eq('character_id',myChar.id).order('sort'); if(!r.error) rows=r.data||[]; }catch(e){}
-  if(rows===null){ p.innerHTML='<div class="muted">Skills system not enabled yet<br>Run migration.sql to add the skills table</div>'; return; }
-  if(!rows.length){ p.innerHTML='<div class="muted">No skills yet<br>Skills appear after you create a character (based on class), or when the DM grants them</div>'; return; }
-  // ปุ่มพัก (รีเซ็ตจำนวนครั้งใช้สกิล)
-  const hasUses=rows.some(s=>s.max_uses>0);
-  if(hasUses){
-    const restbar=document.createElement('div'); restbar.className='item'; restbar.innerHTML='<div class="sectitle">REST</div>';
-    const rb=document.createElement('div'); rb.style.cssText='display:flex;gap:8px;flex-wrap:wrap';
-    const longB=document.createElement('button'); longB.className='btn ghost sm'; longB.innerHTML=`<span class="bico">${ICON_INN}</span>Long Rest`; longB.onclick=()=>restSkills('long');
-    const shortB=document.createElement('button'); shortB.className='btn ghost sm'; shortB.innerHTML=`<span class="bico">${ICON_CAMPFIRE}</span>Short Rest`; shortB.onclick=()=>restSkills('short');
-    rb.appendChild(longB); rb.appendChild(shortB); restbar.appendChild(rb); p.appendChild(restbar);
-  }
-  const card=document.createElement('div'); card.className='item'; card.innerHTML='<div class="sectitle">SKILLS</div>';
+  if(rows===null){ p.innerHTML='<div class="muted">Skills system not enabled yet</div>'; return; }
+  if(!rows.length){ p.innerHTML='<div class="muted">ยังไม่มีความสามารถ<br>ความสามารถจะปรากฏหลังสร้างตัวละคร (ตามเผ่า/คลาส) หรือเมื่อ DM มอบให้</div>'; return; }
+  // รายการความสามารถอย่างเดียว — แตะเพื่อดูคำอธิบายผล (ไม่มีปุ่มใช้; การใช้จริงสั่งผ่านเมนูคอมแบต/เนื้อเรื่อง)
+  const card=document.createElement('div'); card.className='item';
+  card.innerHTML='<div class="sectitle">ความสามารถ (ABILITIES)</div><div class="note" style="text-align:left;padding:0 2px 6px">แตะที่ความสามารถเพื่อดูรายละเอียด</div>';
   rows.forEach(s=>{
     const rech=s.recharge||'long';
-    const lab={long:'LONG REST',short:'SHORT REST',atwill:'AT WILL',passive:'PASSIVE'}[rech]||rech.toUpperCase();
+    const lab={long:'LONG REST',short:'SHORT REST',atwill:'AT WILL',passive:'PASSIVE'}[rech]||String(rech).toUpperCase();
     const at=(rech==='atwill'||rech==='passive')?' at':'';
-    let pips='';
-    if(s.max_uses>0){ for(let i=0;i<s.max_uses;i++) pips+=`<span class="pip${i<s.used?' spent':''}"></span>`; pips=`<div class="pips">${pips}<span class="cnt">${s.max_uses-s.used}/${s.max_uses} left</span></div>`; }
-    const d=document.createElement('div'); d.className='skill';
-    d.innerHTML=`<div class="top"><span class="nm">${escapeHtml(s.name)}</span><span class="rech${at}">${lab}</span></div>${pips}<div class="desc">${escapeHtml(s.description||'')}</div>`;
-    // ปุ่มใช้สกิล — ทุกสกิลกดได้ (DM จะบรรยายผลในเนื้อเรื่อง); สกิลมีจำนวนครั้งจะหัก −1
-    const use=document.createElement('button'); use.style.marginTop='7px';
-    if(s.max_uses>0 && s.used>=s.max_uses){ use.className='btn ghost sm'; use.textContent='Depleted'; use.disabled=true; }
-    else { use.className='btn sm'; use.textContent= s.max_uses>0?'⚔ ใช้ (−1)':'⚔ ใช้'; use.onclick=()=>useSkill(s.id,s.used||0,s.max_uses||0,s.name,s.description||''); }
-    d.appendChild(use);
+    const uses=(s.max_uses>0)?`<span class="cnt">${s.max_uses-(s.used||0)}/${s.max_uses}</span>`:'';
+    const d=document.createElement('div'); d.className='skill'; d.style.cursor='pointer';
+    d.innerHTML=`<div class="top"><span class="nm">${escapeHtml(s.name)}</span>${uses}<span class="rech${at}">${lab}</span></div><div class="desc" style="display:none">${escapeHtml(s.description||'(ไม่มีคำอธิบาย)')}</div>`;
+    d.onclick=()=>{ const dd=d.querySelector('.desc'); if(dd){ dd.style.display = (dd.style.display==='none'?'block':'none'); } try{tick();}catch(e){} };
     card.appendChild(d);
   });
   p.appendChild(card);
@@ -3743,7 +3780,7 @@ window.cc = (function(){
     root.classList.add('cc-show');
     renderAll();
   }
-  function openInline(){ isOpen=true; character=getCharacter(); enemies=getEnemies(); allies=getAllies(); renderAll(); }
+  function openInline(){ isOpen=true; character=getCharacter(); enemies=getEnemies(); allies=getAllies(); if(phase!=='building'){ resetTurn(); } renderAll(); }   // เทิร์นก่อนจบ → รีเซ็ตเป็นเมนูสด (กันจอ RESOLVED ค้าง)
   function isBusy(){ return phase==='rolling' || (phase==='building' && (stack.length>1 || !!(turn.action||turn.bonus||turn.reaction||turn.movement||turn.free||turn.narrate))); }
   function close(){
     isOpen = false;
