@@ -690,6 +690,28 @@ body.role-player .dm-only{display:none!important;}
 .whbox{border:2px solid #fff;border-radius:6px;padding:6px 9px;display:flex;flex-direction:column;gap:4px;}
 .cc-inline{border:3px solid #fff;border-radius:10px;padding:12px;background:#000;}
 .cc-inline .cc-close{display:none;}
+/* Phase B: readable cc fonts + sequence panel + narrate DQ box */
+.cc-frame{font-family:'IBM Plex Sans Thai',sans-serif;font-size:14px;}
+.cc-item{font-size:14.5px;padding-top:11px;padding-bottom:11px;}
+.cc-item .cc-meta{font-size:12px;color:#9a9a9a;margin-top:3px;line-height:1.45;}
+.cc-item .cc-tag{font-size:11px;}
+.cc-btn{font-family:'IBM Plex Sans Thai',sans-serif;font-size:14px;font-weight:700;letter-spacing:.3px;}
+.cc-crumb{font-size:11.5px;}
+.cc-phase-ttl{font-family:'IBM Plex Sans Thai',sans-serif;font-size:13px;letter-spacing:1px;}
+.cc-dice-row,.cc-dice-row .cc-lab,.cc-dice-row .cc-out{font-size:13px;}
+.cc-seq{border:2px dashed #fff;border-radius:8px;padding:8px 10px;margin-bottom:10px;}
+.cc-seq-ttl{font-size:12px;color:#9a9a9a;margin-bottom:6px;line-height:1.4;}
+.cc-seq-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.13);}
+.cc-seq-row:last-child{border-bottom:0;}
+.cc-seq-n{flex:0 0 auto;width:21px;height:21px;border:1.5px solid #fff;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;}
+.cc-seq-lab{flex:1;font-size:13.5px;line-height:1.3;}
+.cc-seq-ctl{display:flex;gap:3px;flex:0 0 auto;}
+.cc-seq-ctl button{background:#000;border:1.5px solid #fff;color:#fff;border-radius:4px;width:27px;height:27px;font-size:11px;cursor:pointer;padding:0;font-family:inherit;}
+.cc-seq-ctl button:hover:not(:disabled){background:#fff;color:#000;}
+.cc-seq-ctl button:disabled{opacity:.3;cursor:default;}
+.cc-narr{width:100%;min-height:96px;background:#000;border:2px solid #fff;border-radius:8px;color:#fff;font-family:'IBM Plex Sans Thai',sans-serif;font-size:14px;line-height:1.55;padding:11px;resize:vertical;box-sizing:border-box;}
+.cc-narr:focus{outline:none;box-shadow:0 0 0 2px rgba(255,255,255,.3);}
+.cc-narr-wrap .cc-btn-row{margin-top:9px;}
 </style>
 </head>
 <body>
@@ -3247,9 +3269,25 @@ window.cc = (function(){
   var submitting = false;
 
   function resetTurn(){
-    turn = { action:null, bonus:null, reaction:null, movement:null, free:null, narrate:'' };
+    turn = { action:null, bonus:null, reaction:null, movement:null, free:null, narrate:'', _seq:[] };
     stack = ['root']; phase='building'; rollQueue=[]; rollResults=[];
   }
+  function seqAdd(slot){ if(!turn._seq) turn._seq=[]; if(turn._seq.indexOf(slot)<0) turn._seq.push(slot); }
+  function seqRemove(slot){ if(!turn._seq) return; var i=turn._seq.indexOf(slot); if(i>=0) turn._seq.splice(i,1); }
+  var SLOTN = {action:'แอคชัน', bonus:'โบนัส', reaction:'รีแอคชัน', movement:'เคลื่อนที่', free:'ฟรี', narrate:'บรรยาย'};
+  var ACT_TIPS = {
+    'Attack':'โจมตีด้วยอาวุธ — ทอย attack roll แล้วทอยดาเมจ',
+    'Cast Spell':'ร่ายเวทที่ใช้เวลา 1 Action',
+    'Dash':'เพิ่มระยะเคลื่อนที่อีกหนึ่งเท่าตัวในเทิร์นนี้',
+    'Disengage':'เคลื่อนออกจากศัตรูได้โดยไม่ถูกตีสวน (opportunity attack)',
+    'Dodge':'จนจบเทิร์น: ศัตรูเสียเปรียบเมื่อโจมตีคุณ และคุณเซฟ DEX ได้เปรียบ',
+    'Help':'ช่วยพันธมิตร → เขาได้เปรียบ (advantage) ในแอคชันถัดไป',
+    'Hide':'หลบซ่อนตัว — ทอย Stealth',
+    'Ready':'เตรียมแอคชันไว้ ทำทันทีเมื่อเงื่อนไขเกิด (ใช้ reaction)',
+    'Search':'ค้นหา/สังเกต — ทอย Perception หรือ Investigation',
+    'Use Object':'ใช้สิ่งของในฉาก (คันโยก ดื่มยา ฯลฯ)',
+    'Grapple/Shove':'จับล็อกหรือผลักศัตรู — ทอย Athletics แข่งกับเป้าหมาย'
+  };
 
   function slotsLeft(level){
     var s = character && character.slots && character.slots[level];
@@ -3509,7 +3547,9 @@ window.cc = (function(){
   }
   function collectDice(){
     var out = [];
-    ['action','bonus','reaction','movement','free'].forEach(function(slot){
+    var seq = (turn._seq&&turn._seq.length) ? turn._seq : ['action','bonus','reaction','movement','free'];
+    seq.forEach(function(slot){
+      if(slot==='narrate') return;
       if(turn[slot] && turn[slot].dice){
         out.push({ slot: slot, label: turn[slot].label, dice: turn[slot].dice });
       }
@@ -3521,9 +3561,13 @@ window.cc = (function(){
   function compileNarrative(results){
     var parts = [];
     var slotNames = {action:'Action', bonus:'Bonus', reaction:'Reaction', movement:'Move', free:'Free'};
-    ['action','bonus','reaction','movement','free'].forEach(function(slot){
+    var seq = (turn._seq&&turn._seq.length) ? turn._seq : ['action','bonus','reaction','movement','free','narrate'];
+    var n = 0;
+    seq.forEach(function(slot){
+      if(slot==='narrate'){ if(turn.narrate){ n++; parts.push(n+') Narrate: "'+turn.narrate+'"'); } return; }
       var t = turn[slot]; if (!t) return;
-      var label = slotNames[slot]+': '+t.label;
+      n++;
+      var label = n+') '+slotNames[slot]+': '+t.label;
       var rr = (results && results.length) ? results.filter(function(x){return x.slot===slot;})[0] : null;
       if (rr) {
         var dicebits = rr.parts.map(function(p){
@@ -3536,7 +3580,6 @@ window.cc = (function(){
       }
       parts.push(label);
     });
-    if (turn.narrate) parts.push('Narrate: "'+turn.narrate+'"');
     if (!parts.length) parts.push('(ตั้งรับ/ไม่ระบุ)');
     return parts.join('. ');
   }
@@ -3545,19 +3588,14 @@ window.cc = (function(){
   function handleClick(it){
     if(it.editSlot){
       var slot = it.editSlot;
-      turn[slot] = (slot==='narrate') ? '' : null;
-      if(slot==='narrate'){
-        var txt = prompt('Type narration:', '');
-        if(txt!==null) turn.narrate = txt;
-        stack = ['root'];
-      } else {
-        stack = ['root', slotEditMenu[slot]];
-      }
+      if(slot==='narrate'){ stack=['root','narrate']; renderAll(); return; }
+      turn[slot]=null; seqRemove(slot);
+      stack=['root', slotEditMenu[slot]];
       renderAll(); return;
     }
     if(it.clearSlot){
       var s2 = it.clearSlot;
-      turn[s2] = (s2==='narrate') ? '' : null;
+      turn[s2] = (s2==='narrate') ? '' : null; seqRemove(s2);
       stack = ['root']; renderAll(); return;
     }
     if(it.mapPick){
@@ -3567,25 +3605,23 @@ window.cc = (function(){
         window.ccGridPick(_t, function(picked){
           if(picked && picked.center){
             turn[_c.slot] = { label: String(_c.label).replace(/ ▸ MAP$/, '') + ' ▸ ' + picked.center, mapTarget: picked.center, area: picked.cells || null, dice: _c.dice || null, skillId: _c.skillId || null };
+            seqAdd(_c.slot);
           }
           stack = ['root'];
-          if(typeof renderRoundbar === 'function') renderRoundbar();   // อินไลน์: เรนเดอร์แถบใหม่ → เมนูกลับมา
+          if(typeof renderRoundbar === 'function') renderRoundbar();
         });
         return;
       }
-      // เป้าหมายเดี่ยว/จุด → commit ตรงๆ (เลิกใช้ prompt ที่น่าเกลียด)
-      if(it.commit){ turn[it.commit.slot] = { label: it.commit.label, dice: it.commit.dice || null, skillId: it.commit.skillId || null }; stack=['root']; renderAll(); }
+      if(it.commit){ turn[it.commit.slot] = { label: it.commit.label, dice: it.commit.dice || null, skillId: it.commit.skillId || null }; seqAdd(it.commit.slot); stack=['root']; renderAll(); }
       return;
     }
     if(it.drill){ stack.push(it.drill); renderAll(); return; }
     if(it.commit){
       turn[it.commit.slot] = { label: it.commit.label, dice: it.commit.dice || null, skillId: it.commit.skillId || null };
+      seqAdd(it.commit.slot);
       stack = ['root']; renderAll(); return;
     }
-    if(it.narrate){
-      var txt2 = prompt('Type your narration:', turn.narrate || '');
-      if(txt2!==null){ turn.narrate = txt2; stack=['root']; renderAll(); }
-    }
+    if(it.narrate){ stack=['root','narrate']; renderAll(); return; }
   }
 
   async function onSubmit(){
@@ -3628,6 +3664,7 @@ window.cc = (function(){
           free:     turn.free     || null,
           narrate:  turn.narrate  || ''
         },
+        order: (turn._seq||[]).slice(),
         rolls: results || [],
         compiled_at: new Date().toISOString()
       };
@@ -3707,29 +3744,76 @@ window.cc = (function(){
   }
   function renderBuilding(){
     var frame = document.getElementById('ccFrame');
+    var lastNode = stack[stack.length-1];
     var crumbHtml = '<button class="cc-close" id="ccCloseBtn" title="ปิด">✕</button>';
     for(var i=0;i<stack.length;i++){
-      var lab = stack[i]==='root' ? 'COMBAT COMMAND' : stack[i].toUpperCase().replace(/_/g,' ');
+      var lab = stack[i]==='root' ? 'COMBAT COMMAND' : (SLOTN[stack[i]] ? SLOTN[stack[i]] : stack[i].toUpperCase().replace(/_/g,' '));
       if(i>0) crumbHtml += ' &gt; ';
       crumbHtml += '<a data-idx="'+i+'">'+esc(lab)+'</a>';
     }
+
+    // NARRATE — กล่องพิมพ์บรรยายธีม DQ (แทน prompt เดิม)
+    if(lastNode==='narrate'){
+      frame.innerHTML =
+        '<div class="cc-crumb" id="ccCrumb">'+crumbHtml+'</div>' +
+        '<div class="cc-narr-wrap">' +
+          '<textarea class="cc-narr" id="ccNarr" placeholder="บรรยายสิ่งที่ตัวละครทำ เช่น พูด ขู่ หลอกล่อ หรือท่าทางพิเศษ..."></textarea>' +
+          '<div class="cc-btn-row">' +
+            '<button class="cc-btn" id="ccNarrSave">บันทึก</button>' +
+            '<button class="cc-btn cc-alt" id="ccNarrCancel">ยกเลิก</button>' +
+          '</div>' +
+        '</div>';
+      frame.querySelector('#ccNarr').value = turn.narrate||'';
+      frame.querySelector('#ccCloseBtn').addEventListener('click', close);
+      var crA = frame.querySelectorAll('#ccCrumb a');
+      for(var ci=0;ci<crA.length;ci++){ crA[ci].addEventListener('click', function(ev){ var idx=parseInt(ev.target.getAttribute('data-idx'),10); stack=stack.slice(0,idx+1); renderAll(); }); }
+      frame.querySelector('#ccNarrSave').addEventListener('click', function(){
+        var v=(frame.querySelector('#ccNarr').value||'').trim();
+        turn.narrate=v; if(v) seqAdd('narrate'); else seqRemove('narrate');
+        stack=['root']; renderAll();
+      });
+      frame.querySelector('#ccNarrCancel').addEventListener('click', function(){ stack=['root']; renderAll(); });
+      return;
+    }
+
     var m = getMenu(stack);
     var hasAny = !!(turn.action||turn.bonus||turn.reaction||turn.movement||turn.free||turn.narrate);
     var backHtml = stack.length>1 ? '<button class="cc-btn cc-alt" id="ccBack2" style="width:100%;margin-bottom:8px">\u25c0 BACK</button>' : '';
+
+    // ลำดับการกระทำ (sequence review) — แสดงที่หน้า root
+    var seqHtml='';
+    if(stack.length===1 && turn._seq && turn._seq.length){
+      var sr='';
+      for(var q=0;q<turn._seq.length;q++){
+        var slot=turn._seq[q];
+        var lab2 = (slot==='narrate') ? ('บรรยาย: "'+String(turn.narrate||'').slice(0,22)+'"') : ((SLOTN[slot]||slot)+': '+((turn[slot]&&turn[slot].label)||''));
+        sr += '<div class="cc-seq-row"><span class="cc-seq-n">'+(q+1)+'</span><span class="cc-seq-lab">'+esc(lab2)+'</span>'+
+              '<span class="cc-seq-ctl">'+
+                '<button data-act="up" data-slot="'+slot+'"'+(q===0?' disabled':'')+'>\u25B2</button>'+
+                '<button data-act="down" data-slot="'+slot+'"'+(q===turn._seq.length-1?' disabled':'')+'>\u25BC</button>'+
+                '<button data-act="del" data-slot="'+slot+'">\u2715</button>'+
+              '</span></div>';
+      }
+      seqHtml = '<div class="cc-seq"><div class="cc-seq-ttl">ลำดับการกระทำ — จัดเรียงตามต้องการ แล้วกด SUBMIT</div>'+sr+'</div>';
+    }
+
     var menuHtml = '';
     for(var k=0;k<m.items.length;k++){
       var it = m.items[k];
       var cls = 'cc-item';
       if(it.dim) cls += ' cc-dim';
       if(it.summary) cls += ' cc-locked';
+      var tip = it.meta || ACT_TIPS[it.label] || '';
       var text = esc(it.label);
       if(it.summary) text += ' <span class="cc-tag">' + esc(it.summary) + '</span>';
-      if(it.meta) text += '<span class="cc-meta">' + esc(it.meta) + '</span>';
-      menuHtml += '<div class="' + cls + '" data-idx="' + k + '">' + text + '</div>';
+      if(tip) text += '<span class="cc-meta">' + esc(tip) + '</span>';
+      var titleAttr = tip ? ' title="'+esc(tip)+'"' : '';
+      menuHtml += '<div class="' + cls + '" data-idx="' + k + '"'+titleAttr+'>' + text + '</div>';
     }
     frame.innerHTML =
       '<div class="cc-crumb" id="ccCrumb">'+crumbHtml+'</div>' +
       backHtml +
+      seqHtml +
       '<div id="ccMenu">'+menuHtml+'</div>' +
       '<hr class="cc-divider">' +
       '<div class="cc-btn-row">' +
@@ -3741,6 +3825,18 @@ window.cc = (function(){
       as[j].addEventListener('click', function(ev){
         var idx = parseInt(ev.target.getAttribute('data-idx'),10);
         stack = stack.slice(0, idx+1); renderAll();
+      });
+    }
+    var seqBtns = frame.querySelectorAll('.cc-seq-ctl button');
+    for(var sb=0; sb<seqBtns.length; sb++){
+      seqBtns[sb].addEventListener('click', function(ev){
+        ev.stopPropagation();
+        var act=ev.currentTarget.getAttribute('data-act'), slot=ev.currentTarget.getAttribute('data-slot');
+        var ix=turn._seq.indexOf(slot); if(ix<0) return;
+        if(act==='up' && ix>0){ var a=turn._seq[ix-1]; turn._seq[ix-1]=turn._seq[ix]; turn._seq[ix]=a; }
+        else if(act==='down' && ix<turn._seq.length-1){ var b=turn._seq[ix+1]; turn._seq[ix+1]=turn._seq[ix]; turn._seq[ix]=b; }
+        else if(act==='del'){ turn[slot]=(slot==='narrate'?'':null); turn._seq.splice(ix,1); }
+        renderAll();
       });
     }
     var items = frame.querySelectorAll('#ccMenu .cc-item');
