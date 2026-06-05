@@ -2760,6 +2760,9 @@ async function renderBattleScene(){
   try{ renderClock(); var wc=document.getElementById('worldClock'), hud=document.getElementById('bsHud'); if(wc&&hud) hud.innerHTML=wc.innerHTML; }catch(e){}
   var board=document.getElementById('bsBoard'); if(board){ board.innerHTML=''; try{ await renderBattleGrid(board); }catch(e){} if(!board.children.length){ board.innerHTML='<div class="note" style="text-align:center;padding:16px;color:#9a9a9a">— ยังไม่มีสนามรบ —</div>'; } }
   try{ await renderBattleInitLog(document.getElementById('bsInit'), document.getElementById('bsLog')); }catch(e){}
+  // อัปเดต "ถึงตาใคร" + กล่องสั่ง (roundbar ที่ย้ายเข้าฉาก) ทุกครั้ง — ไม่งั้นกล่องสั่ง companion/ผู้เล่นไม่โผล่เมื่อไม่ได้อยู่แท็บ story
+  try{ await refreshCombatTurn(); }catch(e){}
+  try{ await renderRoundbar(); }catch(e){}
 }
 async function renderBattleInitLog(initEl, logEl){
   if(initEl) initEl.innerHTML=''; if(logEl) logEl.innerHTML='';
