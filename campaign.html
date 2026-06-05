@@ -2871,7 +2871,7 @@ async function renderBattleScene(){
     try{ renderClock(); var wc=document.getElementById('worldClock'), hud=document.getElementById('bsHud'); if(wc&&hud && hud.innerHTML!==wc.innerHTML) hud.innerHTML=wc.innerHTML; }catch(e){}
     // เรนเดอร์ grid ลงกล่องชั่วคราวก่อน แล้วค่อยสลับทีเดียว (ไม่ให้จอว่างระหว่างโหลด = ไม่กระพริบ)
     var board=document.getElementById('bsBoard');
-    if(board){ var _tmp=document.createElement('div'); try{ await renderBattleGrid(_tmp); }catch(e){} if(!_tmp.children.length){ _tmp.innerHTML='<div class="note" style="text-align:center;padding:16px;color:#9a9a9a">— ยังไม่มีสนามรบ —</div>'; } board.replaceChildren.apply(board, Array.prototype.slice.call(_tmp.childNodes)); }
+    if(board){ var _tmp=document.createElement('div'); try{ await renderBattleGrid(_tmp); }catch(e){} if(!_tmp.children.length){ _tmp.innerHTML='<div class="note" style="text-align:center;padding:16px;color:#9a9a9a">— ยังไม่มีสนามรบ —</div>'; } var _bsig=_tmp.innerHTML; if(board.getAttribute('data-sig')!==_bsig){ board.setAttribute('data-sig',_bsig); board.replaceChildren.apply(board, Array.prototype.slice.call(_tmp.childNodes)); } }
     try{ await renderBattleInitLog(document.getElementById('bsInit'), document.getElementById('bsLog')); }catch(e){}
     // บรรยายเฉพาะการต่อสู้ (3 บทล่าสุด) — ไม่เอาเนื้อเรื่องเก่ามาแปะ
     try{
@@ -2882,9 +2882,13 @@ async function renderBattleScene(){
         _rec.forEach(function(n){ var d=document.createElement('div'); d.className='narr'; d.innerHTML='<div class="meta">🎲 DM</div><div class="narrc">'+colorizeNarr(n.content)+'</div>'; _nf.appendChild(d); });
         if(!_nf.childNodes.length){ var _e=document.createElement('div'); _e.className='note'; _e.style.color='#9a9a9a'; _e.textContent='— รอการบรรยายการต่อสู้ —'; _nf.appendChild(_e); }
         var _box=nw.closest('.bs-narr')||nw;
-        var _near=(_box.scrollHeight-_box.scrollTop-_box.clientHeight)<80, _prev=_box.scrollTop;
-        nw.replaceChildren(_nf);
-        setTimeout(function(){ _box.scrollTop=_near?_box.scrollHeight:_prev; },0);
+        var _ng=document.createElement('div'); _ng.appendChild(_nf.cloneNode(true));
+        if(nw.getAttribute('data-sig')!==_ng.innerHTML){
+          nw.setAttribute('data-sig',_ng.innerHTML);
+          var _near=(_box.scrollHeight-_box.scrollTop-_box.clientHeight)<80, _prev=_box.scrollTop;
+          nw.replaceChildren(_nf);
+          setTimeout(function(){ _box.scrollTop=_near?_box.scrollHeight:_prev; },0);
+        }
       }
     }catch(e){}
     var _ae=document.activeElement, _aid=_ae&&_ae.id;
@@ -2914,7 +2918,8 @@ async function renderBattleInitLog(initEl, logEl){
       _frag.appendChild(row);
     });
     if(!_frag.childNodes.length){ const d=document.createElement('div'); d.className='note'; d.style.color='#9a9a9a'; d.textContent='— รอลำดับการรบ —'; _frag.appendChild(d); }
-    initEl.replaceChildren(_frag);
+    var _ig=document.createElement('div'); _ig.appendChild(_frag.cloneNode(true));
+    if(initEl.getAttribute('data-sig')!==_ig.innerHTML){ initEl.setAttribute('data-sig',_ig.innerHTML); initEl.replaceChildren(_frag); }
   }
   if(logEl){
     let logs=[]; try{ const r=await supa.from('combat_log').select('*').eq('encounter_id',enc.id).order('created_at',{ascending:true}).limit(80); logs=r.data||[]; }catch(e){}
@@ -2922,9 +2927,13 @@ async function renderBattleInitLog(initEl, logEl){
     const _lfrag=document.createDocumentFragment();
     logs.forEach(l=>{ const d=document.createElement('div'); d.className='bs-logrow'; if(l.entry_type==='round_advance') d.style.color='#9a9a9a'; d.innerHTML=(ICON[l.entry_type]||'•')+' '+escapeHtml(l.summary); _lfrag.appendChild(d); });
     if(!_lfrag.childNodes.length){ const d=document.createElement('div'); d.className='note'; d.style.color='#9a9a9a'; d.textContent='— ยังไม่มีบันทึกการรบ —'; _lfrag.appendChild(d); }
-    var _lnear=(logEl.scrollHeight-logEl.scrollTop-logEl.clientHeight)<80, _lprev=logEl.scrollTop;
-    logEl.replaceChildren(_lfrag);
-    setTimeout(function(){ logEl.scrollTop=_lnear?logEl.scrollHeight:_lprev; },0);
+    var _lg=document.createElement('div'); _lg.appendChild(_lfrag.cloneNode(true));
+    if(logEl.getAttribute('data-sig')!==_lg.innerHTML){
+      logEl.setAttribute('data-sig',_lg.innerHTML);
+      var _lnear=(logEl.scrollHeight-logEl.scrollTop-logEl.clientHeight)<80, _lprev=logEl.scrollTop;
+      logEl.replaceChildren(_lfrag);
+      setTimeout(function(){ logEl.scrollTop=_lnear?logEl.scrollHeight:_lprev; },0);
+    }
   }
 }
 function _bsChatName(uid){ try{ return chatNameFor(uid); }catch(e){ return 'Player'; } }
