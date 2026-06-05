@@ -455,6 +455,19 @@ body.ui-min #worldClock{display:none!important;}
 .skill .desc{font-size:12px;color:#9a9a9a;line-height:1.55;}
 /* ── Skills tab v3: borderless rows · soft inline expand · unified font · full-width ── */
 #panel-skills, #panel-skills *{font-family:'IBM Plex Sans Thai',sans-serif;letter-spacing:0;-webkit-font-smoothing:antialiased;}
+/* หน้า Files: ใช้ฟอนต์ไทยอ่านง่ายทั้งหน้า ยกเว้นหัวข้อ (.sectitle) คงฟอนต์พิกเซล */
+#panel-files, #panel-files *{font-family:'IBM Plex Sans Thai',sans-serif;letter-spacing:0;-webkit-font-smoothing:antialiased;}
+#panel-files .sectitle{font-family:'Press Start 2P',monospace;letter-spacing:1px;}
+#panel-files .kv .k{white-space:normal;}
+/* dropdown รวมไฟล์ — กันรายการล้นต่อกัน */
+.filedd{border:2px solid var(--white);border-radius:6px;margin-top:8px;background:#000;}
+.filedd>summary{cursor:pointer;padding:7px 9px;list-style:none;font-weight:700;font-size:14px;color:var(--white);user-select:none;display:flex;align-items:center;gap:8px;}
+.filedd>summary::-webkit-details-marker{display:none;}
+.filedd>summary::after{content:'▾';margin-left:auto;opacity:.7;}
+.filedd[open]>summary::after{content:'▴';}
+.filedd-body{max-height:240px;overflow-y:auto;padding:2px 9px 8px;border-top:1px solid #2a2a2a;}
+.filedd-body .kv{padding:5px 0;border-bottom:1px solid #1b1b1b;}
+.filedd-body .kv:last-child{border-bottom:none;}
 #panel-skills .sk-intro{color:#9a9a9a;font-size:14px;padding:0 2px 2px;}
 .sk-cardgrp{padding:4px 14px 10px;}
 .sk-head{font-size:14px;font-weight:800;color:#fff;border-bottom:2px solid #fff;padding:9px 2px 9px;margin-bottom:2px;}
@@ -792,8 +805,6 @@ body.role-player .dm-only{display:none!important;}
 .bs-ini{min-width:22px;text-align:center;font-weight:700;color:#9a9a9a;font-size:13px;}
 .bs-iname{flex:1;font-size:14px;font-weight:700;line-height:1.3;overflow:hidden;text-overflow:ellipsis;}
 .bs-ihp{font-size:13px;font-weight:700;white-space:nowrap;color:#dcdcdc;}
-.bs-hpbar{height:5px;border:1px solid rgba(255,255,255,.5);border-radius:3px;margin-top:4px;overflow:hidden;background:#000;}
-.bs-hpbar>div{height:100%;}
 #battleScene #narrFeed{padding:0;display:flex;flex-direction:column;gap:10px;}
 #battleScene #roundbar{border:0;padding:0;margin:0;max-width:100%;}
 #battleScene, #battleScene *{box-sizing:border-box;}
@@ -1019,6 +1030,7 @@ let rtLastSyncTs=0;            // เวลาที่ได้ event ล่า
 let rtAnyThinking=false;       // มีผู้เล่นไหนกำลังให้ DM คิดอยู่ไหม (presence broadcast)
 let gCombat={active:false,activeCharId:null,activeName:null};  // v2: สถานะ "ถึงตาใคร" ในคอมแบต
 let aoeMode=null, aoeCenter=null, pendingAoE=null, aoePickOpen=false, _lastGrid=null;  // เล็งเวทแบบพื้นที่บน Map
+let moveMode=null, moveSel=null;  // โหมดแตะกริดเลือกช่องเดินเอง
 
 function $(id){return document.getElementById(id);}
 function toast(msg,isErr){const t=$('toast');t.textContent=msg;t.className='toast show'+(isErr?' err':'');setTimeout(()=>t.className='toast',2600);}
@@ -1300,7 +1312,7 @@ async function loadState(){
 // ───────── audio: situational music (Batch C) ─────────
 // ใช้ <audio> ตัวเดียวซ้ำ → ปลดล็อกด้วยการแตะครั้งเดียว แล้วเปลี่ยนเพลงต่อได้บน iOS/มือถือ
 const PUBLIC_URL = SUPA_URL.replace(/\/$/,'') + '/storage/v1/object/public/';
-let musicLib={}, mAudio=null, curMood=null, musicOn=false;
+let musicLib={}, mAudio=null, curMood=null, musicOn=false, _musicBlocked=false, _musicHintShown=false, _moodTimer=null;
 function getAudioEl(){ if(!mAudio){ mAudio=new Audio(); mAudio.preload='auto'; } return mAudio; }
 async function loadMusicLibrary(){
   musicLib={};
@@ -1312,20 +1324,20 @@ async function loadMusicLibrary(){
 function toggleMusic(){
   tick();
   if(musicOn){ musicOn=false; try{localStorage.setItem('ttrpg_music','0');}catch(e){} if(mAudio){ try{mAudio.pause();}catch(e){} } curMood=null; }
-  else { musicOn=true; try{localStorage.setItem('ttrpg_music','1');}catch(e){} applyMood(); }
+  else { musicOn=true; try{localStorage.setItem('ttrpg_music','1');}catch(e){} _moodNow(); }
   updateMusicBtn();
 }
 function updateMusicBtn(){ const b=$('hdMusic'); if(b) b.innerHTML = musicOn? '&#9834; Music: on' : '&#9834; Music: off'; }
-function applyMood(){ playMood((worldState&&worldState.scene_mood)||'explore'); }
+function _moodNow(){ try{ playMood((worldState&&worldState.scene_mood)||'explore'); }catch(e){} }
+// auto path (realtime/tab/refresh) → debounce กัน burst event ทำเพลงสะดุด; gesture path เรียก _moodNow ตรงๆ
+function applyMood(){ if(_moodTimer) clearTimeout(_moodTimer); _moodTimer=setTimeout(function(){ _moodTimer=null; _moodNow(); }, 180); }
 // หลัง refresh: browser บล็อก autoplay → เริ่มเพลงเองตอนผู้ใช้แตะ/คลิก/กดปุ่มครั้งแรก
 let _musicArmed=false;
 function armMusicResume(){
   if(_musicArmed) return; _musicArmed=true;
-  const resume=()=>{
-    if(musicOn && (!mAudio || mAudio.paused)){ applyMood(); }
-    if(mAudio && !mAudio.paused){ ['click','keydown','touchstart','pointerdown'].forEach(ev=>document.removeEventListener(ev,resume,true)); }
-  };
-  ['click','keydown','touchstart','pointerdown'].forEach(ev=>document.addEventListener(ev,resume,{capture:true}));
+  // เก็บ listener ไว้ตลอด (ราคาถูก): ถ้าเพลงโดน autoplay-block หรือหยุดกลางคัน แตะครั้งถัดไปจะปลุกกลับมาเสมอ
+  const resume=function(){ if(musicOn && (!mAudio || mAudio.paused)){ _moodNow(); } };
+  ['click','keydown','touchstart','pointerdown'].forEach(function(ev){ document.addEventListener(ev,resume,{capture:true,passive:true}); });
 }
 function normalizeMood(m){
   m=String(m||'').toLowerCase().trim();
@@ -1335,22 +1347,31 @@ function normalizeMood(m){
   for(const [re,v] of map){ if(re.test(m)) return v; }
   return 'explore';
 }
+function _flagBlocked(){ _musicBlocked=true; if(!_musicHintShown){ _musicHintShown=true; try{ toast('🔊 แตะหน้าจอหนึ่งครั้งเพื่อเปิดเพลงประกอบ'); }catch(e){} } }
 function playMood(mood){
   if(!musicOn){ curMood=mood; return; }
   if(!mood) return;
   mood=normalizeMood(mood);
   const el=getAudioEl();
-  if(mood===curMood && !el.paused) return;
-  const list=musicLib[mood]||[];
-  if(!list.length){ curMood=mood; return; } // ไม่มีเพลง mood นี้ → คงเพลงเดิม
+  // ไลบรารียังไม่โหลด → อย่าตั้ง curMood (กัน poison) ให้ลองใหม่เมื่อโหลดเสร็จ
+  if(!musicLib || !Object.keys(musicLib).length) return;
+  // อารมณ์นี้ไม่มีเพลง → fallback explore (ไม่ปล่อยเงียบ/ไม่ค้าง mood ที่เล่นไม่ได้)
+  let list=musicLib[mood];
+  if(!list||!list.length){ const ex=musicLib['explore']; if(ex&&ex.length){ list=ex; mood='explore'; } }
+  if(!list||!list.length) return;
+  // อารมณ์เดิม: ถ้าหยุดอยู่ (โดน block/สะดุด) แค่เล่นต่อ — ไม่สุ่มเพลงใหม่/ไม่รีเซ็ต src (กันเพลงกระตุก/รีสตาร์ท)
+  if(mood===curMood){
+    if(el.paused){ const pr=el.play(); if(pr&&pr.then){ pr.then(function(){_musicBlocked=false;}).catch(_flagBlocked); } }
+    return;
+  }
+  // เปลี่ยนอารมณ์ → เลือกเพลงใหม่
   const pick=list[Math.floor(Math.random()*list.length)];
-  curMood=mood;
-  el.loop=pick.loop!==false;
-  if(el.src!==pick.url){ el.src=pick.url; }
+  curMood=mood; el.loop=pick.loop!==false;
+  if(el.src!==pick.url) el.src=pick.url;
   const target=(pick.volume==null?0.6:pick.volume);
-  const pr=el.play();           // ต้องอยู่ใน gesture ครั้งแรก (iOS) — ถ้าถูกบล็อก armMusicResume จะลองใหม่ตอนแตะ
-  if(pr&&pr.catch) pr.catch(()=>{});
-  fadeInEl(el, target, 600);    // Android: ค่อยๆ ดังขึ้น · iOS: volume แก้ไม่ได้ (เล่นเต็มเสียง)
+  const pr=el.play();
+  if(pr&&pr.then){ pr.then(function(){_musicBlocked=false;}).catch(_flagBlocked); } else if(pr&&pr.catch){ pr.catch(_flagBlocked); }
+  fadeInEl(el, target, 600);
 }
 function fadeInEl(a,target,ms){ try{a.volume=0;}catch(e){return;} const steps=12,dt=ms/steps; let i=0; const t=setInterval(()=>{ i++; try{a.volume=Math.min(target,target*i/steps);}catch(e){} if(i>=steps) clearInterval(t); },dt); }
 // ไอคอนพิกเซลสีสำหรับ HUD
@@ -2945,6 +2966,22 @@ function aoeConfirm(){
   switchTab('story'); toast('ปักพื้นที่แล้ว ✓ — พิมพ์คำสั่งแล้วกด Submit');
 }
 function aoeCancel(){ const cb=aoeMode&&aoeMode.cb; aoeMode=null; aoeCenter=null; if(cb){ try{ cb(null); }catch(e){} if(_bsShown) renderBattleScene(); return; } if(_bsShown) renderBattleScene(); else renderCombat(); }
+// ───────── เดินบนกริด: ผู้เล่นแตะเลือกช่องปลายทางเอง (ไฮไลต์ช่องในระยะความเร็ว) ─────────
+function ccMovePick(cb){
+  moveMode={cb:cb}; moveSel=null;
+  if(_bsShown){ try{ bsCloseSheets(); }catch(e){} renderBattleScene(); }
+  else { switchTab('mon'); }
+  try{ toast('แตะช่องสีเขียวเพื่อเลือกที่จะเดินไป แล้วกด ✓'); }catch(e){}
+}
+function movePickCell(c,r){ if(!moveMode) return; moveSel={c:c,r:r}; if(_bsShown) renderBattleScene(); else renderCombat(); }
+function moveConfirm(){
+  if(!moveMode||!moveSel){ try{toast('แตะช่องปลายทางก่อน',true);}catch(e){} return; }
+  const L="ABCDEFGHIJKLMNOPQRST"; const cell=(L[moveSel.c]||'?')+(moveSel.r+1); const cb=moveMode.cb;
+  moveMode=null; moveSel=null;
+  if(cb){ try{ cb(cell); }catch(e){} }
+  if(_bsShown) renderBattleScene(); else renderCombat();
+}
+function moveCancel(){ const cb=moveMode&&moveMode.cb; moveMode=null; moveSel=null; if(cb){ try{ cb(null); }catch(e){} } if(_bsShown) renderBattleScene(); else renderCombat(); }
 function aoeTag(sp){ if(!sp||!sp.area_shape) return ''; const M={sphere:'วง',cube:'ลูกบาศก์',cone:'กรวย',line:'เส้น',cylinder:'ทรงกระบอก',square:'สี่เหลี่ยม'}; return ' <span class="chip" style="background:#3a1a1a;color:#f09595;border-color:#f09595;font-size:10px">🎯 '+(sp.area_size?sp.area_size+'ft ':'')+(M[sp.area_shape]||sp.area_shape)+'</span>'; }
 
 // ───────── battle grid (2.5D squashed square — pattern จากเกม motley crews) ─────────
@@ -2977,6 +3014,54 @@ async function renderBattleGrid(p){
   // สัญลักษณ์ภูมิประเทศ (object token) — แม็ปจาก glyph หรือชื่อ (ไทย/อังกฤษ) → อิโมจิพิกเซล
   const GLYPH={cave:'🕳️','ถ้ำ':'🕳️',house:'🏠','บ้าน':'🏠',hut:'🛖','กระท่อม':'🛖',well:'🪣','บ่อน้ำ':'🪣',tree:'🌲','ต้นไม้':'🌲',rock:'🪨','หิน':'🪨',fire:'🔥','เตาไฟ':'🔥','ไฟ':'🔥',brazier:'🔥',door:'🚪','ประตู':'🚪',chest:'📦','หีบ':'📦',crate:'📦','ลัง':'📦',barrel:'🛢️','ถัง':'🛢️',statue:'🗿','รูปปั้น':'🗿',altar:'⛩️','แท่นบูชา':'⛩️',bridge:'🌉','สะพาน':'🌉',ladder:'🪜','บันได':'🪜',tent:'⛺','เต็นท์':'⛺',banner:'🚩','ธง':'🚩',grave:'🪦','หลุมศพ':'🪦',lever:'🎚️','คันโยก':'🎚️',torch:'🔥','คบเพลิง':'🔥',crystal:'💎','คริสตัล':'💎'};
   const glyphFor=(t)=>{ const k=String(t.glyph||'').toLowerCase(); if(GLYPH[k])return GLYPH[k]; const lab=String(t.label||'').toLowerCase(); for(const key in GLYPH){ if(lab.includes(key.toLowerCase())) return GLYPH[key]; } return null; };
+  // ── pixel-sprite ฝังในเว็บ (ฟรี/ไม่แตะ DB) — วาดวัตถุพื้นฐานบนกริดแทน emoji ให้นิ่งทุกเครื่อง ──
+  const SPRITES={
+    pine:(x,y,o)=>`<g opacity="${o}" shape-rendering="crispEdges"><rect x="${x-1.5}" y="${y-5}" width="3" height="5" fill="#6b3f1d"/><polygon points="${x},${y-23} ${x-8},${y-13} ${x+8},${y-13}" fill="#2f6b3a"/><polygon points="${x},${y-18} ${x-7},${y-9} ${x+7},${y-9}" fill="#3a814a"/><polygon points="${x},${y-13} ${x-6},${y-4} ${x+6},${y-4}" fill="#4aa05f"/></g>`,
+    tree:(x,y,o)=>`<g opacity="${o}"><rect x="${x-1.5}" y="${y-6}" width="3" height="6" fill="#6b3f1d"/><circle cx="${x}" cy="${y-13}" r="8" fill="#3a814a"/><circle cx="${x-4}" cy="${y-10}" r="5" fill="#46955a"/><circle cx="${x+4}" cy="${y-11}" r="5" fill="#46955a"/></g>`,
+    cave:(x,y,o)=>`<g opacity="${o}"><path d="M ${x-12} ${y} Q ${x} ${y-22} ${x+12} ${y} Z" fill="#4a4f5a"/><path d="M ${x-12} ${y} Q ${x} ${y-22} ${x+12} ${y}" fill="none" stroke="#2c2f38" stroke-width="1"/><path d="M ${x-5.5} ${y} Q ${x} ${y-11} ${x+5.5} ${y} Z" fill="#07090d"/></g>`,
+    rock:(x,y,o)=>`<g opacity="${o}" shape-rendering="crispEdges"><path d="M ${x-9} ${y} L ${x-10} ${y-5} L ${x-4} ${y-10} L ${x+5} ${y-9} L ${x+10} ${y-3} L ${x+9} ${y} Z" fill="#6a7078"/><path d="M ${x-4} ${y-10} L ${x+5} ${y-9} L ${x+1} ${y-4} Z" fill="#838a92"/></g>`,
+    table:(x,y,o)=>`<g opacity="${o}" shape-rendering="crispEdges"><rect x="${x-10}" y="${y-9}" width="20" height="3.5" fill="#9a6633"/><rect x="${x-10}" y="${y-9}" width="20" height="1.2" fill="#b98a4e"/><rect x="${x-8}" y="${y-6}" width="2.5" height="6" fill="#6b3f1d"/><rect x="${x+5.5}" y="${y-6}" width="2.5" height="6" fill="#6b3f1d"/></g>`,
+    fireplace:(x,y,o)=>`<g opacity="${o}" shape-rendering="crispEdges"><rect x="${x-10}" y="${y-16}" width="20" height="16" fill="#5b5048"/><rect x="${x-10}" y="${y-16}" width="20" height="2.5" fill="#736658"/><rect x="${x-6}" y="${y-11}" width="12" height="11" fill="#140d08"/><polygon points="${x},${y-10} ${x-4},${y-1} ${x+4},${y-1}" fill="#ff7a18"/><polygon points="${x},${y-6} ${x-2},${y-1} ${x+2},${y-1}" fill="#ffd23f"/></g>`,
+    fire:(x,y,o)=>`<g opacity="${o}"><rect x="${x-7}" y="${y-2.5}" width="14" height="2.5" fill="#5a3a1f"/><polygon points="${x},${y-17} ${x-5},${y-4} ${x+5},${y-4}" fill="#ff7a18"/><polygon points="${x},${y-12} ${x-3},${y-3} ${x+3},${y-3}" fill="#ffd23f"/></g>`,
+    barrel:(x,y,o)=>`<g opacity="${o}" shape-rendering="crispEdges"><rect x="${x-6}" y="${y-14}" width="12" height="14" rx="2" fill="#8a5a2b"/><rect x="${x-6}" y="${y-11}" width="12" height="1.6" fill="#5a3a1f"/><rect x="${x-6}" y="${y-4}" width="12" height="1.6" fill="#5a3a1f"/></g>`,
+    chest:(x,y,o)=>`<g opacity="${o}"><rect x="${x-8}" y="${y-7}" width="16" height="7" fill="#8a5a2b"/><path d="M ${x-8} ${y-7} Q ${x} ${y-14} ${x+8} ${y-7} Z" fill="#a06a33"/><rect x="${x-1.5}" y="${y-8}" width="3" height="5" fill="#ffd23f"/></g>`,
+    crate:(x,y,o)=>`<g opacity="${o}" shape-rendering="crispEdges"><rect x="${x-8}" y="${y-15}" width="16" height="15" fill="#9a6633"/><rect x="${x-8}" y="${y-15}" width="16" height="15" fill="none" stroke="#6b3f1d" stroke-width="1.4"/><line x1="${x-8}" y1="${y-15}" x2="${x+8}" y2="${y}" stroke="#6b3f1d" stroke-width="1.1"/><line x1="${x+8}" y1="${y-15}" x2="${x-8}" y2="${y}" stroke="#6b3f1d" stroke-width="1.1"/></g>`,
+    door:(x,y,o)=>`<g opacity="${o}" shape-rendering="crispEdges"><rect x="${x-7}" y="${y-20}" width="14" height="20" fill="#7a4a22"/><rect x="${x-7}" y="${y-20}" width="14" height="20" fill="none" stroke="#5a3416" stroke-width="1.4"/><line x1="${x}" y1="${y-20}" x2="${x}" y2="${y}" stroke="#5a3416" stroke-width="1"/><circle cx="${x+4}" cy="${y-10}" r="1.3" fill="#ffd23f"/></g>`,
+    well:(x,y,o)=>`<g opacity="${o}"><ellipse cx="${x}" cy="${y-2}" rx="9" ry="4" fill="#5b5048"/><ellipse cx="${x}" cy="${y-3}" rx="6" ry="2.6" fill="#1c3a5e"/><rect x="${x-8}" y="${y-16}" width="2.5" height="12" fill="#6b3f1d"/><rect x="${x+5.5}" y="${y-16}" width="2.5" height="12" fill="#6b3f1d"/><rect x="${x-9}" y="${y-18}" width="18" height="3" fill="#8a5a2b"/></g>`,
+    tent:(x,y,o)=>`<g opacity="${o}" shape-rendering="crispEdges"><polygon points="${x},${y-18} ${x-11},${y} ${x+11},${y}" fill="#b5763a"/><polygon points="${x},${y-18} ${x-3},${y} ${x+3},${y}" fill="#1a120c"/></g>`,
+    torch:(x,y,o)=>`<g opacity="${o}"><rect x="${x-1.2}" y="${y-14}" width="2.4" height="14" fill="#6b3f1d"/><polygon points="${x},${y-22} ${x-4},${y-13} ${x+4},${y-13}" fill="#ff7a18"/><polygon points="${x},${y-19} ${x-2},${y-13} ${x+2},${y-13}" fill="#ffd23f"/></g>`,
+    grave:(x,y,o)=>`<g opacity="${o}"><path d="M ${x-6} ${y} L ${x-6} ${y-10} Q ${x} ${y-16} ${x+6} ${y-10} L ${x+6} ${y} Z" fill="#6a7078"/><line x1="${x}" y1="${y-12}" x2="${x}" y2="${y-6}" stroke="#3a3f47" stroke-width="1.4"/><line x1="${x-3}" y1="${y-10}" x2="${x+3}" y2="${y-10}" stroke="#3a3f47" stroke-width="1.4"/></g>`,
+    statue:(x,y,o)=>`<g opacity="${o}" shape-rendering="crispEdges"><rect x="${x-7}" y="${y-3}" width="14" height="3" fill="#5b5048"/><rect x="${x-4}" y="${y-16}" width="8" height="13" fill="#8b9098"/><circle cx="${x}" cy="${y-19}" r="3.5" fill="#9aa0a8"/></g>`,
+    crystal:(x,y,o)=>`<g opacity="${o}"><polygon points="${x},${y-18} ${x-5},${y-7} ${x},${y} ${x+5},${y-7}" fill="#5fd0e6"/><polygon points="${x},${y-18} ${x},${y} ${x+5},${y-7}" fill="#3aa6bd"/></g>`,
+    banner:(x,y,o)=>`<g opacity="${o}" shape-rendering="crispEdges"><rect x="${x-0.8}" y="${y-20}" width="1.8" height="20" fill="#6b3f1d"/><polygon points="${x+1},${y-20} ${x+11},${y-17} ${x+1},${y-12}" fill="#c0392b"/></g>`,
+    bush:(x,y,o)=>`<g opacity="${o}"><circle cx="${x-4}" cy="${y-4}" r="5" fill="#3a814a"/><circle cx="${x+4}" cy="${y-4}" r="5" fill="#46955a"/><circle cx="${x}" cy="${y-7}" r="5.5" fill="#3f8a50"/></g>`,
+    mushroom:(x,y,o)=>`<g opacity="${o}"><rect x="${x-2}" y="${y-6}" width="4" height="6" fill="#e8dcc0"/><path d="M ${x-7} ${y-6} Q ${x} ${y-14} ${x+7} ${y-6} Z" fill="#c0392b"/><circle cx="${x-3}" cy="${y-8}" r="1.2" fill="#fff"/><circle cx="${x+3}" cy="${y-8}" r="1.2" fill="#fff"/></g>`,
+    stump:(x,y,o)=>`<g opacity="${o}" shape-rendering="crispEdges"><rect x="${x-6}" y="${y-6}" width="12" height="6" fill="#7a4a22"/><ellipse cx="${x}" cy="${y-6}" rx="6" ry="2.4" fill="#a06a33"/><ellipse cx="${x}" cy="${y-6}" rx="3" ry="1.2" fill="#7a4a22"/></g>`,
+    log:(x,y,o)=>`<g opacity="${o}" shape-rendering="crispEdges"><rect x="${x-11}" y="${y-6}" width="22" height="6" rx="3" fill="#7a4a22"/><ellipse cx="${x-11}" cy="${y-3}" rx="2.4" ry="3" fill="#a06a33"/><ellipse cx="${x-11}" cy="${y-3}" rx="1" ry="1.4" fill="#5a3416"/></g>`,
+    bridge:(x,y,o)=>`<g opacity="${o}"><path d="M ${x-12} ${y-2} Q ${x} ${y-11} ${x+12} ${y-2}" fill="none" stroke="#8a5a2b" stroke-width="4"/><path d="M ${x-12} ${y-2} Q ${x} ${y-11} ${x+12} ${y-2}" fill="none" stroke="#6b3f1d" stroke-width="1"/></g>`,
+    stairs:(x,y,o)=>`<g opacity="${o}" shape-rendering="crispEdges"><rect x="${x-9}" y="${y-3}" width="18" height="3" fill="#5b5048"/><rect x="${x-9}" y="${y-7}" width="14" height="4" fill="#6a6156"/><rect x="${x-9}" y="${y-11}" width="10" height="4" fill="#7a7264"/></g>`,
+    altar:(x,y,o)=>`<g opacity="${o}" shape-rendering="crispEdges"><rect x="${x-9}" y="${y-10}" width="18" height="10" fill="#5b5048"/><rect x="${x-10}" y="${y-12}" width="20" height="2.5" fill="#736658"/><rect x="${x-7}" y="${y-15}" width="14" height="3" fill="#7a7264"/><ellipse cx="${x}" cy="${y-15}" rx="6" ry="1.6" fill="#5fd0e6" opacity="0.7"/></g>`,
+    pillar:(x,y,o)=>`<g opacity="${o}" shape-rendering="crispEdges"><rect x="${x-6}" y="${y-2.5}" width="12" height="2.5" fill="#8b9098"/><rect x="${x-4}" y="${y-20}" width="8" height="18" fill="#9aa0a8"/><rect x="${x-6}" y="${y-22}" width="12" height="2.5" fill="#8b9098"/></g>`,
+    bones:(x,y,o)=>`<g opacity="${o}" shape-rendering="crispEdges"><rect x="${x-8}" y="${y-3.2}" width="16" height="2.4" rx="1.2" fill="#e8e2d0" transform="rotate(20 ${x} ${y-2})"/><rect x="${x-8}" y="${y-3.2}" width="16" height="2.4" rx="1.2" fill="#e8e2d0" transform="rotate(-20 ${x} ${y-2})"/></g>`,
+    skull:(x,y,o)=>`<g opacity="${o}"><circle cx="${x}" cy="${y-7}" r="6" fill="#e8e2d0"/><rect x="${x-4}" y="${y-3}" width="8" height="3" fill="#e8e2d0"/><circle cx="${x-2.3}" cy="${y-7}" r="1.6" fill="#2c2f38"/><circle cx="${x+2.3}" cy="${y-7}" r="1.6" fill="#2c2f38"/></g>`,
+    bookshelf:(x,y,o)=>`<g opacity="${o}" shape-rendering="crispEdges"><rect x="${x-9}" y="${y-20}" width="18" height="20" fill="#6b3f1d"/><rect x="${x-7}" y="${y-18}" width="3" height="7" fill="#c0392b"/><rect x="${x-3.5}" y="${y-18}" width="3" height="7" fill="#3a814a"/><rect x="${x}" y="${y-18}" width="3" height="7" fill="#3a6fa0"/><rect x="${x+3.5}" y="${y-18}" width="3" height="7" fill="#e8b23a"/><rect x="${x-7}" y="${y-9}" width="3" height="7" fill="#3a6fa0"/><rect x="${x-3.5}" y="${y-9}" width="3" height="7" fill="#c0392b"/><rect x="${x}" y="${y-9}" width="3" height="7" fill="#46955a"/><rect x="${x+3.5}" y="${y-9}" width="3" height="7" fill="#8a5a2b"/></g>`,
+    bed:(x,y,o)=>`<g opacity="${o}" shape-rendering="crispEdges"><rect x="${x-11}" y="${y-7}" width="22" height="7" fill="#7a4a22"/><rect x="${x-11}" y="${y-9}" width="9" height="5" fill="#e8e2d0"/><rect x="${x-2}" y="${y-7}" width="13" height="3" fill="#5c7bff"/></g>`,
+    cauldron:(x,y,o)=>`<g opacity="${o}"><path d="M ${x-7} ${y-9} Q ${x-9} ${y-1} ${x} ${y} Q ${x+9} ${y-1} ${x+7} ${y-9} Z" fill="#2c2f38"/><ellipse cx="${x}" cy="${y-9}" rx="7" ry="2.4" fill="#1a120c"/><ellipse cx="${x}" cy="${y-9}" rx="5" ry="1.6" fill="#46955a"/></g>`,
+    anvil:(x,y,o)=>`<g opacity="${o}" shape-rendering="crispEdges"><rect x="${x-3}" y="${y-5}" width="6" height="5" fill="#3a3f47"/><path d="M ${x-9} ${y-11} L ${x+9} ${y-11} L ${x+6} ${y-7} L ${x-6} ${y-7} Z" fill="#5b6068"/><polygon points="${x+9},${y-11} ${x+13},${y-10} ${x+9},${y-8}" fill="#5b6068"/></g>`,
+    signpost:(x,y,o)=>`<g opacity="${o}" shape-rendering="crispEdges"><rect x="${x-1.2}" y="${y-16}" width="2.4" height="16" fill="#6b3f1d"/><rect x="${x-1}" y="${y-16}" width="11" height="6" fill="#9a6633"/><rect x="${x-1}" y="${y-16}" width="11" height="6" fill="none" stroke="#6b3f1d" stroke-width="1"/></g>`,
+    coffin:(x,y,o)=>`<g opacity="${o}" shape-rendering="crispEdges"><polygon points="${x-5},${y} ${x-6},${y-8} ${x-3},${y-16} ${x+3},${y-16} ${x+6},${y-8} ${x+5},${y}" fill="#6b3f1d"/><polygon points="${x-5},${y} ${x-6},${y-8} ${x-3},${y-16} ${x+3},${y-16} ${x+6},${y-8} ${x+5},${y}" fill="none" stroke="#5a3416" stroke-width="1"/><rect x="${x-1}" y="${y-13}" width="2" height="6" fill="#e8d23f"/><rect x="${x-3}" y="${y-11}" width="6" height="2" fill="#e8d23f"/></g>`,
+    magiccircle:(x,y,o)=>`<g opacity="${o}"><ellipse cx="${x}" cy="${y-2}" rx="11" ry="5" fill="#5b2a8a" opacity="0.35"/><ellipse cx="${x}" cy="${y-2}" rx="11" ry="5" fill="none" stroke="#b06cff" stroke-width="1.4"/><ellipse cx="${x}" cy="${y-2}" rx="6" ry="2.6" fill="none" stroke="#d9a7ff" stroke-width="1"/></g>`,
+    lever:(x,y,o)=>`<g opacity="${o}" shape-rendering="crispEdges"><rect x="${x-4}" y="${y-3}" width="8" height="3" fill="#5b5048"/><rect x="${x-1.3}" y="${y-13}" width="2.6" height="11" fill="#8b9098" transform="rotate(18 ${x} ${y-3})"/><circle cx="${x+4}" cy="${y-12}" r="2.4" fill="#c0392b"/></g>`,
+    fence:(x,y,o)=>`<g opacity="${o}" shape-rendering="crispEdges"><rect x="${x-9}" y="${y-9}" width="2.5" height="9" fill="#8a5a2b"/><rect x="${x-1.2}" y="${y-11}" width="2.5" height="11" fill="#8a5a2b"/><rect x="${x+6}" y="${y-9}" width="2.5" height="9" fill="#8a5a2b"/><rect x="${x-9}" y="${y-7}" width="17.5" height="2" fill="#6b3f1d"/></g>`,
+    haystack:(x,y,o)=>`<g opacity="${o}"><path d="M ${x-10} ${y} Q ${x} ${y-16} ${x+10} ${y} Z" fill="#d9a93f"/><path d="M ${x-6} ${y} L ${x-4} ${y-7}" stroke="#b5862b" stroke-width="0.8"/><path d="M ${x+5} ${y} L ${x+3} ${y-7}" stroke="#b5862b" stroke-width="0.8"/></g>`,
+    lantern:(x,y,o)=>`<g opacity="${o}" shape-rendering="crispEdges"><rect x="${x-0.8}" y="${y-18}" width="1.8" height="6" fill="#3a3f47"/><rect x="${x-4}" y="${y-12}" width="8" height="9" rx="1.5" fill="#3a3f47"/><rect x="${x-2.5}" y="${y-10.5}" width="5" height="6" fill="#ffd23f"/></g>`,
+    web:(x,y,o)=>`<g opacity="${o}" stroke="#cfd3da" stroke-width="0.6" fill="none"><path d="M ${x} ${y-14} L ${x} ${y}"/><path d="M ${x-9} ${y-10} L ${x+9} ${y-3}"/><path d="M ${x+9} ${y-10} L ${x-9} ${y-3}"/><path d="M ${x-6} ${y-11} Q ${x} ${y-7} ${x+6} ${y-11}"/><path d="M ${x-7} ${y-6} Q ${x} ${y-2} ${x+7} ${y-6}"/></g>`,
+    flower:(x,y,o)=>`<g opacity="${o}"><rect x="${x-0.6}" y="${y-7}" width="1.6" height="7" fill="#3a814a"/><circle cx="${x-3}" cy="${y-9}" r="2" fill="#c0392b"/><circle cx="${x+3}" cy="${y-9}" r="2" fill="#c0392b"/><circle cx="${x}" cy="${y-12}" r="2" fill="#c0392b"/><circle cx="${x}" cy="${y-6}" r="2" fill="#c0392b"/><circle cx="${x}" cy="${y-9}" r="2.2" fill="#e8b23a"/></g>`,
+    cactus:(x,y,o)=>`<g opacity="${o}" shape-rendering="crispEdges"><rect x="${x-2}" y="${y-16}" width="4" height="16" rx="2" fill="#3f8a50"/><rect x="${x-7}" y="${y-11}" width="3" height="7" rx="1.5" fill="#3f8a50"/><rect x="${x-7}" y="${y-11}" width="3" height="3" fill="#3f8a50"/><rect x="${x+4}" y="${y-13}" width="3" height="8" rx="1.5" fill="#3f8a50"/></g>`,
+    wagon:(x,y,o)=>`<g opacity="${o}" shape-rendering="crispEdges"><rect x="${x-10}" y="${y-11}" width="20" height="7" fill="#8a5a2b"/><circle cx="${x-6}" cy="${y-2}" r="3" fill="#3a3f47"/><circle cx="${x+6}" cy="${y-2}" r="3" fill="#3a3f47"/><circle cx="${x-6}" cy="${y-2}" r="1" fill="#9aa0a8"/><circle cx="${x+6}" cy="${y-2}" r="1" fill="#9aa0a8"/></g>`
+  };
+  const SPR_ALIAS={'ต้นสน':'pine',pine:'pine',fir:'pine','สน':'pine','ต้นไม้':'tree',tree:'tree',oak:'tree','ต้นโอ๊ค':'tree','ถ้ำ':'cave',cave:'cave','โพรง':'cave','หิน':'rock','ก้อนหิน':'rock',rock:'rock',boulder:'rock','โต๊ะ':'table',table:'table','เตาผิง':'fireplace',fireplace:'fireplace',hearth:'fireplace','เตาไฟ':'fire','กองไฟ':'fire','ไฟ':'fire',fire:'fire',campfire:'fire','ถัง':'barrel',barrel:'barrel','หีบ':'chest','หีบสมบัติ':'chest',chest:'chest',treasure:'chest','ลัง':'crate','กล่อง':'crate',crate:'crate',box:'crate','ประตู':'door',door:'door','บ่อน้ำ':'well',well:'well','เต็นท์':'tent',tent:'tent','คบเพลิง':'torch','ตะเกียง':'torch',torch:'torch',brazier:'torch','หลุมศพ':'grave',grave:'grave',tombstone:'grave','รูปปั้น':'statue',statue:'statue','คริสตัล':'crystal','ผลึก':'crystal',crystal:'crystal','ธง':'banner',banner:'banner',flag:'banner','พุ่มไม้':'bush',bush:'bush',shrub:'bush','เห็ด':'mushroom',mushroom:'mushroom','ตอไม้':'stump',stump:'stump','ขอนไม้':'log',log:'log','ท่อนไม้':'log','สะพาน':'bridge',bridge:'bridge','บันได':'stairs',stairs:'stairs',ladder:'stairs','แท่นบูชา':'altar',altar:'altar','เสา':'pillar',pillar:'pillar',column:'pillar','กระดูก':'bones',bones:'bones','กะโหลก':'skull',skull:'skull','ชั้นหนังสือ':'bookshelf',bookshelf:'bookshelf',shelf:'bookshelf','เตียง':'bed',bed:'bed','หม้อ':'cauldron','หม้อต้ม':'cauldron',cauldron:'cauldron','pot':'cauldron','ทั่ง':'anvil',anvil:'anvil','ป้าย':'signpost',signpost:'signpost',sign:'signpost','โลงศพ':'coffin',coffin:'coffin','วงเวท':'magiccircle','วงเวทมนตร์':'magiccircle','พอร์ทัล':'magiccircle',portal:'magiccircle',rune:'magiccircle','คันโยก':'lever',lever:'lever','รั้ว':'fence',fence:'fence','กองฟาง':'haystack',haystack:'haystack',hay:'haystack','โคมไฟ':'lantern',lantern:'lantern','ตะเกียงแขวน':'lantern','ใยแมงมุม':'web',web:'web',cobweb:'web','ดอกไม้':'flower',flower:'flower','กระบองเพชร':'cactus',cactus:'cactus','เกวียน':'wagon','รถลาก':'wagon',wagon:'wagon',cart:'wagon'};
+  function spriteFn(t){ const k=String(t.glyph||'').toLowerCase().trim(); if(SPR_ALIAS[k]&&SPRITES[SPR_ALIAS[k]]) return SPRITES[SPR_ALIAS[k]]; const lab=String(t.label||'').toLowerCase(); for(const key in SPR_ALIAS){ if(lab.includes(key.toLowerCase())) return SPRITES[SPR_ALIAS[key]]; } return null; }
   const PAL={ pc:['#378ADD','#0C447C','#85B7EB'], ally:['#5c7bff','#26306b','#aeb8ff'], monster:['#E24B4A','#791F1F','#F09595'], npc:['#E8B23A','#6e5200','#f3d27a'] };
   let svg=`<svg viewBox="0 0 ${VW} ${VH}" style="display:block;width:100%;max-width:${VW}px;min-width:${cols*22}px;background:#0d1018;border:2px solid #fff;border-radius:6px">`;
   svg+='<style>.gtok{cursor:pointer}.gtok .tklbl{visibility:hidden}.gtok:hover .tklbl{visibility:visible}.gtok.lblon .tklbl{visibility:visible}</style>';
@@ -3004,9 +3089,12 @@ async function renderBattleGrid(p){
     svg+=`<g class="gtok" onclick="this.classList.toggle('lblon')"><title>${escapeHtml(t.label||'')}</title>`;
     // เงา
     svg+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy+5).toFixed(1)}" rx="13" ry="4.5" fill="rgba(0,0,0,0.45)"/>`;
+    const _spr=(t.kind==='object')?spriteFn(t):null;
     const gly=glyphFor(t);
-    if(t.kind==='object' && gly){
-      // สัญลักษณ์ภูมิประเทศ (ถ้ำ/บ้าน/บ่อน้ำ ฯลฯ)
+    if(_spr){
+      svg+=_spr(fx,fy,op);
+    } else if(t.kind==='object' && gly){
+      // fallback: emoji ถ้าไม่มี sprite
       svg+=`<text x="${fx.toFixed(1)}" y="${(fy-1).toFixed(1)}" text-anchor="middle" font-size="20" opacity="${op}">${gly}</text>`;
     } else if(t.kind==='object'){
       svg+=`<rect x="${(fx-9).toFixed(1)}" y="${(fy-12).toFixed(1)}" width="18" height="16" rx="2" fill="${t.color||'#9a9a9a'}" stroke="#000" stroke-width="1.2" opacity="${op}"/>`;
@@ -3047,6 +3135,23 @@ async function renderBattleGrid(p){
     }
     if(aoeCenter){ const cx=tileX(aoeCenter.c)+TILE/2, cy=tileY(aoeCenter.r)+TILE*SY/2; svg+=`<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="4" fill="#fff" stroke="#e23b3b" stroke-width="1.5" style="pointer-events:none"/>`; }
   }
+  // 🚶 โหมดเดิน: ไฮไลต์ช่องในระยะความเร็วของหมากผู้เล่น + แตะเลือก
+  if(moveMode){
+    const myTok=toks.find(t=> t.ref_char_id && (typeof myChar!=='undefined') && myChar && t.ref_char_id===myChar.id);
+    if(myTok){
+      const sp=(typeof mySheet!=='undefined'&&mySheet&&mySheet.combat&&+mySheet.combat.speed)||30;
+      const cf=grid.cell_ft||1; const maxC=Math.max(1,Math.floor(sp/cf));
+      for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
+        const cell=rc2cell(c,r); const d=Math.max(Math.abs(c-myTok.col),Math.abs(r-myTok.row));
+        if(d>0 && d<=maxC && !walls.has(cell)){
+          const x=tileX(c),y=tileY(r),th=TILE*SY; const seld=moveSel&&moveSel.c===c&&moveSel.r===r;
+          svg+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${TILE}" height="${th.toFixed(1)}" fill="${seld?'rgba(250,199,117,0.55)':'rgba(90,210,130,0.20)'}" stroke="${seld?'#FAC775':'#5ce08a'}" stroke-width="${seld?'1.6':'0.7'}" style="cursor:pointer" onclick="movePickCell(${c},${r})"/>`;
+        }
+      }
+      const sfx=footX(myTok.col), sfy=footY(myTok.col,myTok.row);
+      svg+=`<circle cx="${sfx.toFixed(1)}" cy="${sfy.toFixed(1)}" r="3" fill="#5ce08a" stroke="#0d1018" stroke-width="1" style="pointer-events:none"/>`;
+    }
+  }
   svg+='</svg>';
   const box=document.createElement('div'); box.className='item';
   box.innerHTML='<div class="sectitle">⚔ BATTLE GRID</div><div style="overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:6px">'+svg+'</div><div class="note" style="text-align:left;padding:6px 2px 0">🟦 พันธมิตร · 🟥 ศัตรู · ⬛ วัตถุ — DM ขยับให้สด (กรอบทอง = ถึงตา) · บอร์ดใหญ่เลื่อนแนวนอนได้</div>';
@@ -3055,6 +3160,18 @@ async function renderBattleGrid(p){
     ctl.innerHTML=`<span class="dicelbl">🎯 เล็งพื้นที่ (${aoeMode.radiusFt?('รัศมี '+aoeMode.radiusFt+'ft'):'จุดเดียว'}) — แตะช่องศูนย์กลาง${aoeCenter?(' · เลือก '+(("ABCDEFGHIJKLMNOPQRST"[aoeCenter.c]||'?')+(aoeCenter.r+1))):''}</span>`;
     const ok=document.createElement('button'); ok.className='btn sm'; ok.textContent='✓ ยืนยันพื้นที่'; ok.onclick=aoeConfirm; ctl.appendChild(ok);
     const no=document.createElement('button'); no.className='btn ghost sm'; no.textContent='ยกเลิก'; no.onclick=aoeCancel; ctl.appendChild(no);
+    box.appendChild(ctl);
+  }
+  if(moveMode){
+    const myTok2=toks.find(t=> t.ref_char_id && (typeof myChar!=='undefined') && myChar && t.ref_char_id===myChar.id);
+    const sp=(typeof mySheet!=='undefined'&&mySheet&&mySheet.combat&&+mySheet.combat.speed)||30;
+    const cf=grid.cell_ft||1; const maxC=Math.max(1,Math.floor(sp/cf)); const L2="ABCDEFGHIJKLMNOPQRST";
+    const ctl=document.createElement('div'); ctl.className='optrow'; ctl.style.marginTop='8px';
+    ctl.innerHTML = myTok2
+      ? `<span class="dicelbl">🚶 เลือกช่องเดิน (≤ ${sp}ft = ${maxC} ช่อง)${moveSel?(' · '+((L2[moveSel.c]||'?')+(moveSel.r+1))):''}</span>`
+      : `<span class="dicelbl" style="color:#f09595">ไม่พบหมากของคุณบนสนามรบ</span>`;
+    if(myTok2){ const ok=document.createElement('button'); ok.className='btn sm'; ok.textContent='✓ เดินมาที่นี่'; ok.onclick=moveConfirm; ctl.appendChild(ok); }
+    const no2=document.createElement('button'); no2.className='btn ghost sm'; no2.textContent='ยกเลิก'; no2.onclick=moveCancel; ctl.appendChild(no2);
     box.appendChild(ctl);
   }
   p.appendChild(box);
@@ -3098,6 +3215,14 @@ async function setScene(d){
 }
 
 // ───────── render: files (placeholder — เปิดเต็มในขั้น RAG) ─────────
+// dropdown รวมรายการไฟล์ (กันล้นต่อกัน) — append แถวลงใน det._body
+function fileDropdown(labelText, count){
+  const det=document.createElement('details'); det.className='filedd';
+  const sum=document.createElement('summary'); sum.innerHTML='📁 '+escapeHtml(labelText)+' <span class="chip">'+count+'</span>';
+  det.appendChild(sum);
+  const body=document.createElement('div'); body.className='filedd-body'; det.appendChild(body);
+  det._body=body; return det;
+}
 async function renderFiles(){
   const p=$('panel-files'); p.innerHTML='';
   const isHost=campaign.host_id===me.id;
@@ -3118,13 +3243,16 @@ async function renderFiles(){
   }
   // indexed list
   const list=document.createElement('div'); list.className='item'; list.innerHTML='<div class="sectitle">INDEXED FILES</div>';
-  if(!files.length){ const e=document.createElement('div'); e.className='kv'; e.innerHTML='<span class="k">— '+(isHost?'no files yet — upload above':'DM has not added reference files yet')+' —</span>'; list.appendChild(e); }
-  files.forEach(f=>{
-    const d=document.createElement('div'); d.className='kv';
-    d.innerHTML=`<span class="k">▸ [${escapeHtml(f.kind)}] ${escapeHtml(f.name)} <span class="chip">${f.chunks} chunks</span></span>`;
-    if(isHost){ const del=document.createElement('button'); del.className='btn ghost sm'; del.textContent='✕'; del.onclick=()=>deleteRefFile(f.id,f.name); d.appendChild(del); }
-    list.appendChild(d);
-  });
+  if(!files.length){ const e=document.createElement('div'); e.className='kv'; e.innerHTML='<span class="k">— '+(isHost?'ยังไม่มีไฟล์ — อัปด้านบน':'DM ยังไม่ได้เพิ่มไฟล์อ้างอิง')+' —</span>'; list.appendChild(e); }
+  else { const dd=fileDropdown('ไฟล์อ้างอิงทั้งหมด', files.length);
+    files.forEach(f=>{
+      const d=document.createElement('div'); d.className='kv';
+      d.innerHTML=`<span class="k">▸ [${escapeHtml(f.kind)}] ${escapeHtml(f.name)} <span class="chip">${f.chunks} chunks</span></span>`;
+      if(isHost){ const del=document.createElement('button'); del.className='btn ghost sm'; del.textContent='✕'; del.onclick=()=>deleteRefFile(f.id,f.name); d.appendChild(del); }
+      dd._body.appendChild(d);
+    });
+    list.appendChild(dd);
+  }
   p.appendChild(list);
   await filesMusicCard(p);
   await filesDungeonCard(p);
@@ -3142,7 +3270,10 @@ async function filesMusicCard(p){
   const btn=document.createElement('button'); btn.className='btn sm'; btn.textContent='Upload'; btn.onclick=()=>uploadMusic(fi,sel,btn);
   row.appendChild(fi); row.appendChild(sel); row.appendChild(btn); c.appendChild(row);
   let tracks=[]; try{ const r=await supa.from('music_tracks').select('*').eq('campaign_id',campaign.id).order('mood'); tracks=r.data||[]; }catch(e){}
-  tracks.forEach(t=>{ const d=document.createElement('div'); d.className='kv'; d.innerHTML=`<span class="k">&#9834; <b>${escapeHtml(t.mood)}</b> · ${escapeHtml(t.name||'track')}</span>`; const del=document.createElement('button'); del.className='btn ghost sm'; del.textContent='✕'; del.onclick=()=>deleteMusic(t.id,t.storage_path); d.appendChild(del); c.appendChild(d); });
+  if(tracks.length){ const dd=fileDropdown('เพลงทั้งหมด', tracks.length);
+    tracks.forEach(t=>{ const d=document.createElement('div'); d.className='kv'; d.innerHTML=`<span class="k">&#9834; <b>${escapeHtml(t.mood)}</b> · ${escapeHtml(t.name||'track')}</span>`; const del=document.createElement('button'); del.className='btn ghost sm'; del.textContent='✕'; del.onclick=()=>deleteMusic(t.id,t.storage_path); d.appendChild(del); dd._body.appendChild(d); });
+    c.appendChild(dd);
+  }
   p.appendChild(c);
 }
 async function uploadMusic(fi,sel,btn){
@@ -3171,7 +3302,10 @@ async function filesDungeonCard(p){
   const btn=document.createElement('button'); btn.className='btn sm'; btn.textContent='Add dungeon'; btn.onclick=()=>addDungeon(nm,th,fi,btn);
   const row=document.createElement('div'); row.style.cssText='display:flex;gap:8px;flex-wrap:wrap;align-items:center'; row.appendChild(nm); row.appendChild(th); row.appendChild(fi); row.appendChild(btn); c.appendChild(row);
   let ds=[]; try{ const r=await supa.from('dungeons').select('*').eq('campaign_id',campaign.id).order('created_at',{ascending:false}); ds=r.data||[]; }catch(e){}
-  ds.forEach(x=>{ const aiRead=x.data&&x.data.ai_read; const d=document.createElement('div'); d.className='kv'; d.innerHTML=`<span class="k">▣ ${escapeHtml(x.name)}${x.theme?' · '+escapeHtml(x.theme):''}${x.map_path?' 🗺':''}${aiRead?' 🧠':''}</span>`; const del=document.createElement('button'); del.className='btn ghost sm'; del.textContent='✕'; del.onclick=()=>deleteDungeon(x.id,x.map_path); d.appendChild(del); c.appendChild(d); });
+  if(ds.length){ const dd=fileDropdown('แผนที่/ดันเจียนทั้งหมด', ds.length);
+    ds.forEach(x=>{ const aiRead=x.data&&x.data.ai_read; const d=document.createElement('div'); d.className='kv'; d.innerHTML=`<span class="k">▣ ${escapeHtml(x.name)}${x.theme?' · '+escapeHtml(x.theme):''}${x.map_path?' 🗺':''}${aiRead?' 🧠':''}</span>`; const del=document.createElement('button'); del.className='btn ghost sm'; del.textContent='✕'; del.onclick=()=>deleteDungeon(x.id,x.map_path); d.appendChild(del); dd._body.appendChild(d); });
+    c.appendChild(dd);
+  }
   p.appendChild(c);
 }
 async function addDungeon(nm,th,fi,btn){
@@ -3216,7 +3350,10 @@ async function filesPuzzleCard(p){
   frow.appendChild(fnm); frow.appendChild(fi); frow.appendChild(fbtn); c.appendChild(frow);
   // รายการของฉัน (RLS: เห็นเฉพาะของตัวเอง/host)
   let ps=[]; try{ const r=await supa.from('puzzles').select('id,name,prompt,source').eq('campaign_id',campaign.id).order('created_at',{ascending:false}); ps=r.data||[]; }catch(e){}
-  ps.forEach(z=>{ const d=document.createElement('div'); d.className='kv'; d.innerHTML=`<span class="k">🧩 ${escapeHtml(z.name)}${z.source==='file'?' 📎':''}${z.prompt?' · '+escapeHtml(String(z.prompt).slice(0,38)):''}</span>`; const del=document.createElement('button'); del.className='btn ghost sm'; del.textContent='✕'; del.onclick=()=>deletePuzzle(z.id); d.appendChild(del); c.appendChild(d); });
+  if(ps.length){ const dd=fileDropdown('ปริศนาทั้งหมด', ps.length);
+    ps.forEach(z=>{ const d=document.createElement('div'); d.className='kv'; d.innerHTML=`<span class="k">🧩 ${escapeHtml(z.name)}${z.source==='file'?' 📎':''}${z.prompt?' · '+escapeHtml(String(z.prompt).slice(0,38)):''}</span>`; const del=document.createElement('button'); del.className='btn ghost sm'; del.textContent='✕'; del.onclick=()=>deletePuzzle(z.id); d.appendChild(del); dd._body.appendChild(d); });
+    c.appendChild(dd);
+  }
   p.appendChild(c);
 }
 async function addPuzzle(nm,pr,so,btn){
@@ -3395,6 +3532,7 @@ function subscribeRealtime(){
     .on('postgres_changes',{event:'*',schema:'public',table:'campaign_state',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadState(); applyMood(); if(activeTab()==='story'){ renderClock(); renderRoundbar(); } if(activeTab()==='map') renderMap(); const _lu=worldState&&worldState.level_up; if(activeTab()==='me'){ const md=_lu&&_lu.active&&(_lu.done||[]).includes(myChar&&myChar.id); if(!_lu||!_lu.active||md) renderMe(); } })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_messages',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ const row=payload.new; if(row&&row.id&&!chatMsgs.some(m=>m.id===row.id)){ chatMsgs.push(row); if(chatMsgs.length>300) chatMsgs=chatMsgs.slice(-300); cacheSave('chat',chatMsgs); } if(_bsShown){ try{ renderBattleChat(); }catch(e){} } if(activeTab()==='party'){ renderChatList(); } else if(row && row.user_id!==me.id){ const t=document.querySelector('.tab[data-tab="party"]'); if(t) t.classList.add('blink'); } })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'chronicles',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='chron'){ renderChronicle(); } else { const t=document.querySelector('.tab[data-tab="chron"]'); if(t) t.classList.add('blink'); } })
+    .on('postgres_changes',{event:'*',schema:'public',table:'music_tracks',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadMusicLibrary(); if(activeTab()==='files') renderFiles(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'combat_encounters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await refreshCombatTurn(); scheduleBattleScene(); if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'initiative_entries',filter:'campaign_id=eq.'+campaign.id}, async()=>{ scheduleBattleScene(); })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'combat_log',filter:'campaign_id=eq.'+campaign.id}, async()=>{ scheduleBattleScene(); })
@@ -3768,6 +3906,7 @@ window.cc = (function(){
       {label:'ถอยห่าง',         commit:{slot:'movement', label:'ถอยห่างจากศัตรู'}},
       {label:'หาที่กำบัง',       commit:{slot:'movement', label:'เคลื่อนไปหาที่กำบัง'}},
       {label:'ปีน/กระโดด',      commit:{slot:'movement', label:'ปีน/กระโดด', dice:'1d20 Athletics'}},
+      {label:'🎯 เลือกช่องเดิน (แตะกริด)', moveGrid:true},
       {label:'Stand up', meta:'1/2 cost', commit:{slot:'movement', label:'Stand'}}
     ]};
 
@@ -3909,6 +4048,18 @@ window.cc = (function(){
       if(it.commit){ turn[it.commit.slot] = { label: it.commit.label, dice: it.commit.dice || null, skillId: it.commit.skillId || null }; seqAdd(it.commit.slot); stack=['root']; renderAll(); }
       return;
     }
+    if(it.moveGrid){
+      if(typeof window.ccMovePick==='function'){
+        window.ccMovePick(function(cell){
+          if(cell){ turn.movement = { label:'เดินไปช่อง '+cell, moveTo:cell }; seqAdd('movement'); }
+          stack=['root'];
+          try{ if(window.innerWidth<1024 && typeof bsToggleSheet==='function'){ bsToggleSheet('cmd'); } }catch(e){}
+          renderAll();
+          try{ if(typeof renderRoundbar==='function') renderRoundbar(); }catch(e){}
+        });
+      }
+      return;
+    }
     if(it.drill){ stack.push(it.drill); renderAll(); return; }
     if(it.commit){
       turn[it.commit.slot] = { label: it.commit.label, dice: it.commit.dice || null, skillId: it.commit.skillId || null };
@@ -3959,6 +4110,7 @@ window.cc = (function(){
           narrate:  turn.narrate  || ''
         },
         order: (turn._seq||[]).slice(),
+        move_to: (turn.movement && turn.movement.moveTo) || null,
         rolls: results || [],
         compiled_at: new Date().toISOString()
       };
