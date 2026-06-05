@@ -2156,8 +2156,10 @@ async function startFirstScene(){ resolveRound(false); }
 function setMyThinking(on){
   try { if (typeof rtChannel !== 'undefined' && rtChannel && typeof rtChannel.track === 'function') rtChannel.track({ thinking: !!on, uid: (me && me.id) || 'anon', at: Date.now() }); } catch(e){}
 }
+var _autoChain=0;
 async function resolveRound(force, mode){
   if(resolving) return; resolving=true; renderRoundbar();
+  var _again=false;
   // บอกผู้เล่นคนอื่นว่า DM กำลังทำงาน (presence broadcast)
   setMyThinking(true);
   try{
@@ -2170,9 +2172,13 @@ async function resolveRound(force, mode){
     else if(j.status==='waiting'){ toast(`Waiting for everyone (${j.submitted}/${j.total})`); }
     else if(j.status==='busy'){ /* someone else is resolving */ }
     else if(j.status==='intro'){ toast('โลกถูกสร้างแล้ว — สร้างตัวละครได้เลย!'); }
-    else if(j.status==='opened'||j.status==='resolved'){ toast(j.status==='opened'?'Scene opened!':'The DM continued the story!'); }
+    else if(j.status==='opened'||j.status==='resolved'){ if(j.auto_next){ _again=true; } else { toast(j.status==='opened'?'Scene opened!':'The DM continued the story!'); } }
   }catch(e){ toast('Could not reach the resolver',true); }
-  finally{ resolving=false; setMyThinking(false); await refreshAll(); renderStory(); }
+  finally{
+    resolving=false; setMyThinking(false); await refreshAll(); renderStory();
+    if(_again && _autoChain<24){ _autoChain++; setTimeout(function(){ resolveRound(false); }, 600); }
+    else { _autoChain=0; }
+  }
 }
 
 // ───────── render: me / party / quest ─────────
