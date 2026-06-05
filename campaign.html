@@ -698,7 +698,7 @@ body.role-player .dm-only{display:none!important;}
 .cc-inline .cc-close{display:none;}
 .cc-backdrop{display:none;}
 @media (min-width:1024px){
-  .cc-frame.cc-windowed{position:fixed;width:auto;min-width:230px;max-width:360px;max-height:80vh;overflow-y:auto;z-index:4205;box-shadow:0 12px 48px rgba(0,0,0,.85);border-radius:12px;}
+  .cc-frame.cc-windowed{position:fixed;width:auto;min-width:120px;max-width:210px;max-height:80vh;overflow-y:auto;z-index:4205;box-shadow:0 12px 48px rgba(0,0,0,.85);border-radius:12px;}
   .cc-backdrop.on{display:block;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:4190;}
 }
 /* Phase B: readable cc fonts + sequence panel + narrate DQ box */
@@ -2744,6 +2744,13 @@ async function _renderCombatImpl(){
 // ───────── Battle Scene (RPG cut-in overlay) ─────────
 var _bsShown=false, _bsRelocated=false, _bsRenderT=null, _bsRendering=false;
 function bsCloseSheets(){ ['bsCmdWrap','bsInitBox','bsLogBox','bsHud'].forEach(function(i){ var x=document.getElementById(i); if(x) x.classList.remove('bs-sheet-open'); }); var bd=document.getElementById('bsSheetBackdrop'); if(bd) bd.classList.remove('on'); var sc=document.getElementById('battleScene'); if(sc) sc.classList.remove('bs-has-sheet'); }
+// ── ESC: ถอย/ปิดหน้าต่าง (เมนูคำสั่งถอยทีละชั้น → sheet มือถือ → overlay) ──
+document.addEventListener('keydown', function(e){
+  if(e.key!=='Escape' && e.key!=='Esc') return;
+  try{ if(window.cc && window.cc.escBack && window.cc.escBack()){ e.preventDefault(); return; } }catch(_e){}
+  try{ var _bs=document.getElementById('battleScene'); if(_bs && _bs.classList.contains('bs-has-sheet')){ bsCloseSheets(); e.preventDefault(); return; } }catch(_e){}
+  try{ var _rt=document.getElementById('combatCommandPanel'); if(_rt && _rt.classList.contains('cc-show')){ window.cc.close(); e.preventDefault(); } }catch(_e){}
+});
 function bsToggleSheet(key){ var map={cmd:'bsCmdWrap',init:'bsInitBox',log:'bsLogBox',hud:'bsHud'}; var id=map[key]; if(!id) return; var el=document.getElementById(id); if(!el) return; var willOpen=!el.classList.contains('bs-sheet-open'); bsCloseSheets(); if(willOpen){ el.classList.add('bs-sheet-open'); var bd=document.getElementById('bsSheetBackdrop'); if(bd) bd.classList.add('on'); var sc=document.getElementById('battleScene'); if(sc) sc.classList.add('bs-has-sheet'); } try{ tick(); }catch(e){} }
 function ensureBattleScene(){
   var el=document.getElementById('battleScene');
@@ -2853,7 +2860,8 @@ async function renderBattleScene(){
     var _ae=document.activeElement, _aid=_ae&&_ae.id;
     if(_aid!=='bsChatInput'){ try{ renderBattleChat(); }catch(e){} }
     try{ await refreshCombatTurn(); }catch(e){}
-    if(_aid!=='ccNarr' && _aid!=='actInput' && _aid!=='petActInput'){ try{ await renderRoundbar(); }catch(e){} }
+    var _cmdSheet=(function(){ var c=document.getElementById('bsCmdWrap'); return c && c.classList.contains('bs-sheet-open'); })();
+    if(!_cmdSheet && _aid!=='ccNarr' && _aid!=='actInput' && _aid!=='petActInput'){ try{ await renderRoundbar(); }catch(e){} }
     try{ var _cb=document.querySelector('#bsMobBar button[data-sheet="cmd"]'); if(_cb) _cb.classList.toggle('bs-myturn', !!(gCombat&&gCombat.active&&myChar&&gCombat.activeCharId===myChar.id)); }catch(e){}
   } finally { _bsRendering=false; }
 }
@@ -4240,6 +4248,7 @@ window.cc = (function(){
     openInline: openInline,
     isBusy: isBusy,
     close: close,
+    escBack: function(){ if(phase==='building' && stack.length>1){ stack=stack.slice(0,-1); renderAll(); return true; } return false; },
     isOpen: function(){ return isOpen; }
   };
 })();
