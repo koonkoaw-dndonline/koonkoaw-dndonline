@@ -3918,14 +3918,20 @@ window.cc = (function(){
       return { items: ritems };
     }
 
-    if(last==='move') return { items:[
-      {label:'เข้าประชิดศัตรู',  commit:{slot:'movement', label:'เคลื่อนเข้าประชิด'}},
-      {label:'ถอยห่าง',         commit:{slot:'movement', label:'ถอยห่างจากศัตรู'}},
-      {label:'หาที่กำบัง',       commit:{slot:'movement', label:'เคลื่อนไปหาที่กำบัง'}},
-      {label:'ปีน/กระโดด',      commit:{slot:'movement', label:'ปีน/กระโดด', dice:'1d20 Athletics'}},
-      {label:'🚶 เลือกช่องเดิน (แตะกริด)', moveGrid:true},
-      {label:'Stand up', meta:'1/2 cost', commit:{slot:'movement', label:'Stand'}}
-    ]};
+    if(last==='move'){
+      // Stand up ขึ้นเฉพาะตอนตัวละคร prone/ล้ม/หมดสติ เท่านั้น
+      var _mc=[].concat((typeof mySheet!=='undefined'&&mySheet&&mySheet.conditions)||[], (typeof myChar!=='undefined'&&myChar&&myChar.public_status&&myChar.public_status.conditions)||[]).map(function(c){return String(c).toLowerCase();});
+      var _prone=_mc.some(function(c){return /prone|ล้ม|นอน|หมดสติ|unconscious|knock|down/.test(c);});
+      var mvItems=[
+        {label:'เข้าประชิดศัตรู',  commit:{slot:'movement', label:'เคลื่อนเข้าประชิด'}},
+        {label:'ถอยห่าง',         commit:{slot:'movement', label:'ถอยห่างจากศัตรู'}},
+        {label:'หาที่กำบัง',       commit:{slot:'movement', label:'เคลื่อนไปหาที่กำบัง'}},
+        {label:'ปีน/กระโดด',      commit:{slot:'movement', label:'ปีน/กระโดด', dice:'1d20 Athletics'}},
+        {label:'🚶 เลือกช่องเดิน (แตะกริด)', moveGrid:true}
+      ];
+      if(_prone) mvItems.push({label:'Stand up (ลุกขึ้นยืน)', meta:'1/2 cost', commit:{slot:'movement', label:'Stand'}});
+      return { items: mvItems };
+    }
 
     if(last==='free') return { items:[
       {label:'Draw Weapon', commit:{slot:'free', label:'Draw shortbow'}},
