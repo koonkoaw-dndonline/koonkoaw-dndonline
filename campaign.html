@@ -721,7 +721,7 @@ body.role-player .dm-only{display:none!important;}
 
 /* ========== Battle Scene (RPG cut-in overlay) ========== */
 .tab[data-tab="mon"]{display:none;}
-.bscene{position:fixed;inset:0;z-index:4000;background:#05070c;display:none;}
+.bscene{position:fixed;inset:0;z-index:4000;background:#000;display:none;}
 .bscene.on{display:block;animation:bsfade .22s ease;}
 @keyframes bsfade{from{opacity:0}to{opacity:1}}
 .bscene-flash{position:absolute;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;background:#000;opacity:0;pointer-events:none;}
@@ -755,15 +755,35 @@ body.role-player .dm-only{display:none!important;}
 /* แบตเทิลกริดอยู่กึ่งกลาง */
 #battleScene .bs-board{text-align:center;}
 #battleScene .bs-board svg{margin-left:auto !important;margin-right:auto !important;}
+.bs-mobbar{display:none;}
+.bs-sheet-backdrop{display:none;}
+@media (max-width:1023px){
+  .bscene{background:#000;}
+  .bscene-stage{padding-bottom:64px;}
+  .bs-hud,.bs-init,.bs-log,.bs-cmd{display:none;}
+  .bs-mobbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:4100;background:#000;border-top:2px solid #fff;}
+  .bs-mobbar button{flex:1;background:#000;color:#fff;border:0;border-right:1px solid #333;padding:12px 4px;font-family:'IBM Plex Sans Thai',sans-serif;font-size:12px;font-weight:700;cursor:pointer;}
+  .bs-mobbar button:last-child{border-right:0;}
+  .bs-mobbar button:active{background:#fff;color:#000;}
+  .bs-mobbar button.bs-myturn{background:#FAC775;color:#000;animation:bsPulse 1s ease-in-out infinite;}
+  @keyframes bsPulse{0%,100%{opacity:1}50%{opacity:.6}}
+  .bs-sheet-backdrop.on{display:block;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:4090;}
+  .bs-hud.bs-sheet-open,.bs-init.bs-sheet-open,.bs-log.bs-sheet-open,.bs-cmd.bs-sheet-open{
+    display:block;position:fixed;left:0;right:0;bottom:50px;z-index:4095;max-height:72vh;overflow-y:auto;
+    background:#000;border:2px solid #fff;border-radius:14px 14px 0 0;margin:0;padding:12px;box-shadow:0 -6px 20px rgba(0,0,0,.6);
+    animation:bsSheetUp .16s ease;
+  }
+  @keyframes bsSheetUp{from{transform:translateY(24px);opacity:.5}to{transform:translateY(0);opacity:1}}
+}
 .bs-panelttl{font-family:'Press Start 2P',monospace;font-size:8px;letter-spacing:1px;color:#fff;border-bottom:2px solid #fff;padding:3px 2px 7px;margin-bottom:7px;}
 .bs-init-list,.bs-log-list{display:flex;flex-direction:column;gap:5px;}
 .bs-log-list{max-height:240px;overflow-y:auto;font-family:'IBM Plex Sans Thai',sans-serif;font-size:13px;line-height:1.5;color:#fff;}
 .bs-logrow{padding:1px 0;}
-.bs-initrow{display:flex;align-items:center;gap:8px;border:2px solid #fff;border-radius:6px;padding:6px 8px;font-family:'IBM Plex Sans Thai',sans-serif;}
-.bs-initrow.me{box-shadow:0 0 0 2px #000,0 0 0 4px #5cc8ff;}
-.bs-ini{min-width:24px;text-align:center;font-weight:700;color:#fff;font-size:14px;}
-.bs-iname{flex:1;color:#fff;font-size:13.5px;line-height:1.25;}
-.bs-ihp{font-size:12px;font-weight:700;white-space:nowrap;}
+.bs-initrow{display:flex;align-items:center;gap:9px;padding:3px 2px;font-family:'IBM Plex Sans Thai',sans-serif;white-space:nowrap;}
+.bs-initrow.me .bs-iname{text-decoration:underline;}
+.bs-ini{min-width:22px;text-align:center;font-weight:700;color:#9a9a9a;font-size:13px;}
+.bs-iname{flex:1;font-size:14px;font-weight:700;line-height:1.3;overflow:hidden;text-overflow:ellipsis;}
+.bs-ihp{font-size:13px;font-weight:700;white-space:nowrap;color:#dcdcdc;}
 .bs-hpbar{height:5px;border:1px solid rgba(255,255,255,.5);border-radius:3px;margin-top:4px;overflow:hidden;background:#000;}
 .bs-hpbar>div{height:100%;}
 #battleScene #narrFeed{padding:0;display:flex;flex-direction:column;gap:10px;}
@@ -1915,7 +1935,7 @@ async function renderRoundbar(){
   // ถ้าผู้เล่นกำลังพิมพ์ในช่อง action อยู่ และรอบ/สถานะไม่เปลี่ยน → อย่า rebuild ทั้งกล่อง (กันข้อความหาย+หลุดโฟกัส)
   // อัปเดตแค่ตัวนับ Submitted ในที่เดิม แล้วจบ
   const _cbBusy=(curRound.meta||{}).combat||{};
-  if(_cbBusy.active && typeof window.cc==='object' && window.cc.isBusy && window.cc.isBusy() && document.getElementById('ccFrame')){ return; }   // กำลังสร้างเทิร์นในเมนู — อย่า rebuild แถบ
+  if(typeof window.cc==='object' && window.cc.isBusy && window.cc.isBusy() && document.getElementById('ccFrame')){ return; }   // กำลังสร้างเทิร์น/พิมพ์ในเมนู — อย่า rebuild แถบ (กันข้อความหาย)
   const rbKey=`${curRound.id}|${curRound.phase}|${mine?1:0}`;
   const typingNow=document.activeElement && document.activeElement.id==='actInput';
   if(typingNow && rbKey===_lastRoundbarKey){
@@ -2716,6 +2736,8 @@ async function _renderCombatImpl(){
 
 // ───────── Battle Scene (RPG cut-in overlay) ─────────
 var _bsShown=false, _bsRelocated=false, _bsRenderT=null, _bsRendering=false;
+function bsCloseSheets(){ ['bsCmdWrap','bsInitBox','bsLogBox','bsHud'].forEach(function(i){ var x=document.getElementById(i); if(x) x.classList.remove('bs-sheet-open'); }); var bd=document.getElementById('bsSheetBackdrop'); if(bd) bd.classList.remove('on'); }
+function bsToggleSheet(key){ var map={cmd:'bsCmdWrap',init:'bsInitBox',log:'bsLogBox',hud:'bsHud'}; var id=map[key]; if(!id) return; var el=document.getElementById(id); if(!el) return; var willOpen=!el.classList.contains('bs-sheet-open'); bsCloseSheets(); if(willOpen){ el.classList.add('bs-sheet-open'); var bd=document.getElementById('bsSheetBackdrop'); if(bd) bd.classList.add('on'); } try{ tick(); }catch(e){} }
 function ensureBattleScene(){
   var el=document.getElementById('battleScene');
   if(!el){
@@ -2725,7 +2747,7 @@ function ensureBattleScene(){
       '<div class="bscene-stage">'+
         '<div class="bs-col bs-left">'+
           '<div class="bs-hud bs-box" id="bsHud"></div>'+
-          '<div class="bs-init bs-box"><div class="bs-panelttl">\u2694 INITIATIVE</div><div class="bs-init-list" id="bsInit"></div></div>'+
+          '<div class="bs-init bs-box" id="bsInitBox"><div class="bs-panelttl">\u2694 INITIATIVE</div><div class="bs-init-list" id="bsInit"></div></div>'+
           '<div class="bs-chat bs-box"><div class="bs-panelttl">LIVE CHAT \u00b7 \u0e42\u0e23\u0e25\u0e40\u0e1e\u0e25\u0e22\u0e4c</div><div class="bs-chat-list" id="bsChat"></div><div class="bs-chat-in"><textarea id="bsChatInput" rows="2" placeholder="\u0e04\u0e33\u0e1e\u0e39\u0e14/\u0e42\u0e23\u0e25\u0e40\u0e1e\u0e25\u0e22\u0e4c (\u0e17\u0e38\u0e01\u0e04\u0e19\u0e40\u0e2b\u0e47\u0e19)\u2026"></textarea><button type="button" id="bsChatSend">\u0e2a\u0e48\u0e07</button></div></div>'+
         '</div>'+
         '<div class="bs-col bs-center">'+
@@ -2734,13 +2756,20 @@ function ensureBattleScene(){
         '</div>'+
         '<div class="bs-col bs-right">'+
           '<div class="bs-cmd bs-box" id="bsCmdWrap"></div>'+
-          '<div class="bs-log bs-box"><div class="bs-panelttl">COMBAT LOG</div><div class="bs-log-list" id="bsLog"></div></div>'+
+          '<div class="bs-log bs-box" id="bsLogBox"><div class="bs-panelttl">COMBAT LOG</div><div class="bs-log-list" id="bsLog"></div></div>'+
         '</div>'+
-      '</div>';
+      '</div>'+
+      '<div class="bs-sheet-backdrop" id="bsSheetBackdrop"></div>'+
+      '<div class="bs-mobbar" id="bsMobBar"><button type="button" data-sheet="cmd">\u2694 \u0e2a\u0e31\u0e48\u0e07\u0e01\u0e32\u0e23</button><button type="button" data-sheet="init">\ud83c\udfb2 \u0e25\u0e33\u0e14\u0e31\u0e1a</button><button type="button" data-sheet="log">\ud83d\udcdc \u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01</button><button type="button" data-sheet="hud">\ud83d\uddfa \u0e2a\u0e16\u0e32\u0e19\u0e30</button></div>';
     document.body.appendChild(el);
     try{ var _bsend=document.getElementById('bsChatSend'), _bin=document.getElementById('bsChatInput');
       if(_bsend) _bsend.onclick=sendBattleChat;
       if(_bin) _bin.onkeydown=function(e){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendBattleChat(); } };
+    }catch(e){}
+    try{
+      var _mb=document.getElementById('bsMobBar');
+      if(_mb) _mb.querySelectorAll('button').forEach(function(b){ b.onclick=function(){ bsToggleSheet(b.getAttribute('data-sheet')); }; });
+      var _bd=document.getElementById('bsSheetBackdrop'); if(_bd) _bd.onclick=function(){ bsCloseSheets(); };
     }catch(e){}
   }
   return el;
@@ -2812,9 +2841,11 @@ async function renderBattleScene(){
         setTimeout(function(){ _box.scrollTop=_near?_box.scrollHeight:_prev; },0);
       }
     }catch(e){}
-    try{ renderBattleChat(); }catch(e){}
+    var _ae=document.activeElement, _aid=_ae&&_ae.id;
+    if(_aid!=='bsChatInput'){ try{ renderBattleChat(); }catch(e){} }
     try{ await refreshCombatTurn(); }catch(e){}
-    try{ await renderRoundbar(); }catch(e){}
+    if(_aid!=='ccNarr' && _aid!=='actInput' && _aid!=='petActInput'){ try{ await renderRoundbar(); }catch(e){} }
+    try{ var _cb=document.querySelector('#bsMobBar button[data-sheet="cmd"]'); if(_cb) _cb.classList.toggle('bs-myturn', !!(gCombat&&gCombat.active&&myChar&&gCombat.activeCharId===myChar.id)); }catch(e){}
   } finally { _bsRendering=false; }
 }
 async function renderBattleInitLog(initEl, logEl){
@@ -2831,9 +2862,8 @@ async function renderBattleInitLog(initEl, logEl){
       else { const cs=csMap[e.combat_state_id]; if(cs){ const mx=cs.monsters&&cs.monsters.max_hp; hpTxt=cs.cur_hp+(mx?('/'+mx):''); if(mx) pct=Math.max(0,Math.min(1,cs.cur_hp/mx)); } }
       const mine=isParty&&myChar&&e.character_id===myChar.id; const col=isParty?'#5cc8ff':'#ff6b6b';
       const conds=(Array.isArray(e.conditions)&&e.conditions.length)?(' ['+e.conditions.map(escapeHtml).join(',')+']'):'';
-      let bar=''; if(pct!=null){ const co=pct<=0.34?'#E24B4A':pct<=0.67?'#EF9F27':'#97C459'; bar='<div class="bs-hpbar"><div style="width:'+Math.round(pct*100)+'%;background:'+co+'"></div></div>'; }
-      const row=document.createElement('div'); row.className='bs-initrow'+(mine?' me':''); row.style.borderColor=col;
-      row.innerHTML='<span class="bs-ini">'+(e.initiative==null?'?':e.initiative)+'</span><span class="bs-iname">'+escapeHtml(e.display_name)+(mine?' (คุณ)':'')+'<span class="muted" style="font-size:11px">'+conds+'</span>'+bar+'</span><span class="bs-ihp" style="color:'+col+'">'+escapeHtml(hpTxt||'')+'</span>';
+      const row=document.createElement('div'); row.className='bs-initrow'+(mine?' me':'');
+      row.innerHTML='<span class="bs-ini">'+(e.initiative==null?'?':e.initiative)+'</span><span class="bs-iname" style="color:'+col+'">'+escapeHtml(e.display_name)+(mine?' (คุณ)':'')+(conds?('<span class="muted" style="font-size:11px">'+escapeHtml(conds)+'</span>'):'')+'</span><span class="bs-ihp">'+escapeHtml(hpTxt||'')+'</span>';
       _frag.appendChild(row);
     });
     if(!_frag.childNodes.length){ const d=document.createElement('div'); d.className='note'; d.style.color='#9a9a9a'; d.textContent='— รอลำดับการรบ —'; _frag.appendChild(d); }
@@ -3829,6 +3859,7 @@ window.cc = (function(){
 
   /* ---------- ACTIONS ---------- */
   function handleClick(it){
+    try{ if(typeof tick==='function') tick(); }catch(e){}
     if(it.editSlot){
       var slot = it.editSlot;
       if(slot==='narrate'){ stack=['root','narrate']; renderAll(); return; }
