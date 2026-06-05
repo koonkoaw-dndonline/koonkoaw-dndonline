@@ -2744,7 +2744,7 @@ async function _renderCombatImpl(){
 
 // ───────── Battle Scene (RPG cut-in overlay) ─────────
 var _bsShown=false, _bsRelocated=false, _bsRenderT=null, _bsRendering=false;
-function bsCloseSheets(){ ['bsCmdWrap','bsInitBox','bsLogBox','bsHud'].forEach(function(i){ var x=document.getElementById(i); if(x) x.classList.remove('bs-sheet-open'); }); var bd=document.getElementById('bsSheetBackdrop'); if(bd) bd.classList.remove('on'); var sc=document.getElementById('battleScene'); if(sc) sc.classList.remove('bs-has-sheet'); }
+function bsCloseSheets(){ ['bsCmdWrap','bsInitBox','bsLogBox','bsHud'].forEach(function(i){ var x=document.getElementById(i); if(!x) return; x.classList.remove('bs-sheet-open'); if(x._homeParent){ try{ x._homeParent.insertBefore(x, x._homeNext||null); }catch(e){ try{ x._homeParent.appendChild(x); }catch(_e){} } x._homeParent=null; x._homeNext=null; } }); var bd=document.getElementById('bsSheetBackdrop'); if(bd) bd.classList.remove('on'); var sc=document.getElementById('battleScene'); if(sc) sc.classList.remove('bs-has-sheet'); }
 // ── ESC: ถอย/ปิดหน้าต่าง (เมนูคำสั่งถอยทีละชั้น → sheet มือถือ → overlay) ──
 document.addEventListener('keydown', function(e){
   if(e.key!=='Escape' && e.key!=='Esc') return;
@@ -2752,7 +2752,7 @@ document.addEventListener('keydown', function(e){
   try{ var _bs=document.getElementById('battleScene'); if(_bs && _bs.classList.contains('bs-has-sheet')){ bsCloseSheets(); e.preventDefault(); return; } }catch(_e){}
   try{ var _rt=document.getElementById('combatCommandPanel'); if(_rt && _rt.classList.contains('cc-show')){ window.cc.close(); e.preventDefault(); } }catch(_e){}
 });
-function bsToggleSheet(key){ var map={cmd:'bsCmdWrap',init:'bsInitBox',log:'bsLogBox',hud:'bsHud'}; var id=map[key]; if(!id) return; var el=document.getElementById(id); if(!el) return; var willOpen=!el.classList.contains('bs-sheet-open'); bsCloseSheets(); if(willOpen){ el.classList.add('bs-sheet-open'); var bd=document.getElementById('bsSheetBackdrop'); if(bd) bd.classList.add('on'); var sc=document.getElementById('battleScene'); if(sc) sc.classList.add('bs-has-sheet'); } try{ tick(); }catch(e){} }
+function bsToggleSheet(key){ var map={cmd:'bsCmdWrap',init:'bsInitBox',log:'bsLogBox',hud:'bsHud'}; var id=map[key]; if(!id) return; var el=document.getElementById(id); if(!el) return; var willOpen=!el.classList.contains('bs-sheet-open'); bsCloseSheets(); if(willOpen){ var scene=document.getElementById('battleScene'); if(scene && el.parentNode!==scene && window.matchMedia && window.matchMedia('(max-width:1023px)').matches){ el._homeParent=el.parentNode; el._homeNext=el.nextSibling; scene.appendChild(el); } el.classList.add('bs-sheet-open'); var bd=document.getElementById('bsSheetBackdrop'); if(bd) bd.classList.add('on'); if(scene) scene.classList.add('bs-has-sheet'); } try{ tick(); }catch(e){} }
 function ensureBattleScene(){
   var el=document.getElementById('battleScene');
   if(!el){
@@ -2828,6 +2828,7 @@ function exitBattleScene(){
   _bsShown=false;
   var el=document.getElementById('battleScene');
   relocateForBattle(false);
+  try{ if(typeof bsCloseSheets==='function') bsCloseSheets(); }catch(e){}
   if(el) el.classList.remove('on');
   try{ document.body.classList.remove('in-battle'); }catch(e){}
   try{ var _b=document.getElementById('ccBackdrop'); if(_b) _b.classList.remove('on'); var _f=document.getElementById('ccFrame'); if(_f) _f.classList.remove('cc-windowed'); }catch(e){}
