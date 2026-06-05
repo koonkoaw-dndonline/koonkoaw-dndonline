@@ -696,6 +696,12 @@ body.role-player .dm-only{display:none!important;}
 .whbox{border:2px solid #fff;border-radius:6px;padding:6px 9px;display:flex;flex-direction:column;gap:4px;}
 .cc-inline{border:3px solid #fff;border-radius:10px;padding:12px;background:#000;}
 .cc-inline .cc-close{display:none;}
+.cc-backdrop{display:none;}
+@media (min-width:1024px){
+  .cc-frame.cc-windowed{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:460px;max-width:92vw;max-height:82vh;overflow-y:auto;z-index:4200;box-shadow:0 12px 48px rgba(0,0,0,.75);border-radius:14px;animation:ccWinIn .14s ease;}
+  @keyframes ccWinIn{from{transform:translate(-50%,-46%);opacity:.5}to{transform:translate(-50%,-50%);opacity:1}}
+  .cc-backdrop.on{display:block;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:4190;}
+}
 /* Phase B: readable cc fonts + sequence panel + narrate DQ box */
 .cc-frame{font-family:'IBM Plex Sans Thai',sans-serif;font-size:14px;}
 .cc-item{font-size:14.5px;padding-top:11px;padding-bottom:11px;}
@@ -757,22 +763,24 @@ body.role-player .dm-only{display:none!important;}
 #battleScene .bs-board svg{margin-left:auto !important;margin-right:auto !important;}
 .bs-mobbar{display:none;}
 .bs-sheet-backdrop{display:none;}
+.bs-sheet-close{display:none;}
 @media (max-width:1023px){
   .bscene{background:#000;}
   .bscene-stage{padding-bottom:64px;}
   .bs-hud,.bs-init,.bs-log,.bs-cmd{display:none;}
-  .bs-mobbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:4100;background:#000;border-top:2px solid #fff;}
+  .bs-mobbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:4300;background:#000;border-top:2px solid #fff;}
   .bs-mobbar button{flex:1;background:#000;color:#fff;border:0;border-right:1px solid #333;padding:12px 4px;font-family:'IBM Plex Sans Thai',sans-serif;font-size:12px;font-weight:700;cursor:pointer;}
   .bs-mobbar button:last-child{border-right:0;}
   .bs-mobbar button:active{background:#fff;color:#000;}
   .bs-mobbar button.bs-myturn{background:#FAC775;color:#000;animation:bsPulse 1s ease-in-out infinite;}
   @keyframes bsPulse{0%,100%{opacity:1}50%{opacity:.6}}
-  .bs-sheet-backdrop.on{display:block;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:4090;}
+  .bs-sheet-backdrop.on{display:block;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:4200;}
   .bs-hud.bs-sheet-open,.bs-init.bs-sheet-open,.bs-log.bs-sheet-open,.bs-cmd.bs-sheet-open{
-    display:block;position:fixed;left:0;right:0;bottom:50px;z-index:4095;max-height:72vh;overflow-y:auto;
+    display:block;position:fixed;left:0;right:0;bottom:52px;z-index:4250;max-height:72vh;overflow-y:auto;-webkit-overflow-scrolling:touch;
     background:#000;border:2px solid #fff;border-radius:14px 14px 0 0;margin:0;padding:12px;box-shadow:0 -6px 20px rgba(0,0,0,.6);
     animation:bsSheetUp .16s ease;
   }
+  .bscene.bs-has-sheet .bs-sheet-close{display:block;position:fixed;top:10px;right:10px;z-index:4360;background:#fff;color:#000;border:0;border-radius:8px;padding:9px 14px;font-family:'IBM Plex Sans Thai',sans-serif;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.5);}
   @keyframes bsSheetUp{from{transform:translateY(24px);opacity:.5}to{transform:translateY(0);opacity:1}}
 }
 .bs-panelttl{font-family:'Press Start 2P',monospace;font-size:8px;letter-spacing:1px;color:#fff;border-bottom:2px solid #fff;padding:3px 2px 7px;margin-bottom:7px;}
@@ -2736,8 +2744,8 @@ async function _renderCombatImpl(){
 
 // ───────── Battle Scene (RPG cut-in overlay) ─────────
 var _bsShown=false, _bsRelocated=false, _bsRenderT=null, _bsRendering=false;
-function bsCloseSheets(){ ['bsCmdWrap','bsInitBox','bsLogBox','bsHud'].forEach(function(i){ var x=document.getElementById(i); if(x) x.classList.remove('bs-sheet-open'); }); var bd=document.getElementById('bsSheetBackdrop'); if(bd) bd.classList.remove('on'); }
-function bsToggleSheet(key){ var map={cmd:'bsCmdWrap',init:'bsInitBox',log:'bsLogBox',hud:'bsHud'}; var id=map[key]; if(!id) return; var el=document.getElementById(id); if(!el) return; var willOpen=!el.classList.contains('bs-sheet-open'); bsCloseSheets(); if(willOpen){ el.classList.add('bs-sheet-open'); var bd=document.getElementById('bsSheetBackdrop'); if(bd) bd.classList.add('on'); } try{ tick(); }catch(e){} }
+function bsCloseSheets(){ ['bsCmdWrap','bsInitBox','bsLogBox','bsHud'].forEach(function(i){ var x=document.getElementById(i); if(x) x.classList.remove('bs-sheet-open'); }); var bd=document.getElementById('bsSheetBackdrop'); if(bd) bd.classList.remove('on'); var sc=document.getElementById('battleScene'); if(sc) sc.classList.remove('bs-has-sheet'); }
+function bsToggleSheet(key){ var map={cmd:'bsCmdWrap',init:'bsInitBox',log:'bsLogBox',hud:'bsHud'}; var id=map[key]; if(!id) return; var el=document.getElementById(id); if(!el) return; var willOpen=!el.classList.contains('bs-sheet-open'); bsCloseSheets(); if(willOpen){ el.classList.add('bs-sheet-open'); var bd=document.getElementById('bsSheetBackdrop'); if(bd) bd.classList.add('on'); var sc=document.getElementById('battleScene'); if(sc) sc.classList.add('bs-has-sheet'); } try{ tick(); }catch(e){} }
 function ensureBattleScene(){
   var el=document.getElementById('battleScene');
   if(!el){
@@ -2770,6 +2778,7 @@ function ensureBattleScene(){
       var _mb=document.getElementById('bsMobBar');
       if(_mb) _mb.querySelectorAll('button').forEach(function(b){ b.onclick=function(){ bsToggleSheet(b.getAttribute('data-sheet')); }; });
       var _bd=document.getElementById('bsSheetBackdrop'); if(_bd) _bd.onclick=function(){ bsCloseSheets(); };
+      var _cl=document.createElement('button'); _cl.className='bs-sheet-close'; _cl.id='bsSheetClose'; _cl.type='button'; _cl.textContent='✕ ปิด'; _cl.onclick=function(){ bsCloseSheets(); }; el.appendChild(_cl);
     }catch(e){}
   }
   return el;
@@ -2814,6 +2823,7 @@ function exitBattleScene(){
   relocateForBattle(false);
   if(el) el.classList.remove('on');
   try{ document.body.classList.remove('in-battle'); }catch(e){}
+  try{ var _b=document.getElementById('ccBackdrop'); if(_b) _b.classList.remove('on'); var _f=document.getElementById('ccFrame'); if(_f) _f.classList.remove('cc-windowed'); }catch(e){}
   try{ renderStory(); }catch(e){}
 }
 async function renderBattleScene(){
@@ -4178,6 +4188,16 @@ window.cc = (function(){
       '</div>';
     document.getElementById('ccCont').addEventListener('click', onContinue);
   }
+  function ccApplyWindow(){
+    var fr=document.getElementById('ccFrame'); if(!fr) return;
+    var win = (phase==='building' && stack.length>1 && window.matchMedia && window.matchMedia('(min-width:1024px)').matches);
+    fr.classList.toggle('cc-windowed', win);
+    var bd=document.getElementById('ccBackdrop');
+    if(win){
+      if(!bd){ bd=document.createElement('div'); bd.id='ccBackdrop'; bd.className='cc-backdrop'; bd.addEventListener('click', function(){ stack=['root']; renderAll(); }); document.body.appendChild(bd); }
+      bd.classList.add('on');
+    } else if(bd){ bd.classList.remove('on'); }
+  }
   function renderAll(){
     try {
       if(phase==='building') renderBuilding();
@@ -4187,6 +4207,7 @@ window.cc = (function(){
       var f=document.getElementById('ccFrame');
       if (f) f.innerHTML = '<div class="cc-dice-row">ERROR: '+esc((err && err.message) || String(err))+'</div>';
     }
+    try{ ccApplyWindow(); }catch(e){}
   }
 
   function open(){
