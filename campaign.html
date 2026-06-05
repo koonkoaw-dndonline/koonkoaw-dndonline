@@ -732,13 +732,26 @@ body.role-player .dm-only{display:none!important;}
 @keyframes bsftxt{0%{transform:scale(.6);opacity:0}28%{transform:scale(1.12);opacity:1}72%{transform:scale(1);opacity:1}100%{transform:scale(1);opacity:0}}
 .bscene-stage{position:absolute;inset:0;display:flex;flex-direction:column;gap:10px;padding:12px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
 .bs-box{min-height:0;}
-.bs-hud{order:0;display:flex;flex-direction:column;gap:6px;}
-.bs-board{order:1;border:2px solid #fff;border-radius:8px;background:#0d1018;padding:6px;overflow-x:auto;}
+.bs-col{display:flex;flex-direction:column;gap:10px;min-width:0;min-height:0;}
+.bs-hud{display:flex;flex-direction:column;gap:6px;flex:0 0 auto;}
+.bs-board{border:2px solid #fff;border-radius:8px;background:#0d1018;padding:6px;overflow-x:auto;flex:0 0 auto;}
 .bs-board .item{border:0;padding:0;background:transparent;}
-.bs-init{order:2;border:2px solid #fff;border-radius:8px;background:#000;padding:8px 10px;}
-.bs-log{order:3;border:2px solid #fff;border-radius:8px;background:#000;padding:8px 10px;}
-.bs-narr{order:4;border:2px solid #fff;border-radius:8px;background:#000;padding:8px 12px;overflow-y:auto;}
-.bs-cmd{order:5;}
+.bs-init{border:2px solid #fff;border-radius:8px;background:#000;padding:8px 10px;flex:0 0 auto;max-height:34vh;overflow-y:auto;}
+.bs-log{border:2px solid #fff;border-radius:8px;background:#000;padding:8px 10px;flex:1;min-height:120px;overflow-y:auto;}
+.bs-narr{border:2px solid #fff;border-radius:8px;background:#000;padding:8px 12px;overflow-y:auto;flex:1;min-height:140px;}
+.bs-cmd{flex:0 0 auto;}
+.bs-chat{border:2px solid #fff;border-radius:8px;background:#000;padding:8px 10px;flex:1;min-height:120px;display:flex;flex-direction:column;}
+.bs-chat-list{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:5px;font-family:'IBM Plex Sans Thai',sans-serif;font-size:13px;line-height:1.45;}
+.bs-chat-msg{color:#dcdcdc;overflow-wrap:anywhere;}
+.bs-chat-msg b{color:#9ad;font-weight:700;margin-right:5px;}
+.bs-chat-in{display:flex;gap:6px;margin-top:7px;}
+.bs-chat-in textarea{flex:1;background:#000;border:2px solid #fff;border-radius:6px;color:#fff;font-family:'IBM Plex Sans Thai',sans-serif;font-size:13px;padding:6px 8px;resize:none;box-sizing:border-box;}
+.bs-chat-in button{background:#000;border:2px solid #fff;border-radius:6px;color:#fff;font-family:'IBM Plex Sans Thai',sans-serif;font-size:13px;padding:0 12px;cursor:pointer;flex:0 0 auto;}
+.bs-chat-in button:hover{background:#fff;color:#000;}
+/* battle command: เล็กลง + root พิกเซล / ด้านในอ่านง่าย */
+#battleScene .cc-frame{font-size:12.5px;padding:8px 10px;}
+#battleScene .cc-item{font-size:13px;padding-top:9px;padding-bottom:9px;}
+.cc-item.cc-root{font-family:'Press Start 2P',monospace;font-size:9px;letter-spacing:.5px;line-height:1.55;}
 .bs-panelttl{font-family:'Press Start 2P',monospace;font-size:8px;letter-spacing:1px;color:#fff;border-bottom:2px solid #fff;padding:3px 2px 7px;margin-bottom:7px;}
 .bs-init-list,.bs-log-list{display:flex;flex-direction:column;gap:5px;}
 .bs-log-list{max-height:240px;overflow-y:auto;font-family:'IBM Plex Sans Thai',sans-serif;font-size:13px;line-height:1.5;color:#fff;}
@@ -757,19 +770,16 @@ body.role-player .dm-only{display:none!important;}
 .bs-narr,.bs-log,.bs-init,.bs-cmd{overflow-wrap:anywhere;min-width:0;}
 .copt-h{font-size:12px;color:#9a9a9a;margin:4px 2px 2px;font-family:'IBM Plex Sans Thai',sans-serif;}
 @media (min-width:1024px){
-  .bscene-stage{
-    display:grid;
-    grid-template-columns:minmax(300px,330px) minmax(0,1fr) minmax(400px,460px);
-    grid-template-rows:auto minmax(0,1fr);
-    grid-template-areas:"hud board cmd" "init narr log";
-    gap:12px;
-  }
-  .bs-hud{grid-area:hud;}
-  .bs-init{grid-area:init;overflow-y:auto;}
-  .bs-board{grid-area:board;align-self:start;}
-  .bs-narr{grid-area:narr;}
-  .bs-log{grid-area:log;overflow-y:auto;}
-  .bs-cmd{grid-area:cmd;overflow-y:auto;}
+  .bscene-stage{flex-direction:row;align-items:stretch;}
+  .bs-left{flex:0 0 322px;}
+  .bs-center{flex:1;min-width:0;}
+  .bs-right{flex:0 0 430px;}
+}
+@media (max-width:1023px){
+  .bscene-stage .bs-center{order:1;}
+  .bscene-stage .bs-right{order:2;}
+  .bscene-stage .bs-left{order:3;}
+  .bs-init{max-height:none;}
 }
 </style>
 </head>
@@ -2702,14 +2712,25 @@ function ensureBattleScene(){
     el.innerHTML=
       '<div class="bscene-flash" id="bsFlash"><div class="bsf-txt">\u2694 BATTLE</div></div>'+
       '<div class="bscene-stage">'+
-        '<div class="bs-hud bs-box" id="bsHud"></div>'+
-        '<div class="bs-init bs-box"><div class="bs-panelttl">\u2694 INITIATIVE</div><div class="bs-init-list" id="bsInit"></div></div>'+
-        '<div class="bs-board bs-box" id="bsBoard"></div>'+
-        '<div class="bs-narr bs-box"><div class="bs-panelttl">DM</div><div id="bsNarrWrap"></div></div>'+
-        '<div class="bs-log bs-box"><div class="bs-panelttl">COMBAT LOG</div><div class="bs-log-list" id="bsLog"></div></div>'+
-        '<div class="bs-cmd bs-box" id="bsCmdWrap"></div>'+
+        '<div class="bs-col bs-left">'+
+          '<div class="bs-hud bs-box" id="bsHud"></div>'+
+          '<div class="bs-init bs-box"><div class="bs-panelttl">\u2694 INITIATIVE</div><div class="bs-init-list" id="bsInit"></div></div>'+
+          '<div class="bs-chat bs-box"><div class="bs-panelttl">LIVE CHAT \u00b7 \u0e42\u0e23\u0e25\u0e40\u0e1e\u0e25\u0e22\u0e4c</div><div class="bs-chat-list" id="bsChat"></div><div class="bs-chat-in"><textarea id="bsChatInput" rows="2" placeholder="\u0e04\u0e33\u0e1e\u0e39\u0e14/\u0e42\u0e23\u0e25\u0e40\u0e1e\u0e25\u0e22\u0e4c (\u0e17\u0e38\u0e01\u0e04\u0e19\u0e40\u0e2b\u0e47\u0e19)\u2026"></textarea><button type="button" id="bsChatSend">\u0e2a\u0e48\u0e07</button></div></div>'+
+        '</div>'+
+        '<div class="bs-col bs-center">'+
+          '<div class="bs-board bs-box" id="bsBoard"></div>'+
+          '<div class="bs-narr bs-box"><div class="bs-panelttl">DM \u2014 \u0e09\u0e32\u0e01\u0e15\u0e48\u0e2d\u0e2a\u0e39\u0e49</div><div id="bsNarrWrap"></div></div>'+
+        '</div>'+
+        '<div class="bs-col bs-right">'+
+          '<div class="bs-cmd bs-box" id="bsCmdWrap"></div>'+
+          '<div class="bs-log bs-box"><div class="bs-panelttl">COMBAT LOG</div><div class="bs-log-list" id="bsLog"></div></div>'+
+        '</div>'+
       '</div>';
     document.body.appendChild(el);
+    try{ var _bsend=document.getElementById('bsChatSend'), _bin=document.getElementById('bsChatInput');
+      if(_bsend) _bsend.onclick=sendBattleChat;
+      if(_bin) _bin.onkeydown=function(e){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendBattleChat(); } };
+    }catch(e){}
   }
   return el;
 }
@@ -2745,6 +2766,7 @@ function enterBattleScene(){
   try{ tick(); setTimeout(tick,150); }catch(e){}
   try{ renderClock(); }catch(e){}
   try{ renderStory(); }catch(e){}
+  try{ if(typeof loadChat==='function') loadChat().then(function(){ renderBattleChat(); }); else renderBattleChat(); }catch(e){}
 }
 function exitBattleScene(){
   _bsShown=false;
@@ -2777,6 +2799,7 @@ async function renderBattleScene(){
         var _box=nw.closest('.bs-narr')||nw; setTimeout(function(){ _box.scrollTop=_box.scrollHeight; },0);
       }
     }catch(e){}
+    try{ renderBattleChat(); }catch(e){}
     try{ await refreshCombatTurn(); }catch(e){}
     try{ await renderRoundbar(); }catch(e){}
   } finally { _bsRendering=false; }
@@ -2812,6 +2835,25 @@ async function renderBattleInitLog(initEl, logEl){
     logEl.replaceChildren(_lfrag);
     setTimeout(function(){ logEl.scrollTop=logEl.scrollHeight; },0);
   }
+}
+function _bsChatName(uid){ try{ return chatNameFor(uid); }catch(e){ return 'Player'; } }
+function renderBattleChat(){
+  var el=document.getElementById('bsChat'); if(!el) return;
+  var frag=document.createDocumentFragment();
+  (typeof chatMsgs!=='undefined'?chatMsgs:[]).slice(-30).forEach(function(mm){
+    var d=document.createElement('div'); d.className='bs-chat-msg';
+    d.innerHTML='<b>'+escapeHtml(_bsChatName(mm.user_id))+'</b>'+escapeHtml(mm.body||'');
+    frag.appendChild(d);
+  });
+  if(!frag.childNodes.length){ var e=document.createElement('div'); e.className='note'; e.style.color='#9a9a9a'; e.textContent='— ยังไม่มีข้อความ —'; frag.appendChild(e); }
+  el.replaceChildren(frag);
+  setTimeout(function(){ el.scrollTop=el.scrollHeight; },0);
+}
+async function sendBattleChat(){
+  var ta=document.getElementById('bsChatInput'); var body=ta&&ta.value.trim(); if(!body) return;
+  ta.value='';
+  try{ await supa.from('chat_messages').insert({campaign_id:campaign.id,user_id:me.id,body:body.slice(0,2000)}); }
+  catch(e){ try{ toast(e.message||'ส่งไม่สำเร็จ',true); }catch(_){} }
 }
 
 // ───────── AoE: เล็งเวท/สกิลแบบพื้นที่บน Map ─────────
@@ -3287,7 +3329,7 @@ function subscribeRealtime(){
     .on('postgres_changes',{event:'*',schema:'public',table:'actions',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'characters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadCharacters(); if(activeTab()==='party') renderParty(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'campaign_state',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadState(); applyMood(); if(activeTab()==='story'){ renderClock(); renderRoundbar(); } if(activeTab()==='map') renderMap(); const _lu=worldState&&worldState.level_up; if(activeTab()==='me'){ const md=_lu&&_lu.active&&(_lu.done||[]).includes(myChar&&myChar.id); if(!_lu||!_lu.active||md) renderMe(); } })
-    .on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_messages',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ const row=payload.new; if(row&&row.id&&!chatMsgs.some(m=>m.id===row.id)){ chatMsgs.push(row); if(chatMsgs.length>300) chatMsgs=chatMsgs.slice(-300); cacheSave('chat',chatMsgs); } if(activeTab()==='party'){ renderChatList(); } else if(row && row.user_id!==me.id){ const t=document.querySelector('.tab[data-tab="party"]'); if(t) t.classList.add('blink'); } })
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_messages',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ const row=payload.new; if(row&&row.id&&!chatMsgs.some(m=>m.id===row.id)){ chatMsgs.push(row); if(chatMsgs.length>300) chatMsgs=chatMsgs.slice(-300); cacheSave('chat',chatMsgs); } if(_bsShown){ try{ renderBattleChat(); }catch(e){} } if(activeTab()==='party'){ renderChatList(); } else if(row && row.user_id!==me.id){ const t=document.querySelector('.tab[data-tab="party"]'); if(t) t.classList.add('blink'); } })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'chronicles',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='chron'){ renderChronicle(); } else { const t=document.querySelector('.tab[data-tab="chron"]'); if(t) t.classList.add('blink'); } })
     .on('postgres_changes',{event:'*',schema:'public',table:'combat_encounters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await refreshCombatTurn(); scheduleBattleScene(); if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'initiative_entries',filter:'campaign_id=eq.'+campaign.id}, async()=>{ scheduleBattleScene(); })
@@ -3986,6 +4028,7 @@ window.cc = (function(){
     for(var k=0;k<m.items.length;k++){
       var it = m.items[k];
       var cls = 'cc-item';
+      if(stack.length===1) cls += ' cc-root';
       if(it.dim) cls += ' cc-dim';
       if(it.summary) cls += ' cc-locked';
       var tip = it.meta || ACT_TIPS[it.label] || '';
@@ -3998,8 +4041,8 @@ window.cc = (function(){
     frame.innerHTML =
       '<div class="cc-crumb" id="ccCrumb">'+crumbHtml+'</div>' +
       backHtml +
-      seqHtml +
       '<div id="ccMenu">'+menuHtml+'</div>' +
+      seqHtml +
       '<hr class="cc-divider">' +
       '<div class="cc-btn-row">' +
         '<button class="cc-btn" id="ccSubmit"'+(hasAny?'':' disabled')+'>SUBMIT</button>' +
