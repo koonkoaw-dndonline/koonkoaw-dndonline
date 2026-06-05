@@ -2843,7 +2843,10 @@ async function syncBattleScene(){
   if(typeof campaign==='undefined' || !campaign) return;
   let enc=null;
   try{ const r=await supa.from('combat_encounters').select('id,status').eq('campaign_id',campaign.id).neq('status','ended').maybeSingle(); if(!r.error) enc=r.data; }catch(e){}
-  const active = !!enc || !!window._combatActive || !!moveMode;   // อย่าออกจากฉากระหว่างเลือกช่องเดิน
+  // encounter active แต่ไม่มีศัตรูมีชีวิต = คอมแบตจบ/ค้าง → ถือว่าไม่ใช่คอมแบต (กันค้างในฉากสู้ว่างเปล่า)
+  let livingEnemies=0;
+  if(enc){ try{ const r2=await supa.from('combat_state').select('cur_hp').eq('campaign_id',campaign.id).eq('active',true); livingEnemies=(r2.data||[]).filter(x=>x.cur_hp==null||x.cur_hp>0).length; }catch(e){} }
+  const active = (!!enc && livingEnemies>0) || !!window._combatActive || !!moveMode;   // อย่าออกจากฉากระหว่างเลือกช่องเดิน · ออกถ้า encounter ไม่มีศัตรูมีชีวิต
   if(active){ if(!_bsShown){ enterBattleScene(); } await renderBattleScene(); }
   else { if(_bsShown){ exitBattleScene(); } }
 }
