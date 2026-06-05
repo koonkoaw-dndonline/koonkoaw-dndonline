@@ -2025,7 +2025,7 @@ async function renderRoundbar(){
       if(Array.isArray(cb.options) && cb.options.length){
         const opts=document.createElement('div'); opts.className='copt';
         const oh=document.createElement('div'); oh.className='copt-h'; oh.textContent='— หรือเลือกแนวทางที่ DM เสนอ —'; opts.appendChild(oh);
-        cb.options.slice(0,3).forEach(o=>{ const ob=document.createElement('button'); ob.type='button'; ob.textContent=o; ob.onclick=()=>quickSubmit(o); opts.appendChild(ob); });
+        cb.options.slice(0,3).forEach(o=>{ const _o=(typeof plainNarr==='function')?plainNarr(o):o; const ob=document.createElement('button'); ob.type='button'; ob.textContent=_o; ob.onclick=()=>quickSubmit(_o); opts.appendChild(ob); });
         bar.appendChild(opts);
       }
     } else {
@@ -2838,7 +2838,7 @@ function relocateForBattle(on){
     _bsRelocated=false;
   }
 }
-function scheduleBattleScene(){ clearTimeout(_bsRenderT); _bsRenderT=setTimeout(function(){ syncBattleScene(); }, 350); }
+function scheduleBattleScene(){ clearTimeout(_bsRenderT); _bsRenderT=setTimeout(function(){ syncBattleScene(); }, 550); }   // รวบจังหวะ event ถี่ๆ ให้เป็น render เดียว (ลดกระตุก)
 async function syncBattleScene(){
   if(typeof campaign==='undefined' || !campaign) return;
   let enc=null;
