@@ -4099,7 +4099,9 @@ window.cc = (function(){
             seqAdd(_c.slot);
           }
           stack = ['root'];
-          if(typeof renderRoundbar === 'function') renderRoundbar();
+          try{ if(window.innerWidth<1024 && typeof bsToggleSheet==='function'){ bsToggleSheet('cmd'); } }catch(e){}
+          renderAll();   // อัปเดตเมนู cc โดยตรง (ไม่ติด guard isBusy ของ renderRoundbar) → ลำดับ action โผล่
+          try{ if(typeof renderRoundbar === 'function') renderRoundbar(); }catch(e){}
         });
         return;
       }
