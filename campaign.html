@@ -2135,7 +2135,7 @@ async function submitAction(charIdOverride){
     if(!isPet) pendingAoE=null;
     toast('Action submitted ✓');
     await loadRound(); renderRoundbar();
-    resolveRound(false);   // ลองประมวลผล — backend ตอบ waiting ถ้ายังไม่ครบ
+    window._afterSubmit=true; resolveRound(false);   // ลองประมวลผล — backend ตอบ waiting ถ้ายังไม่ครบ
   }catch(e){ toast(e.message||'Submit failed',true); }
 }
 
@@ -2145,7 +2145,7 @@ async function quickSubmit(text){
   try{
     const { error } = await supa.from('actions').insert({ campaign_id:campaign.id, round_id:curRound.id, user_id:me.id, character_id:myChar?.id||null, action_text:text });
     if(error) throw error;
-    toast('ส่งแล้ว ✓'); await loadRound(); renderRoundbar(); resolveRound(false);
+    toast('ส่งแล้ว ✓'); await loadRound(); renderRoundbar(); window._afterSubmit=true; resolveRound(false);
   }catch(e){ toast(e.message||'ส่งไม่สำเร็จ',true); }
   finally{ window._quickBusy=false; }
 }
@@ -2159,7 +2159,8 @@ function setMyThinking(on){
 var _autoChain=0, _retryChain=0;
 async function resolveRound(force, mode){
   if(resolving) return; resolving=true; renderRoundbar();
-  var _again=false, _retry=false;
+  var _again=false, _retry=false, _waitRetry=false;
+  var afterSubmit=!!window._afterSubmit; window._afterSubmit=false;   // เพิ่งกดส่ง → ถ้าเจอ "รอ" ให้ลองซ้ำ (กัน race)
   // บอกผู้เล่นคนอื่นว่า DM กำลังทำงาน (presence broadcast)
   setMyThinking(true);
   try{
@@ -2169,7 +2170,7 @@ async function resolveRound(force, mode){
       body:JSON.stringify(body)});
     const j=await r.json();
     if(!r.ok){ if(r.status>=500){ _retry=true; } toast((j.error||'Resolve failed')+(j.detail?(' — '+String(j.detail).slice(0,140)):''),true); }
-    else if(j.status==='waiting'){ toast(`Waiting for everyone (${j.submitted}/${j.total})`); }
+    else if(j.status==='waiting'){ if(afterSubmit) _waitRetry=true; toast(`Waiting for everyone (${j.submitted}/${j.total})`); }
     else if(j.status==='busy'){ /* someone else is resolving */ }
     else if(j.status==='intro'){ toast('โลกถูกสร้างแล้ว — สร้างตัวละครได้เลย!'); }
     else if(j.status==='opened'||j.status==='resolved'){ if(j.auto_next){ _again=true; } else { toast(j.status==='opened'?'Scene opened!':'The DM continued the story!'); } }
@@ -2178,6 +2179,7 @@ async function resolveRound(force, mode){
     resolving=false; setMyThinking(false); await refreshAll(); renderStory();
     if(_again && _autoChain<24){ _autoChain++; _retryChain=0; setTimeout(function(){ resolveRound(false); }, 600); }
     else if(_retry && _retryChain<2){ _retryChain++; setTimeout(function(){ resolveRound(false); }, 2500); }
+    else if(_waitRetry && _retryChain<3){ _retryChain++; window._afterSubmit=true; setTimeout(function(){ resolveRound(false); }, 1800); }
     else { _autoChain=0; _retryChain=0; }
   }
 }
@@ -4217,7 +4219,7 @@ window.cc = (function(){
       }catch(e){ if(window.console) console.warn('[cc] resource decrement skipped', e); }
       try{ if (typeof loadRound==='function') await loadRound(); if (typeof renderRoundbar==='function') renderRoundbar(); }catch(e){}
       try{
-        if (typeof resolveRound==='function') resolveRound(false);
+        if (typeof resolveRound==='function') { window._afterSubmit=true; resolveRound(false); }
       }catch(e){}
     }catch(err){
       if (window.console) console.error('[cc] submit failed', err);
