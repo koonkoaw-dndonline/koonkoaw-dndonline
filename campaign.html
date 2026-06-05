@@ -539,6 +539,8 @@ body.role-player .dm-only{display:none!important;}
 .hl-place{color:#6cc0ff;font-weight:600;}
 .hl-npc{color:#ffcf5a;font-weight:600;}
 .hl-item{color:#8ee88e;font-weight:600;}
+.hl-pc{color:#9ad8ff;font-weight:600;}
+.hl-monster{color:#ff7b7b;font-weight:600;}
 /* ฟอร์มสร้างตัวละคร */
 .srow2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;}
 .srow3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
@@ -1410,19 +1412,24 @@ const ICON_INN=`<svg viewBox="0 0 16 12" shape-rendering="crispEdges" xmlns="htt
  +`</svg>`;
 // แปลงมาร์กเกอร์ [ชื่อ|ประเภท] → สปแอนสี + ใส่วงเล็บ (escape ส่วนอื่นกัน XSS)
 function colorizeNarr(text){
-  let out='', last=0; const re=/\[([^\]|]+)\|([a-zA-Z]+)\]/g; let m;
-  const known={place:1,npc:1,item:1};
+  let out='', last=0; const re=/\[([^\]|]+)\|([a-zA-Z_]+)\]/g; let m;
+  // map ประเภท → คลาสสี · ชื่อแสดงล้วน (ไม่มีวงเล็บ) · type ที่ไม่รู้จักก็โชว์ชื่อสะอาด
+  const cls={ place:'hl-place', location:'hl-place', region:'hl-place',
+    npc:'hl-npc', character:'hl-npc',
+    item:'hl-item', object:'hl-item', weapon:'hl-item', loot:'hl-item',
+    player_character:'hl-pc', pc:'hl-pc', player:'hl-pc', ally:'hl-pc', companion:'hl-pc', hero:'hl-pc',
+    monster:'hl-monster', enemy:'hl-monster', creature:'hl-monster', foe:'hl-monster' };
   while((m=re.exec(text))){
     out+=escapeHtml(text.slice(last,m.index));
-    const name=escapeHtml(m[1]), type=m[2].toLowerCase();
-    out+= known[type] ? `<span class="hl-${type}">[${name}]</span>` : `[${name}]`;
+    const name=escapeHtml(m[1]); const c=cls[m[2].toLowerCase()];
+    out+= c ? `<span class="${c}">${name}</span>` : name;
     last=m.index+m[0].length;
   }
   out+=escapeHtml(text.slice(last));
   return out;
 }
 // ตัดมาร์กอัป [ชื่อ|ประเภท] ให้เหลือชื่อสะอาด (ใช้ในหน้าสรุป/ข้อความล้วน)
-function plainNarr(t){ return String(t||'').replace(/\[([^\]|]+)\|[a-zA-Z]+\]/g,'$1'); }
+function plainNarr(t){ return String(t||'').replace(/\[([^\]|]+)\|[a-zA-Z_]+\]/g,'$1'); }
 // หน้าต่าง World HUD (clock + location) บนแท็บ Story
 function renderClock(){
   const el=$('worldClock'); if(!el) return;
@@ -2829,7 +2836,7 @@ async function syncBattleScene(){
   if(typeof campaign==='undefined' || !campaign) return;
   let enc=null;
   try{ const r=await supa.from('combat_encounters').select('id,status').eq('campaign_id',campaign.id).neq('status','ended').maybeSingle(); if(!r.error) enc=r.data; }catch(e){}
-  const active = !!enc || !!window._combatActive;
+  const active = !!enc || !!window._combatActive || !!moveMode;   // อย่าออกจากฉากระหว่างเลือกช่องเดิน
   if(active){ if(!_bsShown){ enterBattleScene(); } await renderBattleScene(); }
   else { if(_bsShown){ exitBattleScene(); } }
 }
@@ -2969,8 +2976,9 @@ function aoeCancel(){ const cb=aoeMode&&aoeMode.cb; aoeMode=null; aoeCenter=null
 // ───────── เดินบนกริด: ผู้เล่นแตะเลือกช่องปลายทางเอง (ไฮไลต์ช่องในระยะความเร็ว) ─────────
 function ccMovePick(cb){
   moveMode={cb:cb}; moveSel=null;
-  if(_bsShown){ try{ bsCloseSheets(); }catch(e){} renderBattleScene(); }
-  else { switchTab('mon'); }
+  try{ if(typeof bsCloseSheets==='function') bsCloseSheets(); }catch(e){}   // ปิดชีตคำสั่งให้เห็นกระดาน
+  if(!_bsShown && typeof enterBattleScene==='function'){ try{ enterBattleScene(); }catch(e){} }   // กันฉากรบหาย: เข้าฉากแทนการ navigate ออก
+  if(_bsShown){ renderBattleScene(); } else if(typeof renderCombat==='function'){ renderCombat(); }
   try{ toast('แตะช่องสีเขียวเพื่อเลือกที่จะเดินไป แล้วกด ✓'); }catch(e){}
 }
 function movePickCell(c,r){ if(!moveMode) return; moveSel={c:c,r:r}; if(_bsShown) renderBattleScene(); else renderCombat(); }
@@ -3150,6 +3158,16 @@ async function renderBattleGrid(p){
       }
       const sfx=footX(myTok.col), sfy=footY(myTok.col,myTok.row);
       svg+=`<circle cx="${sfx.toFixed(1)}" cy="${sfy.toFixed(1)}" r="3" fill="#5ce08a" stroke="#0d1018" stroke-width="1" style="pointer-events:none"/>`;
+      // ป๊อปอัปยืนยันเด้งใกล้ช่องที่คลิก (เหนือช่อง) — ปุ่ม ✓ เดิน / ✕ ยกเลิก
+      if(moveSel){
+        const cx=tileX(moveSel.c)+TILE/2, top=tileY(moveSel.r);
+        const bw=TILE*1.3, bh=TILE*0.62, gap=3, fs=(TILE*0.5).toFixed(1);
+        let gy=top-bh-5; if(gy<PADTOP-4) gy=tileY(moveSel.r)+TILE*SY+5;
+        let x1=cx-bw-gap/2, x2=cx+gap/2;
+        if(x1<2){ x1=2; x2=2+bw+gap; } if(x2+bw>VW-2){ x2=VW-2-bw; x1=x2-bw-gap; }
+        svg+=`<g style="cursor:pointer" onclick="moveConfirm()"><rect x="${x1.toFixed(1)}" y="${gy.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="4" fill="#1c7a3e" stroke="#7CFFB0" stroke-width="1.5"/><text x="${(x1+bw/2).toFixed(1)}" y="${(gy+bh*0.72).toFixed(1)}" text-anchor="middle" font-size="${fs}" fill="#eafff2" style="pointer-events:none">✓</text></g>`;
+        svg+=`<g style="cursor:pointer" onclick="moveCancel()"><rect x="${x2.toFixed(1)}" y="${gy.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="4" fill="#7a1c1c" stroke="#ff9a9a" stroke-width="1.5"/><text x="${(x2+bw/2).toFixed(1)}" y="${(gy+bh*0.72).toFixed(1)}" text-anchor="middle" font-size="${fs}" fill="#ffecec" style="pointer-events:none">✕</text></g>`;
+      }
     }
   }
   svg+='</svg>';
@@ -3168,9 +3186,8 @@ async function renderBattleGrid(p){
     const cf=grid.cell_ft||1; const maxC=Math.max(1,Math.floor(sp/cf)); const L2="ABCDEFGHIJKLMNOPQRST";
     const ctl=document.createElement('div'); ctl.className='optrow'; ctl.style.marginTop='8px';
     ctl.innerHTML = myTok2
-      ? `<span class="dicelbl">🚶 เลือกช่องเดิน (≤ ${sp}ft = ${maxC} ช่อง)${moveSel?(' · '+((L2[moveSel.c]||'?')+(moveSel.r+1))):''}</span>`
+      ? `<span class="dicelbl">🚶 แตะช่องเขียวเพื่อเลือกที่จะเดิน (≤ ${sp}ft = ${maxC} ช่อง)${moveSel?(' · เลือก '+((L2[moveSel.c]||'?')+(moveSel.r+1))+' → กด ✓ บนกระดาน'):''}</span>`
       : `<span class="dicelbl" style="color:#f09595">ไม่พบหมากของคุณบนสนามรบ</span>`;
-    if(myTok2){ const ok=document.createElement('button'); ok.className='btn sm'; ok.textContent='✓ เดินมาที่นี่'; ok.onclick=moveConfirm; ctl.appendChild(ok); }
     const no2=document.createElement('button'); no2.className='btn ghost sm'; no2.textContent='ยกเลิก'; no2.onclick=moveCancel; ctl.appendChild(no2);
     box.appendChild(ctl);
   }
@@ -3906,7 +3923,7 @@ window.cc = (function(){
       {label:'ถอยห่าง',         commit:{slot:'movement', label:'ถอยห่างจากศัตรู'}},
       {label:'หาที่กำบัง',       commit:{slot:'movement', label:'เคลื่อนไปหาที่กำบัง'}},
       {label:'ปีน/กระโดด',      commit:{slot:'movement', label:'ปีน/กระโดด', dice:'1d20 Athletics'}},
-      {label:'🎯 เลือกช่องเดิน (แตะกริด)', moveGrid:true},
+      {label:'🚶 เลือกช่องเดิน (แตะกริด)', moveGrid:true},
       {label:'Stand up', meta:'1/2 cost', commit:{slot:'movement', label:'Stand'}}
     ]};
 
