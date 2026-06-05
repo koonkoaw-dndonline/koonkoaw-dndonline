@@ -751,11 +751,15 @@ body.role-player .dm-only{display:none!important;}
 .bs-hpbar{height:5px;border:1px solid rgba(255,255,255,.5);border-radius:3px;margin-top:4px;overflow:hidden;background:#000;}
 .bs-hpbar>div{height:100%;}
 #battleScene #narrFeed{padding:0;display:flex;flex-direction:column;gap:10px;}
-#battleScene #roundbar{border:0;padding:0;margin:0;max-width:none;}
+#battleScene #roundbar{border:0;padding:0;margin:0;max-width:100%;}
+#battleScene, #battleScene *{box-sizing:border-box;}
+#battleScene #roundbar textarea, #battleScene .cc-frame, #battleScene .cc-narr{width:100%;max-width:100%;}
+.bs-narr,.bs-log,.bs-init,.bs-cmd{overflow-wrap:anywhere;min-width:0;}
+.copt-h{font-size:12px;color:#9a9a9a;margin:4px 2px 2px;font-family:'IBM Plex Sans Thai',sans-serif;}
 @media (min-width:1024px){
   .bscene-stage{
     display:grid;
-    grid-template-columns:300px minmax(0,1fr) 360px;
+    grid-template-columns:minmax(300px,330px) minmax(0,1fr) minmax(400px,460px);
     grid-template-rows:auto minmax(0,1fr);
     grid-template-areas:"hud board cmd" "init narr log";
     gap:12px;
@@ -1933,18 +1937,19 @@ async function renderRoundbar(){
     const inCombat = cb.active || !!window._combatActive;   // server-authority: เปิดคอมแบตเองเมื่อมีศัตรู active (Gemini อาจลืม flag)
     if(econUsedRound!==curRound.id){ econUsed={}; econUsedRound=curRound.id; }  // รีเซ็ตมาร์กทุกรอบ
     if(inCombat){
-      // 3 แนวทางจาก DM — กดส่งได้ทันที (โอกาสสำเร็จสูง เข้ากับ narrative)
-      if(Array.isArray(cb.options) && cb.options.length){
-        const opts=document.createElement('div'); opts.className='copt';
-        cb.options.slice(0,3).forEach(o=>{ const ob=document.createElement('button'); ob.type='button'; ob.textContent=o; ob.onclick=()=>quickSubmit(o); opts.appendChild(ob); });
-        bar.appendChild(opts);
-      }
-      // เมนู COMBAT COMMAND ฝังในแถบเลย (แทนปุ่ม) — เรนเดอร์ผ่าน window.cc
+      // คำสั่ง COMBAT COMMAND ขึ้นบนสุด — เรนเดอร์ผ่าน window.cc
       if(typeof window.cc==='object' && window.cc && typeof window.cc.openInline==='function'){
         const frame=document.createElement('div'); frame.id='ccFrame'; frame.className='cc-frame cc-inline';
         bar.appendChild(frame);
         if(window.__ccRound!==curRound.id){ window.__ccRound=curRound.id; prepCommandContext().then(()=>{ try{ window.cc.openInline(); }catch(e){} }); }
         else { try{ window.cc.openInline(); }catch(e){} }
+      }
+      // ตามด้วย 3 ทางเลือกตาม narrative (ตรงกลาง) — กดส่งได้ทันที
+      if(Array.isArray(cb.options) && cb.options.length){
+        const opts=document.createElement('div'); opts.className='copt';
+        const oh=document.createElement('div'); oh.className='copt-h'; oh.textContent='— หรือเลือกแนวทางที่ DM เสนอ —'; opts.appendChild(oh);
+        cb.options.slice(0,3).forEach(o=>{ const ob=document.createElement('button'); ob.type='button'; ob.textContent=o; ob.onclick=()=>quickSubmit(o); opts.appendChild(ob); });
+        bar.appendChild(opts);
       }
     } else {
       const ta=document.createElement('textarea'); ta.id='actInput'; ta.placeholder='จะให้ตัวละครทำอะไร? พิมพ์ได้อิสระ'; if(keepAct) ta.value=keepAct; bar.appendChild(ta);
@@ -2689,7 +2694,7 @@ async function _renderCombatImpl(){
 }
 
 // ───────── Battle Scene (RPG cut-in overlay) ─────────
-var _bsShown=false, _bsRelocated=false, _bsRenderT=null;
+var _bsShown=false, _bsRelocated=false, _bsRenderT=null, _bsRendering=false;
 function ensureBattleScene(){
   var el=document.getElementById('battleScene');
   if(!el){
@@ -2709,20 +2714,19 @@ function ensureBattleScene(){
   return el;
 }
 function relocateForBattle(on){
-  var nf=document.getElementById('narrFeed'), rb=document.getElementById('roundbar'), ps=document.getElementById('panel-story');
+  var rb=document.getElementById('roundbar'), ps=document.getElementById('panel-story');
   if(on){
     if(_bsRelocated) return;
-    var nw=document.getElementById('bsNarrWrap'), cw=document.getElementById('bsCmdWrap');
-    if(nf&&nw) nw.appendChild(nf);
-    if(rb&&cw) cw.appendChild(rb);
+    var cw=document.getElementById('bsCmdWrap');
+    if(rb&&cw) cw.appendChild(rb);   // ย้ายเฉพาะกล่องคำสั่ง (roundbar) — narrFeed คงไว้ที่ story (ฉากรบแสดงเฉพาะบทบรรยายการต่อสู้ล่าสุดแทน)
     _bsRelocated=true;
   } else {
     if(!_bsRelocated) return;
-    if(ps){ if(nf) ps.appendChild(nf); if(rb) ps.appendChild(rb); }
+    if(ps&&rb) ps.appendChild(rb);   // คืน roundbar ต่อท้าย narrFeed
     _bsRelocated=false;
   }
 }
-function scheduleBattleScene(){ clearTimeout(_bsRenderT); _bsRenderT=setTimeout(function(){ syncBattleScene(); }, 150); }
+function scheduleBattleScene(){ clearTimeout(_bsRenderT); _bsRenderT=setTimeout(function(){ syncBattleScene(); }, 350); }
 async function syncBattleScene(){
   if(typeof campaign==='undefined' || !campaign) return;
   let enc=null;
@@ -2752,22 +2756,39 @@ function exitBattleScene(){
 }
 async function renderBattleScene(){
   if(!_bsShown) return;
-  ensureBattleScene();
-  try{ renderClock(); var wc=document.getElementById('worldClock'), hud=document.getElementById('bsHud'); if(wc&&hud) hud.innerHTML=wc.innerHTML; }catch(e){}
-  var board=document.getElementById('bsBoard'); if(board){ board.innerHTML=''; try{ await renderBattleGrid(board); }catch(e){} if(!board.children.length){ board.innerHTML='<div class="note" style="text-align:center;padding:16px;color:#9a9a9a">— ยังไม่มีสนามรบ —</div>'; } }
-  try{ await renderBattleInitLog(document.getElementById('bsInit'), document.getElementById('bsLog')); }catch(e){}
-  // อัปเดต "ถึงตาใคร" + กล่องสั่ง (roundbar ที่ย้ายเข้าฉาก) ทุกครั้ง — ไม่งั้นกล่องสั่ง companion/ผู้เล่นไม่โผล่เมื่อไม่ได้อยู่แท็บ story
-  try{ await refreshCombatTurn(); }catch(e){}
-  try{ await renderRoundbar(); }catch(e){}
+  if(_bsRendering) return;   // กันเรนเดอร์ซ้อน (ต้นเหตุภาพกระพริบ)
+  _bsRendering=true;
+  try{
+    ensureBattleScene();
+    try{ renderClock(); var wc=document.getElementById('worldClock'), hud=document.getElementById('bsHud'); if(wc&&hud && hud.innerHTML!==wc.innerHTML) hud.innerHTML=wc.innerHTML; }catch(e){}
+    // เรนเดอร์ grid ลงกล่องชั่วคราวก่อน แล้วค่อยสลับทีเดียว (ไม่ให้จอว่างระหว่างโหลด = ไม่กระพริบ)
+    var board=document.getElementById('bsBoard');
+    if(board){ var _tmp=document.createElement('div'); try{ await renderBattleGrid(_tmp); }catch(e){} if(!_tmp.children.length){ _tmp.innerHTML='<div class="note" style="text-align:center;padding:16px;color:#9a9a9a">— ยังไม่มีสนามรบ —</div>'; } board.replaceChildren.apply(board, Array.prototype.slice.call(_tmp.childNodes)); }
+    try{ await renderBattleInitLog(document.getElementById('bsInit'), document.getElementById('bsLog')); }catch(e){}
+    // บรรยายเฉพาะการต่อสู้ (3 บทล่าสุด) — ไม่เอาเนื้อเรื่องเก่ามาแปะ
+    try{
+      var nw=document.getElementById('bsNarrWrap');
+      if(nw){
+        var _rec=(typeof narrative!=='undefined'?narrative:[]).filter(function(n){return n && n.status!=='placeholder' && n.content;}).slice(-3);
+        var _nf=document.createDocumentFragment();
+        _rec.forEach(function(n){ var d=document.createElement('div'); d.className='narr'; d.innerHTML='<div class="meta">🎲 DM</div><div class="narrc">'+colorizeNarr(n.content)+'</div>'; _nf.appendChild(d); });
+        if(!_nf.childNodes.length){ var _e=document.createElement('div'); _e.className='note'; _e.style.color='#9a9a9a'; _e.textContent='— รอการบรรยายการต่อสู้ —'; _nf.appendChild(_e); }
+        nw.replaceChildren(_nf);
+        var _box=nw.closest('.bs-narr')||nw; setTimeout(function(){ _box.scrollTop=_box.scrollHeight; },0);
+      }
+    }catch(e){}
+    try{ await refreshCombatTurn(); }catch(e){}
+    try{ await renderRoundbar(); }catch(e){}
+  } finally { _bsRendering=false; }
 }
 async function renderBattleInitLog(initEl, logEl){
-  if(initEl) initEl.innerHTML=''; if(logEl) logEl.innerHTML='';
   let enc=null;
   try{ const r=await supa.from('combat_encounters').select('*').eq('campaign_id',campaign.id).neq('status','ended').maybeSingle(); if(!r.error) enc=r.data; }catch(e){}
-  if(!enc) return;
+  if(!enc){ if(initEl) initEl.replaceChildren(); if(logEl) logEl.replaceChildren(); return; }
   let ents=[]; try{ const r=await supa.from('initiative_entries').select('*').eq('encounter_id',enc.id).order('sort',{ascending:true,nullsFirst:false}); ents=r.data||[]; }catch(e){}
   let csMap={}; try{ const r=await supa.from('combat_state').select('id,cur_hp,monsters(max_hp,name)').eq('campaign_id',campaign.id); (r.data||[]).forEach(x=>csMap[x.id]=x); }catch(e){}
   if(initEl){
+    const _frag=document.createDocumentFragment();
     ents.filter(e=>e.is_active).forEach(e=>{
       const isParty=e.side==='party'; let hpTxt='', pct=null;
       if(isParty){ const c=characters.find(x=>x.id===e.character_id); const hp=(c&&c.public_status&&c.public_status.hp)||''; hpTxt=hp; if(/^\d+\/\d+/.test(String(hp))){ const m=String(hp).split('/'); pct=Math.max(0,Math.min(1,(+m[0])/(+m[1]||1))); } }
@@ -2777,15 +2798,18 @@ async function renderBattleInitLog(initEl, logEl){
       let bar=''; if(pct!=null){ const co=pct<=0.34?'#E24B4A':pct<=0.67?'#EF9F27':'#97C459'; bar='<div class="bs-hpbar"><div style="width:'+Math.round(pct*100)+'%;background:'+co+'"></div></div>'; }
       const row=document.createElement('div'); row.className='bs-initrow'+(mine?' me':''); row.style.borderColor=col;
       row.innerHTML='<span class="bs-ini">'+(e.initiative==null?'?':e.initiative)+'</span><span class="bs-iname">'+escapeHtml(e.display_name)+(mine?' (คุณ)':'')+'<span class="muted" style="font-size:11px">'+conds+'</span>'+bar+'</span><span class="bs-ihp" style="color:'+col+'">'+escapeHtml(hpTxt||'')+'</span>';
-      initEl.appendChild(row);
+      _frag.appendChild(row);
     });
-    if(!initEl.children.length) initEl.innerHTML='<div class="note" style="color:#9a9a9a">— รอลำดับการรบ —</div>';
+    if(!_frag.childNodes.length){ const d=document.createElement('div'); d.className='note'; d.style.color='#9a9a9a'; d.textContent='— รอลำดับการรบ —'; _frag.appendChild(d); }
+    initEl.replaceChildren(_frag);
   }
   if(logEl){
     let logs=[]; try{ const r=await supa.from('combat_log').select('*').eq('encounter_id',enc.id).order('created_at',{ascending:true}).limit(80); logs=r.data||[]; }catch(e){}
     const ICON={initiative:'🎲',attack:'🎲',damage:'💥',heal:'💚',save:'🛡',check:'🎯',move:'👣',condition:'⭐',death:'☠',flee:'🏃',round_advance:'🔄',note:'📝'};
-    logs.forEach(l=>{ const d=document.createElement('div'); d.className='bs-logrow'; if(l.entry_type==='round_advance') d.style.color='#9a9a9a'; d.innerHTML=(ICON[l.entry_type]||'•')+' '+escapeHtml(l.summary); logEl.appendChild(d); });
-    if(!logEl.children.length) logEl.innerHTML='<div class="note" style="color:#9a9a9a">— ยังไม่มีบันทึกการรบ —</div>';
+    const _lfrag=document.createDocumentFragment();
+    logs.forEach(l=>{ const d=document.createElement('div'); d.className='bs-logrow'; if(l.entry_type==='round_advance') d.style.color='#9a9a9a'; d.innerHTML=(ICON[l.entry_type]||'•')+' '+escapeHtml(l.summary); _lfrag.appendChild(d); });
+    if(!_lfrag.childNodes.length){ const d=document.createElement('div'); d.className='note'; d.style.color='#9a9a9a'; d.textContent='— ยังไม่มีบันทึกการรบ —'; _lfrag.appendChild(d); }
+    logEl.replaceChildren(_lfrag);
     setTimeout(function(){ logEl.scrollTop=logEl.scrollHeight; },0);
   }
 }
@@ -3258,7 +3282,7 @@ function exportChronicle(){
 function subscribeRealtime(){
   if(rtChannel) return;
   rtChannel = supa.channel('camp-'+campaign.id)
-    .on('postgres_changes',{event:'*',schema:'public',table:'narrative',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ rtLastSyncTs=Date.now(); if(payload&&payload.new&&payload.eventType!=='DELETE'){ mergeNarrative(payload.new); } else { await loadNarrative(); } if(activeTab()==='story') renderStory(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'narrative',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ rtLastSyncTs=Date.now(); if(payload&&payload.new&&payload.eventType!=='DELETE'){ mergeNarrative(payload.new); } else { await loadNarrative(); } if(activeTab()==='story') renderStory(); if(typeof scheduleBattleScene==='function') scheduleBattleScene(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'rounds',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); await loadRound(); if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'actions',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'characters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadCharacters(); if(activeTab()==='party') renderParty(); })
