@@ -4142,6 +4142,19 @@ window.cc = (function(){
         handleClick(item);
       });
     }
+    // iOS: บาง Safari ไม่ยิง click จาก <div> → จับ touchend เองให้กดเมนูย่อยได้ (กัน ghost click ด้วย preventDefault)
+    var _ccMenuEl=document.getElementById('ccMenu');
+    if(_ccMenuEl){
+      var _tps=null;
+      _ccMenuEl.addEventListener('touchstart', function(ev){ var t=ev.touches&&ev.touches[0]; _tps=t?{x:t.clientX,y:t.clientY}:null; }, {passive:true});
+      _ccMenuEl.addEventListener('touchend', function(ev){
+        var it=ev.target&&ev.target.closest&&ev.target.closest('#ccMenu .cc-item'); if(!it) return;
+        if(_tps){ var t=ev.changedTouches&&ev.changedTouches[0]; if(t&&(Math.abs(t.clientX-_tps.x)>12||Math.abs(t.clientY-_tps.y)>12)) return; }
+        var idx=parseInt(it.getAttribute('data-idx'),10); var item=m.items[idx];
+        if(!item||item.dim) return;
+        ev.preventDefault(); handleClick(item);
+      }, {passive:false});
+    }
     document.getElementById('ccSubmit').addEventListener('click', onSubmit);
     document.getElementById('ccReset').addEventListener('click', function(){
       resetTurn(); renderAll();
@@ -4209,7 +4222,7 @@ window.cc = (function(){
       bd.classList.add('on');
       var d=Math.max(0, stack.length-2);   // เหลื่อมซ้อนตามชั้นที่กดเข้าไป
       var col=document.querySelector('#battleScene .bs-right');
-      if(col){ var cr=col.getBoundingClientRect(); fr.style.left=Math.round(cr.left)+'px'; fr.style.width=Math.round(cr.width)+'px'; fr.style.top=Math.round(cr.top+8+d*14)+'px'; fr.style.transform='none'; }
+      if(col){ var cr=col.getBoundingClientRect(); fr.style.left=Math.round(cr.left-100-d*16)+'px'; fr.style.width=Math.round(cr.width)+'px'; fr.style.top=Math.round(cr.top+8+d*14)+'px'; fr.style.transform='none'; }
       else { fr.style.left='50%'; fr.style.top='42%'; fr.style.width=''; fr.style.transform='translate(-50%,-50%)'; }
     } else {
       if(bd) bd.classList.remove('on');
