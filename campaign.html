@@ -2363,16 +2363,6 @@ async function renderParty(){
   const left=document.createElement('div'); const right=document.createElement('div');
   grid.appendChild(left); grid.appendChild(right); p.appendChild(grid);
   // ── สมาชิก (เรียงบน→ล่าง ทุกคนรวมตัวเอง) + สถานะ/บัฟย่อๆ ให้ทุกคนเห็น ──
-  // รหัสเชิญ (เด่นๆ — เห็นชัดบนมือถือ, กดคัดลอกได้)
-  if(campaign.join_code){
-    const cc=document.createElement('div'); cc.className='item'; cc.innerHTML='<div class="sectitle">INVITE CODE</div>';
-    const crow=document.createElement('div'); crow.style.cssText='display:flex;align-items:center;gap:10px;margin-top:6px';
-    const cnum=document.createElement('div'); cnum.textContent=campaign.join_code; cnum.style.cssText="font-family:'VT323',monospace;font-size:30px;line-height:1;letter-spacing:6px;color:#fff;border:2px solid #fff;border-radius:8px;padding:8px 14px;flex:1;text-align:center";
-    const ccp=document.createElement('button'); ccp.className='btn sm'; ccp.textContent='คัดลอก'; ccp.onclick=()=>{ try{ navigator.clipboard&&navigator.clipboard.writeText(campaign.join_code); }catch(e){} toast('คัดลอกรหัสแล้ว ✓'); };
-    crow.appendChild(cnum); crow.appendChild(ccp); cc.appendChild(crow);
-    const chint=document.createElement('div'); chint.className='note'; chint.style.cssText='text-align:left;padding:6px 2px 0'; chint.textContent='ให้เพื่อนกรอกรหัสนี้ในหน้า Join เพื่อเข้าร่วมแคมเปญ'; cc.appendChild(chint);
-    left.appendChild(cc);
-  }
   const head=document.createElement('div'); head.className='item'; head.innerHTML='<div class="sectitle">PARTY</div>'; left.appendChild(head);
   const all=characters.slice();
   if(!all.length){ const d=document.createElement('div'); d.className='muted'; d.textContent='No party members yet — share the invite code with friends'; left.appendChild(d); }
