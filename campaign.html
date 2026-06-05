@@ -2156,10 +2156,10 @@ async function startFirstScene(){ resolveRound(false); }
 function setMyThinking(on){
   try { if (typeof rtChannel !== 'undefined' && rtChannel && typeof rtChannel.track === 'function') rtChannel.track({ thinking: !!on, uid: (me && me.id) || 'anon', at: Date.now() }); } catch(e){}
 }
-var _autoChain=0;
+var _autoChain=0, _retryChain=0;
 async function resolveRound(force, mode){
   if(resolving) return; resolving=true; renderRoundbar();
-  var _again=false;
+  var _again=false, _retry=false;
   // บอกผู้เล่นคนอื่นว่า DM กำลังทำงาน (presence broadcast)
   setMyThinking(true);
   try{
@@ -2168,16 +2168,17 @@ async function resolveRound(force, mode){
     const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
       body:JSON.stringify(body)});
     const j=await r.json();
-    if(!r.ok){ toast((j.error||'Resolve failed')+(j.detail?(' — '+String(j.detail).slice(0,140)):''),true); }
+    if(!r.ok){ if(r.status>=500){ _retry=true; } toast((j.error||'Resolve failed')+(j.detail?(' — '+String(j.detail).slice(0,140)):''),true); }
     else if(j.status==='waiting'){ toast(`Waiting for everyone (${j.submitted}/${j.total})`); }
     else if(j.status==='busy'){ /* someone else is resolving */ }
     else if(j.status==='intro'){ toast('โลกถูกสร้างแล้ว — สร้างตัวละครได้เลย!'); }
     else if(j.status==='opened'||j.status==='resolved'){ if(j.auto_next){ _again=true; } else { toast(j.status==='opened'?'Scene opened!':'The DM continued the story!'); } }
-  }catch(e){ toast('Could not reach the resolver',true); }
+  }catch(e){ _retry=true; toast('Could not reach the resolver',true); }
   finally{
     resolving=false; setMyThinking(false); await refreshAll(); renderStory();
-    if(_again && _autoChain<24){ _autoChain++; setTimeout(function(){ resolveRound(false); }, 600); }
-    else { _autoChain=0; }
+    if(_again && _autoChain<24){ _autoChain++; _retryChain=0; setTimeout(function(){ resolveRound(false); }, 600); }
+    else if(_retry && _retryChain<2){ _retryChain++; setTimeout(function(){ resolveRound(false); }, 2500); }
+    else { _autoChain=0; _retryChain=0; }
   }
 }
 
@@ -3556,6 +3557,20 @@ function exportChronicle(){
 // ───────── realtime ─────────
 function subscribeRealtime(){
   if(rtChannel) return;
+  // watchdog: ถ้ารอบค้าง "resolving" นานเกิน ~100 วิ → เรียก resolve เพื่อกระตุ้นการกู้ฝั่ง server (กันค้างถาวร)
+  if(!window._combatWatchdog){
+    window._combatWatchdog = setInterval(async function(){
+      try{
+        if(typeof campaign==='undefined'||!campaign) return;
+        if(typeof resolving!=='undefined' && resolving) return;
+        const r=await supa.from('rounds').select('id,phase').eq('campaign_id',campaign.id).order('round_number',{ascending:false}).limit(1).maybeSingle();
+        if(!r.data || r.data.phase!=='resolving') return;
+        const pp=await supa.from('narrative').select('created_at').eq('round_id',r.data.id).eq('status','placeholder').order('created_at',{ascending:false}).limit(1).maybeSingle();
+        const age=pp.data?(Date.now()-new Date(pp.data.created_at).getTime()):999999;
+        if(age>100000 && Date.now()-(window._wdLast||0)>90000){ window._wdLast=Date.now(); console.log('[watchdog] รอบค้าง resolving → กระตุ้นกู้'); if(typeof resolveRound==='function') resolveRound(false); }
+      }catch(e){}
+    }, 30000);
+  }
   rtChannel = supa.channel('camp-'+campaign.id)
     .on('postgres_changes',{event:'*',schema:'public',table:'narrative',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ rtLastSyncTs=Date.now(); if(payload&&payload.new&&payload.eventType!=='DELETE'){ mergeNarrative(payload.new); } else { await loadNarrative(); } if(activeTab()==='story') renderStory(); if(typeof scheduleBattleScene==='function') scheduleBattleScene(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'rounds',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); await loadRound(); if(activeTab()==='story') renderRoundbar(); })
