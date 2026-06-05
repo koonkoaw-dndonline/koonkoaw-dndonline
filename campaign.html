@@ -1874,7 +1874,7 @@ let _combatRenderT=null;
 function scheduleCombatRender(){ clearTimeout(_combatRenderT); _combatRenderT=setTimeout(()=>{ if(activeTab()==='mon') renderCombat(); }, 200); }   // รวมการ re-render หลายครั้งจาก combat_log/initiative ที่มารัวๆ ให้เหลือครั้งเดียว
 async function refreshCombatTurn(){
   try{
-    const er=await supa.from('combat_encounters').select('id,active_entry_id,status').eq('campaign_id',campaign.id).eq('active',true).maybeSingle();
+    const er=await supa.from('combat_encounters').select('id,active_entry_id,status').eq('campaign_id',campaign.id).eq('status','active').maybeSingle();   // combat_encounters ใช้ status (ไม่มีคอลัมน์ active)
     if(!er.data){ gCombat={active:false,activeCharId:null,activeName:null}; return; }
     let charId=null,name=null;
     if(er.data.active_entry_id){ const e2=await supa.from('initiative_entries').select('character_id,display_name').eq('id',er.data.active_entry_id).maybeSingle(); if(e2.data){ charId=e2.data.character_id; name=e2.data.display_name; } }
