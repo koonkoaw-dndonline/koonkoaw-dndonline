@@ -699,7 +699,7 @@ body.role-player .dm-only{display:none!important;}
 .cc-item,.cc-btn,.copt button,.bs-mobbar button,.bs-chat-in button,.bs-sheet-close,.sk-chip{touch-action:manipulation;}
 .cc-backdrop{display:none;}
 @media (min-width:1024px){
-  .cc-frame.cc-windowed{position:fixed;width:auto;min-width:100px;max-width:150px;max-height:80vh;overflow-y:auto;z-index:4205;box-shadow:0 12px 48px rgba(0,0,0,.85);border-radius:12px;}
+  .cc-frame.cc-windowed{position:fixed;max-height:80vh;overflow-y:auto;z-index:4205;box-shadow:0 12px 48px rgba(0,0,0,.85);border-radius:12px;}
   .cc-backdrop.on{display:block;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:4190;}
 }
 /* Phase B: readable cc fonts + sequence panel + narrate DQ box */
@@ -785,7 +785,7 @@ body.role-player .dm-only{display:none!important;}
 }
 .bs-panelttl{font-family:'Press Start 2P',monospace;font-size:8px;letter-spacing:1px;color:#fff;border-bottom:2px solid #fff;padding:3px 2px 7px;margin-bottom:7px;}
 .bs-init-list,.bs-log-list{display:flex;flex-direction:column;gap:5px;}
-.bs-log-list{max-height:240px;overflow-y:auto;font-family:'IBM Plex Sans Thai',sans-serif;font-size:13px;line-height:1.5;color:#fff;}
+.bs-log-list{font-family:'IBM Plex Sans Thai',sans-serif;font-size:13px;line-height:1.5;color:#fff;}
 .bs-logrow{padding:1px 0;}
 .bs-initrow{display:flex;align-items:center;gap:9px;padding:3px 2px;font-family:'IBM Plex Sans Thai',sans-serif;white-space:nowrap;}
 .bs-initrow.me .bs-iname{text-decoration:underline;}
@@ -4208,11 +4208,12 @@ window.cc = (function(){
       if(bd.parentNode!==host) host.appendChild(bd);
       bd.classList.add('on');
       var d=Math.max(0, stack.length-2);   // เหลื่อมซ้อนตามชั้นที่กดเข้าไป
-      fr.style.left='50%'; fr.style.top='42%';
-      fr.style.transform='translate(calc(-50% + '+(d*18)+'px), calc(-50% + '+(d*18)+'px))';
+      var col=document.querySelector('#battleScene .bs-right');
+      if(col){ var cr=col.getBoundingClientRect(); fr.style.left=Math.round(cr.left)+'px'; fr.style.width=Math.round(cr.width)+'px'; fr.style.top=Math.round(cr.top+8+d*14)+'px'; fr.style.transform='none'; }
+      else { fr.style.left='50%'; fr.style.top='42%'; fr.style.width=''; fr.style.transform='translate(-50%,-50%)'; }
     } else {
       if(bd) bd.classList.remove('on');
-      fr.style.left=''; fr.style.top=''; fr.style.transform='';
+      fr.style.left=''; fr.style.top=''; fr.style.width=''; fr.style.transform='';
     }
   }
   function renderAll(){
