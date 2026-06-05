@@ -752,6 +752,9 @@ body.role-player .dm-only{display:none!important;}
 #battleScene .cc-frame{font-size:12.5px;padding:8px 10px;}
 #battleScene .cc-item{font-size:13px;padding-top:9px;padding-bottom:9px;}
 .cc-item.cc-root{font-family:'Press Start 2P',monospace;font-size:9px;letter-spacing:.5px;line-height:1.55;}
+/* แบตเทิลกริดอยู่กึ่งกลาง */
+#battleScene .bs-board{text-align:center;}
+#battleScene .bs-board svg{margin-left:auto !important;margin-right:auto !important;}
 .bs-panelttl{font-family:'Press Start 2P',monospace;font-size:8px;letter-spacing:1px;color:#fff;border-bottom:2px solid #fff;padding:3px 2px 7px;margin-bottom:7px;}
 .bs-init-list,.bs-log-list{display:flex;flex-direction:column;gap:5px;}
 .bs-log-list{max-height:240px;overflow-y:auto;font-family:'IBM Plex Sans Thai',sans-serif;font-size:13px;line-height:1.5;color:#fff;}
@@ -776,9 +779,17 @@ body.role-player .dm-only{display:none!important;}
   .bs-right{flex:0 0 430px;}
 }
 @media (max-width:1023px){
+  /* มือถือ: เรียงทุกส่วนต่อกันตามความสูงจริง แล้วเลื่อนทั้งฉากได้ (กันถูกบีบจนหาย) */
+  .bscene-stage{flex-direction:column;}
   .bscene-stage .bs-center{order:1;}
   .bscene-stage .bs-right{order:2;}
   .bscene-stage .bs-left{order:3;}
+  .bs-col{flex:0 0 auto;}
+  .bs-board{flex:0 0 auto;}
+  .bs-narr,.bs-log,.bs-chat{flex:0 0 auto;}
+  .bs-narr{min-height:180px;max-height:55vh;}
+  .bs-log{min-height:130px;max-height:40vh;}
+  .bs-chat{min-height:150px;max-height:45vh;}
   .bs-init{max-height:none;}
 }
 </style>
@@ -2795,8 +2806,10 @@ async function renderBattleScene(){
         var _nf=document.createDocumentFragment();
         _rec.forEach(function(n){ var d=document.createElement('div'); d.className='narr'; d.innerHTML='<div class="meta">🎲 DM</div><div class="narrc">'+colorizeNarr(n.content)+'</div>'; _nf.appendChild(d); });
         if(!_nf.childNodes.length){ var _e=document.createElement('div'); _e.className='note'; _e.style.color='#9a9a9a'; _e.textContent='— รอการบรรยายการต่อสู้ —'; _nf.appendChild(_e); }
+        var _box=nw.closest('.bs-narr')||nw;
+        var _near=(_box.scrollHeight-_box.scrollTop-_box.clientHeight)<80, _prev=_box.scrollTop;
         nw.replaceChildren(_nf);
-        var _box=nw.closest('.bs-narr')||nw; setTimeout(function(){ _box.scrollTop=_box.scrollHeight; },0);
+        setTimeout(function(){ _box.scrollTop=_near?_box.scrollHeight:_prev; },0);
       }
     }catch(e){}
     try{ renderBattleChat(); }catch(e){}
@@ -2832,8 +2845,9 @@ async function renderBattleInitLog(initEl, logEl){
     const _lfrag=document.createDocumentFragment();
     logs.forEach(l=>{ const d=document.createElement('div'); d.className='bs-logrow'; if(l.entry_type==='round_advance') d.style.color='#9a9a9a'; d.innerHTML=(ICON[l.entry_type]||'•')+' '+escapeHtml(l.summary); _lfrag.appendChild(d); });
     if(!_lfrag.childNodes.length){ const d=document.createElement('div'); d.className='note'; d.style.color='#9a9a9a'; d.textContent='— ยังไม่มีบันทึกการรบ —'; _lfrag.appendChild(d); }
+    var _lnear=(logEl.scrollHeight-logEl.scrollTop-logEl.clientHeight)<80, _lprev=logEl.scrollTop;
     logEl.replaceChildren(_lfrag);
-    setTimeout(function(){ logEl.scrollTop=logEl.scrollHeight; },0);
+    setTimeout(function(){ logEl.scrollTop=_lnear?logEl.scrollHeight:_lprev; },0);
   }
 }
 function _bsChatName(uid){ try{ return chatNameFor(uid); }catch(e){ return 'Player'; } }
@@ -2846,8 +2860,9 @@ function renderBattleChat(){
     frag.appendChild(d);
   });
   if(!frag.childNodes.length){ var e=document.createElement('div'); e.className='note'; e.style.color='#9a9a9a'; e.textContent='— ยังไม่มีข้อความ —'; frag.appendChild(e); }
+  var _cnear=(el.scrollHeight-el.scrollTop-el.clientHeight)<80, _cprev=el.scrollTop;
   el.replaceChildren(frag);
-  setTimeout(function(){ el.scrollTop=el.scrollHeight; },0);
+  setTimeout(function(){ el.scrollTop=_cnear?el.scrollHeight:_cprev; },0);
 }
 async function sendBattleChat(){
   var ta=document.getElementById('bsChatInput'); var body=ta&&ta.value.trim(); if(!body) return;
@@ -3429,6 +3444,7 @@ async function prepCommandContext(){
     ctx.attack={ name:_wn||'อาวุธ', line:`1d20${_sg(_prof+_am)} atk, ${_dd}${_sg(_am)} dmg` };
   }catch(e){ ctx.attack={name:'อาวุธ',line:'1d20 atk'}; }
   try{ ctx.interactables=(typeof curRound!=='undefined'&&curRound&&curRound.meta&&Array.isArray(curRound.meta.interactables))?curRound.meta.interactables:[]; }catch(e){ ctx.interactables=[]; }
+  try{ const _inv=(mySheet&&Array.isArray(mySheet.inventory))?mySheet.inventory:[]; ctx.inventory=_inv.map(function(it){ return {name:(it&&it.name)||String(it||''), qty:(it&&it.qty)||1}; }).filter(function(x){return x.name;}); }catch(e){ ctx.inventory=[]; }
   window.__ccCtx=ctx;
 }
 window.cc = (function(){
@@ -3657,10 +3673,10 @@ window.cc = (function(){
 
     if(last==='use_object'){
       var uobj=[];
-      try{ ((window.__ccCtx&&window.__ccCtx.interactables)||[]).slice(0,6).forEach(function(it){ uobj.push({label:it.label, meta:it.desc||'', commit:{slot:'action', label:'ใช้ '+it.label}}); }); }catch(e){}
-      uobj.push({label:'Drink Potion',      commit:{slot:'action', label:'Drink Potion', dice:'2d4+2 heal'}});
-      uobj.push({label:'Light Torch',       commit:{slot:'action', label:'Light Torch'}});
-      uobj.push({label:'Unlock door (Dex)', commit:{slot:'action', label:'Unlock door', dice:'1d20+3 vs DC'}});
+      // เฉพาะของจริง: สิ่งของในฉาก (interactables) + ไอเทมในกระเป๋าตัวละคร
+      try{ ((window.__ccCtx&&window.__ccCtx.interactables)||[]).slice(0,8).forEach(function(it){ uobj.push({label:it.label, meta:(it.desc||'ในฉาก'), commit:{slot:'action', label:'ใช้ '+it.label}}); }); }catch(e){}
+      try{ ((window.__ccCtx&&window.__ccCtx.inventory)||[]).slice(0,14).forEach(function(it){ uobj.push({label:it.name+(it.qty>1?(' x'+it.qty):''), meta:'ในกระเป๋า', commit:{slot:'action', label:'ใช้ '+it.name}}); }); }catch(e){}
+      if(!uobj.length) uobj.push({label:'(ไม่มีสิ่งของให้ใช้ในฉากหรือกระเป๋า)', dim:true});
       return { items: uobj };
     }
 
