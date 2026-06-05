@@ -698,8 +698,7 @@ body.role-player .dm-only{display:none!important;}
 .cc-inline .cc-close{display:none;}
 .cc-backdrop{display:none;}
 @media (min-width:1024px){
-  .cc-frame.cc-windowed{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:460px;max-width:92vw;max-height:82vh;overflow-y:auto;z-index:4200;box-shadow:0 12px 48px rgba(0,0,0,.75);border-radius:14px;animation:ccWinIn .14s ease;}
-  @keyframes ccWinIn{from{transform:translate(-50%,-46%);opacity:.5}to{transform:translate(-50%,-50%);opacity:1}}
+  .cc-frame.cc-windowed{position:fixed;width:auto;min-width:230px;max-width:360px;max-height:80vh;overflow-y:auto;z-index:4205;box-shadow:0 12px 48px rgba(0,0,0,.85);border-radius:12px;}
   .cc-backdrop.on{display:block;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:4190;}
 }
 /* Phase B: readable cc fonts + sequence panel + narrate DQ box */
@@ -4192,11 +4191,19 @@ window.cc = (function(){
     var fr=document.getElementById('ccFrame'); if(!fr) return;
     var win = (phase==='building' && stack.length>1 && window.matchMedia && window.matchMedia('(min-width:1024px)').matches);
     fr.classList.toggle('cc-windowed', win);
+    var host=document.getElementById('battleScene')||document.body;
     var bd=document.getElementById('ccBackdrop');
     if(win){
-      if(!bd){ bd=document.createElement('div'); bd.id='ccBackdrop'; bd.className='cc-backdrop'; bd.addEventListener('click', function(){ stack=['root']; renderAll(); }); document.body.appendChild(bd); }
+      if(!bd){ bd=document.createElement('div'); bd.id='ccBackdrop'; bd.className='cc-backdrop'; bd.addEventListener('click', function(){ stack=['root']; renderAll(); }); }
+      if(bd.parentNode!==host) host.appendChild(bd);
       bd.classList.add('on');
-    } else if(bd){ bd.classList.remove('on'); }
+      var d=Math.max(0, stack.length-2);   // เหลื่อมซ้อนตามชั้นที่กดเข้าไป
+      fr.style.left='50%'; fr.style.top='42%';
+      fr.style.transform='translate(calc(-50% + '+(d*18)+'px), calc(-50% + '+(d*18)+'px))';
+    } else {
+      if(bd) bd.classList.remove('on');
+      fr.style.left=''; fr.style.top=''; fr.style.transform='';
+    }
   }
   function renderAll(){
     try {
