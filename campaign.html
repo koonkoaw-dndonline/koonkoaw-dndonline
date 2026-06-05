@@ -351,8 +351,14 @@ body.ui-min #worldClock{display:none!important;}
   .panel[data-tab="story"].active #worldClock{grid-column:1 / -1;grid-row:1;}
   .panel[data-tab="story"].active #narrFeed{
     grid-column:1;grid-row:2;min-width:0;
-    overflow-y:auto;max-height:100%;padding-right:14px;   /* แถบ scroll ติดเนื้อเรื่อง */
+    overflow-y:auto;max-height:100%;padding-right:8px;   /* แถบ scroll ติดเนื้อเรื่อง */
+    scrollbar-width:thin;scrollbar-color:#2a2a2a transparent;
   }
+  /* แก้บั๊ก: scrollbar ขาวหนาลอยในช่องว่าง → ทำให้บางและกลืนพื้นหลัง */
+  .panel[data-tab="story"].active #narrFeed::-webkit-scrollbar{width:8px;}
+  .panel[data-tab="story"].active #narrFeed::-webkit-scrollbar-track{background:transparent;}
+  .panel[data-tab="story"].active #narrFeed::-webkit-scrollbar-thumb{background:#2a2a2a;border:0;border-radius:4px;}
+  .panel[data-tab="story"].active #narrFeed::-webkit-scrollbar-thumb:hover{background:#444;}
   .panel[data-tab="story"].active .roundbar{
     grid-column:2;grid-row:2;align-self:stretch;
     overflow-y:auto;max-height:100%;                       /* ปกติไม่เลื่อน เผื่อยาวมากค่อยเลื่อนเฉพาะกล่องนี้ */
@@ -1947,7 +1953,7 @@ async function renderRoundbar(){
     if(!inCombat){
     if(rr.needed){
       const dice=document.createElement('div'); dice.className='dicerow';
-      const reason = rr.reason? escapeHtml(rr.reason) : 'DM ขอให้ทอยเต๋า';
+      const reason = rr.reason ? (escapeHtml(String(rr.reason).slice(0,140))+(String(rr.reason).length>140?'…':'')) : 'DM ขอให้ทอยเต๋า';   // clamp กันเหตุผลยาวผิดปกติ
       const itemsTxt = (Array.isArray(rr.items)&&rr.items.length)? rr.items.map(it=>`${it.label||'Roll'} ${it.formula||'1d20'}${it.ability?(' +'+it.ability):''}`).join(', ') : '';
       dice.innerHTML='<span class="dicelbl">🎲 DM ขอให้ทอย: '+reason+(itemsTxt?(' <span style="color:#9a9a9a">('+escapeHtml(itemsTxt)+')</span>'):'')+'</span>';
       const dm=document.createElement('button'); dm.className='btn ghost sm'; dm.textContent='DM ทอยให้'; dm.onclick=()=>rollDM(rr.items); dice.appendChild(dm);
