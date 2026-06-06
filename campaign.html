@@ -2083,6 +2083,13 @@ async function renderRoundbar(){
       };
       w.appendChild(rb);
     }
+    // host สลบอยู่ก็ยังต้องคุมเกมได้ — ปุ่มข้ามเทิร์นคนที่ไม่อยู่ แสดงในแผงคนสลบด้วย
+    if(isHost && typeof gCombat!=='undefined' && gCombat && gCombat.active && gCombat.activeCharId && gCombat.activeCharId!==myChar.id){
+      const sk=document.createElement('button'); sk.className='btn warn sm'; sk.style.cssText='margin-top:8px;display:block;width:100%';
+      sk.textContent='⏭ ข้ามเทิร์น '+(gCombat.activeName||'')+' (ไม่อยู่/AFK)';
+      sk.onclick=()=>{ if(confirm('ข้ามเทิร์นของ '+(gCombat.activeName||'ผู้เล่นนี้')+'?\n(จะถือว่าตั้งรับ/Dodge ในเทิร์นนี้)')) resolveRound(true); };
+      w.appendChild(sk);
+    }
     bar.appendChild(w); return;
   }
   if(gCombat.active && gCombat.activeCharId && myChar && gCombat.activeCharId!==myChar.id){
