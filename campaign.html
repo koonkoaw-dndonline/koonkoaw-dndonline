@@ -798,7 +798,7 @@ body.in-battle .bs-cs-btn{display:block;}
 @media (max-width:1023px){
   .bscene{background:#000;}
   .bscene-stage{padding-bottom:64px;}
-  .bs-hud,.bs-init,.bs-log,.bs-cmd{display:none;}
+  .bs-hud,.bs-init,.bs-log,.bs-cmd,.bs-chat{display:none;}   /* แชทย้ายไปแท็บล่างขวา (sheet) — จอหลักเหลือบอร์ด+บทบรรยาย */
   .bs-mobbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:4300;background:#000;border-top:2px solid #fff;}
   .bs-mobbar button{flex:1;background:#000;color:#fff;border:0;border-right:1px solid #333;padding:12px 4px;font-family:'IBM Plex Sans Thai',sans-serif;font-size:12px;font-weight:700;cursor:pointer;}
   .bs-mobbar button:last-child{border-right:0;}
@@ -806,12 +806,14 @@ body.in-battle .bs-cs-btn{display:block;}
   .bs-mobbar button.bs-myturn{background:#FAC775;color:#000;animation:bsPulse 1s ease-in-out infinite;}
   @keyframes bsPulse{0%,100%{opacity:1}50%{opacity:.6}}
   .bs-sheet-backdrop.on{display:block;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:4200;}
-  .bs-hud.bs-sheet-open,.bs-init.bs-sheet-open,.bs-log.bs-sheet-open,.bs-cmd.bs-sheet-open{
+  .bs-hud.bs-sheet-open,.bs-init.bs-sheet-open,.bs-log.bs-sheet-open,.bs-cmd.bs-sheet-open,.bs-chat.bs-sheet-open{
     display:block;position:fixed;left:0;right:0;bottom:52px;z-index:4250;max-height:72vh;overflow-y:auto;-webkit-overflow-scrolling:touch;
     background:#000;border:2px solid #fff;border-radius:14px 14px 0 0;margin:0;padding:12px;box-shadow:0 -6px 20px rgba(0,0,0,.6);
     animation:bsSheetUp .16s ease;
   }
   .bscene.bs-has-sheet .bs-sheet-close{display:block;position:fixed;top:10px;right:10px;z-index:4360;background:#fff;color:#000;border:0;border-radius:8px;padding:9px 14px;font-family:'IBM Plex Sans Thai',sans-serif;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.5);}
+  /* แผงสั่งการเตี้ยลง (52vh) → เห็น BATTLE GRID ด้านบนขณะเลือกคำสั่ง */
+  .bs-cmd.bs-sheet-open{max-height:52vh;}
   @keyframes bsSheetUp{from{transform:translateY(24px);opacity:.5}to{transform:translateY(0);opacity:1}}
 }
 .bs-panelttl{font-family:'Press Start 2P',monospace;font-size:8px;letter-spacing:1px;color:#fff;border-bottom:2px solid #fff;padding:3px 2px 7px;margin-bottom:7px;}
@@ -2061,13 +2063,15 @@ async function renderRoundbar(){
     if(econUsedRound!==curRound.id){ econUsed={}; econUsedRound=curRound.id; }  // รีเซ็ตมาร์กทุกรอบ
     if(inCombat){
       // A: ทางเลือกคุณภาพจาก DM ขึ้น 'บนสุด' กดได้ทันที — เมนูคำสั่งเต็มตามหลัง
-      if(Array.isArray(cb.options) && cb.options.length){
+      // แสดง options เฉพาะเมื่อเป็น 'ของเรา' (meta.combat.for_char_id) — รอบเก่าที่ไม่มีแท็กถือว่าแสดงได้
+      const _optsMine = !cb.for_char_id || (myChar && cb.for_char_id===myChar.id);
+      if(Array.isArray(cb.options) && cb.options.length && _optsMine){
         const opts=document.createElement('div'); opts.className='copt';
         const oh=document.createElement('div'); oh.className='copt-h'; oh.textContent='— แนวทางที่ DM เสนอ (กดเลือกได้เลย) —'; opts.appendChild(oh);
         cb.options.slice(0,5).forEach(o=>{ const _o=(typeof plainNarr==='function')?plainNarr(o):o; const ob=document.createElement('button'); ob.type='button'; ob.textContent=_o; ob.onclick=()=>quickSubmit(_o); opts.appendChild(ob); });
         bar.appendChild(opts);
       } else if(myChar){
-        // DM ลืมส่ง options รอบนี้ (LLM พลาดได้) → ปุ่มขอตัวเลือก on-demand แทน ไม่ปล่อยช่องว่าง
+        // ไม่มี options ของเรา (DM ลืมส่ง / เป็นของคนอื่น) → ปุ่มขอตัวเลือก on-demand แทน
         bar.appendChild(persOptsWidget());
       }
       // เมนู COMBAT COMMAND — ย่อเหลือปุ่มบรรทัดเดียว (ทั้ง desktop+mobile) กดแล้วขยาย: desktop=หน้าต่างลอยเยื้องซ้าย · mobile=กางในแผงเดิม
@@ -2843,7 +2847,7 @@ async function _renderCombatImpl(){
 
 // ───────── Battle Scene (RPG cut-in overlay) ─────────
 var _bsShown=false, _bsRelocated=false, _bsRenderT=null, _bsRendering=false;
-function bsCloseSheets(){ ['bsCmdWrap','bsInitBox','bsLogBox','bsHud'].forEach(function(i){ var x=document.getElementById(i); if(!x) return; x.classList.remove('bs-sheet-open'); if(x._homeParent){ try{ x._homeParent.insertBefore(x, x._homeNext||null); }catch(e){ try{ x._homeParent.appendChild(x); }catch(_e){} } x._homeParent=null; x._homeNext=null; } }); var bd=document.getElementById('bsSheetBackdrop'); if(bd) bd.classList.remove('on'); var sc=document.getElementById('battleScene'); if(sc) sc.classList.remove('bs-has-sheet'); }
+function bsCloseSheets(){ ['bsCmdWrap','bsInitBox','bsLogBox','bsHud','bsChatBox'].forEach(function(i){ var x=document.getElementById(i); if(!x) return; x.classList.remove('bs-sheet-open'); if(x._homeParent){ try{ x._homeParent.insertBefore(x, x._homeNext||null); }catch(e){ try{ x._homeParent.appendChild(x); }catch(_e){} } x._homeParent=null; x._homeNext=null; } }); var bd=document.getElementById('bsSheetBackdrop'); if(bd) bd.classList.remove('on'); var sc=document.getElementById('battleScene'); if(sc) sc.classList.remove('bs-has-sheet'); }
 // ── ESC: ถอย/ปิดหน้าต่าง (เมนูคำสั่งถอยทีละชั้น → sheet มือถือ → overlay) ──
 document.addEventListener('keydown', function(e){
   if(e.key!=='Escape' && e.key!=='Esc') return;
@@ -2852,7 +2856,7 @@ document.addEventListener('keydown', function(e){
   try{ var _bs=document.getElementById('battleScene'); if(_bs && _bs.classList.contains('bs-has-sheet')){ bsCloseSheets(); e.preventDefault(); return; } }catch(_e){}
   try{ var _rt=document.getElementById('combatCommandPanel'); if(_rt && _rt.classList.contains('cc-show')){ window.cc.close(); e.preventDefault(); } }catch(_e){}
 });
-function bsToggleSheet(key){ var map={cmd:'bsCmdWrap',init:'bsInitBox',log:'bsLogBox',hud:'bsHud'}; var id=map[key]; if(!id) return; var el=document.getElementById(id); if(!el) return; var willOpen=!el.classList.contains('bs-sheet-open'); bsCloseSheets(); if(willOpen){ var scene=document.getElementById('battleScene'); if(scene && el.parentNode!==scene && window.matchMedia && window.matchMedia('(max-width:1023px)').matches){ el._homeParent=el.parentNode; el._homeNext=el.nextSibling; scene.appendChild(el); } el.classList.add('bs-sheet-open'); var bd=document.getElementById('bsSheetBackdrop'); if(bd) bd.classList.add('on'); if(scene) scene.classList.add('bs-has-sheet'); } try{ tick(); }catch(e){} }
+function bsToggleSheet(key){ var map={cmd:'bsCmdWrap',init:'bsInitBox',log:'bsLogBox',hud:'bsHud',chat:'bsChatBox'}; var id=map[key]; if(!id) return; var el=document.getElementById(id); if(!el) return; var willOpen=!el.classList.contains('bs-sheet-open'); bsCloseSheets(); if(willOpen){ var scene=document.getElementById('battleScene'); if(scene && el.parentNode!==scene && window.matchMedia && window.matchMedia('(max-width:1023px)').matches){ el._homeParent=el.parentNode; el._homeNext=el.nextSibling; scene.appendChild(el); } el.classList.add('bs-sheet-open'); var bd=document.getElementById('bsSheetBackdrop'); if(bd) bd.classList.add('on'); if(scene) scene.classList.add('bs-has-sheet'); } try{ tick(); }catch(e){} }
 // C: เปิด/ปิดชีทตัวละคร (โคลนจาก panel-me แบบอ่านอย่างเดียว — ไม่หลุดจากฉากรบ)
 function bsToggleCharSheet(){
   var ov=document.getElementById('bsCharSheet');
@@ -2876,7 +2880,7 @@ function ensureBattleScene(){
         '<div class="bs-col bs-left">'+
           '<div class="bs-hud bs-box" id="bsHud"></div>'+
           '<div class="bs-init bs-box" id="bsInitBox"><div class="bs-panelttl">\u2694 INITIATIVE</div><div class="bs-init-list" id="bsInit"></div></div>'+
-          '<div class="bs-chat bs-box"><div class="bs-panelttl">LIVE CHAT \u00b7 \u0e42\u0e23\u0e25\u0e40\u0e1e\u0e25\u0e22\u0e4c</div><div class="bs-chat-list" id="bsChat"></div><div class="bs-chat-in"><textarea id="bsChatInput" rows="2" placeholder="\u0e04\u0e33\u0e1e\u0e39\u0e14/\u0e42\u0e23\u0e25\u0e40\u0e1e\u0e25\u0e22\u0e4c (\u0e17\u0e38\u0e01\u0e04\u0e19\u0e40\u0e2b\u0e47\u0e19)\u2026"></textarea><button type="button" id="bsChatSend">\u0e2a\u0e48\u0e07</button></div></div>'+
+          '<div class="bs-chat bs-box" id="bsChatBox"><div class="bs-panelttl">LIVE CHAT \u00b7 \u0e42\u0e23\u0e25\u0e40\u0e1e\u0e25\u0e22\u0e4c</div><div class="bs-chat-list" id="bsChat"></div><div class="bs-chat-in"><textarea id="bsChatInput" rows="2" placeholder="\u0e04\u0e33\u0e1e\u0e39\u0e14/\u0e42\u0e23\u0e25\u0e40\u0e1e\u0e25\u0e22\u0e4c (\u0e17\u0e38\u0e01\u0e04\u0e19\u0e40\u0e2b\u0e47\u0e19)\u2026"></textarea><button type="button" id="bsChatSend">\u0e2a\u0e48\u0e07</button></div></div>'+
         '</div>'+
         '<div class="bs-col bs-center">'+
           '<div class="bs-board bs-box" id="bsBoard"></div>'+
@@ -2888,7 +2892,7 @@ function ensureBattleScene(){
         '</div>'+
       '</div>'+
       '<div class="bs-sheet-backdrop" id="bsSheetBackdrop"></div>'+
-      '<div class="bs-mobbar" id="bsMobBar"><button type="button" data-sheet="cmd">\u2694 \u0e2a\u0e31\u0e48\u0e07\u0e01\u0e32\u0e23</button><button type="button" data-sheet="init">\ud83c\udfb2 \u0e25\u0e33\u0e14\u0e31\u0e1a</button><button type="button" data-sheet="log">\ud83d\udcdc \u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01</button><button type="button" data-sheet="hud">\ud83d\uddfa \u0e2a\u0e16\u0e32\u0e19\u0e30</button></div>';
+      '<div class="bs-mobbar" id="bsMobBar"><button type="button" data-sheet="cmd">\u2694 \u0e2a\u0e31\u0e48\u0e07\u0e01\u0e32\u0e23</button><button type="button" data-sheet="init">\ud83c\udfb2 \u0e25\u0e33\u0e14\u0e31\u0e1a</button><button type="button" data-sheet="log">\ud83d\udcdc \u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01</button><button type="button" data-sheet="hud">\ud83d\uddfa \u0e2a\u0e16\u0e32\u0e19\u0e30</button><button type="button" data-sheet="chat">\ud83d\udcac \u0e41\u0e0a\u0e17</button></div>';
     document.body.appendChild(el);
     try{ var _bsend=document.getElementById('bsChatSend'), _bin=document.getElementById('bsChatInput');
       if(_bsend) _bsend.onclick=sendBattleChat;
