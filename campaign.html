@@ -2046,6 +2046,15 @@ async function renderRoundbar(){
     if(isHost){ const f=document.createElement('button'); f.className='btn warn sm'; f.textContent=resolving?'Resolving…':'⚡ Force Resolve'; f.disabled=resolving; f.onclick=()=>resolveRound(true); bar.appendChild(f); }
     return;
   }
+  // หมดสติ (HP 0) ระหว่างคอมแบต → ห้ามสั่งการ แสดงสถานะ Death Save แทน (server ทอยให้รอบละครั้ง)
+  if(myChar && mySheet && mySheet.combat && Number.isFinite(+mySheet.combat.hp) && +mySheet.combat.hp<=0 && (window._combatActive || (typeof gCombat!=='undefined' && gCombat && gCombat.active))){
+    const ds=(mySheet.death_saves||{});
+    const w=document.createElement('div'); w.className='note'; w.style.cssText='text-align:left;padding:10px 4px;line-height:1.8;color:#ff8a8a;font-weight:600;border:1px solid #d32f2f;border-radius:8px';
+    w.innerHTML = ds.dead ? '💀 ตัวละครสิ้นใจแล้ว…'
+      : ds.stable ? '🩹 หมดสติ — อาการคงที่ (stable) รอเพื่อนช่วยหรือพักฟื้น'
+      : '💔 <b>หมดสติ (HP 0)</b> — ทำอะไรไม่ได้ ระบบทอย Death Save ให้อัตโนมัติทุกรอบ<br>☠️ สำเร็จ '+(ds.s||0)+'/3 · ล้มเหลว '+(ds.f||0)+'/3<br><span class="muted" style="font-weight:400">เพื่อนช่วยได้: เวทรักษา (ฟื้นทันที) หรือปฐมพยาบาล Medicine DC10 (stable)</span>';
+    bar.appendChild(w); return;
+  }
   if(gCombat.active && gCombat.activeCharId && myChar && gCombat.activeCharId!==myChar.id){
     const w=document.createElement('div'); w.className='note'; w.style.cssText='text-align:left;padding:8px 2px;line-height:1.6';
     w.innerHTML='⏳ ถึงตา <b>'+escapeHtml(gCombat.activeName||'...')+'</b> — รอเทิร์นของคุณ (ระบบจะแจ้งเตือนเมื่อถึงตา)';
