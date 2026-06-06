@@ -2052,7 +2052,24 @@ async function renderRoundbar(){
     const w=document.createElement('div'); w.className='note'; w.style.cssText='text-align:left;padding:10px 4px;line-height:1.8;color:#ff8a8a;font-weight:600;border:1px solid #d32f2f;border-radius:8px';
     w.innerHTML = ds.dead ? '💀 ตัวละครสิ้นใจแล้ว…'
       : ds.stable ? '🩹 หมดสติ — อาการคงที่ (stable) รอเพื่อนช่วยหรือพักฟื้น'
-      : '💔 <b>หมดสติ (HP 0)</b> — ทำอะไรไม่ได้ ระบบทอย Death Save ให้อัตโนมัติทุกรอบ<br>☠️ สำเร็จ '+(ds.s||0)+'/3 · ล้มเหลว '+(ds.f||0)+'/3<br><span class="muted" style="font-weight:400">เพื่อนช่วยได้: เวทรักษา (ฟื้นทันที) หรือปฐมพยาบาล Medicine DC10 (stable)</span>';
+      : '💔 <b>หมดสติ (HP 0)</b> — ทำอะไรไม่ได้ นอกจากลุ้นชะตา<br>☠️ สำเร็จ '+(ds.s||0)+'/3 · ล้มเหลว '+(ds.f||0)+'/3<br><span class="muted" style="font-weight:400">เพื่อนช่วยได้: เวทรักษา (ฟื้นทันที) หรือปฐมพยาบาล Medicine DC10 (stable)</span>';
+    if(!ds.dead && !ds.stable){
+      const rb=document.createElement('button'); rb.className='btn'; rb.style.cssText='margin-top:10px;display:block;width:100%'; rb.textContent='🎲 ทอย DEATH SAVE (รอบละครั้ง)';
+      rb.onclick=async()=>{
+        rb.disabled=true; rb.textContent='🎲 กำลังทอย…';
+        try{
+          const tok=(await supa.auth.getSession()).data.session?.access_token;
+          const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id, death_save:true})});
+          const j=await r.json();
+          if(j.error){ toast(j.error,true); rb.disabled=false; rb.textContent='🎲 ทอย DEATH SAVE (รอบละครั้ง)'; return; }
+          toast('🎲 d20 = '+j.roll+(j.revived?' — ปาฏิหาริย์ ฟื้น HP 1!':j.dead?' — สิ้นใจ…':j.stable?' — อาการคงที่!':(j.roll>=10?' — สำเร็จ ('+j.s+'/3)':' — ล้มเหลว ('+j.f+'/3)')), !(j.revived||j.stable||j.roll>=10));
+          mySheet.death_saves={s:j.s,f:j.f,round:j.round,stable:j.stable,dead:j.dead};
+          if(j.revived && mySheet.combat){ mySheet.combat.hp=1; }
+          renderRoundbar();
+        }catch(e){ toast('ทอยไม่สำเร็จ ลองใหม่',true); rb.disabled=false; rb.textContent='🎲 ทอย DEATH SAVE (รอบละครั้ง)'; }
+      };
+      w.appendChild(rb);
+    }
     bar.appendChild(w); return;
   }
   if(gCombat.active && gCombat.activeCharId && myChar && gCombat.activeCharId!==myChar.id){
