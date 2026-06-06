@@ -2927,8 +2927,16 @@ async function syncBattleScene(){
   let livingEnemies=0;
   if(enc){ try{ const r2=await supa.from('combat_state').select('cur_hp').eq('campaign_id',campaign.id).eq('active',true); livingEnemies=(r2.data||[]).filter(x=>x.cur_hp==null||x.cur_hp>0).length; }catch(e){} }
   const active = (!!enc && livingEnemies>0) || !!window._combatActive || !!moveMode;   // อย่าออกจากฉากระหว่างเลือกช่องเดิน · ออกถ้า encounter ไม่มีศัตรูมีชีวิต
-  if(active){ if(!_bsShown){ enterBattleScene(); } await renderBattleScene(); }
-  else { if(_bsShown){ exitBattleSceneWithOutro(); } }
+  if(active){
+    window._bsMiss=0;
+    if(!_bsShown && !_bsExiting){ enterBattleScene(); }
+    await renderBattleScene();
+  } else if(_bsShown){
+    // debounce: query แว้บชั่วคราว (เน็ต/realtime สะดุด) อย่าเพิ่งออกฉาก — ต้องยืนยัน 'ไม่มีคอมแบต' 2 รอบติด (กันเด้งออก-เข้า flash ซ้ำ)
+    window._bsMiss=(window._bsMiss||0)+1;
+    if(window._bsMiss>=2){ window._bsMiss=0; exitBattleSceneWithOutro(); }
+    else { setTimeout(function(){ try{ syncBattleScene(); }catch(e){} }, 900); }
+  }
 }
 // ── จบศึก: กระพริบ VICTORY/DEFEAT (สไตล์เดียวกับ cut-in ตอนเข้า) ก่อนค่อยออกจากฉากรบ ──
 var _bsExiting=false;
