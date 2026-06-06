@@ -751,6 +751,18 @@ body.role-player .dm-only{display:none!important;}
 .bscene-flash.go .bsf-txt{animation:bsftxt .8s ease forwards;}
 @keyframes bsflash{0%{opacity:1}12%{opacity:.15}24%{opacity:1}40%{opacity:.8}100%{opacity:0}}
 @keyframes bsftxt{0%{transform:scale(.6);opacity:0}28%{transform:scale(1.12);opacity:1}72%{transform:scale(1);opacity:1}100%{transform:scale(1);opacity:0}}
+/* ── จบศึก: flash แบบเดียวกับตอนเข้า แต่ช้ากว่า + สีตามผล (ชนะ=ทอง / แพ้=แดง) ── */
+.bscene-flash.go-win{animation:bsflash 2.4s ease forwards;}
+.bscene-flash.go-win .bsf-txt{animation:bsftxt 2.4s ease forwards;color:#ffd866;text-shadow:0 0 26px #ffb300,0 0 60px #ff8f00;}
+.bscene-flash.go-lose{animation:bsflash 2.4s ease forwards;}
+.bscene-flash.go-lose .bsf-txt{animation:bsftxt 2.4s ease forwards;color:#ff7a7a;text-shadow:0 0 26px #d32f2f;}
+/* ── C: ปุ่ม 📜 เปิดชีทตัวละคร (สกิล/สเตตัส/ของ) จากฉากรบ + overlay อ่านอย่างเดียว ── */
+.bs-cs-btn{position:fixed;top:10px;left:10px;z-index:4150;background:#1c1c1c;color:#FAC775;border:1px solid #FAC775;border-radius:8px;padding:7px 12px;font-family:'IBM Plex Sans Thai',sans-serif;font-size:13px;font-weight:700;cursor:pointer;display:none;box-shadow:0 2px 10px rgba(0,0,0,.5);}
+body.in-battle .bs-cs-btn{display:block;}
+.bs-charsheet{display:none;position:fixed;inset:4% 6%;z-index:4500;background:#141414;border:1px solid #444;border-radius:12px;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px;box-shadow:0 8px 40px rgba(0,0,0,.7);}
+.bs-charsheet.on{display:block;}
+.bs-cs-close{position:sticky;top:0;float:right;z-index:2;background:#fff;color:#000;border:0;border-radius:8px;padding:8px 13px;font-family:'IBM Plex Sans Thai',sans-serif;font-size:13px;font-weight:700;cursor:pointer;}
+@media (max-width:1023px){ .bs-charsheet{inset:2% 3%;} }
 .bscene-stage{position:absolute;inset:0;display:flex;flex-direction:column;gap:10px;padding:12px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
 .bs-box{min-height:0;}
 .bs-col{display:flex;flex-direction:column;gap:10px;min-width:0;min-height:0;}
@@ -1976,13 +1988,13 @@ async function renderRoundbar(){
   const typingNow=document.activeElement && document.activeElement.id==='actInput';
   if(typingNow && rbKey===_lastRoundbarKey){
     const sl=bar.querySelector('.statusline');
-    const _cbq=(curRound.meta||{}).combat||{}; const _incq=_cbq.active||!!window._combatActive; const _rngq=_incq?`<span class="cs">${escapeHtml(_cbq.range||'COMBAT')}</span>`:'';
+    const _cbq=(curRound.meta||{}).combat||{}; const _incq=!!window._combatActive||(_cbq.active&&!!(typeof gCombat!=='undefined'&&gCombat&&gCombat.active)); const _rngq=_incq?`<span class="cs">${escapeHtml(_cbq.range||'COMBAT')}</span>`:'';
     if(sl) sl.innerHTML=`<div class="cstat"><span class="cs">Round ${curRound.round_number}</span><span class="cs ${submitted>=total?'done':'wait'}">Submitted ${submitted}/${total}</span>${_rngq}</div>`;
     return;
   }
   _lastRoundbarKey=rbKey;
   const keepAct=(document.getElementById('actInput')||{}).value||'';   // กันข้อความที่พิมพ์ค้างหายตอน re-render (placeholder/realtime)
-  const _cbS=(curRound.meta||{}).combat||{}; const _incS=_cbS.active||!!window._combatActive; const _rng=_incS?`<span class="cs">${escapeHtml(_cbS.range||'COMBAT')}</span>`:'';
+  const _cbS=(curRound.meta||{}).combat||{}; const _incS=!!window._combatActive||(_cbS.active&&!!(typeof gCombat!=='undefined'&&gCombat&&gCombat.active)); const _rng=_incS?`<span class="cs">${escapeHtml(_cbS.range||'COMBAT')}</span>`:'';
   let html=`<div class="cstat"><span class="cs">Round ${curRound.round_number}</span><span class="cs ${submitted>=total?'done':'wait'}">Submitted ${submitted}/${total}</span>${_rng}</div>`;
   list.forEach(a=>{ html+=`<div class="actionlog"><b>${escapeHtml(nameFor(a))}</b> ${escapeHtml(a.action_text)}</div>`; });
   bar.innerHTML=html;   // สร้างทีเดียว (synchronous ต่อจากนี้ ไม่มี await)
@@ -2011,22 +2023,23 @@ async function renderRoundbar(){
   if(!mine){
     const meta=curRound.meta||{};
     const cb=meta.combat||{}, rr=meta.roll_request||{}, inter=meta.interactables||[];
-    const inCombat = cb.active || !!window._combatActive;   // server-authority: เปิดคอมแบตเองเมื่อมีศัตรู active (Gemini อาจลืม flag)
+    // server-authority สองชั้น: เปิดเมื่อมีศัตรู active จริง · DM flag (cb.active) ใช้ได้เฉพาะตอน encounter ยัง active — กัน command ค้างหลังจบศึก
+    const inCombat = !!window._combatActive || (cb.active && !!(typeof gCombat!=='undefined' && gCombat && gCombat.active));
     if(econUsedRound!==curRound.id){ econUsed={}; econUsedRound=curRound.id; }  // รีเซ็ตมาร์กทุกรอบ
     if(inCombat){
-      // คำสั่ง COMBAT COMMAND ขึ้นบนสุด — เรนเดอร์ผ่าน window.cc
+      // A: ทางเลือกคุณภาพจาก DM ขึ้น 'บนสุด' กดได้ทันที — เมนูคำสั่งเต็มตามหลัง
+      if(Array.isArray(cb.options) && cb.options.length){
+        const opts=document.createElement('div'); opts.className='copt';
+        const oh=document.createElement('div'); oh.className='copt-h'; oh.textContent='— แนวทางที่ DM เสนอ (กดเลือกได้เลย) —'; opts.appendChild(oh);
+        cb.options.slice(0,5).forEach(o=>{ const _o=(typeof plainNarr==='function')?plainNarr(o):o; const ob=document.createElement('button'); ob.type='button'; ob.textContent=_o; ob.onclick=()=>quickSubmit(_o); opts.appendChild(ob); });
+        bar.appendChild(opts);
+      }
+      // ตามด้วยเมนู COMBAT COMMAND เต็ม (Action/Bonus/Move) — เรนเดอร์ผ่าน window.cc
       if(typeof window.cc==='object' && window.cc && typeof window.cc.openInline==='function'){
         const frame=document.createElement('div'); frame.id='ccFrame'; frame.className='cc-frame cc-inline';
         bar.appendChild(frame);
         if(window.__ccRound!==curRound.id){ window.__ccRound=curRound.id; prepCommandContext().then(()=>{ try{ window.cc.openInline(); }catch(e){} }); }
         else { try{ window.cc.openInline(); }catch(e){} }
-      }
-      // ตามด้วย 3 ทางเลือกตาม narrative (ตรงกลาง) — กดส่งได้ทันที
-      if(Array.isArray(cb.options) && cb.options.length){
-        const opts=document.createElement('div'); opts.className='copt';
-        const oh=document.createElement('div'); oh.className='copt-h'; oh.textContent='— หรือเลือกแนวทางที่ DM เสนอ —'; opts.appendChild(oh);
-        cb.options.slice(0,5).forEach(o=>{ const _o=(typeof plainNarr==='function')?plainNarr(o):o; const ob=document.createElement('button'); ob.type='button'; ob.textContent=_o; ob.onclick=()=>quickSubmit(_o); opts.appendChild(ob); });
-        bar.appendChild(opts);
       }
     } else {
       const ta=document.createElement('textarea'); ta.id='actInput'; ta.placeholder='จะให้ตัวละครทำอะไร? พิมพ์ได้อิสระ'; if(keepAct) ta.value=keepAct; bar.appendChild(ta);
@@ -2044,6 +2057,27 @@ async function renderRoundbar(){
       const dn=document.createElement('div'); dn.className='econleg'; dn.textContent='“DM ทอยให้” = server สุ่มจริง 100% · “ทอยเอง” = ทอยเต๋าจริงในมือแล้วใส่เลข'; bar.appendChild(dn);
     }
     const b=document.createElement('button'); b.className='btn'; b.textContent='Submit Action'; b.onclick=submitAction; bar.appendChild(b);
+    // D: ขอตัวเลือกเฉพาะตัว — กดแล้ว DM ปั่น 3-5 ทางเลือกสำหรับ 'ตัวละครเรา' ณ สถานการณ์นี้ (on-demand ไม่เปลือง token ถ้าไม่กด)
+    if(myChar){
+      const pw=document.createElement('div'); pw.className='copt'; pw.id='persOpts';
+      const pb=document.createElement('button'); pb.type='button'; pb.textContent='🎲 ขอตัวเลือกเฉพาะตัว (DM เสนอให้ '+escapeHtml(myChar.name)+')';
+      pb.onclick=async()=>{
+        pb.disabled=true; const _t=pb.textContent; pb.textContent='🎲 DM กำลังคิดตัวเลือกให้คุณ…';
+        try{
+          const tok=(await supa.auth.getSession()).data.session?.access_token;
+          const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id, personal_options:true})});
+          const j=await r.json();
+          const list2=Array.isArray(j.options)?j.options:[];
+          if(!list2.length){ toast(j.error||'ยังไม่ได้ตัวเลือก ลองอีกครั้ง',true); }
+          else{
+            pw.querySelectorAll('button.popt').forEach(x=>x.remove());
+            list2.slice(0,5).forEach(o=>{ const _o=(typeof plainNarr==='function')?plainNarr(String(o)):String(o); const ob=document.createElement('button'); ob.type='button'; ob.className='popt'; ob.textContent=_o; ob.onclick=()=>quickSubmit(_o); pw.appendChild(ob); });
+          }
+        }catch(e){ toast('ขอตัวเลือกไม่สำเร็จ',true); }
+        pb.disabled=false; pb.textContent=_t;
+      };
+      pw.appendChild(pb); bar.appendChild(pw);
+    }
     }
   } else {
     // ส่งแล้ว — บอกชัดว่ารอใคร / DM กำลังดำเนินเรื่อง
@@ -2790,6 +2824,19 @@ document.addEventListener('keydown', function(e){
   try{ var _rt=document.getElementById('combatCommandPanel'); if(_rt && _rt.classList.contains('cc-show')){ window.cc.close(); e.preventDefault(); } }catch(_e){}
 });
 function bsToggleSheet(key){ var map={cmd:'bsCmdWrap',init:'bsInitBox',log:'bsLogBox',hud:'bsHud'}; var id=map[key]; if(!id) return; var el=document.getElementById(id); if(!el) return; var willOpen=!el.classList.contains('bs-sheet-open'); bsCloseSheets(); if(willOpen){ var scene=document.getElementById('battleScene'); if(scene && el.parentNode!==scene && window.matchMedia && window.matchMedia('(max-width:1023px)').matches){ el._homeParent=el.parentNode; el._homeNext=el.nextSibling; scene.appendChild(el); } el.classList.add('bs-sheet-open'); var bd=document.getElementById('bsSheetBackdrop'); if(bd) bd.classList.add('on'); if(scene) scene.classList.add('bs-has-sheet'); } try{ tick(); }catch(e){} }
+// C: เปิด/ปิดชีทตัวละคร (โคลนจาก panel-me แบบอ่านอย่างเดียว — ไม่หลุดจากฉากรบ)
+function bsToggleCharSheet(){
+  var ov=document.getElementById('bsCharSheet');
+  if(!ov){
+    ov=document.createElement('div'); ov.id='bsCharSheet'; ov.className='bs-charsheet';
+    var cl=document.createElement('button'); cl.type='button'; cl.className='bs-cs-close'; cl.textContent='✕ ปิด'; cl.onclick=function(){ ov.classList.remove('on'); };
+    var bd=document.createElement('div'); bd.id='bsCharSheetBody';
+    ov.appendChild(cl); ov.appendChild(bd); document.body.appendChild(ov);
+  }
+  if(ov.classList.contains('on')){ ov.classList.remove('on'); return; }
+  var fill=function(){ try{ var src=document.getElementById('panel-me'); var bd2=document.getElementById('bsCharSheetBody'); if(src&&bd2) bd2.innerHTML=src.innerHTML; }catch(e){} ov.classList.add('on'); };
+  try{ Promise.resolve(typeof renderMe==='function'?renderMe():null).then(fill,fill); }catch(e){ fill(); }
+}
 function ensureBattleScene(){
   var el=document.getElementById('battleScene');
   if(!el){
@@ -2823,6 +2870,8 @@ function ensureBattleScene(){
       if(_mb) _mb.querySelectorAll('button').forEach(function(b){ b.onclick=function(){ bsToggleSheet(b.getAttribute('data-sheet')); }; });
       var _bd=document.getElementById('bsSheetBackdrop'); if(_bd) _bd.onclick=function(){ bsCloseSheets(); };
       var _cl=document.createElement('button'); _cl.className='bs-sheet-close'; _cl.id='bsSheetClose'; _cl.type='button'; _cl.textContent='✕ ปิด'; _cl.onclick=function(){ bsCloseSheets(); }; el.appendChild(_cl);
+      // C: ปุ่มเปิดชีทตัวละครจากฉากรบ (แสดงเฉพาะตอน in-battle ผ่าน CSS)
+      if(!document.getElementById('bsCsBtn')){ var _cs=document.createElement('button'); _cs.className='bs-cs-btn'; _cs.id='bsCsBtn'; _cs.type='button'; _cs.textContent='📜 ชีท/สกิล'; _cs.onclick=function(){ bsToggleCharSheet(); }; document.body.appendChild(_cs); }
     }catch(e){}
   }
   return el;
@@ -2850,7 +2899,30 @@ async function syncBattleScene(){
   if(enc){ try{ const r2=await supa.from('combat_state').select('cur_hp').eq('campaign_id',campaign.id).eq('active',true); livingEnemies=(r2.data||[]).filter(x=>x.cur_hp==null||x.cur_hp>0).length; }catch(e){} }
   const active = (!!enc && livingEnemies>0) || !!window._combatActive || !!moveMode;   // อย่าออกจากฉากระหว่างเลือกช่องเดิน · ออกถ้า encounter ไม่มีศัตรูมีชีวิต
   if(active){ if(!_bsShown){ enterBattleScene(); } await renderBattleScene(); }
-  else { if(_bsShown){ exitBattleScene(); } }
+  else { if(_bsShown){ exitBattleSceneWithOutro(); } }
+}
+// ── จบศึก: กระพริบ VICTORY/DEFEAT (สไตล์เดียวกับ cut-in ตอนเข้า) ก่อนค่อยออกจากฉากรบ ──
+var _bsExiting=false;
+async function exitBattleSceneWithOutro(){
+  if(_bsExiting) return; _bsExiting=true;
+  try{
+    var won=true;   // ผลศึกจาก log ล่าสุด: TPK/ปาร์ตี้ล้ม = แพ้, นอกนั้น = ชนะ
+    try{
+      var r=await supa.from('combat_log').select('summary').eq('campaign_id',campaign.id).order('created_at',{ascending:false}).limit(3);
+      if(/TPK|ปาร์ตี้ล้ม/i.test((r.data||[]).map(function(x){return x.summary||'';}).join(' '))) won=false;
+    }catch(e){}
+    var el=document.getElementById('battleScene'), f=document.getElementById('bsFlash');
+    if(el && el.classList.contains('on') && f){
+      var tx=f.querySelector('.bsf-txt');
+      if(tx) tx.textContent = won ? '🏆 VICTORY!' : '💀 DEFEAT…';
+      f.classList.remove('go','go-win','go-lose'); void f.offsetWidth;
+      f.classList.add(won?'go-win':'go-lose');
+      await new Promise(function(res){ setTimeout(res, 2450); });
+    }
+  }catch(e){}
+  exitBattleScene();
+  try{ var f2=document.getElementById('bsFlash'); if(f2){ f2.classList.remove('go','go-win','go-lose'); var t2=f2.querySelector('.bsf-txt'); if(t2) t2.textContent='⚔ BATTLE'; } }catch(e){}
+  _bsExiting=false;
 }
 function enterBattleScene(){
   _bsShown=true;
@@ -2858,7 +2930,7 @@ function enterBattleScene(){
   relocateForBattle(true);
   el.classList.add('on');
   try{ document.body.classList.add('in-battle'); }catch(e){}
-  var f=document.getElementById('bsFlash'); if(f){ f.classList.remove('go'); void f.offsetWidth; f.classList.add('go'); }
+  var f=document.getElementById('bsFlash'); if(f){ var _tx=f.querySelector('.bsf-txt'); if(_tx) _tx.textContent='⚔ BATTLE'; f.classList.remove('go','go-win','go-lose'); void f.offsetWidth; f.classList.add('go'); }
   try{ tick(); setTimeout(tick,150); }catch(e){}
   try{ renderClock(); }catch(e){}
   try{ renderStory(); }catch(e){}
@@ -2869,6 +2941,7 @@ function exitBattleScene(){
   var el=document.getElementById('battleScene');
   relocateForBattle(false);
   try{ if(typeof bsCloseSheets==='function') bsCloseSheets(); }catch(e){}
+  try{ var _ovcs=document.getElementById('bsCharSheet'); if(_ovcs) _ovcs.classList.remove('on'); }catch(e){}
   if(el) el.classList.remove('on');
   try{ document.body.classList.remove('in-battle'); }catch(e){}
   try{ var _b=document.getElementById('ccBackdrop'); if(_b) _b.classList.remove('on'); var _f=document.getElementById('ccFrame'); if(_f) _f.classList.remove('cc-windowed'); }catch(e){}
@@ -3101,10 +3174,10 @@ async function renderBattleGrid(p){
     if(hill){
       // พื้นต่างระดับ: หน้าผาด้านข้าง (ฐาน) + พื้นบนยกขึ้น RAISE
       svg+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${TILE}" height="${(th+RAISE).toFixed(1)}" fill="#2a3a24" stroke="#1c2418" stroke-width="0.8"/>`;
-      svg+=`<rect x="${x.toFixed(1)}" y="${(y-RAISE).toFixed(1)}" width="${TILE}" height="${th.toFixed(1)}" fill="#3c5230" stroke="#2c3f22" stroke-width="0.8"/>`;
+      svg+=`<rect x="${x.toFixed(1)}" y="${(y-RAISE).toFixed(1)}" width="${TILE}" height="${th.toFixed(1)}" fill="#3c5230" stroke="#2c3f22" stroke-width="0.8"><title>${cell}</title></rect>`;
     } else {
       const fill=isW?'#3a3f4b':wet?'#1c3a5e':((c+r)%2===0?'#1a2030':'#202840');
-      svg+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${TILE}" height="${th.toFixed(1)}" fill="${fill}" stroke="#2c3344" stroke-width="0.8"/>`;
+      svg+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${TILE}" height="${th.toFixed(1)}" fill="${fill}" stroke="#2c3344" stroke-width="0.8"><title>${cell}</title></rect>`;
       if(wet) svg+=`<line x1="${(x+3).toFixed(1)}" y1="${(y+th*0.45).toFixed(1)}" x2="${(x+TILE-3).toFixed(1)}" y2="${(y+th*0.45).toFixed(1)}" stroke="#3a6fa0" stroke-width="0.9"/>`;
       if(isW) svg+=`<rect x="${(x+4).toFixed(1)}" y="${(y-6).toFixed(1)}" width="${TILE-8}" height="${(th+6).toFixed(1)}" fill="#4a5160" stroke="#2c3344" stroke-width="0.8" rx="2"/>`;
     }
@@ -3174,7 +3247,7 @@ async function renderBattleGrid(p){
         const cell=rc2cell(c,r); const d=Math.max(Math.abs(c-myTok.col),Math.abs(r-myTok.row));
         if(d>0 && d<=maxC && !walls.has(cell)){
           const x=tileX(c),y=tileY(r),th=TILE*SY; const seld=moveSel&&moveSel.c===c&&moveSel.r===r;
-          svg+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${TILE}" height="${th.toFixed(1)}" fill="${seld?'rgba(250,199,117,0.55)':'rgba(90,210,130,0.20)'}" stroke="${seld?'#FAC775':'#5ce08a'}" stroke-width="${seld?'1.6':'0.7'}" style="cursor:pointer" onclick="movePickCell(${c},${r})"/>`;
+          svg+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${TILE}" height="${th.toFixed(1)}" fill="${seld?'rgba(250,199,117,0.55)':'rgba(90,210,130,0.20)'}" stroke="${seld?'#FAC775':'#5ce08a'}" stroke-width="${seld?'1.6':'0.7'}" style="cursor:pointer" onclick="movePickCell(${c},${r})"><title>${cell}</title></rect>`;
         }
       }
       const sfx=footX(myTok.col), sfy=footY(myTok.col,myTok.row);
