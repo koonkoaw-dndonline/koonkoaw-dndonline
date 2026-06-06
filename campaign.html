@@ -1864,6 +1864,14 @@ async function loadChat(){
   try{ const { data, error }=await supa.from('chat_messages').select('*').eq('campaign_id',campaign.id).order('created_at',{ascending:true}).limit(300);
     if(error) throw error; chatMsgs=data||[]; cacheSave('chat',chatMsgs);
   }catch(e){ const c=cacheLoad('chat'); if(c) chatMsgs=c; }
+  // ล้างแชทแบบ local (เครื่องนี้): ซ่อนข้อความก่อนจุดที่กดล้าง — ข้อมูลจริงยังอยู่ใน DB ครบ (เพื่อน/บอทยังเห็น)
+  try{ const ct=+(localStorage.getItem('ttrpg_chatclear_'+campaign.id)||0); if(ct) chatMsgs=chatMsgs.filter(m=>new Date(m.created_at).getTime()>ct); }catch(e){}
+}
+function clearChatLocal(){
+  if(!confirm('ล้างแชทบนเครื่องนี้? (ประวัติยังอยู่ในระบบ เพื่อน/บอทยังเห็นตามปกติ)')) return;
+  try{ localStorage.setItem('ttrpg_chatclear_'+campaign.id, String(Date.now())); }catch(e){}
+  loadChat().then(()=>{ try{ renderChatList(); }catch(e){} try{ if(typeof renderBattleChat==='function') renderBattleChat(); }catch(e){} });
+  toast('ล้างแชทแล้ว (เครื่องนี้) ✓');
 }
 function chatNameFor(uid){
   const c=characters.find(x=>x.user_id===uid); if(c) return c.name;
@@ -2066,6 +2074,7 @@ async function renderRoundbar(){
           mySheet.death_saves={s:j.s,f:j.f,round:j.round,stable:j.stable,dead:j.dead};
           if(j.revived && mySheet.combat){ mySheet.combat.hp=1; }
           renderRoundbar();
+          try{ resolveRound(false); }catch(e){}   // ดันเกมต่อทันที — ศัตรู/บอททำเทิร์นถัดไป ไม่ค้างรอ
         }catch(e){ toast('ทอยไม่สำเร็จ ลองใหม่',true); rb.disabled=false; rb.textContent='🎲 ทอย DEATH SAVE (รอบละครั้ง)'; }
       };
       w.appendChild(rb);
@@ -2573,7 +2582,8 @@ async function renderParty(){
   if(noChar.length){ const d=document.createElement('div'); d.className='note'; d.textContent=`รอสร้างตัวละคร: ${noChar.length} คน`; left.appendChild(d); }
   // ── แชตปาร์ตี้ (คอลัมน์ขวา — ข้อความล่าสุด) ──
   const chatCard=document.createElement('div'); chatCard.className='item';
-  chatCard.innerHTML='<div class="sectitle">PARTY CHAT</div><div class="note" style="text-align:left;padding:2px 2px 6px">คุยวางแผนนอกเรื่อง (ข้อความล่าสุด)</div>';
+  chatCard.innerHTML='<div class="sectitle" style="display:flex;justify-content:space-between;align-items:center"><span>PARTY CHAT</span></div><div class="note" style="text-align:left;padding:2px 2px 6px">คุยวางแผนนอกเรื่อง (ข้อความล่าสุด)</div>';
+  { const cb=document.createElement('button'); cb.className='btn ghost sm'; cb.textContent='🧹 ล้างแชท'; cb.title='ซ่อนข้อความเก่าบนเครื่องนี้ (ไม่ลบของเพื่อน)'; cb.onclick=clearChatLocal; chatCard.querySelector('.sectitle').appendChild(cb); }
   const list=document.createElement('div'); list.id='chatList'; list.className='chatlist'; chatCard.appendChild(list);
   const inrow=document.createElement('div'); inrow.style.cssText='display:flex;gap:8px;align-items:flex-end;margin-top:8px';
   const ta=document.createElement('textarea'); ta.id='chatInput'; ta.rows=2; ta.placeholder='พิมพ์คุย… Enter ส่ง, Shift+Enter ขึ้นบรรทัด'; ta.style.flex='1';
