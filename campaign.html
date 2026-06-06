@@ -1958,7 +1958,7 @@ function persOptsWidget(){
       const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id, personal_options:true})});
       const j=await r.json();
       const list2=Array.isArray(j.options)?j.options:[];
-      if(!list2.length){ toast(j.error||'ยังไม่ได้ตัวเลือก ลองอีกครั้ง',true); }
+      if(!list2.length){ toast((j.error||'ยังไม่ได้ตัวเลือก ลองอีกครั้ง')+(j.detail?(' — '+String(j.detail).slice(0,80)):''),true); }
       else{
         pw.querySelectorAll('button.popt').forEach(x=>x.remove());
         list2.slice(0,5).forEach(o=>{ const _o=(typeof plainNarr==='function')?plainNarr(String(o)):String(o); const ob=document.createElement('button'); ob.type='button'; ob.className='popt'; ob.textContent=_o; ob.onclick=()=>quickSubmit(_o); pw.appendChild(ob); });
