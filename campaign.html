@@ -1907,6 +1907,7 @@ async function refreshCombatTurn(){
     if(er.data.active_entry_id){ const e2=await supa.from('initiative_entries').select('character_id,display_name').eq('id',er.data.active_entry_id).maybeSingle(); if(e2.data){ charId=e2.data.character_id; name=e2.data.display_name; } }
     const wasMine=gCombat.active&&myChar&&gCombat.activeCharId===myChar.id;
     gCombat={active:true,activeCharId:charId,activeName:name};
+    if(charId!==window._turnWaitChar){ window._turnWaitChar=charId; window._turnWaitSince=Date.now(); }   // จับเวลาเทิร์นนี้เริ่มรอเมื่อไหร่ (ใช้คุมปุ่ม skip)
     const nowMine=charId&&myChar&&charId===myChar.id;
     if(nowMine&&!wasMine) notifyMyTurn();
   }catch(e){}
@@ -1957,6 +1958,21 @@ function nameFor(a){
   if(c) return c.name;
   const m=members.find(m=>m.user_id===a.user_id);
   return (m&&m.profiles&&m.profiles.display_name)||'Player';
+}
+// ปุ่ม Skip turn (host): ระบุชื่อเจ้าของเทิร์น + นาฬิการอแบบสด — กดได้เมื่อรอครบ 60 วิ (กัน skip มั่ว/ผิดตัว)
+function makeSkipBtn(){
+  const fmt=(ms)=>{ const s=Math.max(0,Math.floor(ms/1000)); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
+  const sk=document.createElement('button'); sk.className='btn warn sm'; sk.style.cssText='margin-top:8px;display:block;width:100%';
+  const label=()=>{
+    const w=Date.now()-(window._turnWaitSince||Date.now());
+    const ready=w>60000;
+    sk.disabled=!ready||resolving;
+    sk.textContent='⏭ Skip เทิร์นของ '+(gCombat.activeName||'?')+' — รอมาแล้ว '+fmt(w)+(ready?'':' (กดได้เมื่อครบ 1:00)');
+  };
+  label();
+  const iv=setInterval(()=>{ if(!document.body.contains(sk)){ clearInterval(iv); return; } label(); },1000);
+  sk.onclick=()=>{ if(confirm('Skip เทิร์นของ '+(gCombat.activeName||'ผู้เล่นนี้')+'?\n(เทิร์นนี้จะถือว่าตั้งรับ/Dodge — ใช้เมื่อผู้เล่น/บอทไม่ตอบสนองเท่านั้น)')) resolveRound(true); };
+  return sk;
 }
 // D: ปุ่มขอตัวเลือกเฉพาะตัว — ใช้ทั้ง story mode และคอมแบตที่ DM ลืมส่ง options (เรียก personal_options endpoint)
 //   ตัวเลือกที่ได้ถูกแคชต่อรอบ (window._persOpts) — roundbar re-render บ่อยจาก realtime จะวาดกลับให้ ไม่หาย
@@ -2083,12 +2099,9 @@ async function renderRoundbar(){
       };
       w.appendChild(rb);
     }
-    // host สลบอยู่ก็ยังต้องคุมเกมได้ — ปุ่มข้ามเทิร์นคนที่ไม่อยู่ แสดงในแผงคนสลบด้วย
+    // host สลบอยู่ก็ยังต้องคุมเกมได้ — ปุ่ม Skip (ชื่อ + นาฬิกาสด กดได้เมื่อครบ 1 นาที)
     if(isHost && typeof gCombat!=='undefined' && gCombat && gCombat.active && gCombat.activeCharId && gCombat.activeCharId!==myChar.id){
-      const sk=document.createElement('button'); sk.className='btn warn sm'; sk.style.cssText='margin-top:8px;display:block;width:100%';
-      sk.textContent='⏭ ข้ามเทิร์น '+(gCombat.activeName||'')+' (ไม่อยู่/AFK)';
-      sk.onclick=()=>{ if(confirm('ข้ามเทิร์นของ '+(gCombat.activeName||'ผู้เล่นนี้')+'?\n(จะถือว่าตั้งรับ/Dodge ในเทิร์นนี้)')) resolveRound(true); };
-      w.appendChild(sk);
+      w.appendChild(makeSkipBtn());
     }
     bar.appendChild(w); return;
   }
@@ -2096,13 +2109,8 @@ async function renderRoundbar(){
     const w=document.createElement('div'); w.className='note'; w.style.cssText='text-align:left;padding:8px 2px;line-height:1.6';
     w.innerHTML='⏳ ถึงตา <b>'+escapeHtml(gCombat.activeName||'...')+'</b> — รอเทิร์นของคุณ (ระบบจะแจ้งเตือนเมื่อถึงตา)';
     bar.appendChild(w);
-    // host ข้ามเทิร์นคนที่ไม่อยู่ได้ (คนถูกข้าม = ตั้งรับ/Dodge อัตโนมัติ) — กันเกมค้างเพราะบอท/เพื่อนหลุด
-    if(isHost){
-      const sk=document.createElement('button'); sk.className='btn warn sm'; sk.style.marginTop='8px';
-      sk.textContent=resolving?'กำลังประมวลผล…':'⏭ ข้ามเทิร์น '+(gCombat.activeName||'')+' (ไม่อยู่/AFK)'; sk.disabled=resolving;
-      sk.onclick=()=>{ if(confirm('ข้ามเทิร์นของ '+(gCombat.activeName||'ผู้เล่นนี้')+'?\n(จะถือว่าตั้งรับ/Dodge ในเทิร์นนี้)')) resolveRound(true); };
-      bar.appendChild(sk);
-    }
+    // host: ปุ่ม Skip โชว์เสมอ (ชื่อ + นาฬิการอสด) กดได้เมื่อครบ 1 นาที
+    if(isHost){ bar.appendChild(makeSkipBtn()); }
     return;
   }
   if(gCombat.active && myChar && gCombat.activeCharId===myChar.id){
