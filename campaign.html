@@ -1948,8 +1948,13 @@ function nameFor(a){
   return (m&&m.profiles&&m.profiles.display_name)||'Player';
 }
 // D: ปุ่มขอตัวเลือกเฉพาะตัว — ใช้ทั้ง story mode และคอมแบตที่ DM ลืมส่ง options (เรียก personal_options endpoint)
+//   ตัวเลือกที่ได้ถูกแคชต่อรอบ (window._persOpts) — roundbar re-render บ่อยจาก realtime จะวาดกลับให้ ไม่หาย
 function persOptsWidget(){
   const pw=document.createElement('div'); pw.className='copt'; pw.id='persOpts';
+  const renderList=(list)=>{
+    pw.querySelectorAll('button.popt').forEach(x=>x.remove());
+    list.slice(0,5).forEach(o=>{ const _o=(typeof plainNarr==='function')?plainNarr(String(o)):String(o); const ob=document.createElement('button'); ob.type='button'; ob.className='popt'; ob.textContent=_o; ob.onclick=()=>quickSubmit(_o); pw.appendChild(ob); });
+  };
   const pb=document.createElement('button'); pb.type='button'; pb.textContent='🎲 ขอตัวเลือกเฉพาะตัว (DM เสนอให้ '+(myChar?myChar.name:'')+')';
   pb.onclick=async()=>{
     pb.disabled=true; const _t=pb.textContent; pb.textContent='🎲 DM กำลังคิดตัวเลือกให้คุณ…';
@@ -1960,13 +1965,16 @@ function persOptsWidget(){
       const list2=Array.isArray(j.options)?j.options:[];
       if(!list2.length){ toast((j.error||'ยังไม่ได้ตัวเลือก ลองอีกครั้ง')+(j.detail?(' — '+String(j.detail).slice(0,80)):''),true); }
       else{
-        pw.querySelectorAll('button.popt').forEach(x=>x.remove());
-        list2.slice(0,5).forEach(o=>{ const _o=(typeof plainNarr==='function')?plainNarr(String(o)):String(o); const ob=document.createElement('button'); ob.type='button'; ob.className='popt'; ob.textContent=_o; ob.onclick=()=>quickSubmit(_o); pw.appendChild(ob); });
+        window._persOpts={ rid:(curRound&&curRound.id)||null, list:list2 };   // แคชต่อรอบ — กัน re-render ลบทิ้ง
+        renderList(list2);
       }
     }catch(e){ toast('ขอตัวเลือกไม่สำเร็จ',true); }
     pb.disabled=false; pb.textContent=_t;
   };
-  pw.appendChild(pb); return pw;
+  pw.appendChild(pb);
+  // มีตัวเลือกแคชของรอบนี้อยู่แล้ว → วาดกลับทันที (หลัง re-render)
+  try{ if(window._persOpts && curRound && window._persOpts.rid===curRound.id && Array.isArray(window._persOpts.list)) renderList(window._persOpts.list); }catch(e){}
+  return pw;
 }
 async function renderRoundbar(){
   const myseq=++roundbarSeq;            // กัน render ซ้อน (ต้นเหตุกล่องตอบซ้ำ)
