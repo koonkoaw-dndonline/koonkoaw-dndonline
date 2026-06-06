@@ -1900,8 +1900,9 @@ let _combatRenderT=null;
 function scheduleCombatRender(){ clearTimeout(_combatRenderT); _combatRenderT=setTimeout(()=>{ if(activeTab()==='mon') renderCombat(); }, 200); }   // รวมการ re-render หลายครั้งจาก combat_log/initiative ที่มารัวๆ ให้เหลือครั้งเดียว
 async function refreshCombatTurn(){
   try{
-    const er=await supa.from('combat_encounters').select('id,active_entry_id,status').eq('campaign_id',campaign.id).eq('status','active').maybeSingle();   // combat_encounters ใช้ status (ไม่มีคอลัมน์ active)
-    if(!er.data){ gCombat={active:false,activeCharId:null,activeName:null}; return; }
+    const er=await supa.from('combat_encounters').select('id,active_entry_id,status,combat_round').eq('campaign_id',campaign.id).eq('status','active').maybeSingle();   // combat_encounters ใช้ status (ไม่มีคอลัมน์ active)
+    if(!er.data){ gCombat={active:false,activeCharId:null,activeName:null}; window._combatRound=null; return; }
+    window._combatRound=er.data.combat_round;   // ใช้ล็อกปุ่ม death save ตามรอบ
     let charId=null,name=null;
     if(er.data.active_entry_id){ const e2=await supa.from('initiative_entries').select('character_id,display_name').eq('id',er.data.active_entry_id).maybeSingle(); if(e2.data){ charId=e2.data.character_id; name=e2.data.display_name; } }
     const wasMine=gCombat.active&&myChar&&gCombat.activeCharId===myChar.id;
@@ -2062,7 +2063,10 @@ async function renderRoundbar(){
       : ds.stable ? '🩹 หมดสติ — อาการคงที่ (stable) รอเพื่อนช่วยหรือพักฟื้น'
       : '💔 <b>หมดสติ (HP 0)</b> — ทำอะไรไม่ได้ นอกจากลุ้นชะตา<br>☠️ สำเร็จ '+(ds.s||0)+'/3 · ล้มเหลว '+(ds.f||0)+'/3<br><span class="muted" style="font-weight:400">เพื่อนช่วยได้: เวทรักษา (ฟื้นทันที) หรือปฐมพยาบาล Medicine DC10 (stable)</span>';
     if(!ds.dead && !ds.stable){
-      const rb=document.createElement('button'); rb.className='btn'; rb.style.cssText='margin-top:10px;display:block;width:100%'; rb.textContent='🎲 ทอย DEATH SAVE (รอบละครั้ง)';
+      const _rolled = !!(ds.round && window._combatRound && +ds.round >= +window._combatRound);   // ทอยของรอบนี้ไปแล้ว → ล็อกจนกว่าจะขึ้นรอบใหม่
+      const rb=document.createElement('button'); rb.className='btn'; rb.style.cssText='margin-top:10px;display:block;width:100%';
+      rb.textContent=_rolled?'⏳ ทอยรอบนี้แล้ว — รอรอบถัดไป':'🎲 ทอย DEATH SAVE (รอบละครั้ง)';
+      rb.disabled=_rolled;
       rb.onclick=async()=>{
         rb.disabled=true; rb.textContent='🎲 กำลังทอย…';
         try{
@@ -2084,7 +2088,15 @@ async function renderRoundbar(){
   if(gCombat.active && gCombat.activeCharId && myChar && gCombat.activeCharId!==myChar.id){
     const w=document.createElement('div'); w.className='note'; w.style.cssText='text-align:left;padding:8px 2px;line-height:1.6';
     w.innerHTML='⏳ ถึงตา <b>'+escapeHtml(gCombat.activeName||'...')+'</b> — รอเทิร์นของคุณ (ระบบจะแจ้งเตือนเมื่อถึงตา)';
-    bar.appendChild(w); return;
+    bar.appendChild(w);
+    // host ข้ามเทิร์นคนที่ไม่อยู่ได้ (คนถูกข้าม = ตั้งรับ/Dodge อัตโนมัติ) — กันเกมค้างเพราะบอท/เพื่อนหลุด
+    if(isHost){
+      const sk=document.createElement('button'); sk.className='btn warn sm'; sk.style.marginTop='8px';
+      sk.textContent=resolving?'กำลังประมวลผล…':'⏭ ข้ามเทิร์น '+(gCombat.activeName||'')+' (ไม่อยู่/AFK)'; sk.disabled=resolving;
+      sk.onclick=()=>{ if(confirm('ข้ามเทิร์นของ '+(gCombat.activeName||'ผู้เล่นนี้')+'?\n(จะถือว่าตั้งรับ/Dodge ในเทิร์นนี้)')) resolveRound(true); };
+      bar.appendChild(sk);
+    }
+    return;
   }
   if(gCombat.active && myChar && gCombat.activeCharId===myChar.id){
     const w=document.createElement('div'); w.className='note'; w.style.cssText='text-align:left;padding:6px 2px;color:#FAC775;font-weight:600';
