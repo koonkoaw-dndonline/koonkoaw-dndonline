@@ -1947,6 +1947,27 @@ function nameFor(a){
   const m=members.find(m=>m.user_id===a.user_id);
   return (m&&m.profiles&&m.profiles.display_name)||'Player';
 }
+// D: ปุ่มขอตัวเลือกเฉพาะตัว — ใช้ทั้ง story mode และคอมแบตที่ DM ลืมส่ง options (เรียก personal_options endpoint)
+function persOptsWidget(){
+  const pw=document.createElement('div'); pw.className='copt'; pw.id='persOpts';
+  const pb=document.createElement('button'); pb.type='button'; pb.textContent='🎲 ขอตัวเลือกเฉพาะตัว (DM เสนอให้ '+(myChar?myChar.name:'')+')';
+  pb.onclick=async()=>{
+    pb.disabled=true; const _t=pb.textContent; pb.textContent='🎲 DM กำลังคิดตัวเลือกให้คุณ…';
+    try{
+      const tok=(await supa.auth.getSession()).data.session?.access_token;
+      const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id, personal_options:true})});
+      const j=await r.json();
+      const list2=Array.isArray(j.options)?j.options:[];
+      if(!list2.length){ toast(j.error||'ยังไม่ได้ตัวเลือก ลองอีกครั้ง',true); }
+      else{
+        pw.querySelectorAll('button.popt').forEach(x=>x.remove());
+        list2.slice(0,5).forEach(o=>{ const _o=(typeof plainNarr==='function')?plainNarr(String(o)):String(o); const ob=document.createElement('button'); ob.type='button'; ob.className='popt'; ob.textContent=_o; ob.onclick=()=>quickSubmit(_o); pw.appendChild(ob); });
+      }
+    }catch(e){ toast('ขอตัวเลือกไม่สำเร็จ',true); }
+    pb.disabled=false; pb.textContent=_t;
+  };
+  pw.appendChild(pb); return pw;
+}
 async function renderRoundbar(){
   const myseq=++roundbarSeq;            // กัน render ซ้อน (ต้นเหตุกล่องตอบซ้ำ)
   const bar=$('roundbar');
@@ -2037,23 +2058,28 @@ async function renderRoundbar(){
         const oh=document.createElement('div'); oh.className='copt-h'; oh.textContent='— แนวทางที่ DM เสนอ (กดเลือกได้เลย) —'; opts.appendChild(oh);
         cb.options.slice(0,5).forEach(o=>{ const _o=(typeof plainNarr==='function')?plainNarr(o):o; const ob=document.createElement('button'); ob.type='button'; ob.textContent=_o; ob.onclick=()=>quickSubmit(_o); opts.appendChild(ob); });
         bar.appendChild(opts);
+      } else if(myChar){
+        // DM ลืมส่ง options รอบนี้ (LLM พลาดได้) → ปุ่มขอตัวเลือก on-demand แทน ไม่ปล่อยช่องว่าง
+        bar.appendChild(persOptsWidget());
       }
-      // ตามด้วยเมนู COMBAT COMMAND เต็ม — desktop ในฉากรบ: ย่อเหลือปุ่ม 'BATTLE COMMAND :' กดแล้วหน้าต่างเด้งเยื้องซ้าย · mobile: inline เหมือนเดิม
+      // เมนู COMBAT COMMAND — ย่อเหลือปุ่มบรรทัดเดียว (ทั้ง desktop+mobile) กดแล้วขยาย: desktop=หน้าต่างลอยเยื้องซ้าย · mobile=กางในแผงเดิม
       if(typeof window.cc==='object' && window.cc && typeof window.cc.openInline==='function'){
-        const _deskBC = document.body.classList.contains('in-battle') && window.matchMedia && window.matchMedia('(min-width:1024px)').matches;
+        const _inBat = document.body.classList.contains('in-battle');
+        const _deskBC = _inBat && window.matchMedia && window.matchMedia('(min-width:1024px)').matches;
+        const _mobBC  = _inBat && !_deskBC;
         if(window.__ccRound!==curRound.id) window._bcOpen=false;   // เทิร์นใหม่ → กลับสู่สถานะย่อ
-        if(_deskBC){
+        if(_mobBC){ const bh=document.createElement('div'); bh.className='copt-h'; bh.style.cssText='margin-top:8px;text-align:center'; bh.textContent='— หรือสร้างทางเลือกการกระทำเองโดยใช้ BATTLE COMMAND —'; bar.appendChild(bh); }
+        if(_deskBC || _mobBC){
           const tg=document.createElement('button'); tg.type='button'; tg.className='bc-toggle'; tg.textContent='⚔ BATTLE COMMAND :';
           tg.onclick=()=>{ window._bcOpen=!window._bcOpen; const f=document.getElementById('ccFrame'); if(f) f.classList.toggle('cc-hide', !window._bcOpen); try{ window.cc.openInline(); }catch(e){} };
           bar.appendChild(tg);
         }
-        const frame=document.createElement('div'); frame.id='ccFrame'; frame.className='cc-frame cc-inline'+((_deskBC && !window._bcOpen)?' cc-hide':'');
+        const frame=document.createElement('div'); frame.id='ccFrame'; frame.className='cc-frame cc-inline'+(((_deskBC||_mobBC) && !window._bcOpen)?' cc-hide':'');
         bar.appendChild(frame);
         if(window.__ccRound!==curRound.id){ window.__ccRound=curRound.id; prepCommandContext().then(()=>{ try{ window.cc.openInline(); }catch(e){} }); }
         else { try{ window.cc.openInline(); }catch(e){} }
       }
-      // Force Resolve (host) — อยู่ใต้กล่องคำสั่ง ก่อนถึง BATTLE LOG
-      if(isHost){ const fbtn=document.createElement('button'); fbtn.className='btn warn sm'; fbtn.style.marginTop='6px'; fbtn.textContent=resolving?'Resolving…':'⚡ Force Resolve'; fbtn.disabled=resolving; fbtn.onclick=()=>resolveRound(true); bar.appendChild(fbtn); }
+      // (Force Resolve ใช้ปุ่มกลางท้ายฟังก์ชัน — ห้ามเพิ่มซ้ำตรงนี้)
     } else {
       const ta=document.createElement('textarea'); ta.id='actInput'; ta.placeholder='จะให้ตัวละครทำอะไร? พิมพ์ได้อิสระ'; if(keepAct) ta.value=keepAct; bar.appendChild(ta);
     }
@@ -2071,26 +2097,7 @@ async function renderRoundbar(){
     }
     const b=document.createElement('button'); b.className='btn'; b.textContent='Submit Action'; b.onclick=submitAction; bar.appendChild(b);
     // D: ขอตัวเลือกเฉพาะตัว — กดแล้ว DM ปั่น 3-5 ทางเลือกสำหรับ 'ตัวละครเรา' ณ สถานการณ์นี้ (on-demand ไม่เปลือง token ถ้าไม่กด)
-    if(myChar){
-      const pw=document.createElement('div'); pw.className='copt'; pw.id='persOpts';
-      const pb=document.createElement('button'); pb.type='button'; pb.textContent='🎲 ขอตัวเลือกเฉพาะตัว (DM เสนอให้ '+escapeHtml(myChar.name)+')';
-      pb.onclick=async()=>{
-        pb.disabled=true; const _t=pb.textContent; pb.textContent='🎲 DM กำลังคิดตัวเลือกให้คุณ…';
-        try{
-          const tok=(await supa.auth.getSession()).data.session?.access_token;
-          const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id, personal_options:true})});
-          const j=await r.json();
-          const list2=Array.isArray(j.options)?j.options:[];
-          if(!list2.length){ toast(j.error||'ยังไม่ได้ตัวเลือก ลองอีกครั้ง',true); }
-          else{
-            pw.querySelectorAll('button.popt').forEach(x=>x.remove());
-            list2.slice(0,5).forEach(o=>{ const _o=(typeof plainNarr==='function')?plainNarr(String(o)):String(o); const ob=document.createElement('button'); ob.type='button'; ob.className='popt'; ob.textContent=_o; ob.onclick=()=>quickSubmit(_o); pw.appendChild(ob); });
-          }
-        }catch(e){ toast('ขอตัวเลือกไม่สำเร็จ',true); }
-        pb.disabled=false; pb.textContent=_t;
-      };
-      pw.appendChild(pb); bar.appendChild(pw);
-    }
+    if(myChar){ bar.appendChild(persOptsWidget()); }
     }
   } else {
     // ส่งแล้ว — บอกชัดว่ารอใคร / DM กำลังดำเนินเรื่อง
