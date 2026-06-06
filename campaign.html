@@ -756,6 +756,10 @@ body.role-player .dm-only{display:none!important;}
 .bscene-flash.go-win .bsf-txt{animation:bsftxt 2.4s ease forwards;color:#ffd866;text-shadow:0 0 26px #ffb300,0 0 60px #ff8f00;}
 .bscene-flash.go-lose{animation:bsflash 2.4s ease forwards;}
 .bscene-flash.go-lose .bsf-txt{animation:bsftxt 2.4s ease forwards;color:#ff7a7a;text-shadow:0 0 26px #d32f2f;}
+/* ── BATTLE COMMAND ย่อ (desktop ฉากรบ): ปุ่ม pixel font · กดแล้วหน้าต่างคำสั่งเด้งเยื้องซ้าย ── */
+.bc-toggle{display:block;width:100%;text-align:center;background:#141414;color:#FAC775;border:1px solid #FAC775;border-radius:8px;padding:10px 12px;font-family:'Press Start 2P',monospace;font-size:11px;letter-spacing:1px;cursor:pointer;margin:6px 0;}
+.bc-toggle:hover{background:#241d0e;}
+.cc-frame.cc-hide{display:none!important;}
 /* ── C: ปุ่ม 📜 เปิดชีทตัวละคร (สกิล/สเตตัส/ของ) จากฉากรบ + overlay อ่านอย่างเดียว ── */
 .bs-cs-btn{position:fixed;top:10px;left:10px;z-index:4150;background:#1c1c1c;color:#FAC775;border:1px solid #FAC775;border-radius:8px;padding:7px 12px;font-family:'IBM Plex Sans Thai',sans-serif;font-size:13px;font-weight:700;cursor:pointer;display:none;box-shadow:0 2px 10px rgba(0,0,0,.5);}
 body.in-battle .bs-cs-btn{display:block;}
@@ -2034,13 +2038,22 @@ async function renderRoundbar(){
         cb.options.slice(0,5).forEach(o=>{ const _o=(typeof plainNarr==='function')?plainNarr(o):o; const ob=document.createElement('button'); ob.type='button'; ob.textContent=_o; ob.onclick=()=>quickSubmit(_o); opts.appendChild(ob); });
         bar.appendChild(opts);
       }
-      // ตามด้วยเมนู COMBAT COMMAND เต็ม (Action/Bonus/Move) — เรนเดอร์ผ่าน window.cc
+      // ตามด้วยเมนู COMBAT COMMAND เต็ม — desktop ในฉากรบ: ย่อเหลือปุ่ม 'BATTLE COMMAND :' กดแล้วหน้าต่างเด้งเยื้องซ้าย · mobile: inline เหมือนเดิม
       if(typeof window.cc==='object' && window.cc && typeof window.cc.openInline==='function'){
-        const frame=document.createElement('div'); frame.id='ccFrame'; frame.className='cc-frame cc-inline';
+        const _deskBC = document.body.classList.contains('in-battle') && window.matchMedia && window.matchMedia('(min-width:1024px)').matches;
+        if(window.__ccRound!==curRound.id) window._bcOpen=false;   // เทิร์นใหม่ → กลับสู่สถานะย่อ
+        if(_deskBC){
+          const tg=document.createElement('button'); tg.type='button'; tg.className='bc-toggle'; tg.textContent='⚔ BATTLE COMMAND :';
+          tg.onclick=()=>{ window._bcOpen=!window._bcOpen; const f=document.getElementById('ccFrame'); if(f) f.classList.toggle('cc-hide', !window._bcOpen); try{ window.cc.openInline(); }catch(e){} };
+          bar.appendChild(tg);
+        }
+        const frame=document.createElement('div'); frame.id='ccFrame'; frame.className='cc-frame cc-inline'+((_deskBC && !window._bcOpen)?' cc-hide':'');
         bar.appendChild(frame);
         if(window.__ccRound!==curRound.id){ window.__ccRound=curRound.id; prepCommandContext().then(()=>{ try{ window.cc.openInline(); }catch(e){} }); }
         else { try{ window.cc.openInline(); }catch(e){} }
       }
+      // Force Resolve (host) — อยู่ใต้กล่องคำสั่ง ก่อนถึง BATTLE LOG
+      if(isHost){ const fbtn=document.createElement('button'); fbtn.className='btn warn sm'; fbtn.style.marginTop='6px'; fbtn.textContent=resolving?'Resolving…':'⚡ Force Resolve'; fbtn.disabled=resolving; fbtn.onclick=()=>resolveRound(true); bar.appendChild(fbtn); }
     } else {
       const ta=document.createElement('textarea'); ta.id='actInput'; ta.placeholder='จะให้ตัวละครทำอะไร? พิมพ์ได้อิสระ'; if(keepAct) ta.value=keepAct; bar.appendChild(ta);
     }
@@ -2820,6 +2833,7 @@ function bsCloseSheets(){ ['bsCmdWrap','bsInitBox','bsLogBox','bsHud'].forEach(f
 document.addEventListener('keydown', function(e){
   if(e.key!=='Escape' && e.key!=='Esc') return;
   try{ if(window.cc && window.cc.escBack && window.cc.escBack()){ e.preventDefault(); return; } }catch(_e){}
+  try{ if(window._bcOpen){ window._bcOpen=false; var _fbc=document.getElementById('ccFrame'); if(_fbc) _fbc.classList.add('cc-hide'); e.preventDefault(); return; } }catch(_e){}
   try{ var _bs=document.getElementById('battleScene'); if(_bs && _bs.classList.contains('bs-has-sheet')){ bsCloseSheets(); e.preventDefault(); return; } }catch(_e){}
   try{ var _rt=document.getElementById('combatCommandPanel'); if(_rt && _rt.classList.contains('cc-show')){ window.cc.close(); e.preventDefault(); } }catch(_e){}
 });
@@ -4498,12 +4512,12 @@ window.cc = (function(){
   }
   function ccApplyWindow(){
     var fr=document.getElementById('ccFrame'); if(!fr) return;
-    var win = (phase==='building' && stack.length>1 && window.matchMedia && window.matchMedia('(min-width:1024px)').matches);
+    var win = (phase==='building' && window.matchMedia && window.matchMedia('(min-width:1024px)').matches && (stack.length>1 || !!window._bcOpen));
     fr.classList.toggle('cc-windowed', win);
     var host=document.getElementById('battleScene')||document.body;
     var bd=document.getElementById('ccBackdrop');
     if(win){
-      if(!bd){ bd=document.createElement('div'); bd.id='ccBackdrop'; bd.className='cc-backdrop'; bd.addEventListener('click', function(){ stack=['root']; renderAll(); }); }
+      if(!bd){ bd=document.createElement('div'); bd.id='ccBackdrop'; bd.className='cc-backdrop'; bd.addEventListener('click', function(){ stack=['root']; window._bcOpen=false; var _fh=document.getElementById('ccFrame'); if(_fh) _fh.classList.add('cc-hide'); renderAll(); }); }
       if(bd.parentNode!==host) host.appendChild(bd);
       bd.classList.add('on');
       var d=Math.max(0, stack.length-2);   // เหลื่อมซ้อนตามชั้นที่กดเข้าไป
