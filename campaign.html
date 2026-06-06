@@ -1992,13 +1992,13 @@ async function renderRoundbar(){
   const typingNow=document.activeElement && document.activeElement.id==='actInput';
   if(typingNow && rbKey===_lastRoundbarKey){
     const sl=bar.querySelector('.statusline');
-    const _cbq=(curRound.meta||{}).combat||{}; const _incq=!!window._combatActive||(_cbq.active&&!!(typeof gCombat!=='undefined'&&gCombat&&gCombat.active)); const _rngq=_incq?`<span class="cs">${escapeHtml(_cbq.range||'COMBAT')}</span>`:'';
+    const _cbq=(curRound.meta||{}).combat||{}; const _incq=_cbq.active||!!window._combatActive; const _rngq=_incq?`<span class="cs">${escapeHtml(_cbq.range||'COMBAT')}</span>`:'';
     if(sl) sl.innerHTML=`<div class="cstat"><span class="cs">Round ${curRound.round_number}</span><span class="cs ${submitted>=total?'done':'wait'}">Submitted ${submitted}/${total}</span>${_rngq}</div>`;
     return;
   }
   _lastRoundbarKey=rbKey;
   const keepAct=(document.getElementById('actInput')||{}).value||'';   // กันข้อความที่พิมพ์ค้างหายตอน re-render (placeholder/realtime)
-  const _cbS=(curRound.meta||{}).combat||{}; const _incS=!!window._combatActive||(_cbS.active&&!!(typeof gCombat!=='undefined'&&gCombat&&gCombat.active)); const _rng=_incS?`<span class="cs">${escapeHtml(_cbS.range||'COMBAT')}</span>`:'';
+  const _cbS=(curRound.meta||{}).combat||{}; const _incS=_cbS.active||!!window._combatActive; const _rng=_incS?`<span class="cs">${escapeHtml(_cbS.range||'COMBAT')}</span>`:'';
   let html=`<div class="cstat"><span class="cs">Round ${curRound.round_number}</span><span class="cs ${submitted>=total?'done':'wait'}">Submitted ${submitted}/${total}</span>${_rng}</div>`;
   list.forEach(a=>{ html+=`<div class="actionlog"><b>${escapeHtml(nameFor(a))}</b> ${escapeHtml(a.action_text)}</div>`; });
   bar.innerHTML=html;   // สร้างทีเดียว (synchronous ต่อจากนี้ ไม่มี await)
@@ -2027,8 +2027,8 @@ async function renderRoundbar(){
   if(!mine){
     const meta=curRound.meta||{};
     const cb=meta.combat||{}, rr=meta.roll_request||{}, inter=meta.interactables||[];
-    // server-authority สองชั้น: เปิดเมื่อมีศัตรู active จริง · DM flag (cb.active) ใช้ได้เฉพาะตอน encounter ยัง active — กัน command ค้างหลังจบศึก
-    const inCombat = !!window._combatActive || (cb.active && !!(typeof gCombat!=='undefined' && gCombat && gCombat.active));
+    // เชื่อ meta ของรอบทันที (iOS: gCombat/_combatActive รีเฟรชช้า ถ้ารอจะทำเมนูหาย) — เคส command ค้างหลังจบศึก แก้ที่ server แล้ว (v12: meta.combat.active=false เมื่อ encounter จบ)
+    const inCombat = cb.active || !!window._combatActive;
     if(econUsedRound!==curRound.id){ econUsed={}; econUsedRound=curRound.id; }  // รีเซ็ตมาร์กทุกรอบ
     if(inCombat){
       // A: ทางเลือกคุณภาพจาก DM ขึ้น 'บนสุด' กดได้ทันที — เมนูคำสั่งเต็มตามหลัง
@@ -3457,6 +3457,8 @@ async function deleteDungeon(id,mapPath){
   if(!confirm('ลบดันเจียนนี้?')) return;
   if(mapPath){ try{ await supa.storage.from('maps').remove([mapPath]); }catch(e){} }
   const {error}=await supa.from('dungeons').delete().eq('id',id); if(error){ toast(error.message,true); return; }
+  // bugfix: ถ้าแผนที่ที่ลบถูกตั้งเป็นฉากปัจจุบัน → เคลียร์ current_map (กันแท็บ Map ชี้ไฟล์ที่หายไปแล้ว)
+  try{ if(worldState&&worldState.current_map===mapPath){ await supa.from('campaign_state').update({current_map:null,updated_at:new Date().toISOString()}).eq('campaign_id',campaign.id); await loadState(); renderMap(); } }catch(e){}
   toast('ลบแล้ว'); renderFiles();
 }
 // PUZZLE card (collaborative)
@@ -3498,7 +3500,7 @@ async function addPuzzleFile(fnm,fi,btn){
     const r=await fetch(INGEST_PUZZLE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
       body:JSON.stringify({campaign_id:campaign.id, name:fnm.value.trim()||file.name, storage_path:path, mime:file.type})});
     const j=await r.json();
-    if(!r.ok){ toast('AI อ่านไม่สำเร็จ: '+((j.error||'')+(j.detail?(' — '+String(j.detail).slice(0,100)):'')),true); btn.disabled=false; btn.textContent=orig; return; }
+    if(!r.ok){ try{ await supa.storage.from('puzzlefiles').remove([path]); }catch(_e){} toast('AI อ่านไม่สำเร็จ: '+((j.error||'')+(j.detail?(' — '+String(j.detail).slice(0,100)):'')),true); btn.disabled=false; btn.textContent=orig; return; }   // bugfix: ลบไฟล์กำพร้าเมื่อ AI อ่านพลาด
     toast('เพิ่มปริศนาจากไฟล์แล้ว ✓ (AI แยกโจทย์/เฉลยให้)'); renderFiles();
   }catch(e){ toast(e.message||'อัปไฟล์ล้มเหลว',true); btn.disabled=false; btn.textContent=orig; }
 }
