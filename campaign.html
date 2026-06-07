@@ -2891,7 +2891,7 @@ async function renderInitiativeTracker(p){
   });
   wrap.appendChild(list); p.appendChild(wrap);
   // combat log feed
-  let logs=[]; try{ const r=await supa.from('combat_log').select('*').eq('encounter_id',enc.id).order('created_at',{ascending:true}).limit(60); logs=r.data||[]; }catch(e){}
+  let logs=[]; try{ const r=await supa.from('combat_log').select('*').eq('encounter_id',enc.id).order('seq',{ascending:true}).limit(60); logs=r.data||[]; }catch(e){}
   if(logs.length){
     const ICON={initiative:'🎲',attack:'🎲',damage:'💥',heal:'💚',save:'🛡',check:'🎯',move:'👣',condition:'⭐',death:'☠',flee:'🏃',round_advance:'🔄',note:'📝'};
     const lc=document.createElement('div'); lc.className='item';
@@ -3104,7 +3104,7 @@ async function exitBattleSceneWithOutro(){
   try{
     var won=true;   // ผลศึกจาก log ล่าสุด: TPK/ปาร์ตี้ล้ม = แพ้, นอกนั้น = ชนะ
     try{
-      var r=await supa.from('combat_log').select('summary').eq('campaign_id',campaign.id).order('created_at',{ascending:false}).limit(3);
+      var r=await supa.from('combat_log').select('summary').eq('campaign_id',campaign.id).order('seq',{ascending:false}).limit(3);
       if(/TPK|ปาร์ตี้ล้ม/i.test((r.data||[]).map(function(x){return x.summary||'';}).join(' '))) won=false;
     }catch(e){}
     var el=document.getElementById('battleScene'), f=document.getElementById('bsFlash');
@@ -3218,7 +3218,7 @@ async function renderBattleInitLog(initEl, logEl){
     if(initEl.getAttribute('data-sig')!==_ig.innerHTML){ initEl.setAttribute('data-sig',_ig.innerHTML); initEl.replaceChildren(_frag); }
   }
   if(logEl){
-    let logs=[]; try{ const r=await supa.from('combat_log').select('*').eq('encounter_id',enc.id).order('created_at',{ascending:true}).limit(80); logs=r.data||[]; }catch(e){}
+    let logs=[]; try{ const r=await supa.from('combat_log').select('*').eq('encounter_id',enc.id).order('seq',{ascending:true}).limit(80); logs=r.data||[]; }catch(e){}
     const ICON={initiative:'🎲',attack:'🎲',damage:'💥',heal:'💚',save:'🛡',check:'🎯',move:'👣',condition:'⭐',death:'☠',flee:'🏃',round_advance:'🔄',note:'📝'};
     const _lfrag=document.createDocumentFragment();
     logs.forEach(l=>{ const d=document.createElement('div'); d.className='bs-logrow'; if(l.entry_type==='round_advance') d.style.color='#9a9a9a'; d.innerHTML=(ICON[l.entry_type]||'•')+' '+escapeHtml(l.summary); _lfrag.appendChild(d); });
