@@ -2068,7 +2068,7 @@ async function renderRoundbar(){
       const pta=document.createElement('textarea'); pta.id='petActInput'; pta.placeholder='จะให้ '+myPet.name+' ทำอะไร?'; bar.appendChild(pta);
       const pb=document.createElement('button'); pb.className='btn'; pb.textContent='Submit ('+myPet.name+')'; pb.onclick=()=>submitAction(myPet.id); bar.appendChild(pb);
     }
-    if(isHost){ const f=document.createElement('button'); f.className='btn warn sm'; f.textContent=resolving?'Resolving…':'⚡ Force Resolve'; f.disabled=resolving; f.onclick=()=>resolveRound(true); bar.appendChild(f); }
+    if(isHost){ const f=document.createElement('button'); f.className='btn warn sm'; f.textContent=resolving?'Resolving…':'⚡ Force Resolve'; f.disabled=resolving; f.onclick=()=>forceResolveConfirm(); bar.appendChild(f); }
     return;
   }
   // หมดสติ (HP 0) ระหว่างคอมแบต → ห้ามสั่งการ แสดงสถานะ Death Save แทน (server ทอยให้รอบละครั้ง)
@@ -2184,7 +2184,7 @@ async function renderRoundbar(){
     else w.innerHTML='กำลังรอคำตอบจากสมาชิกในปาร์ตี้ — DM จะดำเนินเรื่องเมื่อได้คำตอบครบ';
     bar.appendChild(w);
   }
-  if(isHost){ const f=document.createElement('button'); f.className='btn warn sm'; f.textContent=resolving?'Resolving…':'⚡ Force Resolve'; f.disabled=resolving; f.onclick=()=>resolveRound(true); bar.appendChild(f); }
+  if(isHost){ const f=document.createElement('button'); f.className='btn warn sm'; f.textContent=resolving?'Resolving…':'⚡ Force Resolve'; f.disabled=resolving; f.onclick=()=>forceResolveConfirm(); bar.appendChild(f); }
 }
 
 // ── ทอยเต๋า: DM ทอยให้ (server สุ่มจริง) / ทอยเอง (ใส่เลขดิบ) ──
@@ -2960,6 +2960,15 @@ function bsToggleCharSheet(){
   if(ov.classList.contains('on')){ ov.classList.remove('on'); return; }
   var fill=function(){ try{ var src=document.getElementById('panel-me'); var bd2=document.getElementById('bsCharSheetBody'); if(src&&bd2) bd2.innerHTML=src.innerHTML; }catch(e){} ov.classList.add('on'); };
   try{ Promise.resolve(typeof renderMe==='function'?renderMe():null).then(fill,fill); }catch(e){ fill(); }
+}
+// ── v44: Force Resolve ใน combat ต้อง confirm — บอกชัดว่ากำลังข้ามเทิร์นใคร (เทิร์นที่ถูกข้าม = auto-Dodge) ──
+function forceResolveConfirm(){
+  try{
+    const inB=document.body.classList.contains('in-battle')||!!window._combatActive;
+    const an=(typeof gCombat!=='undefined'&&gCombat&&gCombat.active)?gCombat.activeName:null;
+    if(inB&&an&&!confirm('ตอนนี้รอเทิร์นของ "'+an+'" อยู่\nForce Resolve จะถือว่าเขา ตั้งรับ (Dodge) แล้วข้ามเทิร์นไปเลย\n(บอทอาจแค่กำลังคิด — รอสักครู่ก่อนก็ได้)\n\nยืนยันข้ามเทิร์นหรือไม่?')) return;
+  }catch(e){}
+  resolveRound(true);
 }
 // ── DM TOOLS การ์ดกลาง (host) — ใช้ทั้งแท็บ Party (withFrame=true) และเมนูย่อยในฉากต่อสู้ (false) ──
 function buildDmToolsCard(withFrame){
