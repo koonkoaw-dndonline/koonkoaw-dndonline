@@ -2624,61 +2624,8 @@ async function renderParty(){
   });
   const noChar=members.filter(m=>!characters.find(c=>c.user_id===m.user_id));
   if(noChar.length){ const d=document.createElement('div'); d.className='note'; d.textContent=`รอสร้างตัวละคร: ${noChar.length} คน`; left.appendChild(d); }
-  // ── P1: DM TOOLS (host เท่านั้น) — เครื่องมือกรรมการในเกม ไม่ต้องพึ่ง console ──
-  if(campaign.host_id===me.id){
-    const tools=document.createElement('div'); tools.className='item';
-    tools.innerHTML='<div class="sectitle">🎛 DM TOOLS <span class="meta-inline">host only</span></div>';
-    const r1=document.createElement('div'); r1.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0';
-    const sel=document.createElement('select'); characters.forEach(c=>{ const o=document.createElement('option'); o.value=c.name; o.textContent=c.name; sel.appendChild(o); });
-    const hpIn=document.createElement('input'); hpIn.type='number'; hpIn.min='0'; hpIn.placeholder='HP'; hpIn.style.width='70px';
-    const setBtn=document.createElement('button'); setBtn.className='btn sm'; setBtn.textContent='ตั้ง HP';
-    setBtn.onclick=async()=>{
-      const hp=parseInt(hpIn.value,10); if(!Number.isFinite(hp)){ toast('ใส่ตัวเลข HP',true); return; }
-      if(!confirm('ตั้ง HP ของ '+sel.value+' เป็น '+hp+'?')) return;
-      setBtn.disabled=true;
-      try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
-        const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,set_hp:{name:sel.value,hp}})});
-        const j=await r.json(); if(j.error) toast(j.error,true); else { toast(j.name+' → '+j.hp+'/'+j.max+' ✓'); await refreshAll(); renderParty(); return; }
-      }catch(e){ toast('ไม่สำเร็จ',true); }
-      setBtn.disabled=false;
-    };
-    r1.appendChild(sel); r1.appendChild(hpIn); r1.appendChild(setBtn); tools.appendChild(r1);
-    const r2=document.createElement('div'); r2.style.cssText='display:flex;gap:6px;flex-wrap:wrap';
-    const endB=document.createElement('button'); endB.className='btn warn sm'; endB.textContent='⏹ จบการต่อสู้ทันที';
-    endB.onclick=async()=>{
-      if(!confirm('จบการต่อสู้ปัจจุบันทันที? (ศัตรูถอนจากฉาก)')) return;
-      try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
-        const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,end_combat:true})});
-        const j=await r.json(); toast(j.error||'จบการต่อสู้แล้ว ✓',!!j.error);
-      }catch(e){ toast('ไม่สำเร็จ',true); }
-    };
-    const clB=document.createElement('button'); clB.className='btn warn sm'; clB.textContent='🗑 ล้างแชททั้งห้อง (ลบจริง)';
-    clB.onclick=async()=>{
-      if(!confirm('ลบแชททั้งหมดของห้องนี้ถาวร?\nทุกเครื่องเห็นผล และกู้คืนไม่ได้')) return;
-      try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
-        const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,clear_chat:true})});
-        const j=await r.json(); if(j.error) toast(j.error,true); else { toast('ลบแล้ว '+j.deleted+' ข้อความ ✓'); chatMsgs=[]; renderChatList(); try{ if(typeof renderBattleChat==='function') renderBattleChat(); }catch(e){} }
-      }catch(e){ toast('ไม่สำเร็จ',true); }
-    };
-    r2.appendChild(endB); r2.appendChild(clB); tools.appendChild(r2);
-    // v39: ปรับ pace การเล่าเรื่องกลางแคมเปญ (มีผลรอบถัดไปทันที)
-    const r3=document.createElement('div'); r3.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px';
-    const pLbl=document.createElement('span'); pLbl.className='meta-inline'; pLbl.textContent='PACE การเล่า:';
-    const pSel=document.createElement('select');
-    [['slow','🐢 Slow life — เนิบ เน้น roleplay'],['balanced','⚖ Balanced — สมดุล'],['brisk','⚡ Brisk — เร่งเรื่อง กระชับ']].forEach(([v,t])=>{ const o=document.createElement('option'); o.value=v; o.textContent=t; pSel.appendChild(o); });
-    if(campaign.pace) pSel.value=campaign.pace;
-    const pBtn=document.createElement('button'); pBtn.className='btn sm'; pBtn.textContent='ตั้ง pace';
-    pBtn.onclick=async()=>{
-      pBtn.disabled=true;
-      try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
-        const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,set_pace:pSel.value})});
-        const j=await r.json(); if(j.error) toast(j.error,true); else { campaign.pace=j.pace; toast('pace → '+j.pace+' ✓ (มีผลรอบถัดไป)'); }
-      }catch(e){ toast('ไม่สำเร็จ',true); }
-      pBtn.disabled=false;
-    };
-    r3.appendChild(pLbl); r3.appendChild(pSel); r3.appendChild(pBtn); tools.appendChild(r3);
-    right.appendChild(tools);
-  }
+  // ── P1: DM TOOLS (host เท่านั้น) — การ์ดกลาง buildDmToolsCard ใช้ร่วมกับเมนูย่อยในฉากรบ ──
+  if(campaign.host_id===me.id){ right.appendChild(buildDmToolsCard(true)); }
   // ── แชตปาร์ตี้ (คอลัมน์ขวา — ข้อความล่าสุด) ──
   const chatCard=document.createElement('div'); chatCard.className='item';
   chatCard.innerHTML='<div class="sectitle" style="display:flex;justify-content:space-between;align-items:center"><span>PARTY CHAT</span></div><div class="note" style="text-align:left;padding:2px 2px 6px">คุยวางแผนนอกเรื่อง (ข้อความล่าสุด)</div>';
@@ -3005,6 +2952,61 @@ function bsToggleCharSheet(){
   var fill=function(){ try{ var src=document.getElementById('panel-me'); var bd2=document.getElementById('bsCharSheetBody'); if(src&&bd2) bd2.innerHTML=src.innerHTML; }catch(e){} ov.classList.add('on'); };
   try{ Promise.resolve(typeof renderMe==='function'?renderMe():null).then(fill,fill); }catch(e){ fill(); }
 }
+// ── DM TOOLS การ์ดกลาง (host) — ใช้ทั้งแท็บ Party (withFrame=true) และเมนูย่อยในฉากต่อสู้ (false) ──
+function buildDmToolsCard(withFrame){
+  const tools=document.createElement('div');
+  if(withFrame){ tools.className='item'; tools.innerHTML='<div class="sectitle">🎛 DM TOOLS <span class="meta-inline">host only</span></div>'; }
+  const r1=document.createElement('div'); r1.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0';
+  const sel=document.createElement('select'); (characters||[]).forEach(c=>{ const o=document.createElement('option'); o.value=c.name; o.textContent=c.name; sel.appendChild(o); });
+  const hpIn=document.createElement('input'); hpIn.type='number'; hpIn.min='0'; hpIn.placeholder='HP'; hpIn.style.width='70px';
+  const setBtn=document.createElement('button'); setBtn.className='btn sm'; setBtn.textContent='ตั้ง HP';
+  setBtn.onclick=async()=>{
+    const hp=parseInt(hpIn.value,10); if(!Number.isFinite(hp)){ toast('ใส่ตัวเลข HP',true); return; }
+    if(!confirm('ตั้ง HP ของ '+sel.value+' เป็น '+hp+'?')) return;
+    setBtn.disabled=true;
+    try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
+      const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,set_hp:{name:sel.value,hp}})});
+      const j=await r.json(); if(j.error) toast(j.error,true); else { toast(j.name+' → '+j.hp+'/'+j.max+' ✓'); try{ await refreshAll(); if(withFrame) renderParty(); }catch(e){} return; }
+    }catch(e){ toast('ไม่สำเร็จ',true); }
+    setBtn.disabled=false;
+  };
+  r1.appendChild(sel); r1.appendChild(hpIn); r1.appendChild(setBtn); tools.appendChild(r1);
+  const r2=document.createElement('div'); r2.style.cssText='display:flex;gap:6px;flex-wrap:wrap';
+  const endB=document.createElement('button'); endB.className='btn warn sm'; endB.textContent='⏹ จบการต่อสู้ทันที';
+  endB.onclick=async()=>{
+    if(!confirm('จบการต่อสู้ปัจจุบันทันที? (ศัตรูถอนจากฉาก)')) return;
+    try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
+      const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,end_combat:true})});
+      const j=await r.json(); toast(j.error||'จบการต่อสู้แล้ว ✓',!!j.error);
+    }catch(e){ toast('ไม่สำเร็จ',true); }
+  };
+  const clB=document.createElement('button'); clB.className='btn warn sm'; clB.textContent='🗑 ล้างแชททั้งห้อง (ลบจริง)';
+  clB.onclick=async()=>{
+    if(!confirm('ลบแชททั้งหมดของห้องนี้ถาวร?\nทุกเครื่องเห็นผล และกู้คืนไม่ได้')) return;
+    try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
+      const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,clear_chat:true})});
+      const j=await r.json(); if(j.error) toast(j.error,true); else { toast('ลบแล้ว '+j.deleted+' ข้อความ ✓'); chatMsgs=[]; renderChatList(); try{ if(typeof renderBattleChat==='function') renderBattleChat(); }catch(e){} }
+    }catch(e){ toast('ไม่สำเร็จ',true); }
+  };
+  r2.appendChild(endB); r2.appendChild(clB); tools.appendChild(r2);
+  // v39: ปรับ pace การเล่าเรื่องกลางแคมเปญ (มีผลรอบถัดไปทันที)
+  const r3=document.createElement('div'); r3.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px';
+  const pLbl=document.createElement('span'); pLbl.className='meta-inline'; pLbl.textContent='PACE การเล่า:';
+  const pSel=document.createElement('select');
+  [['slow','🐢 Slow life — เนิบ เน้น roleplay'],['balanced','⚖ Balanced — สมดุล'],['brisk','⚡ Brisk — เร่งเรื่อง กระชับ']].forEach(([v,t])=>{ const o=document.createElement('option'); o.value=v; o.textContent=t; pSel.appendChild(o); });
+  if(campaign.pace) pSel.value=campaign.pace;
+  const pBtn=document.createElement('button'); pBtn.className='btn sm'; pBtn.textContent='ตั้ง pace';
+  pBtn.onclick=async()=>{
+    pBtn.disabled=true;
+    try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
+      const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,set_pace:pSel.value})});
+      const j=await r.json(); if(j.error) toast(j.error,true); else { campaign.pace=j.pace; toast('pace → '+j.pace+' ✓ (มีผลรอบถัดไป)'); }
+    }catch(e){ toast('ไม่สำเร็จ',true); }
+    pBtn.disabled=false;
+  };
+  r3.appendChild(pLbl); r3.appendChild(pSel); r3.appendChild(pBtn); tools.appendChild(r3);
+  return tools;
+}
 function ensureBattleScene(){
   var el=document.getElementById('battleScene');
   if(!el){
@@ -3129,7 +3131,22 @@ async function renderBattleScene(){
   _bsRendering=true;
   try{
     ensureBattleScene();
-    try{ renderClock(); var wc=document.getElementById('worldClock'), hud=document.getElementById('bsHud'); if(wc&&hud && hud.innerHTML!==wc.innerHTML) hud.innerHTML=wc.innerHTML; }catch(e){}
+    // นาฬิกาโลกลงกล่องลูก #bsHudClock (ไม่ทับเมนูย่อย DM TOOLS ที่ต่อท้ายในกล่องเดียวกัน)
+    try{ renderClock(); var wc=document.getElementById('worldClock'), hud=document.getElementById('bsHud');
+      if(wc&&hud){ var hc=document.getElementById('bsHudClock'); if(!hc){ hud.innerHTML='<div id="bsHudClock"></div>'; hc=document.getElementById('bsHudClock'); } if(hc.innerHTML!==wc.innerHTML) hc.innerHTML=wc.innerHTML; }
+    }catch(e){}
+    // เมนูย่อย DM TOOLS ในฉากรบ (host เท่านั้น) — พับเก็บใต้กล่องสถานะ/WORLD · มือถือเปิดผ่านแผ่น "🗺 สถานะ"
+    try{
+      var hud4=document.getElementById('bsHud');
+      if(hud4 && campaign.host_id===me.id && !document.getElementById('bsDmTg')){
+        var dtg=document.createElement('button'); dtg.type='button'; dtg.id='bsDmTg';
+        dtg.style.cssText="width:100%;background:none;border:none;border-top:2px solid #fff;cursor:pointer;text-align:left;font-family:'Press Start 2P',monospace;font-size:8px;letter-spacing:1px;color:#FAC775;padding:8px 2px 4px;margin-top:8px";
+        dtg.textContent='🎛 DM TOOLS ▸';
+        var dbody=document.createElement('div'); dbody.id='bsDmBody'; dbody.style.display='none';
+        dtg.onclick=function(){ var on=dbody.style.display==='none'; dbody.style.display=on?'block':'none'; dtg.textContent='🎛 DM TOOLS '+(on?'▾':'▸'); if(on){ dbody.innerHTML=''; try{ dbody.appendChild(buildDmToolsCard(false)); }catch(e){} } };
+        hud4.appendChild(dtg); hud4.appendChild(dbody);
+      }
+    }catch(e){}
     // เรนเดอร์ grid ลงกล่องชั่วคราวก่อน แล้วค่อยสลับทีเดียว (ไม่ให้จอว่างระหว่างโหลด = ไม่กระพริบ)
     var board=document.getElementById('bsBoard');
     if(board){ var _tmp=document.createElement('div'); try{ await renderBattleGrid(_tmp); }catch(e){} if(!_tmp.children.length){ _tmp.innerHTML='<div class="note" style="text-align:center;padding:16px;color:#9a9a9a">— ยังไม่มีสนามรบ —</div>'; } var _bsig=_tmp.innerHTML; if(board.getAttribute('data-sig')!==_bsig){ board.setAttribute('data-sig',_bsig); board.replaceChildren.apply(board, Array.prototype.slice.call(_tmp.childNodes)); } }
