@@ -2661,6 +2661,22 @@ async function renderParty(){
       }catch(e){ toast('ไม่สำเร็จ',true); }
     };
     r2.appendChild(endB); r2.appendChild(clB); tools.appendChild(r2);
+    // v39: ปรับ pace การเล่าเรื่องกลางแคมเปญ (มีผลรอบถัดไปทันที)
+    const r3=document.createElement('div'); r3.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px';
+    const pLbl=document.createElement('span'); pLbl.className='meta-inline'; pLbl.textContent='PACE การเล่า:';
+    const pSel=document.createElement('select');
+    [['slow','🐢 Slow life — เนิบ เน้น roleplay'],['balanced','⚖ Balanced — สมดุล'],['brisk','⚡ Brisk — เร่งเรื่อง กระชับ']].forEach(([v,t])=>{ const o=document.createElement('option'); o.value=v; o.textContent=t; pSel.appendChild(o); });
+    if(campaign.pace) pSel.value=campaign.pace;
+    const pBtn=document.createElement('button'); pBtn.className='btn sm'; pBtn.textContent='ตั้ง pace';
+    pBtn.onclick=async()=>{
+      pBtn.disabled=true;
+      try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
+        const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,set_pace:pSel.value})});
+        const j=await r.json(); if(j.error) toast(j.error,true); else { campaign.pace=j.pace; toast('pace → '+j.pace+' ✓ (มีผลรอบถัดไป)'); }
+      }catch(e){ toast('ไม่สำเร็จ',true); }
+      pBtn.disabled=false;
+    };
+    r3.appendChild(pLbl); r3.appendChild(pSel); r3.appendChild(pBtn); tools.appendChild(r3);
     right.appendChild(tools);
   }
   // ── แชตปาร์ตี้ (คอลัมน์ขวา — ข้อความล่าสุด) ──
