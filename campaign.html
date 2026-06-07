@@ -3139,6 +3139,8 @@ async function exitBattleSceneWithOutro(){
 }
 function enterBattleScene(){
   _bsShown=true;
+  // เข้าฉากรบ = เพลง battle เสมอ (ไม่พึ่ง scene_mood ที่ DM มักลืมเปลี่ยนระหว่างศึก)
+  try{ if(musicOn) playMood('battle'); }catch(e){}
   var el=ensureBattleScene();
   relocateForBattle(true);
   el.classList.add('on');
@@ -3158,6 +3160,7 @@ function exitBattleScene(){
   if(el) el.classList.remove('on');
   try{ document.body.classList.remove('in-battle'); }catch(e){}
   try{ var _b=document.getElementById('ccBackdrop'); if(_b) _b.classList.remove('on'); var _f=document.getElementById('ccFrame'); if(_f) _f.classList.remove('cc-windowed'); }catch(e){}
+  try{ curMood=null; _moodNow(); }catch(e){}   // ออกจากฉากรบ → กลับเพลงตามบรรยากาศฉาก (reset กันค้างเพลง battle)
   try{ renderStory(); }catch(e){}
 }
 async function renderBattleScene(){
