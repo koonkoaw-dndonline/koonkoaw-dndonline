@@ -3533,32 +3533,42 @@ async function renderMap(){
   } else {
     const e=document.createElement('div'); e.className='note'; e.style.cssText='text-align:left;padding:6px 2px'; e.textContent='ยังไม่มีดันเจียน — เพิ่มได้ในแท็บ Files'; p.appendChild(e);
   }
-  // ── v69: 🗺 สมุดโลก — กดชื่อเมือง → dropdown สถานที่ที่เคยไป + ร้านค้า/สินค้า/ราคา + NPC (จาก database ตรงกับที่ DM ถูกบังคับอ่าน) ──
+  // ── v69/v72: สมุดบันทึกโลก — กดชื่อเมือง → สถานที่ที่เคยไป + ร้านค้า/สินค้า/ราคา (ฟอนต์ปกติ ไม่มีไอคอน · NPC ดูที่หน้า NPC) ──
   try{
-    const [plR,shR,npR]=await Promise.all([
+    const [plR,shR]=await Promise.all([
       supa.from('places').select('name,settlement,mood,description,visits').eq('campaign_id',campaign.id).order('updated_at',{ascending:false}).limit(100),
       supa.from('shops').select('name,place,notes').eq('campaign_id',campaign.id).order('updated_at',{ascending:false}).limit(100),
-      supa.from('npcs').select('name,place,notes').eq('campaign_id',campaign.id).order('updated_at',{ascending:false}).limit(150),
     ]);
-    const pls=plR.data||[], shs=shR.data||[], nps=npR.data||[];
-    if(pls.length||shs.length||nps.length){
-      const wc=document.createElement('div'); wc.className='item'; wc.innerHTML='<div class="sectitle">🗺 สมุดโลก <span class="meta-inline">สถานที่ · ร้านค้า · NPC</span></div>';
+    const pls=plR.data||[], shs=shR.data||[];
+    if(pls.length||shs.length){
+      const FONT="font-family:'IBM Plex Sans Thai',sans-serif";
+      const wc=document.createElement('div'); wc.className='item';
+      wc.innerHTML='<div style="'+FONT+';font-size:15px;font-weight:700;padding:2px 0 6px;border-bottom:1px solid #444;margin-bottom:6px;text-align:left">สมุดบันทึกโลก <span style="font-weight:400;font-size:12px;color:#9a9a9a">สถานที่และร้านค้าที่เคยพบ</span></div>';
       const towns={};
-      const keyOf=s=>{const t=String(s||'').trim();return t||'— ไม่ระบุเมือง —';};
-      pls.forEach(x=>{const k=keyOf(x.settlement);(towns[k]=towns[k]||{p:[],s:[],n:[]}).p.push(x);});
-      shs.forEach(x=>{const k=keyOf(x.place);(towns[k]=towns[k]||{p:[],s:[],n:[]}).s.push(x);});
-      nps.forEach(x=>{const k=keyOf(x.place);(towns[k]=towns[k]||{p:[],s:[],n:[]}).n.push(x);});
-      Object.keys(towns).sort((a,b)=>a==='— ไม่ระบุเมือง —'?1:b==='— ไม่ระบุเมือง —'?-1:a.localeCompare(b)).forEach(town=>{
+      const keyOf=s=>{const t=String(s||'').trim();return t||'ไม่ระบุเมือง';};
+      pls.forEach(x=>{const k=keyOf(x.settlement);(towns[k]=towns[k]||{p:[],s:[]}).p.push(x);});
+      shs.forEach(x=>{const k=keyOf(x.place);(towns[k]=towns[k]||{p:[],s:[]}).s.push(x);});
+      Object.keys(towns).sort((a,b)=>a==='ไม่ระบุเมือง'?1:b==='ไม่ระบุเมือง'?-1:a.localeCompare(b)).forEach(town=>{
         const t=towns[town];
-        const det=document.createElement('details'); det.style.cssText='border:1px solid #444;border-radius:8px;margin:6px 0;padding:4px 8px';
-        const sum=document.createElement('summary'); sum.style.cssText='cursor:pointer;font-weight:600;padding:4px 0';
-        sum.innerHTML='🏘 '+escapeHtml(town)+' <span class="chip">'+t.p.length+' ที่ · '+t.s.length+' ร้าน · '+t.n.length+' NPC</span>';
+        const det=document.createElement('details'); det.style.cssText='border:1px solid #444;border-radius:8px;margin:6px 0;padding:4px 10px;'+FONT;
+        const sum=document.createElement('summary');
+        sum.style.cssText='cursor:pointer;font-size:14px;font-weight:600;padding:5px 0;'+FONT;
+        sum.textContent=town+' ('+t.p.length+' สถานที่ · '+t.s.length+' ร้านค้า)';
         det.appendChild(sum);
-        const body=document.createElement('div'); body.style.cssText='font-size:13px;line-height:1.55;padding:4px 2px 8px;text-align:left';
-        if(t.p.length){ body.innerHTML+='<div style="color:#FAC775;margin-top:4px">📍 สถานที่ที่เคยไป</div>'+t.p.map(x=>'<div>• <b>'+escapeHtml(x.name)+'</b>'+(x.mood?' <span class="muted">('+escapeHtml(x.mood)+')</span>':'')+(x.visits>1?' <span class="chip">'+x.visits+' ครั้ง</span>':'')+'<br><span class="muted">'+escapeHtml(String(x.description||'').slice(0,140))+'…</span></div>').join(''); }
-        if(t.s.length){ body.innerHTML+='<div style="color:#FAC775;margin-top:8px">🛒 ร้านค้า / สินค้า / ราคา</div>'+t.s.map(x=>'<div>• <b>'+escapeHtml(x.name)+'</b><br><span class="muted">'+escapeHtml((Array.isArray(x.notes)?x.notes:[]).slice(-5).join(' · '))+'</span></div>').join(''); }
-        if(t.n.length){ body.innerHTML+='<div style="color:#FAC775;margin-top:8px">👤 NPC ที่พบ</div>'+t.n.map(x=>'<div>• <b>'+escapeHtml(x.name)+'</b> — <span class="muted">'+escapeHtml((Array.isArray(x.notes)?x.notes:[]).slice(-3).join(' · '))+'</span></div>').join(''); }
-        det.appendChild(body); wc.appendChild(det);
+        const body=document.createElement('div'); body.style.cssText=FONT+';font-size:13px;line-height:1.7;padding:2px 0 8px;text-align:left';
+        let h='';
+        if(t.p.length){
+          h+='<div style="font-weight:600;margin-top:4px;color:#ccc">สถานที่ที่เคยไป</div>';
+          h+=t.p.map(x=>'<div style="margin:2px 0 6px"><span style="font-weight:600">'+escapeHtml(x.name)+'</span>'+(x.visits>1?' <span style="color:#9a9a9a;font-size:12px">(มา '+x.visits+' ครั้ง)</span>':'')+'<br><span style="color:#9a9a9a">'+escapeHtml(String(x.description||'').slice(0,140))+(String(x.description||'').length>140?'…':'')+'</span></div>').join('');
+        }
+        if(t.s.length){
+          h+='<div style="font-weight:600;margin-top:8px;color:#ccc">ร้านค้า · สินค้า · ราคา</div>';
+          h+=t.s.map(x=>{
+            const notes=(Array.isArray(x.notes)?x.notes:[]).slice(-5);
+            return '<div style="margin:2px 0 6px"><span style="font-weight:600">'+escapeHtml(x.name)+'</span>'+(notes.length?('<br>'+notes.map(n=>'<span style="color:#9a9a9a">– '+escapeHtml(String(n))+'</span>').join('<br>')):'<br><span style="color:#9a9a9a">– ยังไม่มีรายการสินค้าที่เปิดเผย</span>');
+          }).join('');
+        }
+        body.innerHTML=h; det.appendChild(body); wc.appendChild(det);
       });
       p.appendChild(wc);
     }
