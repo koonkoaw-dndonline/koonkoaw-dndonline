@@ -594,6 +594,7 @@ body.role-player .dm-only{display:none!important;}
 .chatname{font-size:12px;color:#9a9a9a;margin-bottom:2px;letter-spacing:.3px;}
 .chatbody{font-size:16px;line-height:1.45;white-space:pre-wrap;word-break:break-word;}
 .tab.blink{animation:tabblink 0.9s steps(1) infinite;}
+.bs-mobbar button.blink{animation:tabblink 0.9s steps(1) infinite;}   /* แชทใหม่ระหว่างฉากรบ (มือถือ) */
 @keyframes tabblink{50%{background:#fff;color:#000;}}
 /* Party = สมาชิก (ซ้าย) + แชต (ขวา) บนเดสก์ท็อป · มือถือเรียงล่าง */
 .partygrid{display:flex;flex-direction:column;gap:12px;}
@@ -3055,7 +3056,7 @@ function ensureBattleScene(){
     }catch(e){}
     try{
       var _mb=document.getElementById('bsMobBar');
-      if(_mb) _mb.querySelectorAll('button').forEach(function(b){ b.onclick=function(){ bsToggleSheet(b.getAttribute('data-sheet')); }; });
+      if(_mb) _mb.querySelectorAll('button').forEach(function(b){ b.onclick=function(){ b.classList.remove('blink'); bsToggleSheet(b.getAttribute('data-sheet')); }; });
       var _bd=document.getElementById('bsSheetBackdrop'); if(_bd) _bd.onclick=function(){ bsCloseSheets(); };
       var _cl=document.createElement('button'); _cl.className='bs-sheet-close'; _cl.id='bsSheetClose'; _cl.type='button'; _cl.textContent='✕ ปิด'; _cl.onclick=function(){ bsCloseSheets(); }; el.appendChild(_cl);
       // C: ปุ่มเปิดชีทตัวละครจากฉากรบ (แสดงเฉพาะตอน in-battle ผ่าน CSS)
@@ -3885,7 +3886,7 @@ function subscribeRealtime(){
     .on('postgres_changes',{event:'*',schema:'public',table:'actions',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'characters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadCharacters(); if(activeTab()==='party') renderParty(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'campaign_state',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadState(); applyMood(); if(activeTab()==='story'){ renderClock(); renderRoundbar(); } if(activeTab()==='map') renderMap(); const _lu=worldState&&worldState.level_up; if(activeTab()==='me'){ const md=_lu&&_lu.active&&(_lu.done||[]).includes(myChar&&myChar.id); if(!_lu||!_lu.active||md) renderMe(); } })
-    .on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_messages',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ const row=payload.new; if(row&&row.id&&!chatMsgs.some(m=>m.id===row.id)){ chatMsgs.push(row); if(chatMsgs.length>300) chatMsgs=chatMsgs.slice(-300); cacheSave('chat',chatMsgs); } if(_bsShown){ try{ renderBattleChat(); }catch(e){} } if(activeTab()==='party'){ renderChatList(); } else if(row && row.user_id!==me.id){ const t=document.querySelector('.tab[data-tab="party"]'); if(t) t.classList.add('blink'); } })
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_messages',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ const row=payload.new; if(row&&row.id&&!chatMsgs.some(m=>m.id===row.id)){ chatMsgs.push(row); if(chatMsgs.length>300) chatMsgs=chatMsgs.slice(-300); cacheSave('chat',chatMsgs); } if(_bsShown){ try{ renderBattleChat(); }catch(e){} } if(activeTab()==='party'){ renderChatList(); } else if(row && row.user_id!==me.id){ const t=document.querySelector('.tab[data-tab="party"]'); if(t) t.classList.add('blink'); if(_bsShown){ const mb=document.querySelector('#bsMobBar button[data-sheet="chat"]'); if(mb) mb.classList.add('blink'); } } })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'chronicles',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='chron'){ renderChronicle(); } else { const t=document.querySelector('.tab[data-tab="chron"]'); if(t) t.classList.add('blink'); } })
     .on('postgres_changes',{event:'*',schema:'public',table:'music_tracks',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadMusicLibrary(); if(activeTab()==='files') renderFiles(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'combat_encounters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await refreshCombatTurn(); scheduleBattleScene(); if(activeTab()==='story') renderRoundbar(); })
