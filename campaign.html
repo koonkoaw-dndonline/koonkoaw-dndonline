@@ -2591,6 +2591,15 @@ async function renderParty(){
   const head=document.createElement('div'); head.className='item'; head.innerHTML='<div class="sectitle">PARTY</div>'; left.appendChild(head);
   const all=characters.slice();
   if(!all.length){ const d=document.createElement('div'); d.className='muted'; d.textContent='No party members yet — share the invite code with friends'; left.appendChild(d); }
+  // ── P1: last-seen ของแต่ละคน (รวมบอท) จาก action/แชทล่าสุด — รู้ทันทีว่าใครหลุด/บอทดับ ──
+  const _lastSeen={};
+  try{
+    const [ar,cr2]=await Promise.all([
+      supa.from('actions').select('user_id,created_at').eq('campaign_id',campaign.id).order('created_at',{ascending:false}).limit(60),
+      supa.from('chat_messages').select('user_id,created_at').eq('campaign_id',campaign.id).order('created_at',{ascending:false}).limit(60),
+    ]);
+    [...(ar.data||[]),...(cr2.data||[])].forEach(x=>{ const t=new Date(x.created_at).getTime(); if(!_lastSeen[x.user_id]||t>_lastSeen[x.user_id]) _lastSeen[x.user_id]=t; });
+  }catch(e){}
   all.forEach(c=>{
     const mine=c.user_id===me.id;
     const it=document.createElement('div'); it.className='item';
@@ -2603,10 +2612,57 @@ async function renderParty(){
     const chips=conds.length?'<div class="chips" style="margin-top:5px">'+conds.map(x=>`<span class="chip cond">${escapeHtml(String(x))}</span>`).join('')+'</div>':'';
     const info=document.createElement('div'); info.style.flex='1';
     info.innerHTML=`<div class="nm">${escapeHtml(c.name)}${mine?' <span class="muted" style="font-size:13px">(คุณ)</span>':''}${c.is_companion?' <span class="chip" style="background:#1d3a5f;color:#9ad;border-color:#9ad">⚔ เพื่อนร่วมทาง</span>':''}${(c.public_status&&c.public_status.wildshape)?' <span class="chip" style="background:#2d5f3a;color:#9fe0a0;border-color:#9fe0a0"><span style="display:inline-block;width:12px;height:12px;vertical-align:-2px;margin-right:3px">'+beastIconSvg(c.public_status.wildshape)+'</span>'+escapeHtml(c.public_status.wildshape)+'</span>':''}</div><div class="sub">${escapeHtml(c.class||'-')} · Lv.${c.level}${hp}</div>`+chips;
+    // P1: บรรทัดสถานะออนไลน์ (จากกิจกรรมล่าสุดจริง)
+    if(c.user_id){
+      const ts=_lastSeen[c.user_id]; const seen=document.createElement('div'); seen.style.cssText='font-size:11px;margin-top:4px;color:#9a9a9a';
+      if(ts==null) seen.textContent='⚪ ยังไม่มีความเคลื่อนไหว';
+      else { const mins=Math.round((Date.now()-ts)/60000);
+        seen.textContent= mins<2?'🟢 ออนไลน์ (เมื่อครู่)': mins<30?('🟡 เคลื่อนไหวล่าสุด '+mins+' นาทีก่อน'):('⚪ เงียบไป '+(mins<120?(mins+' นาที'):(Math.round(mins/60)+' ชม.'))); }
+      info.appendChild(seen);
+    }
     row.appendChild(face); row.appendChild(info); it.appendChild(row); left.appendChild(it);
   });
   const noChar=members.filter(m=>!characters.find(c=>c.user_id===m.user_id));
   if(noChar.length){ const d=document.createElement('div'); d.className='note'; d.textContent=`รอสร้างตัวละคร: ${noChar.length} คน`; left.appendChild(d); }
+  // ── P1: DM TOOLS (host เท่านั้น) — เครื่องมือกรรมการในเกม ไม่ต้องพึ่ง console ──
+  if(campaign.host_id===me.id){
+    const tools=document.createElement('div'); tools.className='item';
+    tools.innerHTML='<div class="sectitle">🎛 DM TOOLS <span class="meta-inline">host only</span></div>';
+    const r1=document.createElement('div'); r1.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0';
+    const sel=document.createElement('select'); characters.forEach(c=>{ const o=document.createElement('option'); o.value=c.name; o.textContent=c.name; sel.appendChild(o); });
+    const hpIn=document.createElement('input'); hpIn.type='number'; hpIn.min='0'; hpIn.placeholder='HP'; hpIn.style.width='70px';
+    const setBtn=document.createElement('button'); setBtn.className='btn sm'; setBtn.textContent='ตั้ง HP';
+    setBtn.onclick=async()=>{
+      const hp=parseInt(hpIn.value,10); if(!Number.isFinite(hp)){ toast('ใส่ตัวเลข HP',true); return; }
+      if(!confirm('ตั้ง HP ของ '+sel.value+' เป็น '+hp+'?')) return;
+      setBtn.disabled=true;
+      try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
+        const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,set_hp:{name:sel.value,hp}})});
+        const j=await r.json(); if(j.error) toast(j.error,true); else { toast(j.name+' → '+j.hp+'/'+j.max+' ✓'); await refreshAll(); renderParty(); return; }
+      }catch(e){ toast('ไม่สำเร็จ',true); }
+      setBtn.disabled=false;
+    };
+    r1.appendChild(sel); r1.appendChild(hpIn); r1.appendChild(setBtn); tools.appendChild(r1);
+    const r2=document.createElement('div'); r2.style.cssText='display:flex;gap:6px;flex-wrap:wrap';
+    const endB=document.createElement('button'); endB.className='btn warn sm'; endB.textContent='⏹ จบการต่อสู้ทันที';
+    endB.onclick=async()=>{
+      if(!confirm('จบการต่อสู้ปัจจุบันทันที? (ศัตรูถอนจากฉาก)')) return;
+      try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
+        const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,end_combat:true})});
+        const j=await r.json(); toast(j.error||'จบการต่อสู้แล้ว ✓',!!j.error);
+      }catch(e){ toast('ไม่สำเร็จ',true); }
+    };
+    const clB=document.createElement('button'); clB.className='btn warn sm'; clB.textContent='🗑 ล้างแชททั้งห้อง (ลบจริง)';
+    clB.onclick=async()=>{
+      if(!confirm('ลบแชททั้งหมดของห้องนี้ถาวร?\nทุกเครื่องเห็นผล และกู้คืนไม่ได้')) return;
+      try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
+        const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,clear_chat:true})});
+        const j=await r.json(); if(j.error) toast(j.error,true); else { toast('ลบแล้ว '+j.deleted+' ข้อความ ✓'); chatMsgs=[]; renderChatList(); try{ if(typeof renderBattleChat==='function') renderBattleChat(); }catch(e){} }
+      }catch(e){ toast('ไม่สำเร็จ',true); }
+    };
+    r2.appendChild(endB); r2.appendChild(clB); tools.appendChild(r2);
+    right.appendChild(tools);
+  }
   // ── แชตปาร์ตี้ (คอลัมน์ขวา — ข้อความล่าสุด) ──
   const chatCard=document.createElement('div'); chatCard.className='item';
   chatCard.innerHTML='<div class="sectitle" style="display:flex;justify-content:space-between;align-items:center"><span>PARTY CHAT</span></div><div class="note" style="text-align:left;padding:2px 2px 6px">คุยวางแผนนอกเรื่อง (ข้อความล่าสุด)</div>';
@@ -3441,6 +3497,21 @@ function fileDropdown(labelText, count){
 async function renderFiles(){
   const p=$('panel-files'); p.innerHTML='';
   const isHost=campaign.host_id===me.id;
+  // ── P0: แผง System Logs (host เท่านั้น) — เห็น error ของ resolver ในเกม จบยุคล้มเงียบ ──
+  if(isHost){
+    try{
+      const lg=await supa.from('system_logs').select('level,source,message,created_at').eq('campaign_id',campaign.id).order('created_at',{ascending:false}).limit(10);
+      if(!lg.error){
+        const card=document.createElement('div'); card.className='item';
+        const errN=(lg.data||[]).filter(x=>x.level==='error').length;
+        card.innerHTML='<div class="sectitle">🛠 SYSTEM LOGS <span class="meta-inline">'+(errN?(errN+' errors ล่าสุด'):'ปกติ')+'</span></div>';
+        if(!(lg.data||[]).length){ const d=document.createElement('div'); d.className='muted'; d.textContent='ยังไม่มีบันทึก — ระบบเดินเรียบ'; card.appendChild(d); }
+        else (lg.data||[]).forEach(x=>{ const d=document.createElement('div'); d.className='kv';
+          d.innerHTML='<span class="k" style="color:'+(x.level==='error'?'#ff8a8a':x.level==='warn'?'#FAC775':'#9ad')+'">'+(x.level==='error'?'✕':'•')+' ['+escapeHtml(x.source)+'] '+escapeHtml(String(x.message).slice(0,80))+' <span class="muted" style="font-size:10px">'+new Date(x.created_at).toLocaleTimeString()+'</span></span>'; card.appendChild(d); });
+        p.appendChild(card);
+      }
+    }catch(e){}
+  }
   let files=null;
   try{ const r=await supa.from('references_files').select('*').eq('campaign_id',campaign.id).order('created_at',{ascending:false}); if(!r.error) files=r.data||[]; }catch(e){}
   if(files===null){ p.innerHTML='<div class="muted">Files system not enabled yet<br>Run migration.sql (0011) + deploy ingest-file</div>'; return; }
