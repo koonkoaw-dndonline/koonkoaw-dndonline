@@ -3100,6 +3100,22 @@ function buildDmToolsCard(withFrame){
     pBtn.disabled=false;
   };
   r3.appendChild(pLbl); r3.appendChild(pSel); r3.appendChild(pBtn); tools.appendChild(r3);
+  // v88: สไตล์การเล่าของ DM — preset 3 แบบ ทับซ้อนบน base DanMachi (มีผลรอบถัดไป)
+  const r3s=document.createElement('div'); r3s.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px';
+  const sLbl=document.createElement('span'); sLbl.style.cssText=DMF+';color:#9a9a9a'; sLbl.textContent='สไตล์ DM:';
+  const sSel=styleCtl(document.createElement('select'));
+  [['off','ปกติ — base DanMachi'],['mercer','Cinematic — ภาพยนตร์ · NPC จัดจ้าน · slow-burn'],['brennan','High-energy — ด้นสดรับลูก · ตลกสลับดราม่า'],['woll','Intimate — อารมณ์ใกล้ชิด · สยองค่อยๆ บีบ']].forEach(([v,t])=>{ const o=document.createElement('option'); o.value=v; o.textContent=t; sSel.appendChild(o); });
+  try{ supa.from('campaign_state').select('settings').eq('campaign_id',campaign.id).maybeSingle().then(r=>{ const v=r&&r.data&&r.data.settings&&r.data.settings.dm_style; if(v) sSel.value=v; }); }catch(e){}
+  const sBtn=styleCtl(document.createElement('button')); sBtn.className='btn sm'; sBtn.textContent='ตั้งสไตล์';
+  sBtn.onclick=async()=>{
+    sBtn.disabled=true;
+    try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
+      const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,set_style:sSel.value})});
+      const j=await r.json(); if(j.error) toast(j.error,true); else toast('สไตล์ DM → '+j.style+' ✓ (มีผลรอบถัดไป)');
+    }catch(e){ toast('ไม่สำเร็จ',true); }
+    sBtn.disabled=false;
+  };
+  r3s.appendChild(sLbl); r3s.appendChild(sSel); r3s.appendChild(sBtn); tools.appendChild(r3s);
   // v73: โครงเรื่อง session — host วางเป้าหมาย+climax (ความลับของผู้กำกับ DM จะพาเรื่องไปแบบเนียน)
   const r4=document.createElement('div'); r4.style.cssText='margin-top:8px';
   const plLbl=document.createElement('div'); plLbl.style.cssText=DMF+';color:#9a9a9a;text-align:left'; plLbl.textContent='โครงเรื่อง session (ลับ — ผู้เล่นไม่เห็น):'; r4.appendChild(plLbl);
