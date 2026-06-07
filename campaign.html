@@ -3024,6 +3024,20 @@ function buildDmToolsCard(withFrame){
     pBtn.disabled=false;
   };
   r3.appendChild(pLbl); r3.appendChild(pSel); r3.appendChild(pBtn); tools.appendChild(r3);
+  // v73: โครงเรื่อง session — host วางเป้าหมาย+climax (ความลับของผู้กำกับ DM จะพาเรื่องไปแบบเนียน)
+  const r4=document.createElement('div'); r4.style.cssText='margin-top:8px';
+  const plLbl=document.createElement('div'); plLbl.className='meta-inline'; plLbl.textContent='โครงเรื่อง SESSION (ลับ — ผู้เล่นไม่เห็น):'; r4.appendChild(plLbl);
+  const gIn=document.createElement('input'); gIn.type='text'; gIn.placeholder='เป้าหมาย เช่น พาปาร์ตี้ไปพบผู้เฒ่าในถ้ำ'; gIn.style.cssText='width:100%;margin:4px 0';
+  const cIn=document.createElement('input'); cIn.type='text'; cIn.placeholder='climax เช่น เผชิญหน้าหัวหน้าโจรที่ขโมยตราประจำเมือง'; cIn.style.cssText='width:100%;margin:0 0 4px';
+  const rowB=document.createElement('div'); rowB.style.cssText='display:flex;gap:6px';
+  const setP=document.createElement('button'); setP.className='btn sm'; setP.textContent='วางโครงเรื่อง';
+  const clrP=document.createElement('button'); clrP.className='btn ghost sm'; clrP.textContent='ล้าง';
+  const callPlan=async(v)=>{ try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
+    const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,set_plan:v})});
+    const j=await r.json(); if(j.error) toast(j.error,true); else toast(j.cleared?'ล้างโครงเรื่องแล้ว ✓':'วางโครงเรื่องแล้ว ✓ DM จะค่อยๆ พาเรื่องไป'); }catch(e){ toast('ไม่สำเร็จ',true); } };
+  setP.onclick=()=>{ const g=gIn.value.trim(); if(!g){ toast('ใส่เป้าหมายก่อน',true); return; } callPlan(g+(cIn.value.trim()?' :: '+cIn.value.trim():'')); };
+  clrP.onclick=()=>{ if(confirm('ล้างโครงเรื่อง session?')) callPlan('clear'); };
+  rowB.appendChild(setP); rowB.appendChild(clrP); r4.appendChild(gIn); r4.appendChild(cIn); r4.appendChild(rowB); tools.appendChild(r4);
   return tools;
 }
 function ensureBattleScene(){
