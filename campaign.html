@@ -3085,7 +3085,9 @@ async function syncBattleScene(){
   // encounter active แต่ไม่มีศัตรูมีชีวิต = คอมแบตจบ/ค้าง → ถือว่าไม่ใช่คอมแบต (กันค้างในฉากสู้ว่างเปล่า)
   let livingEnemies=0;
   if(enc){ try{ const r2=await supa.from('combat_state').select('cur_hp').eq('campaign_id',campaign.id).eq('active',true); livingEnemies=(r2.data||[]).filter(x=>x.cur_hp==null||x.cur_hp>0).length; }catch(e){} }
-  const active = (!!enc && livingEnemies>0) || !!window._combatActive || !!moveMode;   // อย่าออกจากฉากระหว่างเลือกช่องเดิน · ออกถ้า encounter ไม่มีศัตรูมีชีวิต
+  let active = (!!enc && livingEnemies>0) || !!window._combatActive || !!moveMode;   // อย่าออกจากฉากระหว่างเลือกช่องเดิน · ออกถ้า encounter ไม่มีศัตรูมีชีวิต
+  // ผู้เล่นใหม่ที่ยังไม่มีตัวละคร: ห้ามดูดเข้าฉากรบ — ให้อยู่หน้าสร้างตัวละครก่อน (ระบบไม่รอเทิร์นเขาอยู่แล้ว)
+  if(typeof myChar==='undefined' || !myChar) active=false;
   if(active){
     window._bsMiss=0;
     if(!_bsShown && !_bsExiting){ enterBattleScene(); }
