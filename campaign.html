@@ -2624,8 +2624,17 @@ async function renderParty(){
   });
   const noChar=members.filter(m=>!characters.find(c=>c.user_id===m.user_id));
   if(noChar.length){ const d=document.createElement('div'); d.className='note'; d.textContent=`รอสร้างตัวละคร: ${noChar.length} คน`; left.appendChild(d); }
-  // ── P1: DM TOOLS (host เท่านั้น) — การ์ดกลาง buildDmToolsCard ใช้ร่วมกับเมนูย่อยในฉากรบ ──
-  if(campaign.host_id===me.id){ right.appendChild(buildDmToolsCard(true)); }
+  // ── P1: DM TOOLS (host เท่านั้น) — พับเก็บสีทองเหมือนเมนูย่อยในฉากรบ (จำสถานะกางไว้ข้ามการรีเฟรช) ──
+  if(campaign.host_id===me.id){
+    const dmCard=document.createElement('div'); dmCard.className='item';
+    const dmTg=document.createElement('button'); dmTg.type='button';
+    dmTg.style.cssText="width:100%;background:none;border:none;cursor:pointer;text-align:left;font-family:'Press Start 2P',monospace;font-size:9px;letter-spacing:1px;color:#FAC775;padding:4px 2px";
+    const dmBody=document.createElement('div'); dmBody.style.display='none';
+    const dmSet=(on)=>{ window._dmToolsOpen=on; dmBody.style.display=on?'block':'none'; dmTg.textContent='🎛 DM TOOLS '+(on?'▾':'▸'); if(on&&!dmBody.children.length){ try{ dmBody.appendChild(buildDmToolsCard(false)); }catch(e){} } };
+    dmTg.onclick=()=>dmSet(dmBody.style.display==='none');
+    dmCard.appendChild(dmTg); dmCard.appendChild(dmBody); right.appendChild(dmCard);
+    dmSet(!!window._dmToolsOpen);
+  }
   // ── แชตปาร์ตี้ (คอลัมน์ขวา — ข้อความล่าสุด) ──
   const chatCard=document.createElement('div'); chatCard.className='item';
   chatCard.innerHTML='<div class="sectitle" style="display:flex;justify-content:space-between;align-items:center"><span>PARTY CHAT</span></div><div class="note" style="text-align:left;padding:2px 2px 6px">คุยวางแผนนอกเรื่อง (ข้อความล่าสุด)</div>';
