@@ -2142,10 +2142,10 @@ async function renderRoundbar(){
         const _inBat = document.body.classList.contains('in-battle');
         const _deskBC = _inBat && window.matchMedia && window.matchMedia('(min-width:1024px)').matches;
         const _mobBC  = _inBat && !_deskBC;
-        if(window.__ccRound!==curRound.id) window._bcOpen=false;   // เทิร์นใหม่ → กลับสู่สถานะย่อ
+        if(window.__ccRound!==curRound.id){ window._bcOpen=false; window._pendingMove=null; }   // เทิร์นใหม่ → กลับสู่สถานะย่อ + เคลียร์มาร์คเดินที่ค้าง
         if(_mobBC){ const bh=document.createElement('div'); bh.className='copt-h'; bh.style.cssText='margin-top:8px;text-align:center'; bh.textContent='— หรือสร้างทางเลือกการกระทำเองโดยใช้ BATTLE COMMAND —'; bar.appendChild(bh); }
         if(_deskBC || _mobBC){
-          const tg=document.createElement('button'); tg.type='button'; tg.className='bc-toggle'; tg.textContent='⚔ BATTLE COMMAND :';
+          const tg=document.createElement('button'); tg.type='button'; tg.className='bc-toggle'; tg.textContent='BATTLE COMMAND :';
           tg.onclick=()=>{ window._bcOpen=!window._bcOpen; const f=document.getElementById('ccFrame'); if(f) f.classList.toggle('cc-hide', !window._bcOpen); try{ window.cc.openInline(); }catch(e){} };
           bar.appendChild(tg);
         }
@@ -3129,7 +3129,7 @@ function relocateForBattle(on){
     _bsRelocated=false;
   }
 }
-function scheduleBattleScene(){ clearTimeout(_bsRenderT); _bsRenderT=setTimeout(function(){ syncBattleScene(); }, 550); }   // รวบจังหวะ event ถี่ๆ ให้เป็น render เดียว (ลดกระตุก)
+function scheduleBattleScene(){ clearTimeout(_bsRenderT); _bsRenderT=setTimeout(function(){ syncBattleScene(); }, 300); }   // รวบจังหวะ event ถี่ๆ ให้เป็น render เดียว (ลดกระตุก) — ข้อ 3 (06-08): 550→300ms ลดหน่วงภาพ
 async function syncBattleScene(){
   if(typeof campaign==='undefined' || !campaign) return;
   let enc=null;
@@ -3347,6 +3347,7 @@ function movePickCell(c,r){ if(!moveMode) return; moveSel={c:c,r:r}; if(_bsShown
 function moveConfirm(){
   if(!moveMode||!moveSel){ try{toast('แตะช่องปลายทางก่อน',true);}catch(e){} return; }
   const L="ABCDEFGHIJKLMNOPQRST"; const cell=(L[moveSel.c]||'?')+(moveSel.r+1); const cb=moveMode.cb;
+  window._pendingMove={c:moveSel.c, r:moveSel.r, cell:cell};   // ข้อ 2: มาร์คปลายทางค้างบนกริดจนเทิร์นถูก resolve (token ถึงช่อง/ขึ้นรอบใหม่ = เคลียร์)
   moveMode=null; moveSel=null;
   if(cb){ try{ cb(cell); }catch(e){} }
   if(_bsShown) renderBattleScene(); else renderCombat();
@@ -3495,6 +3496,26 @@ async function renderBattleGrid(p){
     if(down) svg+=`<line x1="${(fx-9).toFixed(1)}" y1="${(fy-14).toFixed(1)}" x2="${(fx+9).toFixed(1)}" y2="${(fy+2).toFixed(1)}" stroke="#fff" stroke-width="1.5"/>`;
     svg+='</g>';
   });
+  // ── ข้อ 2 (06-08): ลูกศรทิศทางบนกริด (เส้น+หัวลูกศร) — ใช้ทั้งตอนเลือกช่องและมาร์คค้างหลังยืนยัน ──
+  const _gridArrow=(x1,y1,x2,y2,col,dash)=>{
+    const dx=x2-x1, dy=y2-y1, len=Math.sqrt(dx*dx+dy*dy)||1;
+    if(len<8) return '';
+    const ux=dx/len, uy=dy/len, ax=x2-ux*10, ay=y2-uy*10, px=-uy, py=ux;
+    return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${ax.toFixed(1)}" y2="${ay.toFixed(1)}" stroke="${col}" stroke-width="2.5"${dash?' stroke-dasharray="6 4"':''} style="pointer-events:none"/>`+
+           `<polygon points="${x2.toFixed(1)},${y2.toFixed(1)} ${(ax+px*5).toFixed(1)},${(ay+py*5).toFixed(1)} ${(ax-px*5).toFixed(1)},${(ay-py*5).toFixed(1)}" fill="${col}" style="pointer-events:none"/>`;
+  };
+  // มาร์คช่องปลายทางที่ยืนยันแล้ว — ค้างบนกริดจนเทิร์นถูก resolve (token เดินถึง = server ขยับให้ → เคลียร์เอง)
+  if(!moveMode && window._pendingMove && typeof myChar!=='undefined' && myChar){
+    const pm=window._pendingMove;
+    const myTk=toks.find(t=>t.ref_char_id===myChar.id);
+    if(!myTk || (myTk.col===pm.c && myTk.row===pm.r)){ window._pendingMove=null; }
+    else if(pm.c<cols && pm.r<rows){
+      const dx2=tileX(pm.c), dy2=tileY(pm.r), th2=TILE*SY, cx2=dx2+TILE/2, cy2=dy2+th2/2;
+      svg+=`<rect x="${dx2.toFixed(1)}" y="${dy2.toFixed(1)}" width="${TILE}" height="${th2.toFixed(1)}" fill="rgba(250,199,117,0.30)" stroke="#FAC775" stroke-width="1.6" style="pointer-events:none"/>`;
+      svg+=_gridArrow(footX(myTk.col), footY(myTk.col,myTk.row), cx2, cy2, '#FAC775', true);
+      svg+=`<text x="${cx2.toFixed(1)}" y="${(dy2-3).toFixed(1)}" text-anchor="middle" font-family="'VT323',monospace" font-size="11" fill="#FAC775" stroke="#000" stroke-width="0.6" paint-order="stroke" style="pointer-events:none">เดินไป ${escapeHtml(pm.cell)}</text>`;
+    }
+  }
   // 🎯 โหมดเล็งพื้นที่ (AoE): ไฮไลต์ช่องที่โดน + ช่องโปร่งใสให้แตะเลือกศูนย์กลาง
   if(aoeMode){
     const affected = aoeCenter ? new Set(aoeCellsFor(aoeCenter.c,aoeCenter.r)) : new Set();
@@ -3520,6 +3541,8 @@ async function renderBattleGrid(p){
       }
       const sfx=footX(myTok.col), sfy=footY(myTok.col,myTok.row);
       svg+=`<circle cx="${sfx.toFixed(1)}" cy="${sfy.toFixed(1)}" r="3" fill="#5ce08a" stroke="#0d1018" stroke-width="1" style="pointer-events:none"/>`;
+      // ข้อ 2: ลูกศรทิศทางจากตำแหน่งปัจจุบัน → ช่องที่กำลังเลือก (เห็นทิศก่อนกดยืนยัน)
+      if(moveSel) svg+=_gridArrow(sfx, sfy, tileX(moveSel.c)+TILE/2, tileY(moveSel.r)+TILE*SY/2, '#FAC775', false);
       // ป๊อปอัปยืนยันเด้งใกล้ช่องที่คลิก (เหนือช่อง) — ปุ่ม ✓ เดิน / ✕ ยกเลิก
       if(moveSel){
         const cx=tileX(moveSel.c)+TILE/2, top=tileY(moveSel.r);
@@ -4294,7 +4317,7 @@ window.cc = (function(){
       if(spell.target==='self'){
         opts.push({ label:'ร่ายใส่ตัวเอง', commit:{slot:slotName, label: spell.name+' ▸ ตัวเอง', dice: spell.dice, skillId: spell._skillId||null} });
       } else if(/^(sphere_|cone_|line_)/.test(spell.target||'')){
-        opts.push({ label:'🎯 เล็งพื้นที่บน Map', meta:'('+spell.target+')', mapPick:true, target:spell.target,
+        opts.push({ label:'เล็งพื้นที่บน Map', meta:'('+spell.target+')', mapPick:true, target:spell.target,
           commit:{slot:slotName, label: spell.name+' ▸ MAP', dice: spell.dice, skillId: spell._skillId||null} });
       } else {
         enemies.forEach(function(e){ opts.push({ label:e.name, meta:'ศัตรู', commit:{slot:slotName, label: spell.name+' ▸ '+e.name, dice: spell.dice, skillId: spell._skillId||null} }); });
@@ -4360,7 +4383,7 @@ window.cc = (function(){
         {label:'ถอยห่าง',         commit:{slot:'movement', label:'ถอยห่างจากศัตรู'}},
         {label:'หาที่กำบัง',       commit:{slot:'movement', label:'เคลื่อนไปหาที่กำบัง'}},
         {label:'ปีน/กระโดด',      commit:{slot:'movement', label:'ปีน/กระโดด', dice:'1d20 Athletics'}},
-        {label:'🚶 เลือกช่องเดิน (แตะกริด)', moveGrid:true}
+        {label:'เลือกช่องเดิน (แตะกริด)', moveGrid:true}
       ];
       if(_prone) mvItems.push({label:'Stand up (ลุกขึ้นยืน)', meta:'1/2 cost', commit:{slot:'movement', label:'Stand'}});
       return { items: mvItems };
@@ -4473,6 +4496,14 @@ window.cc = (function(){
   }
 
   /* ---------- ACTIONS ---------- */
+  // ข้อ 4 (06-08): หลังยืนยันเลือกช่องเดิน/เล็งพื้นที่ → เปิดหน้าต่างคำสั่งกลับมาเสมอ (desktop: _bcOpen + ถอด cc-hide · mobile: เปิดชีต cmd)
+  function ccReturnToMenu(){
+    try{
+      window._bcOpen = true;
+      var f=document.getElementById('ccFrame'); if(f) f.classList.remove('cc-hide');
+      if(window.innerWidth<1024 && typeof bsToggleSheet==='function'){ bsToggleSheet('cmd'); }
+    }catch(e){}
+  }
   function handleClick(it){
     try{ if(typeof tick==='function') tick(); }catch(e){}
     if(it.editSlot){
@@ -4497,7 +4528,7 @@ window.cc = (function(){
             seqAdd(_c.slot);
           }
           stack = ['root'];
-          try{ if(window.innerWidth<1024 && typeof bsToggleSheet==='function'){ bsToggleSheet('cmd'); } }catch(e){}
+          ccReturnToMenu();   // ข้อ 4: กลับสู่เมนูเลือกคำสั่งถัดไป — ไม่หลุดออกจากหน้าต่างคำสั่ง
           renderAll();   // อัปเดตเมนู cc โดยตรง (ไม่ติด guard isBusy ของ renderRoundbar) → ลำดับ action โผล่
           try{ if(typeof renderRoundbar === 'function') renderRoundbar(); }catch(e){}
         });
@@ -4511,7 +4542,7 @@ window.cc = (function(){
         window.ccMovePick(function(cell){
           if(cell){ turn.movement = { label:'เดินไปช่อง '+cell, moveTo:cell }; seqAdd('movement'); }
           stack=['root'];
-          try{ if(window.innerWidth<1024 && typeof bsToggleSheet==='function'){ bsToggleSheet('cmd'); } }catch(e){}
+          ccReturnToMenu();   // ข้อ 4: ยืนยันช่องเดินแล้ว → กลับเมนูเลือก action/bonus ที่เหลือ (ปิดเองเมื่อกดส่งเท่านั้น)
           renderAll();
           try{ if(typeof renderRoundbar==='function') renderRoundbar(); }catch(e){}
         });
@@ -4605,6 +4636,8 @@ window.cc = (function(){
         }
       }
       if (typeof toast==='function') toast('Action submitted ✓');
+      // ข้อ 3 (06-08): optimistic — อัปเดตฉากรบทันทีหลังส่ง (มาร์คเดิน/สถานะ) ไม่รอ realtime เด้งกลับ
+      try{ if(typeof _bsShown!=='undefined' && _bsShown && typeof renderBattleScene==='function') renderBattleScene(); }catch(e){}
       // ── B: หักทรัพยากรจริง (skills.used) สำหรับเวท/ความสามารถจำกัดครั้งที่ใช้ในเทิร์นนี้ ──
       try{
         var _usedIds = [turn.action, turn.bonus, turn.reaction].filter(function(t){return t && t.skillId;}).map(function(t){return t.skillId;});
