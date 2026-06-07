@@ -2651,26 +2651,65 @@ async function renderParty(){
   if(_ciSave){ const ne=document.getElementById('chatInput'); if(ne){ ne.value=_ciSave.v; if(_ciSave.foc){ try{ ne.focus(); ne.setSelectionRange(_ciSave.s,_ciSave.e); }catch(e){} } } }
 }
 async function renderQuest(){
+  // v87: แท็บ Quest ใช้งานจริง — เควส active พร้อม hint ที่ทยอยได้ (จาก clues ผูกชื่อเควส) + เควสที่จบแล้ว + เบาะแสอื่น
   const p=$('panel-quest'); p.innerHTML='';
-  const { data:quests } = await supa.from('quests').select('*').eq('campaign_id',campaign.id).order('created_at',{ascending:false});
+  const FONT="font-family:'IBM Plex Sans Thai',sans-serif";
+  let quests=[], cls=[];
+  try{ const r=await supa.from('quests').select('*').eq('campaign_id',campaign.id).order('created_at',{ascending:false}); quests=r.data||[]; }catch(e){}
+  try{ const r=await supa.from('clues').select('mystery,clue,created_at').eq('campaign_id',campaign.id).order('created_at',{ascending:true}).limit(120); cls=r.data||[]; }catch(e){}
   // กันเควสซ้ำในการแสดงผล (เผื่อมีชื่อซ้ำค้างใน DB) — เก็บอันล่าสุดต่อชื่อ
   const seen=new Set();
-  const active=(quests||[]).filter(q=>q.status==='active').filter(q=>{ const k=String(q.title||'').toLowerCase().trim(); if(seen.has(k))return false; seen.add(k); return true; });
-  if(!active.length){ const d=document.createElement('div'); d.className='muted'; d.textContent='No active quests yet'; p.appendChild(d); }
+  const dedup=quests.filter(q=>{ const k=String(q.title||'').toLowerCase().trim(); if(seen.has(k))return false; seen.add(k); return true; });
+  const active=dedup.filter(q=>q.status==='active');
+  const ended=dedup.filter(q=>q.status!=='active');
+  // จับคู่เบาะแส → เควส: clue.mystery ตรง/คาบเกี่ยวกับชื่อเควส (ที่เหลือเข้าสมุดเบาะแสรวม)
+  const usedClue=new Set();
+  const hintsFor=(q)=>{
+    const t=String(q.title||'').toLowerCase().trim(); if(!t) return [];
+    return cls.filter((c,i)=>{
+      if(usedClue.has(i)) return false;
+      const m=String(c.mystery||'').toLowerCase().trim(); if(!m) return false;
+      const hit=(m===t)||m.includes(t)||t.includes(m);
+      if(hit) usedClue.add(i);
+      return hit;
+    }).map(c=>c.clue);
+  };
+  if(!active.length){ const d=document.createElement('div'); d.className='muted'; d.textContent='ยังไม่มีเควสที่กำลังทำ'; p.appendChild(d); }
   active.forEach(q=>{
+    const hints=hintsFor(q);
     const it=document.createElement('div'); it.className='item';
-    it.innerHTML=`<div class="nm">🎯 ${escapeHtml(q.title)}</div><div class="sub">${escapeHtml(q.description||'')}</div>`;
+    let html=`<div class="nm">${escapeHtml(q.title)}</div><div class="sub">${escapeHtml(q.description||'')}</div>`;
+    if(hints.length){
+      html+='<div style="'+FONT+';font-size:12px;color:#FAC775;margin-top:6px;text-align:left">เบาะแสที่ได้ ('+hints.length+')</div>'+
+            '<div style="'+FONT+';font-size:13px;line-height:1.7;color:#ccc;text-align:left">'+hints.map(h=>'<div>– '+escapeHtml(String(h))+'</div>').join('')+'</div>';
+    }
+    it.innerHTML=html;
     p.appendChild(it);
   });
-  // ── v80: สมุดเบาะแสฝั่งผู้เล่น — อ่านจาก clue codex เดียวกับที่ DM ใช้ (จัดกลุ่มตามปม) ──
+  // เควสที่จบแล้ว (สำเร็จ/ล้มเหลว) — พับเก็บ
+  if(ended.length){
+    const det=document.createElement('details'); det.className='item'; det.style.cssText=FONT;
+    const sum=document.createElement('summary'); sum.style.cssText='cursor:pointer;font-size:14px;font-weight:600;padding:4px 0;'+FONT;
+    sum.textContent='เควสที่จบแล้ว ('+ended.length+')';
+    det.appendChild(sum);
+    ended.forEach(q=>{
+      const hints=hintsFor(q);
+      const row=document.createElement('div'); row.style.cssText=FONT+';border-top:1px solid #333;padding:6px 0;text-align:left';
+      row.innerHTML='<div style="font-size:14px;font-weight:600">'+escapeHtml(q.title)+' <span style="font-weight:400;font-size:12px;color:'+(q.status==='completed'?'#97C459':'#E24B4A')+'">'+(q.status==='completed'?'สำเร็จ':'ล้มเหลว')+'</span></div>'+
+                    (q.description?'<div style="font-size:13px;color:#9a9a9a">'+escapeHtml(q.description)+'</div>':'')+
+                    (hints.length?'<div style="font-size:12px;color:#888;margin-top:3px">'+hints.map(h=>'<div>– '+escapeHtml(String(h))+'</div>').join('')+'</div>':'');
+      det.appendChild(row);
+    });
+    p.appendChild(det);
+  }
+  // ── สมุดเบาะแสรวม — เฉพาะปมที่ไม่ผูกกับเควสใด (ของที่ผูกแล้วโชว์ใต้เควสไปแล้ว) ──
   try{
-    const { data:cls } = await supa.from('clues').select('mystery,clue,created_at').eq('campaign_id',campaign.id).order('created_at',{ascending:true}).limit(60);
-    if(cls&&cls.length){
-      const FONT="font-family:'IBM Plex Sans Thai',sans-serif";
+    const rest=cls.filter((c,i)=>!usedClue.has(i));
+    if(rest.length){
       const card=document.createElement('div'); card.className='item';
-      card.innerHTML='<div style="'+FONT+';font-size:15px;font-weight:700;text-align:left;padding:2px 0 6px;border-bottom:1px solid #444;margin-bottom:6px">สมุดเบาะแส <span style="font-weight:400;font-size:12px;color:#9a9a9a">'+cls.length+' รายการ — สิ่งที่ปาร์ตี้ค้นพบแล้ว</span></div>';
+      card.innerHTML='<div style="'+FONT+';font-size:15px;font-weight:700;text-align:left;padding:2px 0 6px;border-bottom:1px solid #444;margin-bottom:6px">สมุดเบาะแส <span style="font-weight:400;font-size:12px;color:#9a9a9a">'+rest.length+' รายการ — ปมอื่นที่ปาร์ตี้ค้นพบ</span></div>';
       const byM={};
-      cls.forEach(c=>{const m=String(c.mystery||'ทั่วไป');(byM[m]=byM[m]||[]).push(c.clue);});
+      rest.forEach(c=>{const m=String(c.mystery||'ทั่วไป');(byM[m]=byM[m]||[]).push(c.clue);});
       Object.keys(byM).forEach(m=>{
         const det=document.createElement('details'); det.style.cssText='border:1px solid #444;border-radius:8px;margin:5px 0;padding:4px 10px;'+FONT;
         const sum=document.createElement('summary'); sum.style.cssText='cursor:pointer;font-size:14px;font-weight:600;padding:4px 0;'+FONT;
@@ -3998,7 +4037,8 @@ function subscribeRealtime(){
     }, 30000);
   }
   rtChannel = supa.channel('camp-'+campaign.id)
-    .on('postgres_changes',{event:'*',schema:'public',table:'narrative',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ rtLastSyncTs=Date.now(); if(payload&&payload.new&&payload.eventType!=='DELETE'){ mergeNarrative(payload.new); } else { await loadNarrative(); } if(activeTab()==='story') renderStory(); if(typeof scheduleBattleScene==='function') scheduleBattleScene(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'narrative',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ rtLastSyncTs=Date.now(); if(payload&&payload.new&&payload.eventType!=='DELETE'){ mergeNarrative(payload.new); } else { await loadNarrative(); } if(activeTab()==='story') renderStory(); if(activeTab()==='quest') renderQuest(); if(typeof scheduleBattleScene==='function') scheduleBattleScene(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'quests',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='quest') renderQuest(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'rounds',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); await loadRound(); if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'actions',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'characters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadCharacters(); if(activeTab()==='party') renderParty(); })
