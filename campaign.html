@@ -2059,6 +2059,45 @@ async function renderRoundbar(){
   let html=`<div class="cstat"><span class="cs">Round ${curRound.round_number}</span><span class="cs ${submitted>=total?'done':'wait'}">Submitted ${submitted}/${total}</span>${_rng}</div>`;
   list.forEach(a=>{ html+=`<div class="actionlog"><b>${escapeHtml(nameFor(a))}</b> ${escapeHtml(a.action_text)}</div>`; });
   bar.innerHTML=html;   // สร้างทีเดียว (synchronous ต่อจากนี้ ไม่มี await)
+  // ── v89: server ถามใช้บัฟ (ทอยพลาด) + ปุ่มทอยเซฟเอง — โผล่ทุกโหมดผ่าน realtime campaign_state ──
+  try{
+    const _set=(worldState&&worldState.settings)||{};
+    const _pd=_set.c5_pending;
+    if(myChar && _pd && _pd.char_id===myChar.id){
+      const bx=document.createElement('div'); bx.className='copt';
+      const h=document.createElement('div'); h.className='copt-h'; h.textContent='— ระบบถาม: '+(_pd.prompt||'จะใช้บัฟช่วยการทอยหรือไม่?')+' —'; bx.appendChild(h);
+      const mkB=(label,use)=>{ const b=document.createElement('button'); b.type='button'; b.textContent=label;
+        b.onclick=async()=>{ b.disabled=true;
+          try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
+            const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,buff_decision:{use:use}})});
+            const j=await r.json(); if(j.error){ toast(j.error,true); b.disabled=false; return; }
+            if(j.kind==='attack') toast(j.hit?('โดนแล้ว!'+(j.bi?' (Bardic +'+j.bi+')':'')+' ✓'):'ยังพลาด…', !j.hit);
+            else toast(j.pass?('เซฟผ่าน! ('+j.total+') ✓'):('เซฟไม่ผ่าน ('+j.total+')'), !j.pass);
+            await loadState(); renderRoundbar(); try{ resolveRound(false); }catch(e){}
+          }catch(e){ toast('ไม่สำเร็จ',true); b.disabled=false; }
+        }; return b; };
+      const op=_pd.options||{};
+      if(op.bi) bx.appendChild(mkB('ใช้ Bardic Inspiration (+1d6)','bi'));
+      if(op.reroll) bx.appendChild(mkB('ใช้ '+op.reroll+' — ทอยใหม่ (เผ่า)','reroll'));
+      bx.appendChild(mkB('ไม่ใช้ — รับผลตามนั้น',false));
+      bar.appendChild(bx);
+    }
+    const _ps=_set.pending_save;
+    if(myChar && !_pd && _ps && _ps.char_id===myChar.id){
+      const sb=document.createElement('button'); sb.className='btn'; sb.style.cssText='display:block;width:100%;margin:6px 0';
+      sb.textContent='🎲 ทอยเซฟ '+(_ps.ability||'')+' (DC '+(_ps.dc||'?')+')'+(_ps.reason?(' — '+String(_ps.reason).slice(0,42)):'');
+      sb.onclick=async()=>{ sb.disabled=true; sb.textContent='🎲 กำลังทอย…';
+        try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
+          const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,save_roll:true})});
+          const j=await r.json(); if(j.error){ toast(j.error,true); sb.disabled=false; return; }
+          if(j.ask_buff){ toast('ทอยได้ '+j.total+' — ไม่ผ่าน แต่มีตัวช่วย เลือกได้เลย'); await loadState(); renderRoundbar(); return; }
+          toast(j.pass?('เซฟผ่าน! ('+j.total+' vs DC '+_ps.dc+') ✓'):('ไม่ผ่าน ('+j.total+' vs DC '+_ps.dc+')'), !j.pass);
+          await loadState(); renderRoundbar(); try{ resolveRound(false); }catch(e){}
+        }catch(e){ toast('ทอยไม่สำเร็จ ลองใหม่',true); sb.disabled=false; sb.textContent='🎲 ทอยเซฟ '+(_ps.ability||''); }
+      };
+      bar.appendChild(sb);
+    }
+  }catch(e){}
   // v2: ล็อกตาเดี่ยว — ถ้าอยู่ในคอมแบตและยังไม่ถึงตาเรา → รอ (ไม่ให้ส่ง)
   if(myPet){
     const ph=document.createElement('div'); ph.className='note'; ph.style.cssText='text-align:left;padding:6px 2px;color:#9ad;font-weight:600';
