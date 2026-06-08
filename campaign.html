@@ -2164,6 +2164,19 @@ async function renderRoundbar(){
     const inCombat = cb.active || !!window._combatActive;
     if(econUsedRound!==curRound.id){ econUsed={}; econUsedRound=curRound.id; }  // รีเซ็ตมาร์กทุกรอบ
     if(inCombat){
+      // ── (06-08) turn-lock ชั้นสอง: กัน gCombat ค้าง → ใช้ meta.combat.for_char_id (server ระบุเจ้าของตาถัดไป) เป็นตัวชี้ขาด ──
+      //   ถ้า 'รู้ว่าถึงตาคนอื่น' (จาก gCombat หรือ for_char_id) → ห้ามโชว์เมนูสั่งการ (ไม่งั้นกดส่งข้ามตาได้ = คำสั่งถูก carry ดูเหมือนออกก่อน)
+      const _turnKnown = (gCombat.active && gCombat.activeCharId) || cb.for_char_id;
+      const _myTurn = !_turnKnown ? true
+        : (gCombat.active && gCombat.activeCharId) ? !!(myChar && gCombat.activeCharId===myChar.id)
+        : !!(myChar && cb.for_char_id===myChar.id);
+      if(!_myTurn){
+        const w=document.createElement('div'); w.className='note'; w.style.cssText='text-align:left;padding:8px 2px;line-height:1.6';
+        w.innerHTML='⏳ ถึงตา <b>'+escapeHtml(gCombat.activeName||cb.for_name||'ผู้เล่นอื่น')+'</b> — รอเทิร์นของคุณ';
+        bar.appendChild(w);
+        if(isHost){ bar.appendChild(makeSkipBtn()); }
+        return;
+      }
       // A: ทางเลือกคุณภาพจาก DM ขึ้น 'บนสุด' กดได้ทันที — เมนูคำสั่งเต็มตามหลัง
       // แสดง options เฉพาะเมื่อเป็น 'ของเรา' (meta.combat.for_char_id) — รอบเก่าที่ไม่มีแท็กถือว่าแสดงได้
       const _optsMine = !cb.for_char_id || (myChar && cb.for_char_id===myChar.id);
