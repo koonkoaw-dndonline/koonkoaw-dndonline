@@ -2727,16 +2727,22 @@ async function renderQuest(){
     }).map(c=>c.clue);
   };
   if(!active.length){ const d=document.createElement('div'); d.className='muted'; d.textContent='ยังไม่มีเควสที่กำลังทำ'; p.appendChild(d); }
-  active.forEach(q=>{
+  // เควสที่กำลังทำ — ดรอปดาวน์ทีละเควส (ลดความรก) · เปิดเควสแรกไว้ให้เห็นทันที
+  active.forEach((q,qi)=>{
     const hints=hintsFor(q);
-    const it=document.createElement('div'); it.className='item';
-    let html=`<div class="nm">${escapeHtml(q.title)}</div><div class="sub">${escapeHtml(q.description||'')}</div>`;
+    const det=document.createElement('details'); det.className='item'; det.style.cssText=FONT; if(qi===0) det.open=true;
+    const sum=document.createElement('summary'); sum.style.cssText='cursor:pointer;font-weight:700;font-size:15px;padding:4px 0;'+FONT;
+    sum.innerHTML=escapeHtml(q.title)+(hints.length?(' <span style="font-weight:400;font-size:12px;color:#FAC775">('+hints.length+' เบาะแส)</span>'):'');
+    det.appendChild(sum);
+    const body=document.createElement('div'); body.style.cssText=FONT+';text-align:left;padding:2px 0 4px';
+    let html=q.description?('<div style="font-size:13px;color:#bbb;line-height:1.6">'+escapeHtml(q.description)+'</div>'):'';
     if(hints.length){
-      html+='<div style="'+FONT+';font-size:12px;color:#FAC775;margin-top:6px;text-align:left">เบาะแสที่ได้ ('+hints.length+')</div>'+
-            '<div style="'+FONT+';font-size:13px;line-height:1.7;color:#ccc;text-align:left">'+hints.map(h=>'<div>– '+escapeHtml(String(h))+'</div>').join('')+'</div>';
+      html+='<div style="font-size:12px;color:#FAC775;margin-top:6px">เบาะแสที่ได้</div>'+
+            '<div style="font-size:13px;line-height:1.7;color:#ccc">'+hints.map(h=>'<div>– '+escapeHtml(String(h))+'</div>').join('')+'</div>';
     }
-    it.innerHTML=html;
-    p.appendChild(it);
+    body.innerHTML=html||'<div class="muted" style="font-size:13px">ยังไม่มีรายละเอียด/เบาะแส</div>';
+    det.appendChild(body);
+    p.appendChild(det);
   });
   // เควสที่จบแล้ว (สำเร็จ/ล้มเหลว) — พับเก็บ
   if(ended.length){
