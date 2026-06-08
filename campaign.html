@@ -1041,7 +1041,7 @@ const INGEST_PUZZLE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-puzz
 const DUNGEON_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-dungeon';
 const DYNAMIC_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/dynamic-task';
 let supa=null, session=null, me=null;            // me = auth user
-const OWNER_EMAIL='koonkoaw@hotmail.com';   // ช่วงทดสอบ: เฉพาะอีเมลนี้สร้างโลกได้ (กัน API token หมด)
+const OWNER_EMAILS=['koonkoaw@hotmail.com','koonkoaw19871@gmail.com'];   // ช่วงทดสอบ: เฉพาะอีเมลในลิสต์สร้างโลกได้ (กัน API token หมด) — ต้องตรงกับ allowlist ใน migration 0140
 let campaign=null, members=[], myChar=null, characters=[], curRound=null, narrative=[], mySheet={}, mySheetUpdatedAt=null, worldState=null, chatMsgs=[];
 let econUsed={}, econUsedRound=null;   // action economy: มาร์ก local ว่าผู้เล่นใช้อะไรไปแล้วในเทิร์น
 let rtChannel=null, resolving=false;
@@ -1090,7 +1090,7 @@ async function afterAuthChange(){
   session = s;
   if(!session){ $('hdDot').className='dot'; $('hdLogout').classList.add('hidden'); show('authScreen'); return; }
   me = session.user;
-  try{ const _own=(me.email||'').toLowerCase()===OWNER_EMAIL; const _cc=$('createCard'); if(_cc) _cc.style.display=_own?'':'none'; }catch(e){}
+  try{ const _own=OWNER_EMAILS.includes((me.email||'').toLowerCase()); const _cc=$('createCard'); if(_cc) _cc.style.display=_own?'':'none'; }catch(e){}
   $('hdDot').className='dot ok'; $('hdLogout').classList.remove('hidden');
   $('hdWho').textContent = me.email || '';
   await ensureProfile();
@@ -1172,7 +1172,7 @@ function onMusicFiles(files){
   info.textContent = (files&&files.length)? `เลือก ${files.length} เพลง (mood: ${mood}) — จะอัปตอนสร้างโลก` : 'อารมณ์ของเพลงชุดนี้ (เปลี่ยน/เพิ่มทีหลังได้)';
 }
 async function createCampaign(){
-  if((me.email||'').toLowerCase()!==OWNER_EMAIL){ toast('ช่วงทดสอบ: เฉพาะเจ้าของระบบเท่านั้นที่สร้างโลกได้',true); return; }
+  if(!OWNER_EMAILS.includes((me.email||'').toLowerCase())){ toast('ช่วงทดสอบ: เฉพาะเจ้าของระบบเท่านั้นที่สร้างโลกได้',true); return; }
   const name=$('newName').value.trim(); if(!name){toast('Name your campaign first',true);return;}
   $('createBtn').disabled=true;
   try{
