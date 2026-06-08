@@ -2364,8 +2364,8 @@ function renderWildShapeCard(p, ws){
   const num=(k,v)=>'<div class="kv"><span class="k">'+k+'</span><span class="dots"></span><span class="num">'+(v==null||v===''?'\u2014':escapeHtml(String(v)))+'</span></div>';
   c.innerHTML='<div class="sectitle" style="color:#9fe0a0"><span style="display:inline-block;width:18px;height:18px;vertical-align:-3px;margin-right:5px">'+beastIconSvg(ws.beast)+'</span>WILD SHAPE: '+escapeHtml(ws.beast||'สัตว์')+'</div>'+
     '<div class="note" style="text-align:left;margin-bottom:4px">ขณะแปลงร่างใช้ stat สัตว์ (STR/DEX/CON + AC + HP สัตว์) \u00b7 INT/WIS/CHA และความสามารถจิตคงเดิม</div>'+
-    num('Armor Class', ws.ac)+num('HP (สัตว์)', (ws.hp!=null?(ws.hp+'/'+(ws.max_hp!=null?ws.max_hp:ws.hp)):null))+num('STR / DEX / CON', (ws.str!=null?ws.str:'?')+' / '+(ws.dex!=null?ws.dex:'?')+' / '+(ws.con!=null?ws.con:'?'))+num('Speed', ws.speed)+
-    (ws.attacks?'<div class="kv"><span class="k">Attacks</span><span class="dots"></span><span class="num" style="font-size:12px;font-family:inherit">'+escapeHtml(ws.attacks)+'</span></div>':'')+
+    num('Armor Class', ws.ac)+num('HP (สัตว์)', (ws.hp!=null?(ws.hp+'/'+(ws.max_hp!=null?ws.max_hp:ws.hp)):null))+num('STR / DEX / CON', (ws.str!=null?ws.str:'—')+' / '+(ws.dex!=null?ws.dex:'—')+' / '+(ws.con!=null?ws.con:'—'))+num('Speed', ws.speed)+
+    ((()=>{ let a=ws.attacks; if(Array.isArray(a)) a=a.map(x=>{ if(x&&typeof x==='object'){ return [x.name||x.attack||'',x.to_hit||x.bonus||'',x.damage||x.dmg?('('+(x.damage||x.dmg)+')'):''].filter(Boolean).join(' '); } return String(x||''); }).filter(Boolean).join(', '); else if(a&&typeof a==='object') a=a.name||''; a=(a==null?'':String(a)); if(!a||/\[object Object\]/.test(a)) return ''; return '<div class="kv"><span class="k">Attacks</span><span class="dots"></span><span class="num" style="font-size:12px;font-family:inherit">'+escapeHtml(a)+'</span></div>'; })())+
     (ws.note?'<div class="note" style="text-align:left">'+escapeHtml(ws.note)+'</div>':'')+
     '<div class="note" style="text-align:left;color:#f5c542;margin-top:4px">เลิกแปลง: สั่ง "เลิก Wild Shape" ในช่องสั่งการ \u2192 DM คืนร่าง</div>';
   p.appendChild(c);
