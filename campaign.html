@@ -3062,7 +3062,7 @@ async function _renderCombatImpl(){
 }
 
 // ───────── Battle Scene (RPG cut-in overlay) ─────────
-var _bsShown=false, _bsRelocated=false, _bsRenderT=null, _bsRendering=false;
+var _bsShown=false, _bsRelocated=false, _bsRenderT=null, _bsRendering=false, _bsSafetyTimer=null;
 function bsCloseSheets(){ ['bsCmdWrap','bsInitBox','bsLogBox','bsHud','bsChatBox'].forEach(function(i){ var x=document.getElementById(i); if(!x) return; x.classList.remove('bs-sheet-open'); if(x._homeParent){ try{ x._homeParent.insertBefore(x, x._homeNext||null); }catch(e){ try{ x._homeParent.appendChild(x); }catch(_e){} } x._homeParent=null; x._homeNext=null; } }); var bd=document.getElementById('bsSheetBackdrop'); if(bd) bd.classList.remove('on'); var sc=document.getElementById('battleScene'); if(sc) sc.classList.remove('bs-has-sheet'); }
 // ── ESC: ถอย/ปิดหน้าต่าง (เมนูคำสั่งถอยทีละชั้น → sheet มือถือ → overlay) ──
 document.addEventListener('keydown', function(e){
@@ -3283,6 +3283,9 @@ async function exitBattleSceneWithOutro(){
 }
 function enterBattleScene(){
   _bsShown=true;
+  // (06-08) safety re-sync: มือถือ realtime หลุดบ่อย → event 'จบศึก/หมากขยับ' อาจไม่ถึง ทำให้ฉากรบค้าง/กระดานไม่อัปเดต
+  //   ตั้ง interval เบาๆ ทุก 8 วิ เช็คสถานะสดจาก DB → ออกฉากเมื่อศึกจบ + วาดกระดานใหม่ แม้พลาด event
+  try{ if(_bsSafetyTimer) clearInterval(_bsSafetyTimer); _bsSafetyTimer=setInterval(function(){ try{ syncBattleScene(); }catch(e){} }, 8000); }catch(e){}
   // เข้าฉากรบ = เพลง battle เสมอ (ไม่พึ่ง scene_mood ที่ DM มักลืมเปลี่ยนระหว่างศึก)
   try{ if(musicOn) playMood('battle'); }catch(e){}
   var el=ensureBattleScene();
@@ -3297,6 +3300,7 @@ function enterBattleScene(){
 }
 function exitBattleScene(){
   _bsShown=false;
+  try{ if(_bsSafetyTimer){ clearInterval(_bsSafetyTimer); _bsSafetyTimer=null; } }catch(e){}   // (06-08) หยุด safety re-sync เมื่อออกฉากรบ
   var el=document.getElementById('battleScene');
   relocateForBattle(false);
   try{ if(typeof bsCloseSheets==='function') bsCloseSheets(); }catch(e){}
