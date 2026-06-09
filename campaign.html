@@ -1291,9 +1291,19 @@ function hydrateCache(){
   if(myChar){ const sh=cacheLoad('sheet_'+myChar.id); if(sh) mySheet=sh; }
 }
 async function loadMembers(){
-  try{ const { data, error } = await supa.from('campaign_members').select('user_id, role, is_active, profiles(display_name)')
+  // NOTE: campaign_members.user_id → auth.users (ไม่มี FK ตรงไป profiles) → embed profiles(display_name) จะ 400
+  //       ดึงชื่อแยกอีก query แล้ว map กลับเป็นรูป m.profiles.display_name เดิม (ฝั่งที่ใช้ไม่ต้องแก้)
+  try{ const { data, error } = await supa.from('campaign_members').select('user_id, role, is_active')
     .eq('campaign_id',campaign.id).eq('is_active',true);
-    if(error) throw error; members = data||[]; cacheSave('members',members);
+    if(error) throw error;
+    let rows = data||[];
+    const ids = rows.map(r=>r.user_id).filter(Boolean);
+    if(ids.length){
+      const { data: profs } = await supa.from('profiles').select('id, display_name').in('id', ids);
+      const nameById = Object.fromEntries((profs||[]).map(p=>[p.id, p.display_name]));
+      rows = rows.map(r=>({ ...r, profiles: { display_name: nameById[r.user_id] ?? null } }));
+    }
+    members = rows; cacheSave('members',members);
   }catch(e){ const c=cacheLoad('members'); if(c) members=c; }
 }
 async function loadCharacters(){
