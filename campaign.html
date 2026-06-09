@@ -863,6 +863,7 @@ body.in-battle .bs-cs-btn{display:block;}
   <div class="logo"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="7" y="5" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/><rect x="2" y="7" width="1" height="1"/><rect x="5" y="7" width="1" height="1"/></svg></div>
   <div class="ttl" id="hdTitle">TTRPG Campaign</div>
   <span class="code hidden" id="hdCode" title="Click to copy invite code"></span>
+  <span class="code hidden" id="hdWorld" title="Click to copy World ID (สำหรับ ingest ลอร์)"></span>
   <span class="who" id="hdWho"></span>
   <div class="dot" id="hdDot"></div>
   <div class="hd-actions">
@@ -908,15 +909,12 @@ body.in-battle .bs-cs-btn{display:block;}
     <h2>New Campaign</h2>
     <p class="sub">You'll be the host (DM) of this world — up to 4 players.</p>
     <label class="fld">Campaign name<input type="text" id="newName" placeholder="e.g. Legend of Eldraria"/></label>
-    <label class="fld">Rules / tone (optional)<textarea id="newRules" placeholder="พิมพ์กติกา/โทนเพิ่มเอง หรือปล่อยว่างถ้าจะอัปไฟล์ด้านล่าง"></textarea></label>
+    <label class="fld">Rules / tone (optional)<textarea id="newRules" placeholder="พิมพ์กติกา/โทนของโลก เช่น &quot;high fantasy, ความรุนแรงต่ำ, เน้นไขปริศนามากกว่าบู๊&quot; — หรือปล่อยว่างให้ DM ใช้กลไกมาตรฐาน (ลอร์เฉพาะโลกใส่ทีหลังด้วยเครื่องมือ ingest)"></textarea></label>
     <div class="srow2" style="gap:8px">
       <label class="fld">จังหวะเรื่อง (Pace)<select id="newPace" style="background:#000;color:#fff;border:2px solid #fff;font-family:inherit;font-size:15px;padding:4px 6px"><option value="">— ปกติ (สมดุล) —</option><option value="brisk">เร่ง / บู๊รัว (เดินเรื่องเร็ว)</option><option value="normal">ปกติ (สมดุล)</option><option value="slow">เนิบ (เน้น roleplay)</option></select></label>
       <label class="fld">โทนเรื่อง (Tone)<input type="text" id="newTone" placeholder="เช่น heroic, dark, mystery, comedic"/></label>
     </div>
-    <label class="fld">📎 ไฟล์กฎ DM (.md/.txt — เลือกได้หลายไฟล์พร้อมกัน)
-      <input type="file" id="rulesFiles" multiple accept=".md,.txt,text/markdown,text/plain" onchange="onRulesFiles(this.files)"/>
-    </label>
-    <div class="note" id="rulesFilesInfo">เลือกไฟล์กฎ DM (เช่น 14 ไฟล์ฉบับสะอาด) → ระบบจะฝังเป็นกติกาของ DM ตอนสร้างโลก</div>
+    <!-- (ตัดช่องอัปไฟล์กฎ/อ้างอิงออก — กลไก DM อยู่ในโค้ดกลางแล้ว; ลอร์เฉพาะโลกใช้เครื่องมือ ingest แทน เพื่อไม่ให้ทุกรอบเสีย token/หน่วงเวลา) -->
     <label class="fld">🎵 เพลงประกอบ (optional — ไม่เติมตอนนี้ก็ได้ เติมทีหลังในแท็บ Files)
       <input type="file" id="musicFiles" multiple accept="audio/*" onchange="onMusicFiles(this.files)"/>
     </label>
@@ -1235,6 +1233,10 @@ async function enterCampaign(){
   if(campaign.host_id===me.id && campaign.join_code){
     $('hdCode').textContent='Code: '+campaign.join_code; $('hdCode').classList.remove('hidden');
     $('hdCode').onclick=()=>{navigator.clipboard?.writeText(campaign.join_code);toast('Code copied');};
+  }
+  if(campaign.host_id===me.id){   // World ID เฉพาะ host — ก๊อปไปใช้ ingest ลอร์/ตั้งค่าได้ง่าย
+    const wid=$('hdWorld'); if(wid){ wid.textContent='World: '+campaign.id; wid.classList.remove('hidden');
+      wid.onclick=()=>{navigator.clipboard?.writeText(campaign.id);toast('World ID copied ✓');}; }
   }
   const endBtn=$('hdEnd');
   if(campaign.host_id===me.id){ endBtn.textContent='✕ End World'; endBtn.onclick=endCampaign; }
@@ -2208,7 +2210,7 @@ async function renderRoundbar(){
       }
       // (Force Resolve ใช้ปุ่มกลางท้ายฟังก์ชัน — ห้ามเพิ่มซ้ำตรงนี้)
     } else {
-      const ta=document.createElement('textarea'); ta.id='actInput'; ta.placeholder='จะให้ตัวละครทำอะไร? พิมพ์ได้อิสระ'; if(keepAct) ta.value=keepAct; bar.appendChild(ta);
+      const ta=document.createElement('textarea'); ta.id='actInput'; ta.placeholder='จะให้ตัวละครทำอะไร? พิมพ์ได้อิสระ เช่น  •เดินไปคุยกับพ่อค้าเรื่องข่าวลือ  •ตรวจหากับดักรอบประตู  •โจมตีกอบลินตัวซ้ายด้วยดาบ  •ลองโน้มน้าวยามให้ปล่อยผ่าน  •ค้นหีบในมุมห้อง (ใส่เป้าหมาย/รายละเอียดยิ่งเยอะ DM ยิ่งบรรยายตรงใจ)'; if(keepAct) ta.value=keepAct; bar.appendChild(ta);
     }
     // เต๋า + ปุ่มส่ง (เฉพาะนอกคอมแบต — ในคอมแบตใช้ SUBMIT ในเมนู)
     if(!inCombat){
