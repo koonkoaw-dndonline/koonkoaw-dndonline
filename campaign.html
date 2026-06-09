@@ -868,6 +868,7 @@ body.in-battle .bs-cs-btn{display:block;}
   <div class="dot" id="hdDot"></div>
   <div class="hd-actions">
     <button class="btn ghost sm hidden" id="hdMusic" onclick="toggleMusic()" title="Toggle background music">&#9834; Music: off</button>
+    <button class="btn ghost sm hidden" id="hdToken" title="ก๊อป session token (host) สำหรับเครื่องมือ ingest ลอร์ — token สดทุกครั้งที่กด">&#128273; Ingest token</button>
     <button class="btn ghost sm hidden" id="hdEnd"></button>
     <button class="btn ghost sm hidden" id="hdLogout" onclick="doLogout()">Logout</button>
   </div>
@@ -1234,9 +1235,13 @@ async function enterCampaign(){
     $('hdCode').textContent='Code: '+campaign.join_code; $('hdCode').classList.remove('hidden');
     $('hdCode').onclick=()=>{navigator.clipboard?.writeText(campaign.join_code);toast('Code copied');};
   }
-  if(campaign.host_id===me.id){   // World ID เฉพาะ host — ก๊อปไปใช้ ingest ลอร์/ตั้งค่าได้ง่าย
+  if(campaign.host_id===me.id){   // World ID + ปุ่ม Ingest token เฉพาะ host — ก๊อปไปใช้ ingest ลอร์ได้ง่าย
     const wid=$('hdWorld'); if(wid){ wid.textContent='World: '+campaign.id; wid.classList.remove('hidden');
       wid.onclick=()=>{navigator.clipboard?.writeText(campaign.id);toast('World ID copied ✓');}; }
+    const tb=$('hdToken'); if(tb){ tb.classList.remove('hidden');
+      tb.onclick=async()=>{ try{ const t=(await supa.auth.getSession()).data.session?.access_token||''; if(!t){toast('ไม่พบ session — ลองรีเฟรช',true);return;}
+        await navigator.clipboard.writeText(t); toast('🔑 Ingest token copied ✓ — วางใน HOST_TOKEN (อายุ ~1 ชม.)'); }
+        catch(e){ toast('ก๊อปไม่สำเร็จ: '+(e.message||e),true); } }; }
   }
   const endBtn=$('hdEnd');
   if(campaign.host_id===me.id){ endBtn.textContent='✕ End World'; endBtn.onclick=endCampaign; }
