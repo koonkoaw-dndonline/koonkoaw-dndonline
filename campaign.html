@@ -3367,15 +3367,26 @@ async function renderBattleScene(){
       if(nw){
         var _rec=(typeof narrative!=='undefined'?narrative:[]).filter(function(n){return n && n.status!=='placeholder' && n.content;}).slice(-3);
         var _nf=document.createDocumentFragment();
-        _rec.forEach(function(n){ var d=document.createElement('div'); d.className='narr'; d.innerHTML='<div class="meta">🎲 DM</div><div class="narrc">'+colorizeNarr(n.content)+'</div>'; _nf.appendChild(d); });
+        // (06-11) เว้นช่องระหว่างกรอบบรรยาย + เส้นคั่นจางๆ ให้อ่านง่าย · บทล่าสุดกรอบเด่นขึ้นเล็กน้อย
+        _rec.forEach(function(n,i){
+          var last=(i===_rec.length-1);
+          var d=document.createElement('div'); d.className='narr';
+          d.style.cssText='margin:0 0 12px;padding:8px 10px;border:1px solid '+(last?'rgba(250,199,117,0.45)':'rgba(255,255,255,0.10)')+';border-radius:6px;background:rgba(255,255,255,'+(last?'0.04':'0.015')+')'+(last?'':';opacity:0.82');
+          if(last) d.style.marginBottom='2px';
+          d.innerHTML='<div class="meta">🎲 DM'+(last?' · ล่าสุด':'')+'</div><div class="narrc">'+colorizeNarr(n.content)+'</div>';
+          _nf.appendChild(d);
+        });
         if(!_nf.childNodes.length){ var _e=document.createElement('div'); _e.className='note'; _e.style.color='#9a9a9a'; _e.textContent='— รอการบรรยายการต่อสู้ —'; _nf.appendChild(_e); }
         var _box=nw.closest('.bs-narr')||nw;
         var _ng=document.createElement('div'); _ng.appendChild(_nf.cloneNode(true));
         if(nw.getAttribute('data-sig')!==_ng.innerHTML){
-          nw.setAttribute('data-sig',_ng.innerHTML);
+          // (06-11) มีบทใหม่ (id ล่าสุดเปลี่ยน = resolve เพิ่งจบ) → เด้งไปอ่านบทล่าสุดเสมอ · แค่ render ซ้ำ → คงตำแหน่งอ่านเดิม
+          var _lastId=_rec.length?String(_rec[_rec.length-1].id||_rec[_rec.length-1].created_at||_rec.length):'';
+          var _newNarr=nw.getAttribute('data-last')!==_lastId;
+          nw.setAttribute('data-sig',_ng.innerHTML); nw.setAttribute('data-last',_lastId);
           var _near=(_box.scrollHeight-_box.scrollTop-_box.clientHeight)<80, _prev=_box.scrollTop;
           nw.replaceChildren(_nf);
-          setTimeout(function(){ _box.scrollTop=_near?_box.scrollHeight:_prev; },0);
+          setTimeout(function(){ _box.scrollTop=(_newNarr||_near)?_box.scrollHeight:_prev; },0);
         }
       }
     }catch(e){}
