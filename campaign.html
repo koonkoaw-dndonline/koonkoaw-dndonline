@@ -1938,8 +1938,43 @@ function notifyMyTurn(){
 }
 
 // ───────── render: story ─────────
+// ── v164: การ์ดโหวตเส้นทางปาร์ตี้ — DM เปิดผ่าน party_vote · server นับผล · เสมอ = DM ตัดสินตาม urgency ──
+async function castVote(i, finish){
+  try{
+    const tok=(await supa.auth.getSession()).data.session.access_token;
+    await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify(Object.assign({campaign_id:campaign.id, vote_cast:i}, finish?{finish:true}:{}))});
+  }catch(e){}
+  try{ const r=await supa.from('campaign_state').select('*').eq('campaign_id',campaign.id).maybeSingle(); if(!r.error&&r.data){ worldState=r.data; cacheSave('state',worldState); } }catch(e){}
+  try{ renderVoteCard(); }catch(e){}
+  try{ toast('ส่งโหวตแล้ว ✓'); }catch(e){}
+}
+function renderVoteCard(){
+  var host=$('narrFeed'); if(!host||!host.parentNode) return;
+  var s=(worldState&&worldState.settings)||{}; var pv=s.pending_vote;
+  var old=document.getElementById('voteCard');
+  if(!pv){ if(old) old.remove(); return; }
+  var card=old; if(!card){ card=document.createElement('div'); card.id='voteCard'; card.className='item'; card.style.cssText='border:2px solid #FAC775;margin-bottom:10px'; host.parentNode.insertBefore(card, host); }
+  var my=(myChar&&pv.votes)?pv.votes[myChar.id]:undefined;
+  var voted=Object.keys(pv.votes||{}).length;
+  card.innerHTML='<div class="sectitle">🗳 โหวตเส้นทางปาร์ตี้ ('+voted+' โหวตแล้ว)</div><div style="margin:6px 0 8px">'+escapeHtml(pv.q||'')+'</div>';
+  (pv.options||[]).forEach(function(op,i){
+    var n=0; for(var k in (pv.votes||{})) if(pv.votes[k]===i) n++;
+    var b=document.createElement('button'); b.className='btn sm'+(my===i?'':' ghost');
+    b.style.cssText='display:block;width:100%;margin:4px 0;text-align:left';
+    b.textContent=(my===i?'✅ ':'· ')+op+' — '+n+' เสียง';
+    b.onclick=function(){ b.disabled=true; castVote(i,false); };
+    card.appendChild(b);
+  });
+  if(campaign&&campaign.host_id===me.id){
+    var f=document.createElement('button'); f.className='btn ghost sm'; f.style.marginTop='6px';
+    f.textContent='ปิดโหวตเลย (นับเท่าที่มี — เสมอ = DM ตัดสินตามความเร่งด่วน)';
+    f.onclick=function(){ f.disabled=true; castVote(-1,true); };
+    card.appendChild(f);
+  }
+}
 async function renderStory(){
   renderClock();
+  try{ renderVoteCard(); }catch(e){}
   const isStreaming = n => n.status==='placeholder' && n.content && !/^_/.test(String(n.content).trim());
   const shown = narrative.filter(n => n.status !== 'placeholder' || isStreaming(n));
   const feed=$('narrFeed');
