@@ -3263,11 +3263,17 @@ function relocateForBattle(on){
 function scheduleBattleScene(){ clearTimeout(_bsRenderT); _bsRenderT=setTimeout(function(){ syncBattleScene(); }, 300); }   // รวบจังหวะ event ถี่ๆ ให้เป็น render เดียว (ลดกระตุก) — ข้อ 3 (06-08): 550→300ms ลดหน่วงภาพ
 async function syncBattleScene(){
   if(typeof campaign==='undefined' || !campaign) return;
-  let enc=null;
-  try{ const r=await supa.from('combat_encounters').select('id,status').eq('campaign_id',campaign.id).neq('status','ended').maybeSingle(); if(!r.error) enc=r.data; }catch(e){}
-  // encounter active แต่ไม่มีศัตรูมีชีวิต = คอมแบตจบ/ค้าง → ถือว่าไม่ใช่คอมแบต (กันค้างในฉากสู้ว่างเปล่า)
-  let livingEnemies=0;
-  if(enc){ try{ const r2=await supa.from('combat_state').select('cur_hp').eq('campaign_id',campaign.id).eq('active',true); livingEnemies=(r2.data||[]).filter(x=>x.cur_hp==null||x.cur_hp>0).length; }catch(e){} }
+  // (06-11) ยิงพร้อมกัน (เดิม serial 2 รอบ) — เช็คนี้รันทุก 8 วิใน battle scene
+  let enc=null, livingEnemies=0;
+  try{
+    const [r,r2]=await Promise.all([
+      supa.from('combat_encounters').select('id,status').eq('campaign_id',campaign.id).neq('status','ended').maybeSingle(),
+      supa.from('combat_state').select('cur_hp').eq('campaign_id',campaign.id).eq('active',true)
+    ]);
+    if(!r.error) enc=r.data;
+    // encounter active แต่ไม่มีศัตรูมีชีวิต = คอมแบตจบ/ค้าง → ถือว่าไม่ใช่คอมแบต (กันค้างในฉากสู้ว่างเปล่า)
+    if(enc) livingEnemies=((r2&&r2.data)||[]).filter(x=>x.cur_hp==null||x.cur_hp>0).length;
+  }catch(e){}
   let active = (!!enc && livingEnemies>0) || !!window._combatActive || !!moveMode;   // อย่าออกจากฉากระหว่างเลือกช่องเดิน · ออกถ้า encounter ไม่มีศัตรูมีชีวิต
   // ผู้เล่นใหม่ที่ยังไม่มีตัวละคร: ห้ามดูดเข้าฉากรบ — ให้อยู่หน้าสร้างตัวละครก่อน (ระบบไม่รอเทิร์นเขาอยู่แล้ว)
   if(typeof myChar==='undefined' || !myChar) active=false;
@@ -3402,8 +3408,18 @@ async function renderBattleInitLog(initEl, logEl){
   let enc=null;
   try{ const r=await supa.from('combat_encounters').select('*').eq('campaign_id',campaign.id).neq('status','ended').maybeSingle(); if(!r.error) enc=r.data; }catch(e){}
   if(!enc){ if(initEl) initEl.replaceChildren(); if(logEl) logEl.replaceChildren(); return; }
-  let ents=[]; try{ const r=await supa.from('initiative_entries').select('*').eq('encounter_id',enc.id).order('sort',{ascending:true,nullsFirst:false}); ents=r.data||[]; }catch(e){}
-  let csMap={}; try{ const r=await supa.from('combat_state').select('id,cur_hp,monsters(max_hp,name)').eq('campaign_id',campaign.id); (r.data||[]).forEach(x=>csMap[x.id]=x); }catch(e){}
+  // (06-11) ยิง 3 query พร้อมกัน (เดิม serial 3 รอบ + log อีก 1) — ลดเวลารอ render ฉากรบ
+  let ents=[], csMap={}, _logsPre=null;
+  try{
+    const [rE,rC,rL]=await Promise.all([
+      supa.from('initiative_entries').select('*').eq('encounter_id',enc.id).order('sort',{ascending:true,nullsFirst:false}),
+      supa.from('combat_state').select('id,cur_hp,monsters(max_hp,name)').eq('campaign_id',campaign.id),
+      logEl?supa.from('combat_log').select('*').eq('encounter_id',enc.id).order('seq',{ascending:true}).limit(80):Promise.resolve({data:null})
+    ]);
+    ents=(rE&&rE.data)||[];
+    ((rC&&rC.data)||[]).forEach(x=>csMap[x.id]=x);
+    _logsPre=(rL&&rL.data)||null;
+  }catch(e){}
   if(initEl){
     const _frag=document.createDocumentFragment();
     ents.filter(e=>e.is_active).forEach(e=>{
@@ -3421,17 +3437,20 @@ async function renderBattleInitLog(initEl, logEl){
     if(initEl.getAttribute('data-sig')!==_ig.innerHTML){ initEl.setAttribute('data-sig',_ig.innerHTML); initEl.replaceChildren(_frag); }
   }
   if(logEl){
-    let logs=[]; try{ const r=await supa.from('combat_log').select('*').eq('encounter_id',enc.id).order('seq',{ascending:true}).limit(80); logs=r.data||[]; }catch(e){}
+    let logs=_logsPre||[];   // (06-11) ใช้ผลที่ fetch รวมไว้ข้างบน
     const ICON={initiative:'🎲',attack:'🎲',damage:'💥',heal:'💚',save:'🛡',check:'🎯',move:'👣',condition:'⭐',death:'☠',flee:'🏃',round_advance:'🔄',note:'📝'};
     const _lfrag=document.createDocumentFragment();
     logs.forEach(l=>{ const d=document.createElement('div'); d.className='bs-logrow'; if(l.entry_type==='round_advance') d.style.color='#9a9a9a'; d.innerHTML=(ICON[l.entry_type]||'•')+' '+escapeHtml(l.summary); _lfrag.appendChild(d); });
     if(!_lfrag.childNodes.length){ const d=document.createElement('div'); d.className='note'; d.style.color='#9a9a9a'; d.textContent='— ยังไม่มีบันทึกการรบ —'; _lfrag.appendChild(d); }
     var _lg=document.createElement('div'); _lg.appendChild(_lfrag.cloneNode(true));
     if(logEl.getAttribute('data-sig')!==_lg.innerHTML){
-      logEl.setAttribute('data-sig',_lg.innerHTML);
+      // (06-11) มี entry ใหม่ (seq ท้ายเปลี่ยน = เพิ่ง resolve) → เด้งไปเทิร์นล่าสุดเสมอ · re-render เฉยๆ → คงตำแหน่งอ่านเดิม
+      var _lastSeq=logs.length?String(logs[logs.length-1].seq??logs[logs.length-1].id??logs.length):'';
+      var _newLog=logEl.getAttribute('data-last')!==_lastSeq;
+      logEl.setAttribute('data-sig',_lg.innerHTML); logEl.setAttribute('data-last',_lastSeq);
       var _lnear=(logEl.scrollHeight-logEl.scrollTop-logEl.clientHeight)<80, _lprev=logEl.scrollTop;
       logEl.replaceChildren(_lfrag);
-      setTimeout(function(){ logEl.scrollTop=_lnear?logEl.scrollHeight:_lprev; },0);
+      setTimeout(function(){ logEl.scrollTop=(_newLog||_lnear)?logEl.scrollHeight:_lprev; },0);
     }
   }
 }
