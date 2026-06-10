@@ -2425,6 +2425,24 @@ function maxSpellLevelFor(ck, lvl){
   if(ck==='warlock') return lvl>=17?9:lvl>=15?8:lvl>=13?7:lvl>=11?6:Math.min(5,Math.ceil(lvl/2));   // pact + arcanum
   return Math.min(9, Math.ceil(lvl/2));                                                              // full caster
 }
+// โควต้าเลือก cantrip/เวทตอนเลเวลอัพ ตามตาราง D&D 5e (PHB) — มิเรอร์ฝั่ง server (levelUpAllowance ใน combat-logic.ts)
+//   server เป็นกำแพงจริง (levelUpGuard) — ฝั่งนี้ใช้คุม UX (โชว์ X/N + บล็อกกดเกิน) ให้ตรงกัน
+const LU_CANTRIP_STEPS={bard:{1:2,4:3,10:4},cleric:{1:3,4:4,10:5},druid:{1:2,4:3,10:4},sorcerer:{1:4,4:5,10:6},warlock:{1:2,4:3,10:4},wizard:{1:3,4:4,10:5}};
+const LU_SPELLS_KNOWN={bard:[0,4,5,6,7,8,9,10,11,12,14,15,15,16,18,19,19,20,22,22,22],sorcerer:[0,2,3,4,5,6,7,8,9,10,11,12,12,13,13,14,14,15,15,15,15],ranger:[0,0,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11],warlock:[0,2,3,4,5,6,7,8,9,10,10,11,11,12,12,13,13,14,14,15,15]};
+const LU_PREPARED=new Set(['cleric','druid','paladin']);
+function luCantripsKnown(ck,lvl){ const s=LU_CANTRIP_STEPS[ck]; if(!s) return 0; const L=Math.max(1,+lvl||1); let v=0; for(const k of Object.keys(s).map(Number).sort((a,b)=>a-b)){ if(L>=k) v=s[k]; } return v; }
+function luSpellsKnown(ck,lvl){ const L=Math.max(0,Math.min(20,+lvl||0)); if(L<=0) return 0; if(ck==='wizard') return 6+Math.max(0,L-1)*2; const t=LU_SPELLS_KNOWN[ck]; return t?(t[L]||0):0; }
+const LU_NONCASTER=new Set(['barbarian','fighter','monk','rogue']);
+function levelUpAllowanceFE(ck, lvl){
+  ck=String(ck||'').toLowerCase(); const L=Math.max(1,+lvl||1), prev=L-1;
+  if(!ck) return { cantrips:(L===4||L===10)?1:0, spells:1, prepared:false, caster:true, custom:true };  // อาชีพนอกกฎ DM กำกับ
+  if(LU_NONCASTER.has(ck)) return { cantrips:0, spells:0, prepared:false, caster:false, custom:false };
+  const cantrips=Math.max(0, luCantripsKnown(ck,L)-luCantripsKnown(ck,prev));
+  const prepared=LU_PREPARED.has(ck);
+  const caster=prepared||ck==='wizard'||!!LU_SPELLS_KNOWN[ck]||!!LU_CANTRIP_STEPS[ck];
+  const spells=prepared?0:Math.max(0, luSpellsKnown(ck,L)-luSpellsKnown(ck,prev));
+  return { cantrips, spells, prepared, caster, custom:false };
+}
 function renderWildShapeCard(p, ws){
   const c=document.createElement('div'); c.className='item'; c.style.cssText='border:2px solid #6fbf73';
   const num=(k,v)=>'<div class="kv"><span class="k">'+k+'</span><span class="dots"></span><span class="num">'+(v==null||v===''?'\u2014':escapeHtml(String(v)))+'</span></div>';
@@ -2487,25 +2505,42 @@ async function renderLevelUpPanel(p){
       g.appendChild(b); });
     box.appendChild(g); card.appendChild(box);
   }
-  const picks=new Set();
+  // v175: เลือก cantrip/เวทตามโควต้า D&D 5e — แยกนับ cantrip (level 0) กับเวทมีระดับ · server (levelUpGuard) เป็นกำแพงจริง
+  const cantripPicks=new Set(), spellPicks=new Set();
   const ck=charClassKey(myChar.class);
+  const allow=levelUpAllowanceFE(ck, lvl);
   const knownSkills=new Set(); try{ const _kr=await supa.from('skills').select('name').eq('character_id',myChar.id); (_kr.data||[]).forEach(x=>knownSkills.add(String(x.name).toLowerCase())); }catch(e){}
-  if(['bard','cleric','druid','paladin','ranger','sorcerer','warlock','wizard'].includes(ck) && SPELL_CAT.length){
-    const maxLv=maxSpellLevelFor(ck, lvl);   // ตามตารางคลาสจริง (ตัวละครเลเวลต่ำยังเห็นแค่เวทระดับต่ำ)
+  if(allow.caster && SPELL_CAT.length && (allow.cantrips>0 || allow.spells>0)){
+    const maxLv=ck?maxSpellLevelFor(ck, lvl):Math.min(9, Math.ceil(lvl/2));
     const known=knownSkills;
-    const avail=SPELL_CAT.filter(sp=>(sp.classes||[]).includes(ck) && sp.level<=maxLv && !known.has(String(sp.name).toLowerCase()));
-    const box=document.createElement('div'); box.innerHTML='<div class="sectitle" style="margin-top:8px">เวท / CANTRIP ใหม่ (เลือกตามกฎคลาส)</div>';
-    [0,1,2,3,4,5,6,7,8,9].forEach(L=>{ const grp=avail.filter(sp=>sp.level===L); if(!grp.length) return;
-      const h=document.createElement('div'); h.className='note'; h.style.cssText='text-align:left;margin-top:5px;color:#9ad'; h.textContent=(L===0?'Cantrip':'เลเวล '+L); box.appendChild(h);
+    const classOf=sp=>ck?((sp.classes||[]).includes(ck)):true;   // อาชีพนอกกฎ → ทุกคลาส (DM กำกับ)
+    const box=document.createElement('div'); box.innerHTML='<div class="sectitle" style="margin-top:8px">เวท / CANTRIP ใหม่ (ตามกฎคลาส)</div>';
+    const cnt=document.createElement('div'); cnt.className='note'; cnt.style.cssText='text-align:left;color:#f5c542;margin-bottom:3px'; box.appendChild(cnt);
+    const upd=()=>{ cnt.innerHTML='Cantrip '+cantripPicks.size+'/'+allow.cantrips+(allow.spells>0?(' · เวท '+spellPicks.size+'/'+allow.spells):'')+(allow.custom?' · อาชีพนอกกฎ (DM กำกับ)':''); };
+    upd();
+    [0,1,2,3,4,5,6,7,8,9].forEach(L=>{
+      if(L===0 && allow.cantrips<=0) return;
+      if(L>=1 && allow.spells<=0) return;
+      const grp=SPELL_CAT.filter(sp=>sp.level===L && sp.level<=maxLv && classOf(sp) && !known.has(String(sp.name).toLowerCase()));
+      if(!grp.length) return;
+      const cap=(L===0)?allow.cantrips:allow.spells; const setRef=(L===0)?cantripPicks:spellPicks;
+      const h=document.createElement('div'); h.className='note'; h.style.cssText='text-align:left;margin-top:5px;color:#9ad'; h.textContent=(L===0?'Cantrip':'เลเวล '+L)+' (เลือกได้ '+cap+')'; box.appendChild(h);
       grp.forEach(sp=>{ const row=document.createElement('label'); row.className='fld'; row.style.cssText='flex-direction:row;align-items:flex-start;gap:8px;cursor:pointer;margin:1px 0';
         row.innerHTML='<input type="checkbox" style="margin-top:3px"><span><b>'+escapeHtml(sp.name)+'</b>'+aoeTag(sp)+(sp.damage?' <span class="muted">('+escapeHtml(sp.damage)+(sp.save?(' '+escapeHtml(sp.save)):'')+')</span>':'')+'<div class="muted" style="font-size:11px;line-height:1.4">'+escapeHtml(sp.effect||'')+'</div></span>';
-        row.querySelector('input').onchange=(e)=>{ if(e.target.checked) picks.add(sp.slug); else picks.delete(sp.slug); };
+        const inp=row.querySelector('input');
+        inp.onchange=(e)=>{ if(e.target.checked){ if(setRef.size>=cap){ e.target.checked=false; toast((L===0?'เลือก cantrip ได้ ':'เลือกเวทได้ ')+cap,true); return; } setRef.add(sp.slug); } else setRef.delete(sp.slug); upd(); };
         box.appendChild(row); }); });
-    if(!avail.length){ const m=document.createElement('div'); m.className='muted'; m.textContent='ไม่มีเวทใหม่ให้เลือกในเลเวลนี้'; box.appendChild(m); }
     card.appendChild(box);
   }
+  // prepared caster → เวทมีระดับเตรียมรายวัน (ไม่เลือกตอนเลเวลอัพ)
+  if(allow.prepared){
+    const note=document.createElement('div'); note.className='note'; note.style.cssText='text-align:left;color:#9ad;margin-top:6px';
+    note.innerHTML='ℹ สาย<b>เตรียมเวท</b> ('+escapeHtml(myChar.class||'')+') — เวทมีระดับ<b>ไม่เลือกตอนเลเวลอัพ</b> แต่เตรียมรายวันจากลิสต์ทั้งคลาส (จำนวน = mod + เลเวล) เมื่อผ่านวันใหม่/พักยาวในเกม';
+    card.appendChild(note);
+  }
   // อาชีพนอกกฎ (ไม่อยู่ในคลัง) → เลือกเวทอิสระจากทุกคลาส (DM กำกับ)
-  if(!ck && SPELL_CAT.length){
+  const picks=new Set();   // v175: เลิกใช้ — อาชีพนอกกฎรวมเข้า unified picker (allow.custom) ด้านบนแล้ว · บล็อกนี้ตายตัว
+  if(false){
     const maxLv=Math.min(9, Math.ceil(lvl/2));
     const known=knownSkills;
     const avail=SPELL_CAT.filter(sp=>sp.level<=maxLv && !known.has(String(sp.name).toLowerCase()));
@@ -2522,10 +2557,10 @@ async function renderLevelUpPanel(p){
   try{ const kn=new Set(); const r=await supa.from('skills').select('name').eq('character_id',myChar.id); (r.data||[]).forEach(x=>kn.add(String(x.name).toLowerCase())); feats=(SKILL_CAT||[]).filter(f=>(f.classes||[]).includes(ck)&&f.level===lvl&&!kn.has(String(f.name).toLowerCase())); }catch(e){}
   if(feats.length){ const fb=document.createElement('div'); fb.innerHTML='<div class="sectitle" style="margin-top:8px">ความสามารถใหม่ของเลเวลนี้ (ได้รับอัตโนมัติ)</div>'; feats.forEach(f=>{ const d=document.createElement('div'); d.className='note'; d.style.cssText='text-align:left;color:#9fe0a0;margin:1px 0'; d.innerHTML='\u2726 <b>'+escapeHtml(f.name)+'</b> <span class="muted" style="font-size:11px">'+escapeHtml(f.effect||'')+'</span>'; fb.appendChild(d); }); card.appendChild(fb); }
   const btn=document.createElement('button'); btn.className='btn'; btn.style.marginTop='10px'; btn.textContent='\u2713 ยืนยันเลเวลอัพ';
-  btn.onclick=()=>submitLevelUp(asiState, [...picks].map(sl=>SPELL_CAT.find(x=>x.slug===sl)).filter(Boolean), feats, btn);
+  btn.onclick=()=>submitLevelUp(asiState, {cantrips:[...cantripPicks], spells:[...spellPicks]}, feats, btn);
   card.appendChild(btn); p.appendChild(card);
 }
-async function submitLevelUp(asiState, spells, feats, btn){
+async function submitLevelUp(asiState, picks, feats, btn){
   if(btn){ btn.disabled=true; btn.textContent='กำลังบันทึก…'; }
   try{
     if(asiState && Object.keys(asiState).length){
@@ -2535,8 +2570,18 @@ async function submitLevelUp(asiState, spells, feats, btn){
       try{ persistCombatStats(sheet, myChar.class); }catch(e){}
       await supa.from('character_sheets').update({sheet,updated_at:new Date().toISOString()}).eq('character_id',myChar.id); mySheet=sheet;
     }
-    if(spells && spells.length){
-      const rows=spells.map(sp=>({campaign_id:campaign.id,character_id:myChar.id,name:sp.name,
+    // v175: เวท/cantrip → ส่งให้ resolver (levelUpGuard) คุมโควต้าตามกฎ D&D 5e + เขียน skills ฝั่ง server (กำแพงจริง)
+    const cSlugs=(picks&&picks.cantrips)||[], sSlugs=(picks&&picks.spells)||[];
+    if(cSlugs.length || sSlugs.length){
+      const tok=(await supa.auth.getSession()).data.session?.access_token;
+      const rr=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
+        body:JSON.stringify({campaign_id:campaign.id, level_up_picks:{char_id:myChar.id, cantrip_slugs:cSlugs, spell_slugs:sSlugs}})});
+      const jr=await rr.json().catch(()=>({}));
+      if(!rr.ok) throw new Error(jr.error||'บันทึกเวทไม่สำเร็จ');
+      if(jr.rejected && jr.rejected.length){ toast('บางเวทถูกตัด ('+jr.rejected.length+' เกินโควต้า/ผิดกฎคลาส)',true); }
+    }
+    if(false){   // v175: เลิกใช้ — เขียนเวทฝั่ง client (ย้ายไป resolver ด้านบนแล้ว)
+      const rows=[].map(sp=>({campaign_id:campaign.id,character_id:myChar.id,name:sp.name,
         description:(sp.effect||'')+(sp.damage?(' \u00b7 '+sp.damage+(sp.save?(' ('+sp.save+' save)'):'')):'')+' \u00b7 '+(sp.level===0?'cantrip':'เลเวล '+sp.level),
         max_uses:(sp.level===0?0:2), used:0, recharge:(sp.level===0?'atwill':'long')}));
       try{ await supa.from('skills').upsert(rows,{onConflict:'character_id,name',ignoreDuplicates:true}); }catch(e){}
