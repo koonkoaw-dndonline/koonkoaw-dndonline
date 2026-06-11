@@ -271,6 +271,7 @@ a.link:hover{background:var(--white);color:var(--black);}
 #uiToggle{position:fixed;top:8px;right:8px;z-index:60;width:30px;height:30px;border-radius:8px;background:rgba(0,0,0,.7);border:2px solid #fff;color:#fff;font:700 17px/1 'VT323',monospace;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;box-shadow:0 0 0 2px #000;}
 #uiToggle:hover{background:#fff;color:#000;}
 @media (min-width:1024px){ #uiToggle{display:none!important;} }   /* ปุ่ม island เฉพาะมือถือ */
+@media (max-width:1023px){ #hdWorld{display:none!important;} }   /* v196: World ID ใช้เฉพาะเดสก์ทอป (ก๊อปไป ingest ลอร์) — มือถือไม่ใช้ ซ่อนประหยัดที่ */
 #scrollLatest{position:fixed;right:12px;bottom:18px;z-index:58;width:42px;height:42px;border-radius:50%;background:rgba(0,0,0,.78);border:2px solid #fff;color:#fff;font:700 20px/1 'VT323',monospace;display:none;align-items:center;justify-content:center;cursor:pointer;padding:0;box-shadow:0 2px 8px rgba(0,0,0,.5);}
 #scrollLatest:hover{background:#fff;color:#000;}
 @media (max-width:1023px){ body.tab-story #scrollLatest{display:flex;} }   /* ปุ่มเลื่อนลงล่าสุด เฉพาะมือถือ+แท็บ story */
@@ -545,6 +546,7 @@ body.role-player .dm-only{display:none!important;}
 .whlabel{font-family:'Press Start 2P',monospace;font-size:8px;color:#fff;letter-spacing:1px;}
 .wh{display:flex;align-items:center;gap:5px;font-size:11px;color:#9a9a9a;}
 .wh svg{width:14px;height:14px;display:block;image-rendering:pixelated;}
+.whico{font-size:14px;line-height:1;display:block;}   /* v197: ไอคอน emoji แทน pixel SVG */
 .wh b{color:#fff;font-family:'VT323',monospace;font-size:16px;font-weight:400;letter-spacing:.5px;}
 .whtxt{font-family:'Press Start 2P',monospace;font-size:7px;color:#9a9a9a;letter-spacing:.5px;}
 @media (min-width:1300px){
@@ -1482,6 +1484,11 @@ function colorizeNarr(text){
 }
 // ตัดมาร์กอัป [ชื่อ|ประเภท] ให้เหลือชื่อสะอาด (ใช้ในหน้าสรุป/ข้อความล้วน)
 function plainNarr(t){ return String(t||'').replace(/\[([^\]|]+)\|[a-zA-Z_]+\]/g,'$1'); }
+// v197: ไอคอน HUD แบบ emoji เปลี่ยนตามค่าจริง (เดิม pixel SVG ตายตัว — ICONS เหลือใช้เฉพาะ loc ใน world card เก่า)
+function timeIcon(t){ t=String(t||'').toLowerCase(); if(/dawn|รุ่งอรุณ|รุ่งสาง|เช้าตรู่|sunrise/.test(t))return'🌅'; if(/เช้า|morning/.test(t))return'🌄'; if(/เที่ยง|noon|กลางวัน|midday|บ่าย|afternoon|day/.test(t))return'☀️'; if(/เย็น|dusk|sunset|พลบค่ำ|โพล้เพล้/.test(t))return'🌇'; if(/กลางคืน|ค่ำ|คืน|night|ดึก|midnight/.test(t))return'🌙'; return'🕐'; }
+function seasonIcon(s){ s=String(s||'').toLowerCase(); if(/spring|ใบไม้ผลิ/.test(s))return'🌸'; if(/summer|ร้อน/.test(s))return'🌞'; if(/autumn|fall|ใบไม้ร่วง/.test(s))return'🍂'; if(/winter|หนาว/.test(s))return'❄️'; if(/ฝน|rain|monsoon|มรสุม/.test(s))return'🌧️'; return'🍃'; }
+function weatherIcon(w){ w=String(w||'').toLowerCase(); if(/thunder|storm|พายุ|ฟ้าคะนอง|ฟ้าผ่า/.test(w))return'⛈️'; if(/ฝน|rain|drizzle|ปรอย/.test(w))return'🌧️'; if(/หิมะ|snow|blizzard|น้ำแข็ง/.test(w))return'🌨️'; if(/หมอก|fog|mist|ควัน/.test(w))return'🌫️'; if(/ลมแรง|ลมกรรโชก|windy|gale/.test(w))return'💨'; if(/ครึ้ม|overcast|เมฆมาก|cloudy/.test(w))return'☁️'; if(/เมฆบางส่วน|partly/.test(w))return'⛅'; if(/แจ่มใส|clear|sunny|แดด|ปลอดโปร่ง/.test(w))return'☀️'; return'🌤️'; }
+function moonIcon(m){ m=String(m||'').toLowerCase(); if(/เต็มดวง|full/.test(m))return'🌕'; if(/ข้างแรม|แรม|waning/.test(m))return'🌗'; if(/เดือนมืด|เดือนดับ|new ?moon|ดับ/.test(m))return'🌑'; if(/ข้างขึ้น|ขึ้น|waxing|เสี้ยว|crescent/.test(m))return'🌓'; return'🌙'; }
 // หน้าต่าง World HUD (clock + location) บนแท็บ Story
 function renderClock(){
   const el=$('worldClock'); if(!el) return;
@@ -1493,14 +1500,14 @@ function renderClock(){
   if(hasClock){
     h+='<div class="whbox"><span class="whlabel">WORLD</span>';
     if(c.date) h+=`<span class="wh"><span class="whtxt">DATE</span><b>${E(c.date)}/${E(c.month||'-')}/${E(c.year||'-')}</b></span>`;
-    if(c.time) h+=`<span class="wh">${ICONS.time}<b>${E(c.time)}</b></span>`;
-    if(c.season) h+=`<span class="wh">${ICONS.season}<b>${E(c.season)}</b></span>`;
-    if(c.weather) h+=`<span class="wh">${ICONS.weather}<b>${E(c.weather)}</b></span>`;
-    if(c.moon) h+=`<span class="wh">${ICONS.moon}<b>${E(c.moon)}</b></span>`;
+    if(c.time) h+=`<span class="wh"><span class="whico">${timeIcon(c.time)}</span><b>${E(c.time)}</b></span>`;
+    if(c.season) h+=`<span class="wh"><span class="whico">${seasonIcon(c.season)}</span><b>${E(c.season)}</b></span>`;
+    if(c.weather) h+=`<span class="wh"><span class="whico">${weatherIcon(c.weather)}</span><b>${E(c.weather)}</b></span>`;
+    if(c.moon) h+=`<span class="wh"><span class="whico">${moonIcon(c.moon)}</span><b>${E(c.moon)}</b></span>`;
     h+='</div>';
   }
   if(locParts.length){
-    h+=`<div class="whbox"><span class="whlabel">LOCATION</span><span class="wh">${ICONS.loc}<b>${locParts.map(E).join(' · ')}</b></span></div>`;
+    h+=`<div class="whbox"><span class="whlabel">LOCATION</span><span class="wh"><span class="whico">📍</span><b>${locParts.map(E).join(' · ')}</b></span></div>`;
   }
   el.innerHTML=h; el.classList.remove('hidden');
 }
