@@ -484,6 +484,21 @@ body.ui-min #worldClock{display:none!important;}
 .sk-row.open .sk-line .sk-arw{transform:rotate(90deg);}
 .sk-desc{max-height:0;overflow:hidden;opacity:0;color:#cfcfcf;font-size:14px;line-height:1.65;padding:0 6px;transition:max-height .26s ease,opacity .2s ease,padding .2s ease;}
 .sk-row.open .sk-desc{max-height:320px;opacity:1;padding:2px 6px 13px;}
+/* v182: หมวดสกิล/การ์ดเตรียมเวทพับได้ — หน้าตาเดียวกับ .sk-head เดิม · หน้าจบในหนึ่งจอ */
+.sk-fold>summary{list-style:none;cursor:pointer;}
+.sk-fold>summary::-webkit-details-marker{display:none;}
+.sk-fold>summary .sk-head{border-bottom:0;display:flex;align-items:center;gap:8px;margin:0;}
+.sk-fold[open]>summary .sk-head{border-bottom:2px solid #fff;}
+.sk-fold>summary .sk-arw{margin-left:auto;color:#9a9a9a;font-size:12px;transition:transform .2s;}
+.sk-fold[open]>summary .sk-arw{transform:rotate(90deg);}
+.sk-cnt{color:#9a9a9a;font-weight:700;font-size:12px;}
+.sk-due{font-size:11px;font-weight:800;border-radius:5px;padding:3px 8px;background:#f5c542;color:#000;white-space:nowrap;}
+.sk-due.blinkon{animation:prepblink .9s steps(1) infinite;}
+@keyframes prepblink{50%{background:#fff;box-shadow:0 0 10px #f5c542;}}
+.sk-prep .note{font-size:12.5px;color:#9a9a9a;text-align:left;}
+.sk-prep .fld{border-bottom:1px solid rgba(255,255,255,.10);padding:7px 4px;margin:0;font-size:13px;}
+.sk-prep .fld:last-of-type{border-bottom:0;}
+.sk-prep .fld b{font-size:14px;}
 .acc{border:3px solid #fff;border-radius:8px;overflow:hidden;}
 .acc > .acc-head{width:100%;text-align:left;background:#000;color:#fff;border:0;padding:12px 13px;font-weight:700;font-size:14px;display:flex;align-items:center;gap:9px;}
 .acc > .acc-head::before{content:"\25B6";font-size:10px;}
@@ -2086,7 +2101,7 @@ async function renderRoundbar(){
   refreshSelectionGate();
   // v177: เตรียมเวทรายวันค้าง → ล็อกการสั่งการ + กระพริบแท็บ Me จนกว่าจะเตรียมเสร็จ
   if(myChar && worldState&&worldState.settings&&worldState.settings.prepare_due&&Array.isArray(worldState.settings.prepare_due.ids)&&worldState.settings.prepare_due.ids.includes(myChar.id)){
-    bar.innerHTML='<div class="statusline"><span class="pill wait">🔮 วันใหม่ — เตรียมเวทในแท็บ Me ก่อน ถึงจะสั่งการต่อได้</span></div>'; return;
+    bar.innerHTML='<div class="statusline"><span class="pill wait">วันใหม่ — เตรียมเวทในแท็บ Skills ก่อน ถึงจะสั่งการต่อได้</span></div>'; return;
   }
   if(worldState&&worldState.level_up&&worldState.level_up.active){ const dn=(worldState.level_up.done||[]).length; const tot=characters.filter(c=>!c.is_companion).length||1; bar.innerHTML='<div class="statusline"><span class="pill wait">\u2b50 เลเวลอัพ '+dn+'/'+tot+' \u2014 เลือกสกิลในแท็บ Stat ก่อน</span></div>'; return; }
   // ดึงข้อมูลให้ครบ "ก่อน" สร้าง DOM (await อยู่ก่อน guard เท่านั้น → ไม่เกิด append ซ้อน)
@@ -2383,7 +2398,7 @@ function refreshSelectionGate(){
       if(pd&&!window._prepNotified&&localStorage.getItem(dayK)!=='1'){
         window._prepNotified=true;
         try{ localStorage.setItem(dayK,'1'); }catch(e){}
-        toast('🔮 วันใหม่ในเกม — เตรียมเวทประจำวันในแท็บ Skills ก่อนเล่นต่อ',true);
+        toast('วันใหม่ในเกม — เตรียมเวทประจำวันในแท็บ Skills ก่อนเล่นต่อ',true);
         switchTab('skills');
       }
     } else { window._prepNotified=false; }
@@ -2705,8 +2720,15 @@ async function renderSpellPreparePanel(p, sheet){
   } else {
     candidates=SPELL_CAT.filter(sp=>sp.level>=1 && (sp.classes||[]).includes(ck));
   }
-  const card=document.createElement('div'); card.className='item'; card.style.cssText='border:2px solid '+(due?'#f5c542':'#5a6b8c');
-  const head='<div class="sectitle" style="color:'+(due?'#f5c542':'#9ad')+'">🔮 เตรียมเวทประจำวัน'+(due?' — วันใหม่!':'')+'</div>';
+  // v182: หน้าตาเดียวกับการ์ดอื่นในหน้าสกิล (.sk-cardgrp/.sk-head) — ย่อไว้บนสุด · ถึงกำหนด = badge กระพริบ
+  //   กดเลือกเสร็จ (due หาย) → badge/กระพริบดับเอง (re-render หลัง submit)
+  const card=document.createElement('details'); card.className='item sk-cardgrp sk-fold sk-prep';
+  card.open = sessionStorage.getItem('skfold_prep')==='1';
+  card.addEventListener('toggle',()=>{ try{ sessionStorage.setItem('skfold_prep', card.open?'1':'0'); }catch(e){} });
+  const statusBadge = due
+    ? '<span class="sk-due blinkon">ต้องเลือกวันนี้!</span>'
+    : '<span class="sk-cnt">เตรียมไว้ '+curPrepared.size+'/'+limit+'</span>';
+  card.innerHTML='<summary><div class="sk-head">เตรียมเวทประจำวัน<span class="en">· DAILY</span>'+statusBadge+'<span class="sk-arw">▸</span></div></summary>';
   const renderPicker=(host)=>{
     host.innerHTML='';
     const picks=new Set(curPrepared);
@@ -2741,19 +2763,24 @@ async function renderSpellPreparePanel(p, sheet){
       host.appendChild(keep);
     }
   };
+  const body=document.createElement('div'); card.appendChild(body);
   if(!due){
-    // v180: นอกกำหนด server ไม่รับเปลี่ยนชุดแล้ว (RAW: เปลี่ยนหลังพักยาว/วันใหม่เท่านั้น) — โชว์สถานะอย่างเดียว
+    // v180: นอกกำหนด server ไม่รับเปลี่ยนชุด (RAW: เปลี่ยนหลังพักยาว/วันใหม่เท่านั้น) — โชว์สถานะ
     //   ยกเว้นยังไม่เคยมีชุดเวทเลย (ตั้งต้นครั้งแรก) → server เปิดให้
-    card.innerHTML=head+'<div class="note" style="text-align:left">เตรียมไว้ '+curPrepared.size+' เวท · '+escapeHtml(myChar.class||'')+' Lv'+lvl+' ('+abKey.toUpperCase()+' '+(abMod>=0?'+':'')+abMod+') → เตรียมได้ '+limit+' · เปลี่ยนชุดได้เมื่อผ่านวันใหม่/พักยาวในเกม</div>';
+    const inf=document.createElement('div'); inf.className='note';
+    inf.textContent='เตรียมไว้ '+curPrepared.size+' เวท · '+(myChar.class||'')+' Lv'+lvl+' ('+abKey.toUpperCase()+' '+(abMod>=0?'+':'')+abMod+') → เตรียมได้ '+limit+' · เปลี่ยนชุดได้เมื่อผ่านวันใหม่/พักยาวในเกม';
+    body.appendChild(inf);
     if(!curPrepared.size){
       const host=document.createElement('div'); const b=document.createElement('button'); b.className='btn ghost sm'; b.style.marginTop='6px'; b.textContent='เลือกชุดเวทครั้งแรก';
       b.onclick=()=>{ b.style.display='none'; renderPicker(host); };
-      card.appendChild(b); card.appendChild(host);
+      body.appendChild(b); body.appendChild(host);
     }
     p.appendChild(card); return;
   }
-  card.innerHTML=head+'<div class="note" style="text-align:left">ผ่านวันใหม่ในเกม — เลือกเวทที่จะเตรียมวันนี้จาก'+(isWiz?'spellbook (เวทที่เรียนรู้)':'ลิสต์ทั้งคลาส')+' (จำนวน = '+abKey.toUpperCase()+' mod + เลเวล ตามกฎจริง)</div>';
-  const host=document.createElement('div'); card.appendChild(host); p.appendChild(card); renderPicker(host);
+  const inf=document.createElement('div'); inf.className='note';
+  inf.textContent='ผ่านวันใหม่ในเกม — เลือกเวทที่จะเตรียมวันนี้จาก'+(isWiz?' spellbook (เวทที่เรียนรู้)':'ลิสต์ทั้งคลาส')+' (จำนวน = '+abKey.toUpperCase()+' mod + เลเวล ตามกฎจริง)';
+  body.appendChild(inf);
+  const host=document.createElement('div'); body.appendChild(host); p.appendChild(card); renderPicker(host);
 }
 async function submitSpellPrepare(slugs, btn){
   if(btn){ btn.disabled=true; btn.textContent='กำลังเตรียม…'; }
@@ -2766,6 +2793,7 @@ async function submitSpellPrepare(slugs, btn){
     window._rulesInfo=null;
     toast(jr.kept?('ใช้ชุดเวทเดิม ✓ ('+((jr.prepared&&jr.prepared.length)||0)+' เวท)'):('เตรียมเวทแล้ว ✓ '+((jr.prepared&&jr.prepared.length)||slugs.length)+' เวท'+(jr.rejected&&jr.rejected.length?(' (ตัด '+jr.rejected.length+')'):'')));
     await refreshAll(); renderMe();
+    try{ if(activeTab()==='skills') renderSkills(); refreshSelectionGate(); }catch(e){}   // v182: badge กระพริบดับทันทีหลังเลือก
   }catch(e){ toast(e.message||'เตรียมไม่สำเร็จ',true); if(btn){ btn.disabled=false; btn.textContent='✓ เตรียมเวท'; } }
 }
 async function renderMe(){
@@ -3208,8 +3236,12 @@ async function renderSkills(){
   const cats=[['class','ความสามารถคลาส','CLASS'],['race','ความสามารถเผ่าพันธุ์','RACE'],['spell','เวทมนตร์ & ความสามารถอื่น','SPELLS']];
   cats.forEach(([key,th,en])=>{
     const list=buckets[key]; if(!list.length) return;
-    const card=document.createElement('div'); card.className='item sk-cardgrp';
-    card.innerHTML=`<div class="sk-head">${th}<span class="en">· ${en}</span></div>`;
+    // v182: หมวดพับได้ — CLASS เปิดไว้ หมวดอื่นย่อ (หน้าจบในหนึ่งจอ) · จำสถานะกดของผู้ใช้ไว้ใน session
+    const card=document.createElement('details'); card.className='item sk-cardgrp sk-fold';
+    const memK='skfold_'+key; const mem=sessionStorage.getItem(memK);
+    card.open = mem!=null ? mem==='1' : (key==='class');
+    card.addEventListener('toggle',()=>{ try{ sessionStorage.setItem(memK, card.open?'1':'0'); }catch(e){} });
+    card.innerHTML=`<summary><div class="sk-head">${th}<span class="en">· ${en}</span><span class="sk-cnt">(${list.length})</span><span class="sk-arw">▸</span></div></summary>`;
     list.forEach(s=>{
       const rech=s.recharge||'long'; const on=(rech==='atwill'||rech==='passive');
       // v180: เวทมีระดับร่ายผ่านสล็อตรวม (PHB) — ไม่มีตัวนับรายเวทแล้ว แสดงระดับที่กิน
