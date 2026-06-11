@@ -2370,12 +2370,29 @@ function selectionPending(){
   return null;
 }
 function refreshSelectionGate(){
-  try{ const t=document.querySelector('.tab[data-tab="me"]'); if(!t) return; if(selectionPending() && activeTab()!=='me') t.classList.add('blink'); else t.classList.remove('blink'); }catch(e){}
+  // v181: levelup → แท็บ Me · prepare → แท็บ Skills (การ์ดเตรียมเวทย้ายไปหน้าสกิล)
+  try{
+    const pend=selectionPending();
+    const tabOf={levelup:'me', prepare:'skills'};
+    ['me','skills'].forEach(tb=>{ const t=document.querySelector('.tab[data-tab="'+tb+'"]'); if(!t) return;
+      if(pend && tabOf[pend]===tb && activeTab()!==tb) t.classList.add('blink'); else t.classList.remove('blink'); });
+    // v181: เด้งเตือนวันใหม่ — prepare_due ของเราโผล่ครั้งแรกของวันนั้น → toast + พาไปแท็บ Skills อัตโนมัติ (ครั้งเดียว/วัน)
+    if(pend==='prepare'){
+      const pd=worldState&&worldState.settings&&worldState.settings.prepare_due;
+      const dayK='prepNotify_'+(campaign&&campaign.id||'')+'_'+((pd&&pd.day)||0);
+      if(pd&&!window._prepNotified&&localStorage.getItem(dayK)!=='1'){
+        window._prepNotified=true;
+        try{ localStorage.setItem(dayK,'1'); }catch(e){}
+        toast('🔮 วันใหม่ในเกม — เตรียมเวทประจำวันในแท็บ Skills ก่อนเล่นต่อ',true);
+        switchTab('skills');
+      }
+    } else { window._prepNotified=false; }
+  }catch(e){}
 }
 function gateBeforePlay(){
   const pend=selectionPending(); if(!pend) return false;
-  toast(pend==='levelup'?'เลือกสกิล/เวทเลเวลอัพในแท็บ Me ก่อน':'เตรียมเวทในแท็บ Me ก่อนถึงจะเล่นต่อได้',true);
-  switchTab('me'); refreshSelectionGate(); return true;
+  toast(pend==='levelup'?'เลือกสกิล/เวทเลเวลอัพในแท็บ Me ก่อน':'เตรียมเวทประจำวันในแท็บ Skills ก่อนถึงจะเล่นต่อได้',true);
+  switchTab(pend==='levelup'?'me':'skills'); refreshSelectionGate(); return true;
 }
 async function submitAction(charIdOverride){
   if(gateBeforePlay()) return;
@@ -2514,6 +2531,31 @@ function beastIconSvg(name){
   return pxSvg(M[key], {'1':'#9fe0a0'});
 }
 function charClassKey(klass){ const c=String(klass||'').toLowerCase(); const L=['artificer','barbarian','bard','cleric','druid','fighter','monk','paladin','ranger','rogue','sorcerer','warlock','wizard']; for(const k of L){ if(c.includes(k)) return k; } return null; }
+// v180: สล็อตเวทแยกระดับ (PHB) จาก sheet.slots — แสดงในการ์ด COMBAT
+function slotPillsHtml(sheet){
+  try{
+    const sl=sheet&&sheet.slots; if(!sl||!Array.isArray(sl.lv_max)) return '';
+    const u=sl.lv_used||{}; const parts=[];
+    for(let L=1;L<=9;L++){ const m=+sl.lv_max[L]||0; if(!m) continue; const used=+u[String(L)]||0; const left=Math.max(0,m-used);
+      parts.push('<span class="chip" style="'+(left?'':'opacity:.45')+'">L'+L+' '+left+'/'+m+'</span>'); }
+    if(!parts.length) return '';
+    return '<div class="sectitle" style="margin-top:8px">SPELL SLOTS (วันนี้)</div><div class="chips">'+parts.join('')+'</div>';
+  }catch(e){ return ''; }
+}
+// v180: ขอกติกาจริงจาก server (โควต้า reconcile/ASI/slots) — ตัด drift จาก mirror ฝั่งหน้าเว็บ
+//   ใช้ mirror เดิมเป็น fallback เมื่อ fetch ล้ม (ออฟไลน์/ฯลฯ)
+async function fetchRulesInfo(force){
+  try{
+    if(!force && window._rulesInfo && window._rulesInfo.char_id===myChar.id && (Date.now()-window._rulesInfo.at)<30000) return window._rulesInfo.data;
+    const tok=(await supa.auth.getSession()).data.session?.access_token;
+    const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
+      body:JSON.stringify({campaign_id:campaign.id, rules_info:{char_id:myChar.id}})});
+    if(!r.ok) return null;
+    const j=await r.json(); if(!j||!j.ok) return null;
+    window._rulesInfo={char_id:myChar.id, at:Date.now(), data:j};
+    return j;
+  }catch(e){ return null; }
+}
 async function renderLevelUpPanel(p){
   const lu=(worldState&&worldState.level_up)||{}; const done=lu.done||[];
   const total=characters.filter(c=>!c.is_companion).length||1;
@@ -2525,24 +2567,43 @@ async function renderLevelUpPanel(p){
   await loadCatalogs();
   const lvl=lu.level||(myChar.level||1);
   card.innerHTML='<div class="sectitle" style="color:#f5c542">\u2b50 LEVEL UP \u2192 Lv '+lvl+'</div><div class="note" style="text-align:left">HP เพิ่มเต็มหลอดให้แล้ว \u00b7 เลือกสกิล/เวทใหม่ของเลเวลนี้ แล้วกดยืนยัน \u2014 รอครบทุกคน DM ถึงเล่าต่อ ('+done.length+'/'+total+' พร้อม)</div>';
+  // v180: กติกาจาก server (rules_info) เป็นหลัก · mirror ฝั่งเว็บ = fallback · ASI: +2 ค่าเดียว/+1 สองค่า · fighter +L6,14 · rogue +L10
+  const ri=await fetchRulesInfo(true);
+  const ckA=charClassKey(myChar.class);
+  const asiLvls=(ri&&ri.asi&&ri.asi.levels)||(ckA==='fighter'?[4,6,8,12,14,16,19]:ckA==='rogue'?[4,8,10,12,16,19]:[4,8,12,16,19]);
+  const asiAvail=ri?!!(ri.asi&&ri.asi.available):asiLvls.includes(lvl);
   const asiState={};
-  if([4,8,12,16,19].includes(lvl)){
-    const box=document.createElement('div'); box.innerHTML='<div class="sectitle" style="margin-top:8px">ABILITY \u2014 เลือก +1 ได้ 2 ค่า</div>';
+  if(asiAvail){
+    const box=document.createElement('div'); box.innerHTML='<div class="sectitle" style="margin-top:8px">ABILITY \u2014 +2 ค่าเดียว หรือ +1 สองค่า (กฎ 5e)</div>';
     const g=document.createElement('div'); g.style.cssText='display:flex;flex-wrap:wrap;gap:6px';
-    ['str','dex','con','int','wis','cha'].forEach(k=>{ const b=document.createElement('button'); b.type='button'; b.className='btn ghost sm'; b.textContent=k.toUpperCase()+' +1';
-      b.onclick=()=>{ if(asiState[k]){ delete asiState[k]; b.style.background=''; b.style.color=''; } else { if(Object.keys(asiState).length>=2){ toast('เลือกได้สูงสุด 2 ค่า',true); return; } asiState[k]=1; b.style.background='#f5c542'; b.style.color='#000'; } };
+    const totalAsi=()=>Object.values(asiState).reduce((s,n)=>s+n,0);
+    const paintAll=()=>{ g.querySelectorAll('button').forEach(bb=>{ const kk=bb.dataset.k; const vv=asiState[kk]||0; bb.textContent=kk.toUpperCase()+(vv?(' +'+vv):''); bb.style.background=vv?'#f5c542':''; bb.style.color=vv?'#000':''; }); };
+    ['str','dex','con','int','wis','cha'].forEach(k=>{ const b=document.createElement('button'); b.type='button'; b.className='btn ghost sm'; b.dataset.k=k; b.textContent=k.toUpperCase();
+      b.onclick=()=>{ const v=asiState[k]||0;
+        if(v===2){ delete asiState[k]; }
+        else if(v===1){ if(totalAsi()===1){ asiState[k]=2; } else { delete asiState[k]; } }
+        else if(totalAsi()>=2){ toast('รวมได้สูงสุด +2 (กฎ 5e: +2 ค่าเดียว หรือ +1 สองค่า)',true); return; }
+        else { asiState[k]=1; }
+        paintAll(); };
       g.appendChild(b); });
-    box.appendChild(g); card.appendChild(box);
+    const hintA=document.createElement('div'); hintA.className='note'; hintA.style.cssText='text-align:left;margin-top:3px'; hintA.textContent='กด 1 ครั้ง = +1 · กดซ้ำค่าเดิม = +2 · server ตรวจเพดาน 20 + ครั้งเดียวต่อเลเวลให้';
+    box.appendChild(g); box.appendChild(hintA); card.appendChild(box);
   }
   // v175: เลือก cantrip/เวทตามโควต้า D&D 5e — แยกนับ cantrip (level 0) กับเวทมีระดับ · server (levelUpGuard) เป็นกำแพงจริง
   const cantripPicks=new Set(), spellPicks=new Set();
-  const ck=charClassKey(myChar.class);
-  const allow=levelUpAllowanceFE(ck, lvl);
+  const ck=ckA;
+  const allowFE=levelUpAllowanceFE(ck, lvl);
+  // v180: โควต้าจริงจาก server (reconcile กับจำนวนที่รู้แล้ว — สิทธิ์ที่เคยพลาดจะโผล่กลับมา) · fallback mirror
+  const allow={ ...allowFE,
+    cantrips:(ri&&ri.quotas&&ri.quotas.cantrips!=null)?ri.quotas.cantrips:allowFE.cantrips,
+    spells:(ri&&ri.quotas&&ri.quotas.spells!=null)?ri.quotas.spells:allowFE.spells };
   const knownSkills=new Set(); try{ const _kr=await supa.from('skills').select('name').eq('character_id',myChar.id); (_kr.data||[]).forEach(x=>knownSkills.add(String(x.name).toLowerCase())); }catch(e){}
   if(allow.caster && SPELL_CAT.length && (allow.cantrips>0 || allow.spells>0)){
     const maxLv=ck?maxSpellLevelFor(ck, lvl):Math.min(9, Math.ceil(lvl/2));
     const known=knownSkills;
-    const classOf=sp=>ck?((sp.classes||[]).includes(ck)):true;   // อาชีพนอกกฎ → ทุกคลาส (DM กำกับ)
+    // v180: bard ที่ปลดล็อก Magical Secrets (L10/14/18) เลือกเวทนอกลิสต์ได้ — server คุมเพดานจริง (secrets.max-used)
+    const secretsLeft=(ck==='bard'&&ri&&ri.secrets)?Math.max(0,(ri.secrets.max||0)-(ri.secrets.used||0)):0;
+    const classOf=sp=>ck?(((sp.classes||[]).includes(ck))||(sp.level>=1&&secretsLeft>0)):true;   // อาชีพนอกกฎ → ทุกคลาส (DM กำกับ)
     const box=document.createElement('div'); box.innerHTML='<div class="sectitle" style="margin-top:8px">เวท / CANTRIP ใหม่ (ตามกฎคลาส)</div>';
     const cnt=document.createElement('div'); cnt.className='note'; cnt.style.cssText='text-align:left;color:#f5c542;margin-bottom:3px'; box.appendChild(cnt);
     const upd=()=>{ cnt.innerHTML='Cantrip '+cantripPicks.size+'/'+allow.cantrips+(allow.spells>0?(' · เวท '+spellPicks.size+'/'+allow.spells):'')+(allow.custom?' · อาชีพนอกกฎ (DM กำกับ)':''); };
@@ -2592,22 +2653,22 @@ async function renderLevelUpPanel(p){
 async function submitLevelUp(asiState, picks, feats, btn){
   if(btn){ btn.disabled=true; btn.textContent='กำลังบันทึก…'; }
   try{
-    if(asiState && Object.keys(asiState).length){
-      const r=await supa.from('character_sheets').select('sheet').eq('character_id',myChar.id).maybeSingle();
-      const sheet=(r.data&&r.data.sheet)||{}; sheet.abilities=sheet.abilities||{};
-      for(const k in asiState){ sheet.abilities[k]=(+sheet.abilities[k]||10)+1; }
-      try{ persistCombatStats(sheet, myChar.class); }catch(e){}
-      await supa.from('character_sheets').update({sheet,updated_at:new Date().toISOString()}).eq('character_id',myChar.id); mySheet=sheet;
-    }
-    // v175: เวท/cantrip → ส่งให้ resolver (levelUpGuard) คุมโควต้าตามกฎ D&D 5e + เขียน skills ฝั่ง server (กำแพงจริง)
+    // v180: ทุกอย่างผ่าน server (levelUpGuard) — ASI/เวท/feat ไม่เขียนฝั่ง client อีก (กติกาเหล็ก: server = กำแพงจริง)
     const cSlugs=(picks&&picks.cantrips)||[], sSlugs=(picks&&picks.spells)||[];
-    if(cSlugs.length || sSlugs.length){
+    const payload={char_id:myChar.id, cantrip_slugs:cSlugs, spell_slugs:sSlugs};
+    if(asiState && Object.keys(asiState).length) payload.asi=asiState;
+    {
       const tok=(await supa.auth.getSession()).data.session?.access_token;
       const rr=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
-        body:JSON.stringify({campaign_id:campaign.id, level_up_picks:{char_id:myChar.id, cantrip_slugs:cSlugs, spell_slugs:sSlugs}})});
+        body:JSON.stringify({campaign_id:campaign.id, level_up_picks:payload})});
       const jr=await rr.json().catch(()=>({}));
-      if(!rr.ok) throw new Error(jr.error||'บันทึกเวทไม่สำเร็จ');
-      if(jr.rejected && jr.rejected.length){ toast('บางเวทถูกตัด ('+jr.rejected.length+' เกินโควต้า/ผิดกฎคลาส)',true); }
+      if(!rr.ok) throw new Error(jr.error||'บันทึกเลเวลอัพไม่สำเร็จ');
+      if(jr.rejected && jr.rejected.length){
+        const asiRej=jr.rejected.find(x=>x.slug==='asi');
+        toast('บางรายการถูกตัด ('+jr.rejected.length+')'+(asiRej?(' · ASI: '+asiRej.reason):''),true);
+      }
+      if(jr.feats && jr.feats.length) toast('ได้ความสามารถคลาสใหม่: '+jr.feats.join(', '));
+      window._rulesInfo=null;   // ค่าโควต้า/ASI เปลี่ยนแล้ว — ล้าง cache
     }
     if(false){   // v175: เลิกใช้ — เขียนเวทฝั่ง client (ย้ายไป resolver ด้านบนแล้ว)
       const rows=[].map(sp=>({campaign_id:campaign.id,character_id:myChar.id,name:sp.name,
@@ -2615,10 +2676,7 @@ async function submitLevelUp(asiState, picks, feats, btn){
         max_uses:(sp.level===0?0:2), used:0, recharge:(sp.level===0?'atwill':'long')}));
       try{ await supa.from('skills').upsert(rows,{onConflict:'character_id,name',ignoreDuplicates:true}); }catch(e){}
     }
-    if(feats && feats.length){
-      const frows=feats.map(f=>({campaign_id:campaign.id,character_id:myChar.id,name:f.name,description:f.effect||'',max_uses:f.max_uses||0,used:0,recharge:f.recharge||'passive'}));
-      try{ await supa.from('skills').upsert(frows,{onConflict:'character_id,name',ignoreDuplicates:true}); }catch(e){}
-    }
+    // v180: feats auto-grant ฝั่ง server แล้ว (ใน level_up_picks) — ไม่เขียนฝั่ง client
     const { data:lu, error }=await supa.rpc('levelup_submit',{p_campaign:campaign.id,p_char:myChar.id});
     if(error) throw error;
     if(lu){ worldState=worldState||{}; worldState.level_up=lu; }
@@ -2664,16 +2722,35 @@ async function renderSpellPreparePanel(p, sheet){
         const inp=row.querySelector('input');
         inp.onchange=(e)=>{ if(e.target.checked){ if(picks.size>=limit){ e.target.checked=false; toast('เตรียมได้ '+limit+' เวท',true); return; } picks.add(sp.slug); } else picks.delete(sp.slug); upd(); };
         host.appendChild(row); }); });
-    if(!any){ const m=document.createElement('div'); m.className='muted'; m.textContent=isWiz?'spellbook ว่าง — เรียนเวทตอนเลเวลอัพก่อน':'ยังร่ายเวทมีระดับไม่ได้ในเลเวลนี้'; host.appendChild(m); return; }
+    if(!any){
+      const m=document.createElement('div'); m.className='muted'; m.textContent=isWiz?'spellbook ว่าง — เรียนเวทตอนเลเวลอัพก่อน':'ยังร่ายเวทมีระดับไม่ได้ในเลเวลนี้';
+      host.appendChild(m);
+      // v180: กัน deadlock — เตรียมอะไรไม่ได้ก็ต้องหลุด gate ได้ (ส่งลิสต์ว่าง = server เคลียร์ prepare_due)
+      const ack=document.createElement('button'); ack.className='btn'; ack.style.marginTop='8px'; ack.textContent='✓ รับทราบ (เล่นต่อ)';
+      ack.onclick=()=>submitSpellPrepare([], ack);
+      host.appendChild(ack);
+      return;
+    }
     const btn=document.createElement('button'); btn.className='btn'; btn.style.marginTop='8px'; btn.textContent='✓ เตรียมเวท';
     btn.onclick=()=>submitSpellPrepare([...picks], btn);
     host.appendChild(btn);
+    // v180: "ใช้ชุดเดิม" (RAW: ไม่เปลี่ยนชุด = เก็บของเมื่อวาน) — ส่งลิสต์ว่าง server ไม่แตะ skills แค่เคลียร์ due
+    if(curPrepared.size){
+      const keep=document.createElement('button'); keep.className='btn ghost'; keep.style.cssText='margin-top:8px;margin-left:8px'; keep.textContent='ใช้ชุดเดิม ('+curPrepared.size+' เวท)';
+      keep.onclick=()=>submitSpellPrepare([], keep);
+      host.appendChild(keep);
+    }
   };
   if(!due){
-    card.innerHTML=head+'<div class="note" style="text-align:left">เตรียมไว้ '+curPrepared.size+' เวท · '+escapeHtml(myChar.class||'')+' Lv'+lvl+' ('+abKey.toUpperCase()+' '+(abMod>=0?'+':'')+abMod+') → เตรียมได้ '+limit+' · เปลี่ยนได้เมื่อพักยาว/วันใหม่</div>';
-    const host=document.createElement('div'); const b=document.createElement('button'); b.className='btn ghost sm'; b.style.marginTop='6px'; b.textContent='เลือกเวทใหม่';
-    b.onclick=()=>{ b.style.display='none'; renderPicker(host); };
-    card.appendChild(b); card.appendChild(host); p.appendChild(card); return;
+    // v180: นอกกำหนด server ไม่รับเปลี่ยนชุดแล้ว (RAW: เปลี่ยนหลังพักยาว/วันใหม่เท่านั้น) — โชว์สถานะอย่างเดียว
+    //   ยกเว้นยังไม่เคยมีชุดเวทเลย (ตั้งต้นครั้งแรก) → server เปิดให้
+    card.innerHTML=head+'<div class="note" style="text-align:left">เตรียมไว้ '+curPrepared.size+' เวท · '+escapeHtml(myChar.class||'')+' Lv'+lvl+' ('+abKey.toUpperCase()+' '+(abMod>=0?'+':'')+abMod+') → เตรียมได้ '+limit+' · เปลี่ยนชุดได้เมื่อผ่านวันใหม่/พักยาวในเกม</div>';
+    if(!curPrepared.size){
+      const host=document.createElement('div'); const b=document.createElement('button'); b.className='btn ghost sm'; b.style.marginTop='6px'; b.textContent='เลือกชุดเวทครั้งแรก';
+      b.onclick=()=>{ b.style.display='none'; renderPicker(host); };
+      card.appendChild(b); card.appendChild(host);
+    }
+    p.appendChild(card); return;
   }
   card.innerHTML=head+'<div class="note" style="text-align:left">ผ่านวันใหม่ในเกม — เลือกเวทที่จะเตรียมวันนี้จาก'+(isWiz?'spellbook (เวทที่เรียนรู้)':'ลิสต์ทั้งคลาส')+' (จำนวน = '+abKey.toUpperCase()+' mod + เลเวล ตามกฎจริง)</div>';
   const host=document.createElement('div'); card.appendChild(host); p.appendChild(card); renderPicker(host);
@@ -2686,7 +2763,8 @@ async function submitSpellPrepare(slugs, btn){
     const jr=await rr.json().catch(()=>({}));
     if(!rr.ok) throw new Error(jr.error||'เตรียมไม่สำเร็จ');
     if(worldState&&worldState.settings&&worldState.settings.prepare_due&&Array.isArray(worldState.settings.prepare_due.ids)){ worldState.settings.prepare_due.ids=worldState.settings.prepare_due.ids.filter(id=>id!==myChar.id); }
-    toast('เตรียมเวทแล้ว ✓ '+((jr.prepared&&jr.prepared.length)||slugs.length)+' เวท'+(jr.rejected&&jr.rejected.length?(' (ตัด '+jr.rejected.length+')'):''));
+    window._rulesInfo=null;
+    toast(jr.kept?('ใช้ชุดเวทเดิม ✓ ('+((jr.prepared&&jr.prepared.length)||0)+' เวท)'):('เตรียมเวทแล้ว ✓ '+((jr.prepared&&jr.prepared.length)||slugs.length)+' เวท'+(jr.rejected&&jr.rejected.length?(' (ตัด '+jr.rejected.length+')'):'')));
     await refreshAll(); renderMe();
   }catch(e){ toast(e.message||'เตรียมไม่สำเร็จ',true); if(btn){ btn.disabled=false; btn.textContent='✓ เตรียมเวท'; } }
 }
@@ -2698,7 +2776,7 @@ async function renderMe(){
   const sheet=mySheet||{};
   const ab=sheet.abilities||{}, cb=sheet.combat||{}, w=sheet.wallet||{}, ex=sheet.exp||{};
   if(worldState&&worldState.level_up&&worldState.level_up.active){ try{ await renderLevelUpPanel(p); }catch(e){} }
-  if(myChar && needsDailyPrepareFE(myChar.class)){ try{ await renderSpellPreparePanel(p, sheet); }catch(e){} }
+  // v181: การ์ดเตรียมเวทประจำวันย้ายไปแท็บ Skills (renderSkills) ตามคำขอ — แท็บ Me เหลือเลเวลอัพอย่างเดียว
   if(sheet.wildshape&&sheet.wildshape.active){ try{ renderWildShapeCard(p, sheet.wildshape); }catch(e){} }
   const esc=v=>escapeHtml(String(v)); const dash='—';
   const mod=s=>{ if(s==null||isNaN(s)) return null; return Math.floor((s-10)/2); };
@@ -2757,6 +2835,7 @@ async function renderMe(){
     `<div class="sectitle">COMBAT</div>`+num('Armor Class (AC)',acRes.ac)+
     `<div class="note" style="margin:-2px 0 4px;">AC = ${esc(acRes.label)}</div>`+
     num('Hit Points (HP)',hp)+num('Hit Dice',cb.hitdice)+num('Initiative',initv)+num('Speed (ft)',spd==null?dash:spd)+num('Proficiency',sign(prof))+num('Attunement (เวท)',bon.attune+'/3')+
+    slotPillsHtml(sheet)+
     (bon.attune>3?'<div class="note" style="color:#FAC775">⚠ attunement เกิน 3 (กฎ 5e สูงสุด 3 ชิ้น)</div>':'')+
     (bsum.length?`<div class="note" style="margin:2px 0">โบนัสไอเทม: ${esc(bsum.join(' · '))}</div>`:'')+
     (bon.effects.length?`<div class="note" style="margin:2px 0;color:#9ad">ของเวท: ${esc(bon.effects.map(e=>e.name).join(', '))}</div>`:'');
@@ -3120,7 +3199,9 @@ async function renderSkills(){
   let rows=null;
   try{ const r=await supa.from('skills').select('*').eq('character_id',myChar.id).order('sort'); if(!r.error) rows=r.data||[]; }catch(e){}
   if(rows===null){ p.innerHTML='<div class="muted">Skills system not enabled yet</div>'; return; }
-  if(!rows.length){ p.innerHTML='<div class="muted">ยังไม่มีความสามารถ<br>ความสามารถจะปรากฏหลังสร้างตัวละคร (ตามเผ่า/คลาส) หรือเมื่อ DM มอบให้</div>'; return; }
+  // v181: การ์ดเตรียมเวทประจำวันอยู่หน้านี้ (ย้ายจากแท็บ Me) — โผล่บนสุดเมื่อถึงกำหนด
+  if(needsDailyPrepareFE(myChar.class)){ try{ await renderSpellPreparePanel(p, mySheet||{}); }catch(e){} }
+  if(!rows.length){ const m=document.createElement('div'); m.className='muted'; m.innerHTML='ยังไม่มีความสามารถ<br>ความสามารถจะปรากฏหลังสร้างตัวละคร (ตามเผ่า/คลาส) หรือเมื่อ DM มอบให้'; p.appendChild(m); return; }
   const intro=document.createElement('div'); intro.className='note sk-intro'; intro.textContent='แตะที่ชื่อความสามารถเพื่อดูรายละเอียด'; p.appendChild(intro);
   const buckets={class:[],race:[],spell:[]};
   rows.forEach(s=>buckets[skillCat(s)].push(s));
@@ -3131,7 +3212,9 @@ async function renderSkills(){
     card.innerHTML=`<div class="sk-head">${th}<span class="en">· ${en}</span></div>`;
     list.forEach(s=>{
       const rech=s.recharge||'long'; const on=(rech==='atwill'||rech==='passive');
-      const uses=(s.max_uses>0)?`<span class="sk-use">${s.max_uses-(s.used||0)}/${s.max_uses}</span>`:'';
+      // v180: เวทมีระดับร่ายผ่านสล็อตรวม (PHB) — ไม่มีตัวนับรายเวทแล้ว แสดงระดับที่กิน
+      const uses=(s.max_uses>0)?`<span class="sk-use">${s.max_uses-(s.used||0)}/${s.max_uses}</span>`
+        :((s.level!=null&&+s.level>=1)?`<span class="sk-use" title="ใช้ spell slot">slot L${s.level}</span>`:'');
       const row=document.createElement('div'); row.className='sk-row';
       row.innerHTML=`<button type="button" class="sk-line"><span class="sk-nm">${escapeHtml(s.name)}</span>${uses}<span class="sk-bdg${on?' on':''}">${rechLabel(rech)}</span><span class="sk-arw">▸</span></button><div class="sk-desc">${escapeHtml(s.description||'(ไม่มีคำอธิบาย)')}</div>`;
       row.querySelector('.sk-line').onclick=()=>{ row.classList.toggle('open'); try{tick();}catch(e){} };
