@@ -3034,6 +3034,11 @@ async function renderQuest(){
   const dedup=quests.filter(q=>{ const k=String(q.title||'').toLowerCase().trim(); if(seen.has(k))return false; seen.add(k); return true; });
   const active=dedup.filter(q=>q.status==='active');
   const ended=dedup.filter(q=>q.status==='completed'||q.status==='failed');   // v178: ซ่อน 'merged' (เควสรวมซ้ำ ไม่ใช่เควสที่สำเร็จ)
+  // v194: ป้ายความยากจาก quests.blueprint (server ทอยล็อกตอนรับเควส — ผู้เล่นเห็นแค่ป้าย+คำใบ้ ตัวเลขเป็นความลับผู้กำกับ)
+  const BP_BADGE={easy:['⭐ ง่าย','#97C459'],normal:['⭐⭐ ปกติ','#FAC775'],hard:['⭐⭐⭐ ยาก','#E8915B'],epic:['💀 มหาโหด','#E24B4A']};
+  const bpBadge=(q)=>{ const d=q.blueprint&&q.blueprint.diff; const x=BP_BADGE[d]; if(!x) return '';
+    return ' <span style="font-weight:600;font-size:11px;color:'+x[1]+';border:1px solid '+x[1]+';border-radius:6px;padding:0 6px;white-space:nowrap">'+x[0]+'</span>'; };
+  const bpTitle=(q)=>escapeHtml(String(q.title||'').replace(/^[\s💀⭐]+/,''));   // ตัดอิโมจิหน้าชื่อ (ป้ายแสดงแยกแล้ว)
   // จับคู่เบาะแส → เควส: clue.mystery ตรง/คาบเกี่ยวกับชื่อเควส (ที่เหลือเข้าสมุดเบาะแสรวม)
   const usedClue=new Set();
   const hintsFor=(q)=>{
@@ -3052,10 +3057,11 @@ async function renderQuest(){
     const hints=hintsFor(q);
     const det=document.createElement('details'); det.className='item'; det.style.cssText=FONT; if(qi===0) det.open=true;
     const sum=document.createElement('summary'); sum.style.cssText='cursor:pointer;font-weight:700;font-size:15px;padding:4px 0;'+FONT;
-    sum.innerHTML=escapeHtml(q.title)+(hints.length?(' <span style="font-weight:400;font-size:12px;color:#FAC775">('+hints.length+' เบาะแส)</span>'):'');
+    sum.innerHTML=bpTitle(q)+bpBadge(q)+(hints.length?(' <span style="font-weight:400;font-size:12px;color:#FAC775">('+hints.length+' เบาะแส)</span>'):'');
     det.appendChild(sum);
     const body=document.createElement('div'); body.style.cssText=FONT+';text-align:left;padding:2px 0 4px';
     let html=q.description?('<div style="font-size:13px;color:#bbb;line-height:1.6">'+escapeHtml(q.description)+'</div>'):'';
+    if(q.blueprint&&q.blueprint.hint) html+='<div style="font-size:12px;color:#9a9a9a;margin-top:4px">🔎 '+escapeHtml(String(q.blueprint.hint))+'</div>';   // v194: คำใบ้สาธารณะ
     if(hints.length){
       html+='<div style="font-size:12px;color:#FAC775;margin-top:6px">เบาะแสที่ได้</div>'+
             '<div style="font-size:13px;line-height:1.7;color:#ccc">'+hints.map(h=>'<div>– '+escapeHtml(String(h))+'</div>').join('')+'</div>';
@@ -3073,7 +3079,7 @@ async function renderQuest(){
     ended.forEach(q=>{
       const hints=hintsFor(q);
       const row=document.createElement('div'); row.style.cssText=FONT+';border-top:1px solid #333;padding:6px 0;text-align:left';
-      row.innerHTML='<div style="font-size:14px;font-weight:600">'+escapeHtml(q.title)+' <span style="font-weight:400;font-size:12px;color:'+(q.status==='completed'?'#97C459':'#E24B4A')+'">'+(q.status==='completed'?'สำเร็จ':'ล้มเหลว')+'</span></div>'+
+      row.innerHTML='<div style="font-size:14px;font-weight:600">'+bpTitle(q)+bpBadge(q)+' <span style="font-weight:400;font-size:12px;color:'+(q.status==='completed'?'#97C459':'#E24B4A')+'">'+(q.status==='completed'?'สำเร็จ':'ล้มเหลว')+'</span></div>'+
                     (q.description?'<div style="font-size:13px;color:#9a9a9a">'+escapeHtml(q.description)+'</div>':'')+
                     (hints.length?'<div style="font-size:12px;color:#888;margin-top:3px">'+hints.map(h=>'<div>– '+escapeHtml(String(h))+'</div>').join('')+'</div>':'');
       det.appendChild(row);
