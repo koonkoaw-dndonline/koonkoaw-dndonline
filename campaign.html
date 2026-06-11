@@ -2373,6 +2373,10 @@ function rollSelf(){
 }
 function insertRoll(n,who){
   const ta=$('actInput'); if(!ta) return;
+  // v191: ทอยได้ครั้งเดียวต่อรอบ — กันกดรัวเลือกแต้มดี (server มี rollGuard ตัดซ้ำอีกชั้น)
+  if(ta.value.includes('[ทอย d20')){ toast('ทอยได้ครั้งเดียวต่อรอบ — ใช้ผลที่ทอยแล้ว',true); return; }
+  if(window._rolledRound===(curRound&&curRound.id)){ toast('รอบนี้ทอยไปแล้ว — ทอยได้ครั้งเดียว',true); return; }
+  window._rolledRound=curRound&&curRound.id;
   const ab=(mySheet&&mySheet.abilities)||{};
   const mods=['str','dex','con','int','wis','cha'].map(k=>{const m=Math.floor(((ab[k]||10)-10)/2);return k.toUpperCase()+(m>=0?'+':'−')+Math.abs(m);}).join(' ');
   ta.value=(ta.value?ta.value.trim()+'\n':'')+`[ทอย d20 = ${n} (${who}) · mods ${mods}]`;
