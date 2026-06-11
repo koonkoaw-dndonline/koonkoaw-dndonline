@@ -2955,7 +2955,7 @@ async function renderParty(){
   grid.appendChild(left); grid.appendChild(right); p.appendChild(grid);
   // ── สมาชิก (เรียงบน→ล่าง ทุกคนรวมตัวเอง) + สถานะ/บัฟย่อๆ ให้ทุกคนเห็น ──
   const head=document.createElement('div'); head.className='item'; head.innerHTML='<div class="sectitle">PARTY</div>'; left.appendChild(head);
-  const all=characters.slice();
+  const all=characters.filter(c=>c.controller!=='left');   // v185: คนออกจากปาร์ตี้/companion ที่ถูกถอน ไม่โชว์
   if(!all.length){ const d=document.createElement('div'); d.className='muted'; d.textContent='No party members yet — share the invite code with friends'; left.appendChild(d); }
   // ── P1: last-seen ของแต่ละคน (รวมบอท) จาก action/แชทล่าสุด — รู้ทันทีว่าใครหลุด/บอทดับ ──
   const _lastSeen={};
