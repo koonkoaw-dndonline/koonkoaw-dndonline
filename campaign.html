@@ -2088,7 +2088,13 @@ async function renderRoundbar(){
   // STAGE 1: ยังไม่มีปูมหลังโลก → host เริ่ม intro
   if(!narrative.length){
     bar.innerHTML='';
-    if(isHost){ const b=document.createElement('button'); b.className='btn'; b.textContent='✨ Begin Adventure (สร้างปูมหลังโลก)'; b.disabled=resolving; b.onclick=introAdventure; bar.appendChild(b); }
+    if(isHost){
+      // v198: เริ่มเรื่องจากลอร์ที่ ingest (ติ๊กไว้เป็นค่าเริ่มต้น — มีผลเมื่อโลกมีลอร์)
+      const lw=document.createElement('label'); lw.style.cssText='display:flex;align-items:center;gap:6px;font-size:13px;margin:4px 0;cursor:pointer';
+      lw.innerHTML='<input type="checkbox" id="loreFirstCk" checked> เปิดเรื่องจากสถานที่จริงใน lore ที่ ingest ไว้ (แนะนำ)';
+      bar.appendChild(lw);
+      const b=document.createElement('button'); b.className='btn'; b.textContent='✨ Begin Adventure (สร้างปูมหลังโลก)'; b.disabled=resolving; b.onclick=introAdventure; bar.appendChild(b);
+    }
     else bar.innerHTML='<div class="statusline">Waiting for the host to begin…</div>';
     return;
   }
@@ -2468,6 +2474,7 @@ async function resolveRound(force, mode){
   try{
     const token=(await supa.auth.getSession()).data.session?.access_token;
     const body={campaign_id:campaign.id, force:!!force}; if(mode) body.mode=mode;
+    if(mode==='intro'){ const ck=document.getElementById('loreFirstCk'); if(ck) body.lore_first=!!ck.checked; }   // v198
     const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
       body:JSON.stringify(body)});
     const j=await r.json();
