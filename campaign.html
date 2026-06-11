@@ -2605,6 +2605,16 @@ async function renderLevelUpPanel(p){
     box.appendChild(g); box.appendChild(hintA); card.appendChild(box);
   }
   // v175: เลือก cantrip/เวทตามโควต้า D&D 5e — แยกนับ cantrip (level 0) กับเวทมีระดับ · server (levelUpGuard) เป็นกำแพงจริง
+  // v183: Sacred Oath (paladin L3+ ที่ยังไม่สาบาน) — เลือกครั้งเดียว server ตรวจซ้ำ
+  let oathPick=null;
+  if(ri&&ri.oath&&ri.oath.available){
+    const boxO=document.createElement('div'); boxO.innerHTML='<div class="sectitle" style="margin-top:8px">SACRED OATH — คำสาบานศักดิ์สิทธิ์ (เลือกครั้งเดียว เปลี่ยนไม่ได้)</div>';
+    (ri.oath.options||[]).forEach(o=>{ const row=document.createElement('label'); row.className='fld'; row.style.cssText='flex-direction:row;align-items:flex-start;gap:8px;cursor:pointer;margin:1px 0';
+      row.innerHTML='<input type="radio" name="oathSel" style="margin-top:3px"><span><b>'+escapeHtml(o.name)+'</b><div class="muted" style="font-size:11px;line-height:1.4">Channel Divinity: '+escapeHtml(o.channel||'')+'</div><div class="muted" style="font-size:11px;color:#9ad">+ oath spells เตรียมให้เสมอ ไม่กินโควต้าประจำวัน</div></span>';
+      row.querySelector('input').onchange=()=>{ oathPick=o.key; };
+      boxO.appendChild(row); });
+    card.appendChild(boxO);
+  }
   const cantripPicks=new Set(), spellPicks=new Set();
   const ck=ckA;
   const allowFE=levelUpAllowanceFE(ck, lvl);
@@ -2662,7 +2672,7 @@ async function renderLevelUpPanel(p){
   try{ const kn=new Set(); const r=await supa.from('skills').select('name').eq('character_id',myChar.id); (r.data||[]).forEach(x=>kn.add(String(x.name).toLowerCase())); feats=(SKILL_CAT||[]).filter(f=>(f.classes||[]).includes(ck)&&f.level===lvl&&!kn.has(String(f.name).toLowerCase())); }catch(e){}
   if(feats.length){ const fb=document.createElement('div'); fb.innerHTML='<div class="sectitle" style="margin-top:8px">ความสามารถใหม่ของเลเวลนี้ (ได้รับอัตโนมัติ)</div>'; feats.forEach(f=>{ const d=document.createElement('div'); d.className='note'; d.style.cssText='text-align:left;color:#9fe0a0;margin:1px 0'; d.innerHTML='\u2726 <b>'+escapeHtml(f.name)+'</b> <span class="muted" style="font-size:11px">'+escapeHtml(f.effect||'')+'</span>'; fb.appendChild(d); }); card.appendChild(fb); }
   const btn=document.createElement('button'); btn.className='btn'; btn.style.marginTop='10px'; btn.textContent='\u2713 ยืนยันเลเวลอัพ';
-  btn.onclick=()=>submitLevelUp(asiState, {cantrips:[...cantripPicks], spells:[...spellPicks]}, feats, btn);
+  btn.onclick=()=>submitLevelUp(asiState, {cantrips:[...cantripPicks], spells:[...spellPicks], oath:oathPick}, feats, btn);
   card.appendChild(btn); p.appendChild(card);
 }
 async function submitLevelUp(asiState, picks, feats, btn){
@@ -2672,6 +2682,7 @@ async function submitLevelUp(asiState, picks, feats, btn){
     const cSlugs=(picks&&picks.cantrips)||[], sSlugs=(picks&&picks.spells)||[];
     const payload={char_id:myChar.id, cantrip_slugs:cSlugs, spell_slugs:sSlugs};
     if(asiState && Object.keys(asiState).length) payload.asi=asiState;
+    if(picks && picks.oath) payload.oath=picks.oath;   // v183: Sacred Oath
     {
       const tok=(await supa.auth.getSession()).data.session?.access_token;
       const rr=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
@@ -2852,7 +2863,7 @@ async function renderMe(){
   const prof=2+Math.floor(((myChar.level||1)-1)/4);
   const initv=sign(mod(eAb.dex));
   const hp=(cb.maxhp!=null)?`${cb.hp??cb.maxhp}/${cb.maxhp}`:((myChar.public_status||{}).hp||dash);
-  const sub=[sheet.race, sheet.sex, sheet.age?('อายุ '+sheet.age):'', myChar.class||'Adventurer','Lv.'+myChar.level].filter(Boolean).join(' · ');
+  const sub=[sheet.race, sheet.sex, sheet.age?('อายุ '+sheet.age):'', myChar.class||'Adventurer', sheet.subclass||'', 'Lv.'+myChar.level].filter(Boolean).join(' · ');   // v183: โชว์ subclass (Oath)
   const spd=(cb.speed!=null)?(cb.speed+(bon.add.speed||0)):(bon.add.speed?('+'+bon.add.speed):null);
   const bsum=[]; if(bon.add.attack) bsum.push('โจมตี '+sign(bon.add.attack)); if(bon.add.damage) bsum.push('ดาเมจ '+sign(bon.add.damage)); if(bon.add.save) bsum.push('save '+sign(bon.add.save)); if(bon.add.ability_check) bsum.push('ability check '+sign(bon.add.ability_check)); if(bon.add.spell_attack) bsum.push('spell atk '+sign(bon.add.spell_attack)); if(bon.add.spell_dc) bsum.push('spell DC '+sign(bon.add.spell_dc));
   const abil2=(lab,key)=>{ const sc=eAb[key]; const m=sign(mod(sc)); const boosted=(sc!=null && ab[key]!=null && sc!==ab[key]); const v=(sc==null?dash:`${sc}`)+(m?`  (${m})`:'')+(boosted?' ✦':''); return num(lab,v); };
