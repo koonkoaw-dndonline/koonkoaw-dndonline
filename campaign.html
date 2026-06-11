@@ -1968,7 +1968,9 @@ function renderVoteCard(){
   var s=(worldState&&worldState.settings)||{}; var pv=s.pending_vote;
   var old=document.getElementById('voteCard');
   if(!pv){ if(old) old.remove(); return; }
-  var card=old; if(!card){ card=document.createElement('div'); card.id='voteCard'; card.className='item'; card.style.cssText='border:2px solid #FAC775;margin-bottom:10px'; host.parentNode.insertBefore(card, host); }
+  // v184: กล่องโหวตอยู่ "ล่างสุด ติดบทบรรยายล่าสุด" (เดิมอยู่เหนือ feed — ผู้เล่นอ่านบทจบแล้วต้องเลื่อนกลับขึ้นไปหา)
+  var card=old; if(!card){ card=document.createElement('div'); card.id='voteCard'; card.className='item'; card.style.cssText='border:2px solid #FAC775;margin-top:10px'; }
+  if(card.previousElementSibling!==host) host.parentNode.insertBefore(card, host.nextSibling);   // ติดท้าย feed เสมอ แม้ feed re-render
   var my=(myChar&&pv.votes)?pv.votes[myChar.id]:undefined;
   var voted=Object.keys(pv.votes||{}).length;
   card.innerHTML='<div class="sectitle">🗳 โหวตเส้นทางปาร์ตี้ ('+voted+' โหวตแล้ว)</div><div style="margin:6px 0 8px">'+escapeHtml(pv.q||'')+'</div>';
