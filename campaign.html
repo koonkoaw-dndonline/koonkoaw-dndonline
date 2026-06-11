@@ -3269,7 +3269,8 @@ async function renderSkills(){
   });
 }
 async function useSkill(id,used,max,name,desc){
-  if(max>0){ if(used>=max) return; const { error }=await supa.from('skills').update({used:used+1}).eq('id',id); if(error){ toast(error.message||'Failed',true); return; } }
+  // v186: เลิกหัก used ฝั่ง client — server (skillUseTracker) หักเองตอน resolve ทั้งใน/นอกคอมแบต (จุดเขียนจุดเดียว กันหักซ้ำ)
+  if(max>0 && used>=max){ toast('ใช้ครบจำนวนแล้ว — รอพักฟื้น',true); return; }
   tick();
   // ใส่การใช้สกิลลงช่องสั่งการ → ไป Story → DM บรรยายผล (ได้ทั้งในและนอกคอมแบต)
   const txt='ใช้ความสามารถ "'+name+'"'+(desc?(' ('+desc+')'):'');
