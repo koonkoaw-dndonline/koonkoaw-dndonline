@@ -1066,7 +1066,7 @@ if(BETA){
   // ซ่อนความซับซ้อนสำหรับเบต้าเทสเตอร์: แท็บ Files (ingest) · World ID · ช่องขั้นสูงตอนสร้างโลก (กฎ/เพลง/จังหวะ — ใช้ค่าเริ่มต้น)
   const _bcss=document.createElement('style');
   _bcss.textContent='html.beta .tab[data-tab="files"]{display:none!important}html.beta #hdWorld{display:none!important}'+
-    'html.beta label:has(#newRules),html.beta label:has(#rulesFiles),html.beta label:has(#musicFiles),html.beta label:has(#newPace),html.beta label:has(#newTone),html.beta div:has(#musicMood),html.beta #hdMusic{display:none!important}';
+    'html.beta label:has(#newRules),html.beta label:has(#rulesFiles),html.beta label:has(#musicFiles),html.beta label:has(#newPace),html.beta label:has(#newTone),html.beta div.srow2:has(#musicMood),html.beta #hdMusic{display:none!important}';
   document.head.appendChild(_bcss);
   if(!betaCode()){ const c=prompt('🔑 ช่วงเบต้าเทส — ใส่รหัสเบต้าที่ได้รับจากผู้ดูแลโดยตรง:'); if(c&&c.trim()){ try{ localStorage.setItem('betaCode',c.trim()); }catch(e){} } }
 }
