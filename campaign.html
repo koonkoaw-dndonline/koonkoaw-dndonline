@@ -3040,6 +3040,20 @@ async function renderQuest(){
   let quests=[], cls=[];
   try{ const r=await supa.from('quests').select('*').eq('campaign_id',campaign.id).order('created_at',{ascending:false}); quests=r.data||[]; }catch(e){}
   try{ const r=await supa.from('clues').select('mystery,clue,created_at').eq('campaign_id',campaign.id).order('created_at',{ascending:true}).limit(120); cls=r.data||[]; }catch(e){}
+  // ── v204 WORLD THREADS: เรื่องค้างคาในโลก (settings.threads) — โชว์แค่ชื่อปม open (เส้นตาย/ผลล่วงหน้า = ความลับ กัน meta-gaming) ──
+  try{
+    const ths=Array.isArray((worldState&&worldState.settings||{}).threads)?worldState.settings.threads:[];
+    const opens=ths.filter(t=>t&&t.status==='open');
+    const recent=ths.filter(t=>t&&t.status!=='open').slice(-3).reverse();
+    if(opens.length||recent.length){
+      const wt=document.createElement('div'); wt.className='item';
+      let h='<div style="'+FONT+';font-size:15px;font-weight:700;text-align:left;padding:2px 0 6px;border-bottom:1px solid #444;margin-bottom:6px">🌍 เรื่องค้างคาในโลก <span style="font-weight:400;font-size:12px;color:#9a9a9a">โลกไม่รอใคร — บางเรื่องมีเวลาของมัน</span></div>';
+      h+=opens.map(t=>'<div style="'+FONT+';font-size:13px;text-align:left;margin:3px 0">⏳ '+escapeHtml(String(t.title||''))+'</div>').join('');
+      if(recent.length) h+=recent.map(t=>{const ic=t.status==='done'?'✓':t.status==='failed'?'✗':'⌛'; const cl=t.status==='done'?'#97C459':t.status==='failed'?'#E24B4A':'#9a9a9a';
+        return '<div style="'+FONT+';font-size:12px;text-align:left;margin:3px 0;color:'+cl+'">'+ic+' '+escapeHtml(String(t.title||''))+(t.status==='expired'?' — โลกขยับไปแล้ว':'')+'</div>';}).join('');
+      wt.innerHTML=h; p.appendChild(wt);
+    }
+  }catch(e){}
   // v178: ซ่อนเบาะแสที่เป็น 'ผลการต่อสู้' (กำจัด/พ่ายแพ้/หนีไป/ศึกจบ) — ไม่ใช่เบาะแสสืบสวน (server กันใหม่ + อันเก่ายังค้างใน DB)
   const CLUE_COMBAT=/(การต่อสู้สิ้นสุด|จบการต่อสู้|ชนะการต่อสู้|พ่ายแพ้|ถูกกำจัด|ถูกสังหารหมด|กำจัดหมดแล้ว|หนีไปแล้ว|defeated|slain|victory)/i;
   cls=cls.filter(c=>!CLUE_COMBAT.test(String(c.mystery||''))&&!CLUE_COMBAT.test(String(c.clue||'')));
