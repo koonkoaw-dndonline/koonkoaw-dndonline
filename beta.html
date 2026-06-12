@@ -3427,8 +3427,10 @@ async function renderSkills(){
     list.forEach(s=>{
       const rech=s.recharge||'long'; const on=(rech==='atwill'||rech==='passive');
       // v180: เวทมีระดับร่ายผ่านสล็อตรวม (PHB) — ไม่มีตัวนับรายเวทแล้ว แสดงระดับที่กิน
-      const uses=(s.max_uses>0)?`<span class="sk-use">${s.max_uses-(s.used||0)}/${s.max_uses}</span>`
-        :((s.level!=null&&+s.level>=1)?`<span class="sk-use" title="ใช้ spell slot">slot L${s.level}</span>`:'');
+      // v220: บอกหน่วยเวลา/โควต้าชัดๆ ให้มือใหม่ (feedback: "speak with animals/heal ควรระบุว่าใช้ได้กี่ครั้งต่อวัน")
+      //   สกิลจำกัดครั้ง → "N/M ต่อวัน" · เวทมีระดับ → โชว์ slot คงเหลือวันนี้จาก sheet.slots (โควต้ารวมของเวทระดับนั้นทั้งหมด)
+      const uses=(s.max_uses>0)?`<span class="sk-use">${s.max_uses-(s.used||0)}/${s.max_uses}${rech==='long'?' ต่อวัน':(rech==='short'?' ต่อพักสั้น':'')}</span>`
+        :((s.level!=null&&+s.level>=1)?(()=>{let ex='';try{const sl=(mySheet||{}).slots;if(sl&&Array.isArray(sl.lv_max)){const L=Math.max(1,Math.floor(+s.level));const mx=+sl.lv_max[L]||0;if(mx){const left=Math.max(0,mx-(+(((sl.lv_used||{})[String(L)]))||0));ex=' · เหลือ '+left+'/'+mx+' วันนี้';}}}catch(e){}return `<span class="sk-use" title="ร่ายผ่าน spell slot ระดับ ${s.level} — แชร์โควต้ากับเวทระดับเดียวกัน ฟื้นเมื่อพักยาว">slot L${s.level}${ex}</span>`;})():'');
       const row=document.createElement('div'); row.className='sk-row';
       row.innerHTML=`<button type="button" class="sk-line"><span class="sk-nm">${escapeHtml(s.name)}</span>${uses}<span class="sk-bdg${on?' on':''}">${rechLabel(rech)}</span><span class="sk-arw">▸</span></button><div class="sk-desc">${escapeHtml(s.description||'(ไม่มีคำอธิบาย)')}</div>`;
       row.querySelector('.sk-line').onclick=()=>{ row.classList.toggle('open'); try{tick();}catch(e){} };
