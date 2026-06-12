@@ -1066,7 +1066,7 @@ if(BETA){
   // ซ่อนความซับซ้อนสำหรับเบต้าเทสเตอร์: แท็บ Files (ingest) · World ID · ช่องขั้นสูงตอนสร้างโลก (กฎ/เพลง/จังหวะ — ใช้ค่าเริ่มต้น)
   const _bcss=document.createElement('style');
   _bcss.textContent='html.beta .tab[data-tab="files"]{display:none!important}html.beta #hdWorld{display:none!important}'+
-    'html.beta label:has(#newRules),html.beta label:has(#rulesFiles),html.beta label:has(#musicFiles),html.beta label:has(#newPace),html.beta label:has(#newTone),html.beta div.srow2:has(#musicMood),html.beta #hdMusic{display:none!important}';
+    'html.beta label:has(#newRules),html.beta label:has(#rulesFiles),html.beta label:has(#newPace),html.beta label:has(#newTone){display:none!important}';
   document.head.appendChild(_bcss);
   if(!betaCode()){ const c=prompt('🔑 ช่วงเบต้าเทส — ใส่รหัสเบต้าที่ได้รับจากผู้ดูแลโดยตรง:'); if(c&&c.trim()){ try{ localStorage.setItem('betaCode',c.trim()); }catch(e){} } }
 }
@@ -4309,29 +4309,52 @@ async function renderMap(){
   try{
     const set=st.settings||{};
     const plW=await supa.from('places').select('name,settlement').eq('campaign_id',campaign.id).limit(200);
-    const towns={}; (plW.data||[]).forEach(x=>{const k=String(x.settlement||'').trim(); if(k) towns[k]=(towns[k]||0)+1;});
-    const names=Object.keys(towns);
+    const plRows=plW.data||[];
+    const towns={}; plRows.forEach(x=>{const k=String(x.settlement||'').trim(); if(k) towns[k]=(towns[k]||0)+1;});
+    // ── v214: สถานที่พิเศษ (ถ้ำ/หอคอย/ป้อม/วิหาร/ซาก) ขึ้นเป็นโหนดของตัวเอง + เส้นเชื่อมเข้าเมืองแม่ ──
+    const SITE_RE=/ถ้ำ|cave|grotto|หอคอย|tower|spire|ป้อม|ค่าย|fort|keep|citadel|วิหาร|ศาลเจ้า|temple|shrine|ซาก|ruin|สุสาน|tomb|crypt|ดันเจ|dungeon|เหมือง|mine/i;
+    const sites={};   // name → เมืองแม่ ('' = ไม่รู้)
+    plRows.forEach(x=>{const nm=String(x.name||'').trim(); if(nm&&SITE_RE.test(nm)&&!towns[nm]&&!(nm in sites)) sites[nm]=String(x.settlement||'').trim();});
+    (ds||[]).forEach(d2=>{const nm=String(d2.name||'').trim(); if(nm&&!towns[nm]&&!(nm in sites)){const pr=plRows.find(x=>String(x.name||'').trim().toLowerCase()===nm.toLowerCase()); sites[nm]=pr?String(pr.settlement||'').trim():'';}});
+    const siteNames=Object.keys(sites).slice(0,14);
+    const names=Object.keys(towns).concat(siteNames);
+    // ประเภท → สี (กติกา: ชื่อบอกชนิดชนะ · เมืองไม่บอกชนิด = ใหญ่เมื่อรู้จัก ≥4 แห่งข้างใน)
+    const kindOf=n=>{const s=String(n).toLowerCase();
+      if(/ถ้ำ|cave|grotto/.test(s))return 'cave';
+      if(/หอคอย|tower|spire/.test(s))return 'tower';
+      if(/ป้อม|ค่าย|fort|keep|citadel/.test(s))return 'fort';
+      if(/วิหาร|ศาลเจ้า|temple|shrine/.test(s))return 'temple';
+      if(/ซาก|ruin|สุสาน|tomb|crypt|ดันเจ|dungeon|เหมือง|mine/.test(s))return 'ruin';
+      if(n in sites)return 'ruin';
+      if(/หมู่บ้าน|village|hamlet/.test(s))return 'town_s';
+      if(/มหานคร|นคร|เมืองหลวง|city|capital/.test(s))return 'town_l';
+      return (towns[n]||0)>=4?'town_l':'town_s';};
+    const KCOL={town_l:'#5B8DEF',town_s:'#9aa0a8',cave:'#9B6BD3',tower:'#E0A14C',fort:'#C75B5B',temple:'#6BC1B8',ruin:'#A0784A'};
     if(names.length&&!inDunMap){   // v201: อยู่ในดันเจี้ยน = โชว์ DUNGEON MAP แทน
       const W=640,H=300,PAD=50;
       const hash=s=>{let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return (h>>>0);};
       const pos={};
       names.forEach(n=>{const h=hash(n); pos[n]={x:PAD+(h%1000)/1000*(W-PAD*2), y:PAD+((Math.floor(h/1000)%1000)/1000)*(H-PAD*2)};});
-      for(let it=0;it<30;it++){ let moved=false;   // ดันเมืองที่ทับกันออกจากกัน (deterministic — ตำแหน่งเดิมทุกครั้ง)
+      for(let it=0;it<30;it++){ let moved=false;   // ดันโหนดที่ทับกันออกจากกัน (deterministic — ตำแหน่งเดิมทุกครั้ง)
         for(let i=0;i<names.length;i++)for(let j=i+1;j<names.length;j++){const A=pos[names[i]],B=pos[names[j]];const dx=B.x-A.x,dy=B.y-A.y;const d=Math.hypot(dx,dy)||1;
           if(d<78){const push=(78-d)/2;A.x-=dx/d*push;A.y-=dy/d*push;B.x+=dx/d*push;B.y+=dy/d*push;moved=true;}}
         if(!moved)break; }
       names.forEach(n=>{const q=pos[n];q.x=Math.max(PAD,Math.min(W-PAD,q.x));q.y=Math.max(PAD,Math.min(H-PAD,q.y));});
       const edges=Array.isArray(set.travel_edges)?set.travel_edges:[];
-      const curTown=String(loc.settlement||'').trim();
+      const curTown=String(loc.settlement||'').trim(); const curSite=String(loc.site||'').trim();
       let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;background:#10131c;border:2px solid #fff;border-radius:6px;margin-top:4px">`;
+      // เส้นทางที่เคยเดิน (เส้นประทอง) + เส้นเชื่อมสถานที่พิเศษ→เมืองแม่ (เส้นบางเทา)
       edges.forEach(e=>{const pr=String(e).split('⇄'); if(pos[pr[0]]&&pos[pr[1]]) svg+=`<line x1="${pos[pr[0]].x.toFixed(0)}" y1="${pos[pr[0]].y.toFixed(0)}" x2="${pos[pr[1]].x.toFixed(0)}" y2="${pos[pr[1]].y.toFixed(0)}" stroke="#6b5a33" stroke-width="2" stroke-dasharray="6 4"/>`;});
-      names.forEach(n=>{const q=pos[n]; const here=n===curTown;
-        svg+=`<circle cx="${q.x.toFixed(0)}" cy="${q.y.toFixed(0)}" r="${here?9:6}" fill="${here?'#FAC775':'#9aa0a8'}" stroke="#000" stroke-width="1.5">${here?'<animate attributeName="r" values="8;11;8" dur="1.6s" repeatCount="indefinite"/>':''}</circle>`;
+      siteNames.forEach(n=>{const par=sites[n]; if(par&&pos[par]&&pos[n]) svg+=`<line x1="${pos[n].x.toFixed(0)}" y1="${pos[n].y.toFixed(0)}" x2="${pos[par].x.toFixed(0)}" y2="${pos[par].y.toFixed(0)}" stroke="#4a5160" stroke-width="1.5"/>`;});
+      names.forEach(n=>{const q=pos[n]; const k=kindOf(n); const here=(n===curTown)||(curSite&&n===curSite);
+        const fill=here?'#FAC775':(KCOL[k]||'#9aa0a8'); const r=here?9:(k==='town_l'?8:6);
+        svg+=`<circle cx="${q.x.toFixed(0)}" cy="${q.y.toFixed(0)}" r="${r}" fill="${fill}" stroke="#000" stroke-width="1.5">${here?'<animate attributeName="r" values="8;11;8" dur="1.6s" repeatCount="indefinite"/>':''}</circle>`;
         svg+=`<text x="${q.x.toFixed(0)}" y="${(q.y-13).toFixed(0)}" text-anchor="middle" font-size="12" fill="${here?'#FAC775':'#ddd'}" font-family="'IBM Plex Sans Thai',sans-serif">${escapeHtml(n)}</text>`;
-        svg+=`<text x="${q.x.toFixed(0)}" y="${(q.y+19).toFixed(0)}" text-anchor="middle" font-size="9" fill="#8a8f98">${towns[n]} แห่ง</text>`;});
+        if(towns[n]) svg+=`<text x="${q.x.toFixed(0)}" y="${(q.y+19).toFixed(0)}" text-anchor="middle" font-size="9" fill="#8a8f98">${towns[n]} แห่ง</text>`;});
       svg+='</svg>';
       const wm=document.createElement('div'); wm.className='item';
-      wm.innerHTML='<div class="sectitle">WORLD MAP</div>'+svg+'<div class="note" style="text-align:left;padding:4px 2px;font-size:11px">🟡 ตำแหน่งปัจจุบัน · เส้นประ = เส้นทางที่เคยเดินทาง · เมืองโผล่เมื่อค้นพบจริง</div>';
+      const lg='<span style="color:#FAC775">●</span> ปัจจุบัน · <span style="color:#5B8DEF">●</span> เมืองใหญ่ · <span style="color:#9aa0a8">●</span> เมืองเล็ก · <span style="color:#9B6BD3">●</span> ถ้ำ · <span style="color:#E0A14C">●</span> หอคอย · <span style="color:#C75B5B">●</span> ป้อม/ค่าย · <span style="color:#6BC1B8">●</span> วิหาร · <span style="color:#A0784A">●</span> ซาก/ดันเจี้ยน';
+      wm.innerHTML='<div class="sectitle">WORLD MAP</div>'+svg+'<div class="note" style="text-align:left;padding:4px 2px;font-size:11px">'+lg+'<br>เส้นประ = เส้นทางที่เคยเดินทาง · เส้นทึบ = ที่ตั้งใกล้เมือง · สถานที่โผล่เมื่อค้นพบจริง</div>';
       p.appendChild(wm);
     }
   }catch(e){}
@@ -4405,6 +4428,20 @@ async function renderMap(){
       });
       p.appendChild(wc);
     }
+  }catch(e){}
+  // ── v214: ย่อ/ขยายทุก section ในแท็บแมพ — คลิกหัวข้อ = พับเหลือแค่หัวข้อ (จำสถานะใน localStorage ต่อเครื่อง) ──
+  try{
+    p.querySelectorAll(':scope > .item').forEach(it=>{
+      const t=it.querySelector('.sectitle')||it.firstElementChild; if(!t) return;
+      const base=t.dataset.base||(t.dataset.base=t.innerHTML);
+      const key='mapfold_'+String(t.textContent||'').replace(/^[▸▾]\s*/,'').trim().slice(0,24);
+      const apply=()=>{ let fold=false; try{ fold=localStorage.getItem(key)==='1'; }catch(e){}
+        [...it.children].forEach(ch=>{ if(ch!==t) ch.style.display=fold?'none':''; });
+        t.style.cursor='pointer'; t.title=fold?'คลิกเพื่อขยาย':'คลิกเพื่อย่อ';
+        t.innerHTML=(fold?'▸ ':'▾ ')+base; };
+      t.onclick=()=>{ try{ localStorage.setItem(key, localStorage.getItem(key)==='1'?'0':'1'); }catch(e){} apply(); };
+      apply();
+    });
   }catch(e){}
 }
 async function setScene(d){
