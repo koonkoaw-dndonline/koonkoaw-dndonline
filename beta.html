@@ -966,6 +966,7 @@ body.in-battle .bs-cs-btn{display:block;}
       <label class="fld">Age<input type="text" id="cAge" placeholder="e.g. 24"/></label>
     </div>
     <input type="text" id="cRaceCustom" class="hidden" placeholder="ชื่อเผ่านอกกฎ เช่น Aarakocra" style="margin:6px 0"/>
+    <div id="cRaceInfo" class="note hidden" style="text-align:left;border-left:3px solid #5B8DEF;padding:4px 8px;margin:2px 0 6px"></div>
     <datalist id="raceList">
       <option value="Human"></option><option value="Elf"></option><option value="Dwarf"></option>
       <option value="Halfling"></option><option value="Half-Elf"></option><option value="Half-Orc"></option>
@@ -983,6 +984,7 @@ body.in-battle .bs-cs-btn{display:block;}
       </select>
     </label>
     <input type="text" id="cClassCustom" class="hidden" oninput="suggestHP();renderSkillPick()" placeholder="ชื่ออาชีพนอกกฎ เช่น Blood Hunter" style="margin-top:6px"/>
+    <div id="cClassInfo" class="note hidden" style="text-align:left;border-left:3px solid #97C459;padding:4px 8px;margin:2px 0 6px"></div>
     <div class="sectitle" style="margin-top:6px">STARTING EQUIPMENT (ชุดเริ่มต้น)</div>
     <div id="pkgWrap" class="note">เลือกอาชีพก่อน เพื่อดูชุดเริ่มต้นตามคลาส</div>
     <div class="sectitle" style="margin-top:4px">ABILITY SCORES · POINT BUY</div>
@@ -1662,14 +1664,47 @@ function classValue(){
   const sel=$('cClass'); if(!sel) return '';
   return sel.value==='__custom' ? (($('cClassCustom')||{}).value||'').trim() : (sel.value||'').trim();
 }
+// ── v219: คำอธิบายสั้นช่วยมือใหม่เลือกเผ่า/อาชีพ (feedback เทสเตอร์: "ไม่เข้าใจว่าอาชีพไหนเผ่าอะไรเก่งอะไร") ──
+const CLASS_TIPS={
+  Barbarian:'นักรบป่าเถื่อน — ถึกสุดในเกม บวกแหลก เข้าโหมดเดือด (Rage) รับดาเมจลดลง · เล่นง่ายมาก เหมาะมือใหม่สายลุย',
+  Bard:'กวี/นักดนตรี — เก่งพูดจาหว่านล้อม ร่ายเวทเสริมเพื่อน แก้สถานการณ์ได้สารพัด · สายสังคม+เวที ยืดหยุ่นสูง',
+  Cleric:'นักบวช — ฮีลเลอร์หลักของทีม + ใส่เกราะหนักสู้ได้จริง พลังเทพไล่อันเดด · ทีมขาดไม่ได้ เล่นไม่ยาก',
+  Druid:'ผู้พิทักษ์ธรรมชาติ — แปลงร่างเป็นสัตว์ได้! + เวทธรรมชาติ/ฮีล · สนุกหลากบทบาท ระดับกลาง',
+  Fighter:'นักรบอาชีพ — ใช้อาวุธ/เกราะได้ทุกแบบ ตีแม่น ตีบ่อย อึดพอตัว · เรียบง่ายตรงไปตรงมา เหมาะมือใหม่ที่สุด',
+  Monk:'นักสู้มือเปล่า — เร็วจัด ต่อยรัว วิ่งไว หลบเก่ง ไม่ง้ออาวุธ/เกราะ · สายคล่องแคล่ว ระดับกลาง',
+  Paladin:'อัศวินศักดิ์สิทธิ์ — นักรบ+เวทเทพ ตบดาเมจระเบิด (Smite) มีคำสาบานต้องรักษา · แกร่งรอบด้าน',
+  Ranger:'พรานป่า — ธนู/ดาบคู่ ติดตามรอย เก่งนอกเมือง/ป่าเขา มีเวทธรรมชาตินิดหน่อย · สายระยะไกลเล่นง่าย',
+  Rogue:'โจร/นักย่องเบา — ลอบโจมตีดาเมจโหด ล้วงกระเป๋า งัดกุญแจ ปลดกับดัก · สายเนียนๆ แอบทำของ',
+  Sorcerer:'จอมเวทสายเลือด — เวทแรงโดยกำเนิด ดัดแปลงเวทได้ (เร่ง/ขยาย) · สายระเบิดเวท แต่ตัวบาง',
+  Warlock:'ผู้ทำสัญญากับอำนาจลึกลับ — Eldritch Blast ยิงแรงไม่มีหมด + ของแถมจากผู้อุปถัมภ์ · มีปมเรื่องราวในตัว',
+  Wizard:'พ่อมดสายตำรา — คลังเวทใหญ่สุดในเกม แก้ปัญหาได้ทุกรูปแบบถ้าเตรียมเวทถูก · เก่งสุดเมื่อเลเวลสูง แต่บางมาก',
+  Artificer:'นักประดิษฐ์เวทมนตร์ — สร้างของ จูนอุปกรณ์ ผสมเวทกับเครื่องจักร · สายช่าง/แก้ปัญหา ระดับกลาง',
+};
+const RACE_TIPS={
+  'Human':'มนุษย์ — เก่งเฉลี่ยทุกด้าน เข้ากับทุกอาชีพ · ตัวเลือกปลอดภัยสุดสำหรับมือใหม่',
+  'Elf':'เอลฟ์ — คล่องแคล่ว สายตาเฉียบในความมืด ไม่ต้องนอน (เข้าฌาน) · เข้ากับ Ranger/Rogue/Wizard',
+  'Drow (Dark Elf)':'เอลฟ์มืด — มองมืดไกลพิเศษ + เวทติดตัว แต่แพ้แสงจ้า · มีปมชาติกำเนิดให้เล่น',
+  'Dwarf':'คนแคระ — อึด ต้านพิษ ถนัดขวาน/ค้อน รู้เรื่องหิน-เหมือง · เข้ากับ Fighter/Cleric',
+  'Halfling':'ฮาล์ฟลิง — ตัวเล็กโชคดี (ทอยแย่ทอยใหม่ได้) แอบเก่ง · เข้ากับ Rogue/Bard',
+  'Half-Elf':'ครึ่งเอลฟ์ — เสน่ห์สูง เก่งเข้าสังคม ได้ดีสองโลก · เข้ากับ Bard/Sorcerer/Paladin',
+  'Half-Orc':'ครึ่งออร์ค — แรงเยอะ ล้มยาก (เหลือ 1 HP แทนสลบครั้งแรก) ตีคริแรงพิเศษ · เข้ากับ Barbarian/Fighter',
+  'Tiefling':'เลือดปีศาจ — ต้านไฟ + เวทติดตัว เสน่ห์ลึกลับ คนมักหวาดระแวง · เข้ากับ Warlock/Sorcerer',
+  'Dragonborn':'มังกรครึ่งคน — พ่นลมหายใจธาตุได้! ต้านธาตุตามสายเลือด · เข้ากับ Paladin/Fighter',
+  'Gnome':'โนม — ฉลาดขี้สงสัย ต้านเวทเก่ง ตัวจิ๋ว · เข้ากับ Wizard/Artificer',
+  'Aasimar':'ทูตสวรรค์ครึ่งคน — ฮีลสัมผัส + ออร่าศักดิ์สิทธิ์ ต้านมืด/แสง · เข้ากับ Paladin/Cleric',
+  'Goliath':'โกไลแอธ — ยักษ์ภูเขา แบกหนัก ทนหนาว ลดดาเมจที่ได้รับได้ · เข้ากับ Barbarian/Fighter',
+  'Orc':'ออร์ค — พละกำลังดิบ พุ่งเข้าหาศัตรูไว อึดถึก · เข้ากับ Barbarian/Fighter',
+};
+function _tipShow(id,txt){ const el=$(id); if(!el) return; if(txt){ el.textContent=txt; el.classList.remove('hidden'); } else el.classList.add('hidden'); }
 function onClassChange(){
   const sel=$('cClass'); const cu=$('cClassCustom'); if(!sel||!cu) return;
   if(sel.value==='__custom'){ cu.classList.remove('hidden'); cu.focus(); }
   else { cu.classList.add('hidden'); cu.value=''; }
+  _tipShow('cClassInfo', CLASS_TIPS[sel.value]||'');
   suggestHP(); renderSkillPick(); renderPackages(); renderSpellPick();
 }
 function raceValue(){ const sel=$('cRace'); if(!sel) return ''; return sel.value==='__custom' ? (($('cRaceCustom')||{}).value||'').trim() : (sel.value||'').trim(); }
-function onRaceChange(){ const sel=$('cRace'),cu=$('cRaceCustom'); if(!sel||!cu) return; if(sel.value==='__custom'){ cu.classList.remove('hidden'); cu.focus(); } else { cu.classList.add('hidden'); cu.value=''; } }
+function onRaceChange(){ const sel=$('cRace'),cu=$('cRaceCustom'); if(!sel||!cu) return; if(sel.value==='__custom'){ cu.classList.remove('hidden'); cu.focus(); } else { cu.classList.add('hidden'); cu.value=''; } _tipShow('cRaceInfo', RACE_TIPS[sel.value]||''); }
 function weaponValue(){ const sel=$('cWeapon'); if(!sel) return ''; return sel.value==='__custom' ? (($('cWeaponCustom')||{}).value||'').trim() : (sel.value||'').trim(); }
 function onWeaponChange(){ const sel=$('cWeapon'),cu=$('cWeaponCustom'); if(!sel||!cu) return; if(sel.value==='__custom'){ cu.classList.remove('hidden'); cu.focus(); } else { cu.classList.add('hidden'); cu.value=''; } }
 // ── คลังไอเทม/คลาส (global catalog จาก DB) — โหลดครั้งเดียว แคชไว้ ──
@@ -2092,12 +2127,31 @@ async function renderStory(){
   }
   // โครงสร้างเปลี่ยน (entry ใหม่/ลบ/โหลดเก่า) → rebuild ทั้งก้อน
   _lastFeedSig=shown.map(n=>`${n.id}:${isig(n)}`).join('|');
+  // ── v218 DICE LOG: ผลทอยจริงจาก server แทรก 'ก่อน' บทบรรยาย — ผู้เล่นเห็นกลไกก่อน แล้วค่อยอ่านว่า DM ตัดสินเล่ายังไง ──
+  //   กติกาจับคู่: บทที่ n ถูกสร้าง placeholder ก่อนทอย → ผลทอยของบทนี้มี timestamp อยู่ระหว่าง n กับบทถัดไป
+  let _dl=[]; try{ const r=await supa.from('combat_log').select('entry_type,summary,created_at').eq('campaign_id',campaign.id).order('seq',{ascending:false}).limit(150); _dl=(r.data||[]).reverse(); }catch(e){}
+  const DL_T={save:1,check:1,heal:1,condition:1};   // ฉากเนื้อเรื่อง: เช็คสกิล/เซฟ/ฮีล — ฉากต่อสู้มี BATTLE LOG อยู่แล้ว ไม่แทรกซ้ำ
+  const DL_COMBAT=/^(attack|damage|death|initiative|round_advance|flee)$/;
+  const diceFor=(n,nx)=>{ if(!_dl.length) return []; const t0=new Date(n.created_at).getTime(); const t1=nx?new Date(nx.created_at).getTime():Infinity;
+    const win=_dl.filter(e=>{ const te=new Date(e.created_at).getTime(); return te>t0&&te<=t1; });
+    if(win.some(e=>DL_COMBAT.test(String(e.entry_type||'').toLowerCase()))) return [];   // หน้าต่างนี้คือคอมแบต → ไม่แทรก
+    return win.filter(e=>DL_T[String(e.entry_type||'').toLowerCase()]); };
   feed.innerHTML='';
   if(narrMore){ const lb=document.createElement('button'); lb.className='btn ghost sm'; lb.style.cssText='align-self:center;margin:2px 0 8px'; lb.textContent='▲ โหลดบทก่อนหน้า'; lb.title='บทเก่ากว่านี้ดูสรุปได้ในแท็บ Chronicle'; lb.onclick=loadOlderNarrative; feed.appendChild(lb); }
   if(!shown.length){ feed.innerHTML='<div class="muted">No story yet '+(campaign.host_id===me.id?'— press "Begin Adventure" below':'— waiting for the host to begin')+'</div>'; }
-  shown.forEach(n=>{
+  shown.forEach((n,i)=>{
     const d=document.createElement('div'); d.className='narr'; d.dataset.nid=String(n.id); d.dataset.sig=isig(n);
     d.innerHTML='<div class="meta">🎲 DM</div>';
+    try{
+      const rolls=diceFor(n, shown[i+1]);
+      if(rolls.length){
+        const dd=document.createElement('details'); dd.open=true;
+        dd.style.cssText='border:1px dashed #555;border-radius:6px;margin:4px 0 8px;padding:3px 9px;background:#0d1018';
+        dd.innerHTML='<summary style="cursor:pointer;font-size:12px;color:#9aa0a8;padding:3px 0">🎲 ผลทอยเต๋า ('+rolls.length+')</summary>'+
+          rolls.map(e=>'<div style="font-size:12.5px;line-height:1.55;color:#b8bec8;padding:1px 0">'+({attack:'⚔',save:'🛡',check:'🎯',damage:'💥',heal:'💚',death:'☠',condition:'✨'}[String(e.entry_type).toLowerCase()]||'·')+' '+escapeHtml(String(e.summary||''))+'</div>').join('');
+        d.appendChild(dd);
+      }
+    }catch(e){}
     const c=document.createElement('div'); c.className='narrc'; c.innerHTML=cdraw(n);
     d.appendChild(c); feed.appendChild(d);
   });
