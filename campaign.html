@@ -5353,6 +5353,10 @@ window.cc = (function(){
   }
 
   async function onSubmit(){
+    // v215: เลือกแต่ Move โดยไม่มี Action ในคอมแบต → ถามยืนยันก่อนส่ง (เคสเบรฟ: กดตามคำแนะนำ 'วิ่งเข้าโจมตี' แต่ส่งจริงแค่เดิน เลยทั้งไม่ถึงทั้งไม่ได้ตี)
+    if(turn && turn.movement && !turn.action){
+      if(!confirm('ยังไม่ได้เลือก Action (เช่น โจมตี / Dash) — จะเดินอย่างเดียวแล้วจบเทิร์นเลยใช่ไหม?\n\nเป้าอยู่ไกล: เลือก Action ▸ Dash จะวิ่งได้ไกลขึ้นสองเท่า')) return;
+    }
     var diceList = collectDice();
     if(diceList.length === 0){
       rollResults = [];
