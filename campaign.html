@@ -4172,6 +4172,104 @@ async function renderMap(){
     const e=document.createElement('div'); e.className='note'; e.style.cssText='text-align:left;padding:6px 2px'; e.textContent= locLine? 'ยังไม่มีรูปแผนที่ของที่นี่ — อัปในแท็บ Files แล้วตั้งชื่อดันเจียนให้ตรงกับสถานที่ จะขึ้นอัตโนมัติ' : 'ยังไม่อยู่ในดันเจียน — DM จะเผยแผนที่เมื่อถึงเวลา'; cur.appendChild(e);
   }
   p.appendChild(cur);
+  // ── v201: DUNGEON MAP — กราฟห้องจริงจาก dungeons.data.graph (server เป็นเจ้าของผัง — mapGuard บังคับเดินตามนี้) ──
+  //   วาดเฉพาะห้อง discovered + เงา "?" ปลายทางออกของห้องที่เคยไป · hidden ที่ยังไม่เจอ = ไม่วาดเลย · แทนที่ WORLD/QUEST ระหว่างอยู่ในดันเจี้ยน
+  let inDunMap=false;
+  try{
+    let dHit=null;
+    if(here.length) for(const d of ds){ const dn=(d.name||'').toLowerCase().trim(); if(dn.length>3 && here.some(h=>h.includes(dn)||dn.includes(h))){ dHit=d; break; } }
+    const g=dHit&&dHit.data&&dHit.data.graph;
+    if(g&&Array.isArray(g.rooms)&&g.rooms.length){
+      inDunMap=true;
+      const dprogD=(((st.settings||{}).dungeon_progress)||{}).rooms||{};
+      const progOf=nm=>{const l=String(nm).toLowerCase(); for(const k in dprogD){ if(String(k).toLowerCase()===l) return dprogD[k]||{}; } return null;};
+      const discD=r=>{const pr=progOf(r.name); return !!(pr&&(pr.discovered||pr.cleared||pr.looted));};
+      const curRoomL=String(st.current_room||'').toLowerCase();
+      const byId={}; g.rooms.forEach(r=>byId[r.id]=r);
+      const drawn={};
+      g.rooms.forEach(r=>{ if(discD(r)||String(r.name).toLowerCase()===curRoomL) drawn[r.id]='full'; });
+      g.rooms.forEach(r=>{ if(drawn[r.id]==='full') (r.exits||[]).forEach(e=>{const t=byId[e]; if(t&&!drawn[t.id]&&!t.hidden) drawn[t.id]='ghost';}); });
+      const ids=Object.keys(drawn);
+      if(ids.length){
+        const cols={}; ids.forEach(id=>{const d2=Math.max(0,Math.floor(+byId[id].depth||0)); (cols[d2]=cols[d2]||[]).push(id);});
+        const depths=Object.keys(cols).map(Number).sort((a,b)=>a-b);
+        const maxRow=Math.max.apply(null,depths.map(d2=>cols[d2].length));
+        const W3=640,colW=depths.length>1?(W3-120)/(depths.length-1):0,rowH=64,H3=Math.max(150,maxRow*rowH+70);
+        const pos2={};
+        depths.forEach((d2,ci)=>{ cols[d2].sort((a,b)=>String(byId[a].name).localeCompare(String(byId[b].name))); cols[d2].forEach((id,ri)=>{ pos2[id]={x:60+ci*colW, y:H3/2+(ri-(cols[d2].length-1)/2)*rowH}; }); });
+        let svg3=`<svg viewBox="0 0 ${W3} ${H3}" style="width:100%;background:#10131c;border:2px solid #fff;border-radius:6px;margin-top:4px">`;
+        ids.forEach(id=>{(byId[id].exits||[]).forEach(e=>{ if(drawn[e]&&id<e){const A=pos2[id],B=pos2[e]; const ghost=drawn[id]==='ghost'||drawn[e]==='ghost'; svg3+=`<line x1="${A.x.toFixed(0)}" y1="${A.y.toFixed(0)}" x2="${B.x.toFixed(0)}" y2="${B.y.toFixed(0)}" stroke="${ghost?'#3a3f4b':'#6b5a33'}" stroke-width="2"${ghost?' stroke-dasharray="5 4"':''}/>`;} });});
+        ids.forEach(id=>{const r=byId[id],q=pos2[id];const full=drawn[id]==='full';const hereR=String(r.name).toLowerCase()===curRoomL;const pr=progOf(r.name)||{};
+          const fill=hereR?'#FAC775':(pr.cleared||pr.looted)?'#97C459':(full?'#9aa0a8':'#2a2f3b');
+          svg3+=`<circle cx="${q.x.toFixed(0)}" cy="${q.y.toFixed(0)}" r="${hereR?11:8}" fill="${fill}" stroke="#000" stroke-width="1.5">${hereR?'<animate attributeName="r" values="10;13;10" dur="1.6s" repeatCount="indefinite"/>':''}</circle>`;
+          if(full){
+            const icons=(r.kind==='boss'?'☠':'')+(r.hidden?'🗝':'')+(pr.cleared?'⚔️':'')+(pr.looted?'💰':'');
+            svg3+=`<text x="${q.x.toFixed(0)}" y="${(q.y-15).toFixed(0)}" text-anchor="middle" font-size="11" fill="${hereR?'#FAC775':'#ddd'}" font-family="'IBM Plex Sans Thai',sans-serif">${escapeHtml(String(r.name).slice(0,22))}</text>`;
+            if(icons) svg3+=`<text x="${q.x.toFixed(0)}" y="${(q.y+24).toFixed(0)}" text-anchor="middle" font-size="11">${icons}</text>`;
+          } else {
+            svg3+=`<text x="${q.x.toFixed(0)}" y="${(q.y+4).toFixed(0)}" text-anchor="middle" font-size="11" fill="#777">?</text>`;
+          }
+        });
+        svg3+='</svg>';
+        const dm=document.createElement('div'); dm.className='item';
+        dm.innerHTML='<div class="sectitle">DUNGEON MAP</div><div class="note" style="text-align:left;padding:2px 2px 0">'+escapeHtml(dHit.name)+'</div>'+svg3+'<div class="note" style="text-align:left;padding:4px 2px;font-size:11px">🟡 ห้องปัจจุบัน · 🟢 เคลียร์/เก็บแล้ว · ? = เห็นทางแต่ยังไม่สำรวจ · 🗝 ห้องลับ · ☠ ห้องลึกสุด · ⚔️ เคลียร์ศัตรู · 💰 เก็บสมบัติ</div>';
+        p.appendChild(dm);
+      }
+    }
+  }catch(e){}
+  // ── v200: WORLD MAP — SVG อัตโนมัติจากเมืองที่ค้นพบจริง + เส้นทางที่เคยเดินทาง (settings.travel_edges) — ไม่ต้องอัปรูป ──
+  try{
+    const set=st.settings||{};
+    const plW=await supa.from('places').select('name,settlement').eq('campaign_id',campaign.id).limit(200);
+    const towns={}; (plW.data||[]).forEach(x=>{const k=String(x.settlement||'').trim(); if(k) towns[k]=(towns[k]||0)+1;});
+    const names=Object.keys(towns);
+    if(names.length&&!inDunMap){   // v201: อยู่ในดันเจี้ยน = โชว์ DUNGEON MAP แทน
+      const W=640,H=300,PAD=50;
+      const hash=s=>{let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return (h>>>0);};
+      const pos={};
+      names.forEach(n=>{const h=hash(n); pos[n]={x:PAD+(h%1000)/1000*(W-PAD*2), y:PAD+((Math.floor(h/1000)%1000)/1000)*(H-PAD*2)};});
+      for(let it=0;it<30;it++){ let moved=false;   // ดันเมืองที่ทับกันออกจากกัน (deterministic — ตำแหน่งเดิมทุกครั้ง)
+        for(let i=0;i<names.length;i++)for(let j=i+1;j<names.length;j++){const A=pos[names[i]],B=pos[names[j]];const dx=B.x-A.x,dy=B.y-A.y;const d=Math.hypot(dx,dy)||1;
+          if(d<78){const push=(78-d)/2;A.x-=dx/d*push;A.y-=dy/d*push;B.x+=dx/d*push;B.y+=dy/d*push;moved=true;}}
+        if(!moved)break; }
+      names.forEach(n=>{const q=pos[n];q.x=Math.max(PAD,Math.min(W-PAD,q.x));q.y=Math.max(PAD,Math.min(H-PAD,q.y));});
+      const edges=Array.isArray(set.travel_edges)?set.travel_edges:[];
+      const curTown=String(loc.settlement||'').trim();
+      let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;background:#10131c;border:2px solid #fff;border-radius:6px;margin-top:4px">`;
+      edges.forEach(e=>{const pr=String(e).split('⇄'); if(pos[pr[0]]&&pos[pr[1]]) svg+=`<line x1="${pos[pr[0]].x.toFixed(0)}" y1="${pos[pr[0]].y.toFixed(0)}" x2="${pos[pr[1]].x.toFixed(0)}" y2="${pos[pr[1]].y.toFixed(0)}" stroke="#6b5a33" stroke-width="2" stroke-dasharray="6 4"/>`;});
+      names.forEach(n=>{const q=pos[n]; const here=n===curTown;
+        svg+=`<circle cx="${q.x.toFixed(0)}" cy="${q.y.toFixed(0)}" r="${here?9:6}" fill="${here?'#FAC775':'#9aa0a8'}" stroke="#000" stroke-width="1.5">${here?'<animate attributeName="r" values="8;11;8" dur="1.6s" repeatCount="indefinite"/>':''}</circle>`;
+        svg+=`<text x="${q.x.toFixed(0)}" y="${(q.y-13).toFixed(0)}" text-anchor="middle" font-size="12" fill="${here?'#FAC775':'#ddd'}" font-family="'IBM Plex Sans Thai',sans-serif">${escapeHtml(n)}</text>`;
+        svg+=`<text x="${q.x.toFixed(0)}" y="${(q.y+19).toFixed(0)}" text-anchor="middle" font-size="9" fill="#8a8f98">${towns[n]} แห่ง</text>`;});
+      svg+='</svg>';
+      const wm=document.createElement('div'); wm.className='item';
+      wm.innerHTML='<div class="sectitle">WORLD MAP</div>'+svg+'<div class="note" style="text-align:left;padding:4px 2px;font-size:11px">🟡 ตำแหน่งปัจจุบัน · เส้นประ = เส้นทางที่เคยเดินทาง · เมืองโผล่เมื่อค้นพบจริง</div>';
+      p.appendChild(wm);
+    }
+  }catch(e){}
+  // ── v200: QUEST ROUTE — เส้นทางฉากของเควสปัจจุบันจาก blueprint.sites (server บังคับฉากตามนี้จริง v193/v194) ──
+  try{
+    const qR=await supa.from('quests').select('title,blueprint').eq('campaign_id',campaign.id).eq('status','active').not('blueprint','is',null).order('created_at',{ascending:true}).limit(5);
+    const qs=(qR.data||[]).filter(q=>q.blueprint&&Array.isArray(q.blueprint.sites)&&q.blueprint.sites.length);
+    const q0=qs.find(q=>q.blueprint.diff!=='epic')||qs[0];
+    if(q0&&!inDunMap){   // v201: อยู่ในดันเจี้ยน = โชว์ DUNGEON MAP แทน
+      const sites=q0.blueprint.sites; const bpq=(st.settings||{}).bpq||{}; const sceneI=Math.max(0,Math.floor(+bpq.scene_i||0));
+      const dprog=(((st.settings||{}).dungeon_progress)||{}).rooms||{};
+      const W2=640,H2=112,n2=sites.length,gap=n2>1?(W2-90)/(n2-1):0;
+      let svg2=`<svg viewBox="0 0 ${W2} ${H2}" style="width:100%;background:#10131c;border:2px solid #fff;border-radius:6px;margin-top:4px">`;
+      for(let i=0;i<n2-1;i++){const x1=45+i*gap,x2=45+(i+1)*gap; svg2+=`<line x1="${x1.toFixed(0)}" y1="56" x2="${x2.toFixed(0)}" y2="56" stroke="${i<sceneI?'#97C459':'#3a3f4b'}" stroke-width="3"/>`;}
+      for(let i=0;i<n2;i++){const x=45+i*gap; const revealed=i<=sceneI; const next=i===sceneI+1; const here=i===sceneI;
+        svg2+=`<circle cx="${x.toFixed(0)}" cy="56" r="${here?10:7}" fill="${i<sceneI?'#97C459':here?'#FAC775':'#3a3f4b'}" stroke="#000" stroke-width="1.5">${here?'<animate attributeName="r" values="9;12;9" dur="1.6s" repeatCount="indefinite"/>':''}</circle>`;
+        const lbl=revealed?String(sites[i]).slice(0,20):(next?'?':'·');
+        svg2+=`<text x="${x.toFixed(0)}" y="${i%2?'92':'32'}" text-anchor="middle" font-size="10" fill="${here?'#FAC775':revealed?'#ddd':'#777'}" font-family="'IBM Plex Sans Thai',sans-serif">${escapeHtml(lbl)}</text>`;
+        const sr=dprog[sites[i]]||{};
+        if(revealed&&(sr.cleared||sr.looted)) svg2+=`<text x="${x.toFixed(0)}" y="${i%2?'104':'18'}" text-anchor="middle" font-size="10">${sr.cleared?'⚔️':''}${sr.looted?'💰':''}</text>`;}
+      svg2+='</svg>';
+      const qm=document.createElement('div'); qm.className='item';
+      qm.innerHTML='<div class="sectitle">QUEST ROUTE</div><div class="note" style="text-align:left;padding:2px 2px 0">'+escapeHtml(String(q0.title||'').replace(/^[\s💀⭐]+/,''))+'</div>'+svg2+'<div class="note" style="text-align:left;padding:4px 2px;font-size:11px">🟢 ผ่านแล้ว · 🟡 ฉากปัจจุบัน · ? = ฉากถัดไป (ยังไม่เปิดเผย) · ⚔️ เคลียร์ศัตรู · 💰 เก็บสมบัติแล้ว</div>';
+      p.appendChild(qm);
+    }
+  }catch(e){}
   // DUNGEONS list (host เซ็ตฉากได้)
   if(ds.length){
     const dl=document.createElement('div'); dl.className='item'; dl.innerHTML='<div class="sectitle">DUNGEONS</div>';
