@@ -1058,6 +1058,52 @@ const DUNGEON_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-dungeon';
 const DYNAMIC_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/dynamic-task';
 let supa=null, session=null, me=null;            // me = auth user
 const OWNER_EMAILS=['koonkoaw@hotmail.com','koonkoaw19871@gmail.com'];   // ช่วงทดสอบ: เฉพาะอีเมลในลิสต์สร้างโลกได้ (กัน API token หมด) — ต้องตรงกับ allowlist ใน migration 0140
+// ══ v210 BETA MODE — เปิดเมื่อไฟล์ชื่อมี beta (beta.html) หรือ ?beta=1 · กำแพงจริงอยู่ฝั่ง server (BETA_CODE env + migration 0056) ══
+const BETA=/beta/i.test(location.pathname)||new URLSearchParams(location.search).has('beta');
+function betaCode(){ try{ return localStorage.getItem('betaCode')||''; }catch(e){ return ''; } }
+if(BETA){
+  document.documentElement.classList.add('beta');
+  // ซ่อนความซับซ้อนสำหรับเบต้าเทสเตอร์: แท็บ Files (ingest) · World ID · ช่องขั้นสูงตอนสร้างโลก (กฎ/เพลง/จังหวะ — ใช้ค่าเริ่มต้น)
+  const _bcss=document.createElement('style');
+  _bcss.textContent='html.beta .tab[data-tab="files"]{display:none!important}html.beta #hdWorld{display:none!important}'+
+    'html.beta label:has(#newRules),html.beta label:has(#rulesFiles),html.beta label:has(#musicFiles),html.beta label:has(#newPace),html.beta label:has(#newTone),html.beta label:has(#musicMood){display:none!important}';
+  document.head.appendChild(_bcss);
+  if(!betaCode()){ const c=prompt('🔑 ช่วงเบต้าเทส — ใส่รหัสเบต้าที่ได้รับจากผู้ดูแลโดยตรง:'); if(c&&c.trim()){ try{ localStorage.setItem('betaCode',c.trim()); }catch(e){} } }
+}
+// แนบ beta_code เข้า resolver ทุก call (จุดเดียวครอบทุก call site) + จัดการ 403 ของระบบเบต้า
+{ const _F=window.fetch.bind(window);
+  window.fetch=function(u,opt){
+    try{
+      if(typeof u==='string'&&u.indexOf(RESOLVE_FN)===0&&opt&&typeof opt.body==='string'){
+        const b=JSON.parse(opt.body);
+        if(betaCode()&&b&&typeof b==='object'&&!b.beta_code) b.beta_code=betaCode();
+        opt=Object.assign({},opt,{body:JSON.stringify(b)});
+      }
+    }catch(e){}
+    const p=_F(u,opt);
+    try{
+      if(typeof u==='string'&&u.indexOf(RESOLVE_FN)===0){
+        p.then(r=>{ if(r&&r.status===403){ r.clone().json().then(j=>{
+          if(j&&j.error==='beta_code_required'){ try{localStorage.removeItem('betaCode');}catch(e){} alert('รหัสเบต้าไม่ถูกต้อง/หมดอายุ — รีเฟรชหน้าแล้วใส่รหัสใหม่ (ขอจากผู้ดูแล)'); }
+          else if(j&&j.error==='gemini_key_required'){ betaAskKey(); }
+        }).catch(()=>{}); } return r; }).catch(()=>{});
+      }
+    }catch(e){}
+    return p;
+  };
+}
+// host ใส่/แก้ Gemini key ของโลก (เรียกเองหรือเด้งอัตโนมัติเมื่อ server บอกว่ายังไม่มี key)
+async function betaAskKey(){
+  try{
+    if(!campaign||!me||campaign.host_id!==me.id){ alert('โลกนี้ยังไม่มี Gemini key — แจ้ง host ของโลกให้ใส่ key (ขอฟรี: aistudio.google.com → Get API key)'); return; }
+    const k=(prompt('🔑 ใส่ Gemini API key ของคุณ (host ของโลกนี้)\nขอฟรีที่ aistudio.google.com → "Get API key" → สร้าง key แล้วก๊อปมาวาง (ขึ้นต้น AIza...)')||'').trim();
+    if(!k) return;
+    const tok=(await supa.auth.getSession()).data.session?.access_token;
+    const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,set_gemini_key:k})});
+    const j=await r.json();
+    if(j&&j.ok){ toast('ตั้ง Gemini key แล้ว ✓ — เล่นต่อได้เลย'); } else { alert((j&&j.message)||'key ไม่ถูกต้อง — ลองใหม่'); }
+  }catch(e){ alert('ตั้ง key ไม่สำเร็จ: '+(e.message||e)); }
+}
 let campaign=null, members=[], myChar=null, characters=[], curRound=null, narrative=[], mySheet={}, mySheetUpdatedAt=null, worldState=null, chatMsgs=[];
 let econUsed={}, econUsedRound=null;   // action economy: มาร์ก local ว่าผู้เล่นใช้อะไรไปแล้วในเทิร์น
 let rtChannel=null, resolving=false;
@@ -1107,7 +1153,7 @@ async function afterAuthChange(){
   session = s;
   if(!session){ $('hdDot').className='dot'; $('hdLogout').classList.add('hidden'); show('authScreen'); return; }
   me = session.user;
-  try{ const _own=OWNER_EMAILS.includes((me.email||'').toLowerCase()); const _cc=$('createCard'); if(_cc) _cc.style.display=_own?'':'none'; }catch(e){}
+  try{ const _own=OWNER_EMAILS.includes((me.email||'').toLowerCase())||(BETA&&!!betaCode()); const _cc=$('createCard'); if(_cc) _cc.style.display=_own?'':'none'; }catch(e){}   // v210: เบต้าเทสเตอร์ (มีรหัส) สร้างโลกได้
   $('hdDot').className='dot ok'; $('hdLogout').classList.remove('hidden');
   $('hdWho').textContent = me.email || '';
   await ensureProfile();
@@ -1189,13 +1235,13 @@ function onMusicFiles(files){
   info.textContent = (files&&files.length)? `เลือก ${files.length} เพลง (mood: ${mood}) — จะอัปตอนสร้างโลก` : 'อารมณ์ของเพลงชุดนี้ (เปลี่ยน/เพิ่มทีหลังได้)';
 }
 async function createCampaign(){
-  if(!OWNER_EMAILS.includes((me.email||'').toLowerCase())){ toast('ช่วงทดสอบ: เฉพาะเจ้าของระบบเท่านั้นที่สร้างโลกได้',true); return; }
+  if(!OWNER_EMAILS.includes((me.email||'').toLowerCase())&&!(BETA&&betaCode())){ toast('ช่วงทดสอบ: เฉพาะเจ้าของระบบเท่านั้นที่สร้างโลกได้',true); return; }   // v210: เบต้า+รหัส = สร้างได้ (server เช็ครหัสซ้ำใน migration 0056)
   const name=$('newName').value.trim(); if(!name){toast('Name your campaign first',true);return;}
   $('createBtn').disabled=true;
   try{
     const manual=$('newRules').value.trim();
     const combined=[rulesFromFiles, manual].filter(Boolean).join('\n\n').trim();
-    const { data, error } = await supa.rpc('create_campaign',{ p_name:name, p_rules:combined });
+    const { data, error } = await supa.rpc('create_campaign', BETA&&betaCode() ? { p_name:name, p_rules:combined, p_beta_code:betaCode() } : { p_name:name, p_rules:combined });
     if(error) throw error;
     campaign = Array.isArray(data)?data[0]:data;
     const _pace=(($('newPace')||{}).value||'').trim(), _tone=(($('newTone')||{}).value||'').trim();
@@ -1229,6 +1275,27 @@ async function createCampaign(){
         }catch(e){}
       }
       if(okc) toast(`อัปเพลง ${okc} เพลงแล้ว ✓`);
+    }
+    // ── v210 BETA wizard: ฝังลอร์ Forgotten Realms อัตโนมัติ (มาร์ค beta_world — ล็อกจนกว่ามี key) → ขอ Gemini key ของ host ──
+    if(BETA&&betaCode()){
+      const tokB=(await supa.auth.getSession()).data.session?.access_token;
+      $('createBtn').textContent='กำลังฝังลอร์ Forgotten Realms…';
+      try{
+        const rL=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tokB},body:JSON.stringify({campaign_id:campaign.id,beta_seed_lore:true})});
+        const jL=await rL.json();
+        if(jL&&jL.ok) toast(`🌍 ลอร์ Forgotten Realms พร้อม (${jL.chunks||'มีอยู่แล้ว'} ส่วน) ✓`); else toast((jL&&jL.message)||'ฝังลอร์ไม่สำเร็จ (เล่นได้ปกติ)',true);
+      }catch(e){}
+      $('createBtn').textContent='ตั้งค่า Gemini key…';
+      for(let i=0;i<3;i++){
+        const k=(prompt('🔑 ขั้นสุดท้าย: ใส่ Gemini API key ของคุณ (host)\nขอฟรี 1 นาที: aistudio.google.com → "Get API key" → Create API key → ก๊อปมาวาง (ขึ้นต้น AIza...)\n\nโลกเบต้าใช้ key ของ host เท่านั้น — ไม่ใส่ = ยังเล่นไม่ได้')||'').trim();
+        if(!k){ toast('ยังไม่ได้ใส่ key — ใส่ทีหลังได้ ระบบจะถามอีกครั้งตอนเริ่มเล่น',true); break; }
+        try{
+          const rK=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tokB},body:JSON.stringify({campaign_id:campaign.id,set_gemini_key:k})});
+          const jK=await rK.json();
+          if(jK&&jK.ok){ toast('Gemini key พร้อม ✓ เริ่มผจญภัยได้เลย!'); break; }
+          alert((jK&&jK.message)||'key ไม่ถูกต้อง — ลองใหม่');
+        }catch(e){ break; }
+      }
     }
     await enterCampaign();
   }catch(e){ toast(e.message||'Create failed',true); }
@@ -3504,7 +3571,10 @@ function buildDmToolsCard(withFrame){
       const j=await r.json(); if(j.error) toast(j.error,true); else { toast('ลบแล้ว '+j.deleted+' ข้อความ ✓'); chatMsgs=[]; renderChatList(); try{ if(typeof renderBattleChat==='function') renderBattleChat(); }catch(e){} }
     }catch(e){ toast('ไม่สำเร็จ',true); }
   };
-  r2.appendChild(endB); r2.appendChild(clB); tools.appendChild(r2);
+  r2.appendChild(endB); if(!BETA) r2.appendChild(clB); tools.appendChild(r2);
+  // v211 BETA: เบต้าเทสเตอร์เหลือเฉพาะ 'ชุดกู้ภัย' (ตั้ง HP + จบการต่อสู้) — ซ่อนปุ่มปรับแต่งทั้งหมด
+  //   เหตุผล: (1) host หน้าใหม่กดมั่ว (2) ทุกโลกเบต้าต้องรันค่า default เดียวกัน รายงานบั๊กถึงเทียบกันได้
+  if(BETA) return tools;
   // v39: ปรับ pace การเล่าเรื่องกลางแคมเปญ (มีผลรอบถัดไปทันที)
   const r3=document.createElement('div'); r3.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px';
   const pLbl=document.createElement('span'); pLbl.style.cssText=DMF+';color:#9a9a9a'; pLbl.textContent='Pace การเล่า:';
@@ -3716,7 +3786,10 @@ async function renderBattleScene(){
     try{
       var nw=document.getElementById('bsNarrWrap');
       if(nw){
-        var _rec=(typeof narrative!=='undefined'?narrative:[]).filter(function(n){return n && n.status!=='placeholder' && n.content;}).slice(-3);
+        // v211: ตัดบทสนทนา/เนื้อเรื่องก่อนเข้าศึกออก — โชว์เฉพาะบทตั้งแต่ศึกเริ่ม (เผื่อ 90 วิ ให้บทเปิดศึกที่เกิดก่อน encounter row ติดมาด้วย)
+        var _since=null;
+        try{ if(window.gEncStartedAt){ _since=new Date(new Date(window.gEncStartedAt).getTime()-90000).toISOString(); } }catch(e){}
+        var _rec=(typeof narrative!=='undefined'?narrative:[]).filter(function(n){return n && n.status!=='placeholder' && n.content && (!_since || !n.created_at || String(n.created_at)>=_since);}).slice(-3);
         var _nf=document.createDocumentFragment();
         // (06-11) เว้นช่องระหว่างกรอบบรรยาย + เส้นคั่นจางๆ ให้อ่านง่าย · บทล่าสุดกรอบเด่นขึ้นเล็กน้อย
         _rec.forEach(function(n,i){
@@ -3752,7 +3825,8 @@ async function renderBattleScene(){
 async function renderBattleInitLog(initEl, logEl){
   let enc=null;
   try{ const r=await supa.from('combat_encounters').select('*').eq('campaign_id',campaign.id).neq('status','ended').maybeSingle(); if(!r.error) enc=r.data; }catch(e){}
-  if(!enc){ if(initEl) initEl.replaceChildren(); if(logEl) logEl.replaceChildren(); return; }
+  if(!enc){ if(initEl) initEl.replaceChildren(); if(logEl) logEl.replaceChildren(); try{ window.gEncStartedAt=null; }catch(e){} return; }
+  try{ window.gEncStartedAt=enc.created_at||enc.started_at||window.gEncStartedAt||null; }catch(e){}   // v211: จุดเริ่มศึก — กล่องบรรยายฉากสู้กรองบทเก่าก่อนศึกออก
   // (06-11) ยิง 3 query พร้อมกัน (เดิม serial 3 รอบ + log อีก 1) — ลดเวลารอ render ฉากรบ
   let ents=[], csMap={}, _logsPre=null;
   try{
