@@ -1065,7 +1065,7 @@ if(BETA){
   document.documentElement.classList.add('beta');
   // ซ่อนความซับซ้อนสำหรับเบต้าเทสเตอร์: แท็บ Files (ingest) · World ID · ช่องขั้นสูงตอนสร้างโลก (กฎ/เพลง/จังหวะ — ใช้ค่าเริ่มต้น)
   const _bcss=document.createElement('style');
-  _bcss.textContent='html.beta .tab[data-tab="files"]{display:none!important}html.beta #hdWorld{display:none!important}'+
+  _bcss.textContent='html.beta .tab[data-tab="files"]{display:none!important}html.beta #hdWorld,html.beta #hdToken{display:none!important}'+
     'html.beta label:has(#newRules),html.beta label:has(#rulesFiles),html.beta label:has(#newPace),html.beta label:has(#newTone){display:none!important}';
   document.head.appendChild(_bcss);
   if(!betaCode()){ const c=prompt('🔑 ช่วงเบต้าเทส — ใส่รหัสเบต้าที่ได้รับจากผู้ดูแลโดยตรง:'); if(c&&c.trim()){ try{ localStorage.setItem('betaCode',c.trim()); }catch(e){} } }
@@ -5353,6 +5353,10 @@ window.cc = (function(){
   }
 
   async function onSubmit(){
+    // v215: เลือกแต่ Move โดยไม่มี Action ในคอมแบต → ถามยืนยันก่อนส่ง (เคสเบรฟ: กดตามคำแนะนำ 'วิ่งเข้าโจมตี' แต่ส่งจริงแค่เดิน เลยทั้งไม่ถึงทั้งไม่ได้ตี)
+    if(turn && turn.movement && !turn.action){
+      if(!confirm('ยังไม่ได้เลือก Action (เช่น โจมตี / Dash) — จะเดินอย่างเดียวแล้วจบเทิร์นเลยใช่ไหม?\n\nเป้าอยู่ไกล: เลือก Action ▸ Dash จะวิ่งได้ไกลขึ้นสองเท่า')) return;
+    }
     var diceList = collectDice();
     if(diceList.length === 0){
       rollResults = [];

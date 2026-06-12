@@ -1068,6 +1068,8 @@ if(BETA){
   _bcss.textContent='html.beta .tab[data-tab="files"]{display:none!important}html.beta #hdWorld,html.beta #hdToken{display:none!important}'+
     'html.beta label:has(#newRules),html.beta label:has(#rulesFiles),html.beta label:has(#newPace),html.beta label:has(#newTone){display:none!important}';
   document.head.appendChild(_bcss);
+  // v215: รับรหัสจาก URL ?code=XXX — ทับของเก่าเสมอ (ลิงก์ช่วยเหลือ: ส่งลิงก์เดียวแก้รหัสผิดค้างเครื่องได้เลย)
+  try{ const _uc=new URLSearchParams(location.search).get('code'); if(_uc&&_uc.trim()) localStorage.setItem('betaCode',_uc.trim()); }catch(e){}
   if(!betaCode()){ const c=prompt('🔑 ช่วงเบต้าเทส — ใส่รหัสเบต้าที่ได้รับจากผู้ดูแลโดยตรง:'); if(c&&c.trim()){ try{ localStorage.setItem('betaCode',c.trim()); }catch(e){} } }
 }
 // แนบ beta_code เข้า resolver ทุก call (จุดเดียวครอบทุก call site) + จัดการ 403 ของระบบเบต้า
@@ -1298,7 +1300,15 @@ async function createCampaign(){
       }
     }
     await enterCampaign();
-  }catch(e){ toast(e.message||'Create failed',true); }
+  }catch(e){
+    // v215: รหัสเบต้าที่จำไว้ไม่ตรงของจริง (พิมพ์ผิด/ตัวเล็ก — case-sensitive) → ล้างแล้วให้ใส่ใหม่ทันที ไม่ติดตาย
+    if(BETA && /host restricted/i.test(String(e.message||''))){
+      try{ localStorage.removeItem('betaCode'); }catch(_e){}
+      const c2=prompt('❌ รหัสเบต้าที่เครื่องจำไว้ไม่ถูกต้อง\n\nใส่รหัสใหม่ให้ตรงเป๊ะ (ตัวพิมพ์ใหญ่-เล็กมีผล — ขอจากผู้ดูแลโดยตรง):');
+      if(c2&&c2.trim()){ try{ localStorage.setItem('betaCode',c2.trim()); }catch(_e){} toast('บันทึกรหัสแล้ว — กด Create Campaign อีกครั้งได้เลย'); }
+      else toast('ยังไม่มีรหัสเบต้า — สร้างโลกไม่ได้จนกว่าจะใส่รหัสถูก',true);
+    } else toast(e.message||'Create failed',true);
+  }
   finally{ $('createBtn').disabled=false; $('createBtn').textContent='Create Campaign'; }
 }
 async function joinCampaign(){
