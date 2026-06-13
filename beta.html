@@ -456,6 +456,10 @@ body.ui-min #worldClock{display:none!important;}
 .skill .desc{font-size:12px;color:#9a9a9a;line-height:1.55;}
 /* ── Skills tab v3: borderless rows · soft inline expand · unified font · full-width ── */
 #panel-skills, #panel-skills *{font-family:'IBM Plex Sans Thai',sans-serif;letter-spacing:0;-webkit-font-smoothing:antialiased;}
+/* v242: แถบ progress (HP/EXP/slot) เป็นแค่ตัวแสดงผล ห้ามแย่งคลิก — กันเคสแถบทับปุ่ม 'เตรียมเวท' ในเลย์เอาต์ฉากต่อสู้ จนกดไม่ได้ */
+.bar, .bar .fill{pointer-events:none;}
+/* v242: การ์ดเตรียมเวทยกขึ้นชั้นบน + พื้นทึบ — กันคอนเทนต์การ์ดอื่นเลื่อนมาทับตอนถึงกำหนด (เห็นชัด กดได้เสมอ) */
+#panel-skills .sk-prep{position:relative;z-index:5;background:#0a0d14;}
 /* หน้า Files: ใช้ฟอนต์ไทยอ่านง่ายทั้งหน้า ยกเว้นหัวข้อ (.sectitle) คงฟอนต์พิกเซล */
 #panel-files, #panel-files *{font-family:'IBM Plex Sans Thai',sans-serif;letter-spacing:0;-webkit-font-smoothing:antialiased;}
 #panel-files .sectitle{font-family:'Press Start 2P',monospace;letter-spacing:1px;}
