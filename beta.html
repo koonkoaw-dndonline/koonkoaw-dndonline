@@ -175,6 +175,12 @@ a.link:hover{background:var(--white);color:var(--black);}
 /* ---------- panels ---------- */
 .panel{flex:1;min-height:0;overflow-y:auto;padding:14px;display:none;flex-direction:column;gap:12px;background:var(--black);}
 .panel.active{display:flex;}
+/* v243: desktop 3-column (Skill|Quest|File) — #trioWrap โปร่ง (display:contents) บนจอเล็ก = แท็บเดี่ยวตามเดิม · desktop(≥1024px)+trio3 = flex-row 3 คอลัมน์ scroll อิสระ ไม่มีเส้นกั้น */
+#trioWrap{display:contents;}
+@media(min-width:1024px){
+  body.trio3 #trioWrap{display:flex;gap:14px;flex:1 1 auto;min-height:0;align-items:stretch;}
+  body.trio3 #trioWrap > .panel.active{flex:1 1 0;min-width:0;max-width:none;overflow-y:auto;}
+}
 
 /* ---------- narrative feed (DQ dialogue window) ---------- */
 .narr{
@@ -1040,13 +1046,15 @@ body.in-battle .bs-cs-btn{display:block;}
 </div>
 <div class="panel" id="panel-me" data-tab="me"></div>
 <div class="panel" id="panel-items" data-tab="items"></div>
+<div id="trioWrap"><!-- v243: desktop = 3 คอลัมน์ Skill|Quest|File · display:contents บนจอเล็ก = แท็บเดี่ยวตามเดิม -->
 <div class="panel" id="panel-skills" data-tab="skills"></div>
+<div class="panel" id="panel-quest" data-tab="quest"></div>
+<div class="panel" id="panel-files" data-tab="files"></div>
+</div>
 <div class="panel" id="panel-party" data-tab="party"></div>
 <div class="panel" id="panel-npc" data-tab="npc"></div>
 <div class="panel" id="panel-mon" data-tab="mon"></div>
 <div class="panel" id="panel-map" data-tab="map"></div>
-<div class="panel" id="panel-quest" data-tab="quest"></div>
-<div class="panel" id="panel-files" data-tab="files"></div>
 <div class="panel" id="panel-chron" data-tab="chron"></div>
 
 <div class="toast" id="toast"></div>
@@ -2051,10 +2059,14 @@ async function createCharacter(){
 }
 
 // ───────── tabs ─────────
+var TRIO_TABS=['skills','quest','files'];   // v243: desktop = แสดง 3 แท็บนี้พร้อมกันเป็นคอลัมน์
 function switchTab(t){
   tick();
   document.querySelectorAll('.tab').forEach(b=>{ b.classList.toggle('active',b.dataset.tab===t); if(b.dataset.tab===t) b.classList.remove('blink'); });
-  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.dataset.tab===t));
+  // v243: desktop + แท็บในกลุ่ม trio → เปิดทั้ง 3 panel เป็นคอลัมน์ (มือถือ/จอเล็ก = แท็บเดี่ยวตามเดิม)
+  var trio = TRIO_TABS.indexOf(t)>-1 && window.matchMedia && window.matchMedia('(min-width:1024px)').matches;
+  document.body.classList.toggle('trio3', trio);
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', trio ? (TRIO_TABS.indexOf(p.dataset.tab)>-1) : (p.dataset.tab===t)));
   document.body.classList.toggle('tab-story', t==='story');
   if(t==='story') renderStory();
   else if(t==='me') renderMe();
@@ -2067,6 +2079,8 @@ function switchTab(t){
   else if(t==='quest') renderQuest();
   else if(t==='files') renderFiles();
   else if(t==='chron') renderChronicle();
+  // v243: โหมด trio — เรนเดอร์อีก 2 คอลัมน์ที่เหลือให้มีเนื้อหาครบ
+  if(trio){ if(t!=='skills') try{renderSkills();}catch(e){} if(t!=='quest') try{renderQuest();}catch(e){} if(t!=='files') try{renderFiles();}catch(e){} }
 }
 // ───────── OOC chat (คุยวางแผนนอกเรื่อง) ─────────
 async function loadChat(){
