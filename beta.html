@@ -634,6 +634,23 @@ body.role-player .dm-only{display:none!important;}
   }
   .panel[data-tab="chron"]{max-width:820px;}
 }
+/* v244: คอลัมน์ภายใน tab skill/quest/files = multi-column อิสระ (เดิม grid row-flow → ขยายการ์ดคอลัมน์กลางดันการ์ดคอลัมน์ซ้ายแถวล่างลง) · ตอนนี้แต่ละคอลัมน์ไหลตั้งของตัวเอง ขยายแล้วไม่ดันคอลัมน์ข้างๆ ลง */
+@media (min-width:900px){
+  .panel[data-tab="skills"].active,
+  .panel[data-tab="quest"].active,
+  .panel[data-tab="files"].active{
+    display:block;
+    column-width:330px;
+    column-gap:16px;
+  }
+  .panel[data-tab="skills"].active > *,
+  .panel[data-tab="quest"].active > *,
+  .panel[data-tab="files"].active > *{
+    break-inside:avoid;
+    -webkit-column-break-inside:avoid;
+    margin:0 0 16px;
+  }
+}
 
 /* ============================================================
    COMBAT COMMAND UI (DQ-style structured turn picker) — Phase 1
@@ -4362,10 +4379,11 @@ async function renderBattleGrid(p){
 
 // ───────── render: map (campaign_state) ─────────
 async function renderMap(){
-  const p=$('panel-map'); p.innerHTML='';
+  const p=$('panel-map');
   const isHost=campaign.host_id===me.id;
   const st=worldState||{}; const loc=st.location||{};
   let ds=[]; try{ const r=await supa.from('dungeons').select('*').eq('campaign_id',campaign.id).order('created_at',{ascending:false}); ds=r.data||[]; }catch(e){}
+  p.innerHTML='';   // v244: เคลียร์หลัง fetch เสร็จ (กันจอแผนที่กระพริบ blank ระหว่างรอโหลด/ตอน re-render — อาการ "แลบแล้วหุบ")
   // เลือกรูปแผนที่: current_map ก่อน → ไม่มีก็จับคู่ตำแหน่งปัจจุบันกับดันเจียนที่ 'เคยอัปรูป'
   const here=[st.current_room, loc.site, loc.settlement].filter(Boolean).map(s=>String(s).toLowerCase());
   let mapPath=st.current_map||null, matched=null;
