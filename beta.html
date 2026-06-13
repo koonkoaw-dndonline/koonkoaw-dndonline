@@ -1477,7 +1477,7 @@ async function loadMusicLibrary(){
   musicLib={};
   try{
     const { data } = await supa.from('music_tracks').select('mood,storage_path,loop,volume').eq('campaign_id',campaign.id);
-    (data||[]).forEach(t=>{ const m=normalizeMood(t.mood||''); (musicLib[m]=musicLib[m]||[]).push({url:PUBLIC_URL+'audio/'+t.storage_path, loop:t.loop!==false, volume:(t.volume==null?0.6:t.volume)}); });
+    (data||[]).forEach(t=>{ if((t.mood||'')==='perform') return;   /* v231: เพลงการแสดงบาร์ดไม่เข้าคลัง scene_mood (เล่นผ่าน playPerformance เท่านั้น) */ const m=normalizeMood(t.mood||''); (musicLib[m]=musicLib[m]||[]).push({url:PUBLIC_URL+'audio/'+t.storage_path, loop:t.loop!==false, volume:(t.volume==null?0.6:t.volume)}); });
   }catch(e){}
   // v228: หมวดที่โลกนี้ไม่มีไฟล์ → เติมเพลง prototype (volume=null = ตาม slider ล้วน)
   for(const m in DEFAULT_MUSIC){ if(!musicLib[m]||!musicLib[m].length) musicLib[m]=DEFAULT_MUSIC[m].map(function(t){ return {url:t.url,loop:true,volume:null}; }); }
@@ -1489,7 +1489,27 @@ function toggleMusic(){
   updateMusicBtn();
 }
 function updateMusicBtn(){ const b=$('hdMusic'); if(b) b.innerHTML = musicOn? '&#9834; Music: on' : '&#9834; Music: off'; }
-function _moodNow(){ try{ playMood((worldState&&worldState.scene_mood)||'explore'); }catch(e){} }
+// v231 Bard Performance: เพลงการแสดงของบาร์ดทับ scene_mood ทั้งปาร์ตี้ (state ใน settings.performance) · auto-stop ตอนเข้าศึก
+function _perfState(){ try{ return (worldState&&worldState.settings&&worldState.settings.performance)||null; }catch(e){ return null; } }
+function _inCombatNow(){ try{ return !!window._combatActive || /battle|boss/i.test(String((worldState&&worldState.scene_mood)||'')); }catch(e){ return false; } }
+function playPerformance(path){
+  if(!musicOn){ curMood='__perf__'; return; }
+  const url=PUBLIC_URL+'audio/'+path; const el=getAudioEl(); const tag='__perf__'+path;
+  if(curMood===tag){ if(el.paused){ const pr=el.play(); if(pr&&pr.then){ pr.then(function(){_musicBlocked=false;}).catch(_flagBlocked); } } return; }
+  curMood=tag; el.loop=true; if(el.src!==url) el.src=url; _curGain=1;
+  try{ el.volume=Math.max(0,Math.min(1,musicVol)); }catch(e){}
+  const pr=el.play(); if(pr&&pr.then){ pr.then(function(){_musicBlocked=false;}).catch(_flagBlocked); }
+}
+function _moodNow(){ try{
+  const pf=_perfState();
+  if(pf&&pf.active&&pf.path){
+    if(_inCombatNow()){
+      // auto-stop: บาร์ดผู้เปิดการแสดงยิง stop ครั้งเดียวเมื่อเข้าศึก (client อื่นแค่เล่นเพลงรบทับ)
+      if(pf.by===me.id && !window._perfStopSent){ window._perfStopSent=true; try{ stopPerformance(true); }catch(e){} }
+    } else { window._perfStopSent=false; playPerformance(pf.path); return; }
+  } else { window._perfStopSent=false; }
+  playMood((worldState&&worldState.scene_mood)||'explore');
+}catch(e){} }
 // auto path (realtime/tab/refresh) → debounce กัน burst event ทำเพลงสะดุด; gesture path เรียก _moodNow ตรงๆ
 function applyMood(){ if(_moodTimer) clearTimeout(_moodTimer); _moodTimer=setTimeout(function(){ _moodTimer=null; _moodNow(); }, 180); }
 // หลัง refresh: browser บล็อก autoplay → เริ่มเพลงเองตอนผู้ใช้แตะ/คลิก/กดปุ่มครั้งแรก
@@ -3443,6 +3463,7 @@ async function renderSkills(){
   if(rows===null){ p.innerHTML='<div class="muted">Skills system not enabled yet</div>'; return; }
   // v181: การ์ดเตรียมเวทประจำวันอยู่หน้านี้ (ย้ายจากแท็บ Me) — โผล่บนสุดเมื่อถึงกำหนด
   if(needsDailyPrepareFE(myChar.class)){ try{ await renderSpellPreparePanel(p, mySheet||{}); }catch(e){} }
+  if(/bard|บาร์ด|กวี|นักดนตรี/i.test(myChar.class||'')){ try{ await renderPerformanceCard(p); }catch(e){} }   // v231: การ์ดเปิดการแสดง (บาร์ด)
   if(!rows.length){ const m=document.createElement('div'); m.className='muted'; m.innerHTML='ยังไม่มีความสามารถ<br>ความสามารถจะปรากฏหลังสร้างตัวละคร (ตามเผ่า/คลาส) หรือเมื่อ DM มอบให้'; p.appendChild(m); return; }
   const intro=document.createElement('div'); intro.className='note sk-intro'; intro.textContent='แตะที่ชื่อความสามารถเพื่อดูรายละเอียด'; p.appendChild(intro);
   const buckets={class:[],race:[],spell:[]};
@@ -4640,6 +4661,74 @@ async function deleteMusic(id,path){
   if(path){ try{ await supa.storage.from('audio').remove([path]); }catch(e){} }
   const {error}=await supa.from('music_tracks').delete().eq('id',id); if(error){ toast(error.message,true); return; }
   toast('ลบแล้ว'); await loadMusicLibrary(); renderFiles();
+}
+// ── v231 Bard Performance: การ์ดในแท็บ Skills (อัปเพลง ≤3 · เลือก · เปิด/หยุดการแสดง) ──
+async function renderPerformanceCard(p){
+  let tracks=[]; try{ const r=await supa.from('music_tracks').select('id,name,storage_path').eq('campaign_id',campaign.id).eq('mood','perform').eq('created_by',me.id).order('created_at'); tracks=r.data||[]; }catch(e){}
+  const pf=(worldState&&worldState.settings&&worldState.settings.performance)||null;
+  const activeMine=pf&&pf.active&&pf.by===me.id;
+  const card=document.createElement('details'); card.className='item sk-cardgrp sk-fold'; card.open=true;
+  card.innerHTML='<summary><div class="sk-head">🎵 การแสดง<span class="en">· PERFORMANCE</span><span class="sk-cnt">('+tracks.length+'/3)</span><span class="sk-arw">▸</span></div></summary>';
+  const body=document.createElement('div'); body.style.cssText='padding:4px 2px';
+  body.innerHTML='<div class="note" style="text-align:left;margin:2px 0 8px">อัปเพลงของตัวละคร (สูงสุด 3 · .mp3/.ogg) → ระหว่างเล่าเรื่องกด "เปิดการแสดง" เพลงจะสลับเป็นเพลงนี้ทั้งปาร์ตี้ จนกว่าจะกดหยุด (เข้าฉากสู้หยุดอัตโนมัติ)</div>';
+  if(!window._perfPick || !tracks.some(t=>t.id===window._perfPick)) window._perfPick=(tracks[0]&&tracks[0].id)||null;
+  tracks.forEach(t=>{
+    const row=document.createElement('label'); row.style.cssText='display:flex;align-items:center;gap:8px;margin:3px 0;cursor:pointer';
+    const rb=document.createElement('input'); rb.type='radio'; rb.name='perfPick'; rb.checked=(window._perfPick===t.id); rb.onchange=()=>{ window._perfPick=t.id; };
+    const nm=document.createElement('span'); nm.style.cssText='flex:1;font-size:14px'; nm.textContent='♪ '+(t.name||'track');
+    const pv=document.createElement('button'); pv.className='btn ghost sm'; pv.type='button'; pv.textContent='▶'; pv.title='ฟังตัวอย่าง'; pv.onclick=(e)=>{ e.preventDefault(); try{ if(window._perfPrev&&window._perfPrev.pause) window._perfPrev.pause(); const a=new Audio(PUBLIC_URL+'audio/'+t.storage_path); a.volume=Math.max(0,Math.min(1,musicVol)); a.play(); window._perfPrev=a; }catch(_e){} };
+    const del=document.createElement('button'); del.className='btn ghost sm'; del.type='button'; del.textContent='✕'; del.onclick=(e)=>{ e.preventDefault(); deletePerformTrack(t.id,t.storage_path); };
+    row.appendChild(rb); row.appendChild(nm); row.appendChild(pv); row.appendChild(del); body.appendChild(row);
+  });
+  if(tracks.length<3){
+    const ur=document.createElement('div'); ur.style.cssText='display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap';
+    const fi=document.createElement('input'); fi.type='file'; fi.accept='audio/*'; fi.style.cssText='color:#fff;font-size:13px;max-width:150px';
+    const ub=document.createElement('button'); ub.className='btn sm'; ub.type='button'; ub.textContent='Upload'; ub.onclick=()=>uploadPerformTrack(fi,ub);
+    ur.appendChild(fi); ur.appendChild(ub); body.appendChild(ur);
+  } else { const m=document.createElement('div'); m.className='muted'; m.style.cssText='font-size:12px;margin-top:4px'; m.textContent='ครบ 3 เพลงแล้ว — ลบเพลงเดิมก่อนถึงจะเพิ่มได้'; body.appendChild(m); }
+  const ctl=document.createElement('div'); ctl.style.cssText='margin-top:10px';
+  if(activeMine){
+    const sb=document.createElement('button'); sb.className='btn'; sb.type='button'; sb.style.cssText='width:100%'; sb.textContent='⏹ หยุดการแสดง'; sb.onclick=()=>stopPerformance(false); ctl.appendChild(sb);
+  } else {
+    const sb=document.createElement('button'); sb.className='btn'; sb.type='button'; sb.style.cssText='width:100%'; sb.textContent='🎵 เปิดการแสดง'; sb.disabled=!tracks.length;
+    sb.onclick=()=>{ if(!window._perfPick){ toast('เลือกเพลงก่อน',true); return; } startPerformance(window._perfPick); }; ctl.appendChild(sb);
+    if(pf&&pf.active&&pf.by!==me.id){ const n=document.createElement('div'); n.className='muted'; n.style.cssText='font-size:12px;margin-top:4px'; n.textContent='มีการแสดงของ '+(pf.char||'เพื่อน')+' กำลังเล่นอยู่'; ctl.appendChild(n); }
+  }
+  body.appendChild(ctl); card.appendChild(body); p.appendChild(card);
+}
+async function uploadPerformTrack(fi,btn){
+  const file=fi.files&&fi.files[0]; if(!file){ toast('เลือกไฟล์เพลงก่อน',true); return; }
+  if(file.size>15000000){ toast('ไฟล์ใหญ่เกิน 15MB',true); return; }
+  try{ const r=await supa.from('music_tracks').select('id').eq('campaign_id',campaign.id).eq('mood','perform').eq('created_by',me.id); if((r.data||[]).length>=3){ toast('ครบ 3 เพลงแล้ว',true); return; } }catch(e){}
+  btn.disabled=true;
+  try{
+    const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_'); const path=campaign.id+'/perform_'+Date.now()+'_'+safe;
+    const up=await supa.storage.from('audio').upload(path,file,{upsert:false}); if(up.error) throw up.error;
+    const ins=await supa.from('music_tracks').insert({campaign_id:campaign.id,mood:'perform',name:file.name,storage_path:path,created_by:me.id}); if(ins.error) throw ins.error;
+    toast('เพิ่มเพลงการแสดงแล้ว ✓'); renderSkills();
+  }catch(e){ toast(e.message||'อัปเพลงล้มเหลว',true); btn.disabled=false; }
+}
+async function deletePerformTrack(id,path){
+  if(!confirm('ลบเพลงการแสดงนี้?')) return;
+  if(path){ try{ await supa.storage.from('audio').remove([path]); }catch(e){} }
+  try{ const {error}=await supa.from('music_tracks').delete().eq('id',id); if(error) throw error; }catch(e){ toast('ลบไม่สำเร็จ',true); return; }
+  toast('ลบแล้ว'); renderSkills();
+}
+async function startPerformance(trackId){
+  try{
+    const tok=(await supa.auth.getSession()).data.session?.access_token;
+    const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id, performance:{action:'start', track_id:trackId, char:(myChar&&myChar.name)||''}})});
+    const j=await r.json(); if(j.error){ toast(j.message||j.error,true); return; }
+    toast('🎵 เปิดการแสดง'); window._perfStopSent=false; await loadState(); applyMood(); if(activeTab()==='skills') renderSkills();
+  }catch(e){ toast('เปิดการแสดงไม่สำเร็จ',true); }
+}
+async function stopPerformance(silent){
+  try{
+    const tok=(await supa.auth.getSession()).data.session?.access_token;
+    await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id, performance:{action:'stop'}})});
+    if(!silent) toast('หยุดการแสดง');
+    await loadState(); applyMood(); if(activeTab()==='skills') renderSkills();
+  }catch(e){}
 }
 // DUNGEON card (collaborative)
 async function filesDungeonCard(p){
