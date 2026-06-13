@@ -4373,8 +4373,19 @@ async function renderMap(){
   const locLine=[loc.site,loc.settlement,loc.region,loc.kingdom].filter(Boolean).join(' · ');
   if(locLine){ const ll=document.createElement('div'); ll.className='note'; ll.style.cssText='text-align:left;padding:2px 2px 6px'; ll.textContent='📍 '+locLine+(st.current_room?(' — '+st.current_room):''); cur.appendChild(ll); }
   if(mapPath){
-    const img=document.createElement('img'); img.src=PUBLIC_URL+'maps/'+mapPath; img.style.cssText='width:100%;border:2px solid #fff;image-rendering:pixelated;margin-top:6px'; img.onerror=()=>{img.style.display='none';}; cur.appendChild(img);
-    if(matched){ const mn=document.createElement('div'); mn.className='note'; mn.style.cssText='text-align:left;padding:6px 2px'; mn.textContent='🗺 แผนที่: '+matched; cur.appendChild(mn); }
+    // v241: แผนที่ปิดเริ่มต้น — โหลดรูปเมื่อกดเปิดเท่านั้น (กันรูปแลบออกแล้วหุบกลับเวลา 404 + ผู้เล่นคุมเองว่าจะเปิดเมื่อไหร่)
+    const btn=document.createElement('button'); btn.type='button'; btn.className='btn ghost sm'; btn.style.cssText='margin-top:6px'; btn.textContent='🗺 เปิดแผนที่';
+    const holder=document.createElement('div'); holder.style.display='none'; let _loaded=false;
+    btn.onclick=function(){
+      if(!_loaded){ _loaded=true;
+        const img=document.createElement('img'); img.src=PUBLIC_URL+'maps/'+mapPath; img.style.cssText='width:100%;border:2px solid #fff;image-rendering:pixelated;margin-top:6px';
+        img.onerror=function(){ holder.innerHTML='<div class="note" style="text-align:left;padding:6px 2px">โหลดรูปแผนที่ไม่ได้ (ตรวจว่าไฟล์ถูกอัปแล้ว)</div>'; };
+        holder.appendChild(img);
+        if(matched){ const mn=document.createElement('div'); mn.className='note'; mn.style.cssText='text-align:left;padding:6px 2px'; mn.textContent='🗺 แผนที่: '+matched; holder.appendChild(mn); }
+      }
+      const show=holder.style.display==='none'; holder.style.display=show?'':'none'; btn.textContent=show?'🗺 ซ่อนแผนที่':'🗺 เปิดแผนที่';
+    };
+    cur.appendChild(btn); cur.appendChild(holder);
   } else {
     const e=document.createElement('div'); e.className='note'; e.style.cssText='text-align:left;padding:6px 2px'; e.textContent= locLine? 'ยังไม่มีรูปแผนที่ของที่นี่ — อัปในแท็บ Files แล้วตั้งชื่อดันเจียนให้ตรงกับสถานที่ จะขึ้นอัตโนมัติ' : 'ยังไม่อยู่ในดันเจียน — DM จะเผยแผนที่เมื่อถึงเวลา'; cur.appendChild(e);
   }
