@@ -1456,15 +1456,15 @@ let musicLib={}, mAudio=null, curMood=null, musicOn=false, _musicBlocked=false, 
 //   9 หมวดตามชื่อไฟล์ [หมวด]ชื่อเพลง (ตัด sad/mystery/victory) · โลกอัพไฟล์เองราย mood ผ่าน music_tracks = ทับ default หมวดนั้น
 const _mu=function(f){ return 'music/'+encodeURIComponent(f); };
 const DEFAULT_MUSIC={
-  battle:[{url:_mu('[Battle]Iron_Anvil_March.ogg')}],
-  boss:[{url:_mu('[BossFight]The_Last_March_Home.mp3')}],
-  capital:[{url:_mu('[Capital]Beneath_the_Iron_Gate.mp3')}],
-  dungeon:[{url:_mu('[Dungeon]Where_the_Torch_Fails.mp3')}],
-  forest:[{url:_mu('[Forest]Beneath_the_Dappled_Canopy.mp3')}],
-  rest:[{url:_mu('[Rest]The_Traveler_s_Rest.mp3')}],
-  town:[{url:_mu('[Town]Waking_the_City_Walls.mp3')}],
-  tavern:[{url:_mu('[Travern]The_Cobblestone_Jig.mp3')}],
-  village:[{url:_mu('[Village]Morning_in_the_Village_Square.mp3')}],
+  battle:[{url:_mu('battle.ogg')}],
+  boss:[{url:_mu('boss.mp3')}],
+  capital:[{url:_mu('capital.mp3')}],
+  dungeon:[{url:_mu('dungeon.mp3')}],
+  forest:[{url:_mu('forest.mp3')}],
+  rest:[{url:_mu('rest.mp3')}],
+  town:[{url:_mu('town.mp3')}],
+  tavern:[{url:_mu('tavern.mp3')}],
+  village:[{url:_mu('village.mp3')}],
 };
 // v228: ระดับเสียงผู้เล่น (base line 50%) + เลือกหมวดเอง (override ชนะ auto รวมถึงฉากรบ) — จำใน localStorage
 let musicVol=0.5, musicOverride='', _curGain=1;
