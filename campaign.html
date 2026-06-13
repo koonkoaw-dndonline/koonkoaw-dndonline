@@ -2937,7 +2937,7 @@ async function renderSpellPreparePanel(p, sheet){
   // v182: หน้าตาเดียวกับการ์ดอื่นในหน้าสกิล (.sk-cardgrp/.sk-head) — ย่อไว้บนสุด · ถึงกำหนด = badge กระพริบ
   //   กดเลือกเสร็จ (due หาย) → badge/กระพริบดับเอง (re-render หลัง submit)
   const card=document.createElement('details'); card.className='item sk-cardgrp sk-fold sk-prep';
-  card.open = sessionStorage.getItem('skfold_prep')==='1';
+  card.open = due || sessionStorage.getItem('skfold_prep')==='1';   // v242: ถึงกำหนดเตรียมเวท = กางอัตโนมัติ (กันผู้เล่นหาไม่เจอ/นึกว่าไม่มีให้เลือก โดยเฉพาะตอนติด gate ในฉากต่อสู้)
   card.addEventListener('toggle',()=>{ try{ sessionStorage.setItem('skfold_prep', card.open?'1':'0'); }catch(e){} });
   const statusBadge = due
     ? '<span class="sk-due blinkon">ต้องเลือกวันนี้!</span>'
