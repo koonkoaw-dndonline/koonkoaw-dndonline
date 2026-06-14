@@ -3246,6 +3246,26 @@ async function renderQuest(){
   let quests=[], cls=[];
   try{ const r=await supa.from('quests').select('*').eq('campaign_id',campaign.id).order('created_at',{ascending:false}); quests=r.data||[]; }catch(e){}
   try{ const r=await supa.from('clues').select('mystery,clue,created_at').eq('campaign_id',campaign.id).order('created_at',{ascending:true}).limit(120); cls=r.data||[]; }catch(e){}
+  // ── v253 §13c: มิเตอร์งบกำกับเรื่อง (เห็นเฉพาะ DM/host) — งบแชทของเควส active + แผนที่ผู้กำกับวางไว้ (ช่วยคุมจังหวะก่อน server บีบเข้าฉากจบ) ──
+  try{
+    if(campaign.host_id===me.id){
+      const aq=quests.find(q=>q.status==='active'&&q.blueprint&&q.blueprint.chat_budget);
+      if(aq){
+        const bp=aq.blueprint; const arc=(worldState&&worldState.settings&&worldState.settings.arc)||{};
+        const tgt=Math.max(1,(+bp.chat_budget||+arc.target||1)); const used=Math.max(0,Math.floor(+arc.used||0));
+        const pct=Math.min(100,Math.round(used/tgt*100)); const over=used>=tgt;
+        const barCol=over?'#E24B4A':pct>=80?'#E8915B':'#97C459';
+        const encN=Array.isArray(bp.encounters)?bp.encounters.reduce((s,e)=>s+(+e.count||1),0):0;
+        const mb=document.createElement('div'); mb.className='item';
+        let h='<div style="'+FONT+';font-size:15px;font-weight:700;text-align:left;padding:2px 0 6px;border-bottom:1px solid #444;margin-bottom:6px">🎬 งบกำกับเรื่อง <span style="font-weight:400;font-size:11px;color:#9a9a9a">เห็นเฉพาะคุณ (DM)</span></div>';
+        h+='<div style="'+FONT+';font-size:13px;text-align:left;margin:2px 0 4px">📜 '+escapeHtml(String(aq.title||'').replace(/^[\s💀⭐]+/,''))+'</div>';
+        h+='<div style="background:#222;border-radius:6px;height:14px;overflow:hidden;border:1px solid #444"><div style="width:'+pct+'%;height:100%;background:'+barCol+'"></div></div>';
+        h+='<div style="'+FONT+';font-size:12px;text-align:left;margin:3px 0;color:'+(over?'#E24B4A':'#bbb')+'">แชท '+used+'/'+tgt+' ('+pct+'%)'+(over?' — ถึงงบแล้ว: server จะบีบเข้าฉากจบ':'')+'</div>';
+        h+='<div style="'+FONT+';font-size:11px;text-align:left;color:#9a9a9a">แผนผู้กำกับ: ⚔️ '+encN+' ตัว/'+(Array.isArray(bp.encounters)?bp.encounters.length:0)+' ชุด · 🔍 '+(+bp.clue_total||0)+' เบาะแส · 🎬 '+(+bp.depth||0)+' ฉาก'+(bp.boss?' · ☠ บอส '+escapeHtml(String(bp.boss.name||''))+(bp.boss.cr?' CR '+bp.boss.cr:''):'')+'</div>';
+        mb.innerHTML=h; p.appendChild(mb);
+      }
+    }
+  }catch(e){}
   // ── v204 WORLD THREADS: เรื่องค้างคาในโลก (settings.threads) — โชว์แค่ชื่อปม open (เส้นตาย/ผลล่วงหน้า = ความลับ กัน meta-gaming) ──
   try{
     const ths=Array.isArray((worldState&&worldState.settings||{}).threads)?worldState.settings.threads:[];
