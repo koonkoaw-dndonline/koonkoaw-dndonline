@@ -2452,8 +2452,10 @@ async function renderRoundbar(){
   if(!mine){
     const meta=curRound.meta||{};
     const cb=meta.combat||{}, rr=meta.roll_request||{}, inter=meta.interactables||[];
-    // เชื่อ meta ของรอบทันที (iOS: gCombat/_combatActive รีเฟรชช้า ถ้ารอจะทำเมนูหาย) — เคส command ค้างหลังจบศึก แก้ที่ server แล้ว (v12: meta.combat.active=false เมื่อ encounter จบ)
-    const inCombat = cb.active || !!window._combatActive;
+    // v252: โหมด UI (คำสั่งคอมแบต vs ช่องเนื้อเรื่อง) ผูกกับ 'encounter active จริง' (_combatActive จาก combat_state) เท่านั้น —
+    //   เดิมใช้ cb.active (meta จาก DM) เป็น fallback → ฉาก offer ที่ DM ตั้ง active แต่ encGuard บล็อกเปิดจริง = โชว์คำสั่งคอมแบตในฉาก story (ราก desync Cockatrice)
+    //   ราก: combat command ต้องไม่โผล่ในเนื้อเรื่อง + ไม่ถามเนื้อเรื่องในศึก → ความจริงเดียว = มีศัตรู active จริงไหม
+    const inCombat = !!window._combatActive;
     if(econUsedRound!==curRound.id){ econUsed={}; econUsedRound=curRound.id; }  // รีเซ็ตมาร์กทุกรอบ
     if(inCombat){
       // ── (06-08) turn-lock ชั้นสอง: กัน gCombat ค้าง → ใช้ meta.combat.for_char_id (server ระบุเจ้าของตาถัดไป) เป็นตัวชี้ขาด ──
@@ -3256,6 +3258,24 @@ async function renderQuest(){
       if(recent.length) h+=recent.map(t=>{const ic=t.status==='done'?'✓':t.status==='failed'?'✗':'⌛'; const cl=t.status==='done'?'#97C459':t.status==='failed'?'#E24B4A':'#9a9a9a';
         return '<div style="'+FONT+';font-size:12px;text-align:left;margin:3px 0;color:'+cl+'">'+ic+' '+escapeHtml(String(t.title||''))+(t.status==='expired'?' — โลกขยับไปแล้ว':'')+'</div>';}).join('');
       wt.innerHTML=h; p.appendChild(wt);
+    }
+  }catch(e){}
+  // ── v252 FACTION Phase 2: ก้อน "⚖ ชื่อเสียงปาร์ตี้" ต่อฝ่าย (settings.factions rep −3..+3) + หมายหัว/ความฉาว (settings.notoriety) ──
+  try{
+    const fset=(worldState&&worldState.settings)||{};
+    const facs=Array.isArray(fset.factions)?fset.factions.filter(f=>f&&f.name):[];
+    const noto=(fset.notoriety&&typeof fset.notoriety==='object')?fset.notoriety:{};
+    const notoMax=Math.max(0,...Object.values(noto).map(v=>+v||0));
+    const hasSignal=facs.some(f=>(+f.rep||0)!==0)||notoMax>0;
+    if(hasSignal){
+      const repTier=(r)=>{ r=+r||0; return r>=3?['พันธมิตร','#97C459']:r>=1?['เป็นมิตร','#B6D88A']:r<=-3?['ศัตรู','#E24B4A']:r<=-1?['ระแวง','#E8915B']:['เป็นกลาง','#9a9a9a']; };
+      const fb=document.createElement('div'); fb.className='item';
+      let h='<div style="'+FONT+';font-size:15px;font-weight:700;text-align:left;padding:2px 0 6px;border-bottom:1px solid #444;margin-bottom:6px">⚖ ชื่อเสียงปาร์ตี้ <span style="font-weight:400;font-size:12px;color:#9a9a9a">การกระทำสร้างชื่อ</span></div>';
+      h+=facs.map(f=>{ const t=repTier(f.rep); const rv=(+f.rep||0);
+        return '<div style="'+FONT+';font-size:13px;text-align:left;margin:3px 0;display:flex;justify-content:space-between;gap:8px"><span>'+escapeHtml(String(f.name))+'</span><span style="color:'+t[1]+';white-space:nowrap">'+t[0]+' ('+(rv>0?'+':'')+rv+')</span></div>'; }).join('');
+      const wanted=Object.entries(noto).filter(e=>(+e[1]||0)>=2);
+      if(wanted.length) h+=wanted.map(e=>'<div style="'+FONT+';font-size:12px;text-align:left;margin:4px 0 0;color:#E24B4A">⚠ ถูกหมายหัว: '+escapeHtml(String(e[0]))+' (ความฉาว '+(+e[1]||0)+')</div>').join('');
+      fb.innerHTML=h; p.appendChild(fb);
     }
   }catch(e){}
   // v178: ซ่อนเบาะแสที่เป็น 'ผลการต่อสู้' (กำจัด/พ่ายแพ้/หนีไป/ศึกจบ) — ไม่ใช่เบาะแสสืบสวน (server กันใหม่ + อันเก่ายังค้างใน DB)
