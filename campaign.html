@@ -4451,6 +4451,25 @@ async function renderMap(){
       g.rooms.forEach(r=>{ if(drawn[r.id]==='full') (r.exits||[]).forEach(e=>{const t=byId[e]; if(t&&!drawn[t.id]&&!t.hidden) drawn[t.id]='ghost';}); });
       const ids=Object.keys(drawn);
       if(ids.length){
+        const dm=document.createElement('div'); dm.className='item';
+        const pins=(dHit.data&&dHit.data.pins)||{};
+        const havePins=dHit.map_path&&ids.some(id=>pins[id]&&Number.isFinite(+pins[id].x));
+        if(havePins){
+          // ── v253 §9: ปักหมุดห้องบนรูปแผนที่จริง — ตำแหน่งปาร์ตี้ = หมุดเรืองแสง · กฎเผยห้องเดียวกับกราฟ ──
+          let ph='<div style="position:relative;width:100%;border:2px solid #fff;border-radius:6px;overflow:hidden;margin-top:4px">';
+          ph+='<img src="'+PUBLIC_URL+'maps/'+dHit.map_path+'" style="width:100%;display:block">';
+          ids.forEach(id=>{const pin=pins[id]; if(!pin||!Number.isFinite(+pin.x)) return;
+            const r=byId[id],full=drawn[id]==='full',hereR=String(r.name).toLowerCase()===curRoomL,pr=progOf(r.name)||{};
+            const col=hereR?'#FAC775':(pr.cleared||pr.looted)?'#97C459':(full?'#fff':'#888');
+            const ic=(r.kind==='boss'?'☠':'')+(r.hidden?'🗝':'')+(pr.cleared?'⚔️':'')+(pr.looted?'💰':'');
+            const lbl=full?escapeHtml(String(r.name).slice(0,18)):'?'; const sz=hereR?16:11;
+            ph+='<div style="position:absolute;left:'+Math.max(0,Math.min(100,+pin.x))+'%;top:'+Math.max(0,Math.min(100,+pin.y))+'%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">'
+              +'<div style="width:'+sz+'px;height:'+sz+'px;border-radius:50%;background:'+col+';border:2px solid #000;margin:0 auto'+(hereR?';box-shadow:0 0 9px 2px #FAC775':'')+'"></div>'
+              +'<div style="font-size:10px;color:'+(hereR?'#FAC775':'#fff')+';text-shadow:0 0 3px #000,0 0 4px #000;white-space:nowrap;margin-top:1px;font-weight:600">'+lbl+(ic?' '+ic:'')+'</div></div>';
+          });
+          ph+='</div>';
+          dm.innerHTML='<div class="sectitle">DUNGEON MAP</div><div class="note" style="text-align:left;padding:2px 2px 0">'+escapeHtml(dHit.name)+' 🗺</div>'+ph+'<div class="note" style="text-align:left;padding:4px 2px;font-size:11px">🟡 ห้องปัจจุบัน · 🟢 เคลียร์/เก็บแล้ว · ? = เห็นทางแต่ยังไม่สำรวจ · 🗝 ห้องลับ · ☠ ห้องลึกสุด</div>';
+        } else {
         const cols={}; ids.forEach(id=>{const d2=Math.max(0,Math.floor(+byId[id].depth||0)); (cols[d2]=cols[d2]||[]).push(id);});
         const depths=Object.keys(cols).map(Number).sort((a,b)=>a-b);
         const maxRow=Math.max.apply(null,depths.map(d2=>cols[d2].length));
@@ -4471,8 +4490,8 @@ async function renderMap(){
           }
         });
         svg3+='</svg>';
-        const dm=document.createElement('div'); dm.className='item';
         dm.innerHTML='<div class="sectitle">DUNGEON MAP</div><div class="note" style="text-align:left;padding:2px 2px 0">'+escapeHtml(dHit.name)+'</div>'+svg3+'<div class="note" style="text-align:left;padding:4px 2px;font-size:11px">🟡 ห้องปัจจุบัน · 🟢 เคลียร์/เก็บแล้ว · ? = เห็นทางแต่ยังไม่สำรวจ · 🗝 ห้องลับ · ☠ ห้องลึกสุด · ⚔️ เคลียร์ศัตรู · 💰 เก็บสมบัติ</div>';
+        }
         p.appendChild(dm);
       }
     }
@@ -4793,7 +4812,7 @@ async function filesDungeonCard(p){
   const row=document.createElement('div'); row.style.cssText='display:flex;gap:8px;flex-wrap:wrap;align-items:center'; row.appendChild(nm); row.appendChild(th); row.appendChild(fi); row.appendChild(btn); c.appendChild(row);
   let ds=[]; try{ const r=await supa.from('dungeons').select('*').eq('campaign_id',campaign.id).order('created_at',{ascending:false}); ds=r.data||[]; }catch(e){}
   if(ds.length){ const dd=fileDropdown('แผนที่/ดันเจียนทั้งหมด', ds.length);
-    ds.forEach(x=>{ const aiRead=x.data&&x.data.ai_read; const d=document.createElement('div'); d.className='kv'; d.innerHTML=`<span class="k">▣ ${escapeHtml(x.name)}${x.theme?' · '+escapeHtml(x.theme):''}${x.map_path?' 🗺':''}${aiRead?' 🧠':''}</span>`; const del=document.createElement('button'); del.className='btn ghost sm'; del.textContent='✕'; del.onclick=()=>deleteDungeon(x.id,x.map_path); d.appendChild(del); dd._body.appendChild(d); });
+    ds.forEach(x=>{ const aiRead=x.data&&x.data.ai_read; const d=document.createElement('div'); d.className='kv'; d.innerHTML=`<span class="k">▣ ${escapeHtml(x.name)}${x.theme?' · '+escapeHtml(x.theme):''}${x.map_path?' 🗺':''}${aiRead?' 🧠':''}</span>`; if(x.map_path&&x.data&&x.data.graph&&Array.isArray(x.data.graph.rooms)&&x.data.graph.rooms.length){ const pinb=document.createElement('button'); pinb.className='btn ghost sm'; pinb.textContent='📌'; pinb.title='ปักหมุดห้องบนแผนที่ให้ผู้เล่นเห็นตำแหน่ง'; pinb.onclick=()=>openPinEditor(x); d.appendChild(pinb); } const del=document.createElement('button'); del.className='btn ghost sm'; del.textContent='✕'; del.onclick=()=>deleteDungeon(x.id,x.map_path); d.appendChild(del); dd._body.appendChild(d); });
     c.appendChild(dd);
   }
   p.appendChild(c);
@@ -4825,6 +4844,34 @@ async function deleteDungeon(id,mapPath){
   // bugfix: ถ้าแผนที่ที่ลบถูกตั้งเป็นฉากปัจจุบัน → เคลียร์ current_map (กันแท็บ Map ชี้ไฟล์ที่หายไปแล้ว)
   try{ if(worldState&&worldState.current_map===mapPath){ await supa.from('campaign_state').update({current_map:null,updated_at:new Date().toISOString()}).eq('campaign_id',campaign.id); await loadState(); renderMap(); } }catch(e){}
   toast('ลบแล้ว'); renderFiles();
+}
+// ── v253 §9: ปักหมุดห้องบนรูปแผนที่ (host วางครั้งเดียว → ผู้เล่นเห็นตำแหน่งห้อง+ตัวเองบนแผนที่จริง) ──
+function openPinEditor(d){
+  if(!(d.data&&d.data.graph&&Array.isArray(d.data.graph.rooms)&&d.data.graph.rooms.length)){ toast('ดันเจียนนี้ยังไม่มีผังห้อง (ให้ AI อ่านแผนที่ก่อน)',true); return; }
+  if(!d.map_path){ toast('ดันเจียนนี้ไม่มีรูปแผนที่',true); return; }
+  const rooms=d.data.graph.rooms;
+  const pins=Object.assign({}, d.data.pins||{});
+  const ov=document.createElement('div'); ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;overflow:auto;padding:16px;display:flex;flex-direction:column;align-items:center';
+  const ttl=document.createElement('div'); ttl.style.cssText='color:#fff;font-size:16px;font-weight:700;margin-bottom:6px;text-align:center'; ttl.textContent='📌 ปักหมุดห้อง: '+d.name; ov.appendChild(ttl);
+  const help=document.createElement('div'); help.style.cssText='color:#bbb;font-size:13px;margin-bottom:8px;text-align:center;max-width:560px'; help.textContent='เลือกห้อง → คลิกบนรูปเพื่อวางหมุด (คลิกใหม่เพื่อย้าย). วางครบแล้วกด “บันทึก” — ผู้เล่นจะเห็นหมุดห้อง+ตำแหน่งปาร์ตี้บนแผนที่นี้'; ov.appendChild(help);
+  const sel=document.createElement('select'); sel.style.cssText='background:#000;color:#fff;border:2px solid #fff;font-size:14px;padding:4px;margin-bottom:8px;max-width:90vw';
+  const wrap=document.createElement('div'); wrap.style.cssText='position:relative;max-width:560px;width:100%;border:2px solid #fff;cursor:crosshair';
+  const img=document.createElement('img'); img.src=PUBLIC_URL+'maps/'+d.map_path; img.style.cssText='width:100%;display:block'; wrap.appendChild(img);
+  const layer=document.createElement('div'); layer.style.cssText='position:absolute;inset:0;pointer-events:none'; wrap.appendChild(layer);
+  function refreshSel(){ sel.innerHTML=rooms.map(r=>'<option value="'+r.id+'">'+(pins[r.id]?'✓ ':'· ')+escapeHtml(String(r.name))+'</option>').join(''); }
+  function redraw(){ layer.innerHTML=rooms.map(r=>{const pin=pins[r.id]; if(!pin) return ''; const cur=sel.value===r.id; return '<div style="position:absolute;left:'+pin.x+'%;top:'+pin.y+'%;transform:translate(-50%,-50%);text-align:center"><div style="width:'+(cur?15:11)+'px;height:'+(cur?15:11)+'px;border-radius:50%;background:'+(cur?'#FAC775':'#5B8DEF')+';border:2px solid #000;margin:0 auto"></div><div style="font-size:10px;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000;white-space:nowrap;font-weight:600">'+escapeHtml(String(r.name).slice(0,16))+'</div></div>';}).join(''); }
+  refreshSel(); redraw();
+  wrap.onclick=function(ev){ const rc=img.getBoundingClientRect(); if(!rc.width) return; const x=Math.max(0,Math.min(100,(ev.clientX-rc.left)/rc.width*100)); const y=Math.max(0,Math.min(100,(ev.clientY-rc.top)/rc.height*100)); const id=sel.value; if(!id) return; pins[id]={x:Math.round(x*10)/10,y:Math.round(y*10)/10};
+    const idx=rooms.findIndex(r=>r.id===id); let nextId=id; for(let k=1;k<=rooms.length;k++){const nr=rooms[(idx+k)%rooms.length]; if(!pins[nr.id]){ nextId=nr.id; break; }} sel.value=nextId; refreshSel(); sel.value=nextId; redraw(); };
+  sel.onchange=redraw;
+  ov.appendChild(sel); ov.appendChild(wrap);
+  const bar=document.createElement('div'); bar.style.cssText='margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center';
+  const save=document.createElement('button'); save.className='btn sm'; save.textContent='💾 บันทึกหมุด';
+  save.onclick=async function(){ save.disabled=true; try{ const nd=Object.assign({},d.data||{},{pins:pins}); const r=await supa.from('dungeons').update({data:nd}).eq('id',d.id); if(r.error) throw r.error; d.data=nd; toast('บันทึกหมุดแล้ว ✓'); if(ov.parentNode) document.body.removeChild(ov); }catch(e){ toast('บันทึกไม่สำเร็จ: '+(e.message||'RLS?'),true); save.disabled=false; } };
+  const clr=document.createElement('button'); clr.className='btn ghost sm'; clr.textContent='ล้างหมุดห้องนี้'; clr.onclick=function(){ delete pins[sel.value]; refreshSel(); redraw(); };
+  const cancel=document.createElement('button'); cancel.className='btn ghost sm'; cancel.textContent='ปิด'; cancel.onclick=function(){ if(ov.parentNode) document.body.removeChild(ov); };
+  bar.appendChild(save); bar.appendChild(clr); bar.appendChild(cancel); ov.appendChild(bar);
+  document.body.appendChild(ov);
 }
 // PUZZLE card (collaborative)
 async function filesPuzzleCard(p){
