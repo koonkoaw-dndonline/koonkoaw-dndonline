@@ -1091,7 +1091,7 @@ if(BETA){
   // ซ่อนความซับซ้อนสำหรับเบต้าเทสเตอร์: แท็บ Files (ingest) · World ID · ช่องขั้นสูงตอนสร้างโลก (กฎ/เพลง/จังหวะ — ใช้ค่าเริ่มต้น)
   const _bcss=document.createElement('style');
   _bcss.textContent='html.beta .tab[data-tab="files"]{display:none!important}html.beta #hdWorld,html.beta #hdToken{display:none!important}'+
-    'html.beta label:has(#newRules),html.beta label:has(#rulesFiles),html.beta label:has(#newPace),html.beta label:has(#newTone),html.beta label:has(#musicFiles),html.beta div:has(#musicMood){display:none!important}';
+    'html.beta label:has(#newRules),html.beta label:has(#rulesFiles),html.beta label:has(#newPace),html.beta label:has(#newTone),html.beta label:has(#musicFiles),html.beta #musicMood,html.beta #musicFilesInfo{display:none!important}';
   document.head.appendChild(_bcss);
   // v215: รับรหัสจาก URL ?code=XXX — ทับของเก่าเสมอ (ลิงก์ช่วยเหลือ: ส่งลิงก์เดียวแก้รหัสผิดค้างเครื่องได้เลย)
   try{ const _uc=new URLSearchParams(location.search).get('code'); if(_uc&&_uc.trim()) localStorage.setItem('betaCode',_uc.trim()); }catch(e){}
