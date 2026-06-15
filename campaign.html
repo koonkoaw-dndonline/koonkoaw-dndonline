@@ -3593,7 +3593,9 @@ async function renderNPCs(){
     list.forEach(n=>{
       const del = isHost? `<div class="kv2"><b></b><span><button class="btn ghost sm" onclick="event.stopPropagation();deleteNPC('${n.id}')">✕ ลบ (ถ้าซ้ำ/ผิด)</button></span></div>` : '';
       const mr=relOf(n.name);
-      body+=`<div class="npc"><button class="npc-head" onclick="tick();this.parentElement.classList.toggle('open')">${escapeHtml(n.name)}${relBadge(mr)}<span class="rel">${escapeHtml(n.relationship||'-')}</span></button><div class="npc-detail">${relDetail(mr)}<div class="kv2"><b>Role</b><span>${escapeHtml(n.role||'-')}</span></div><div class="kv2"><b>Notes</b><span>${escapeHtml(n.notes||'-')}</span></div>${del}</div></div>`;
+      const _nt=Array.isArray(n.notes)?n.notes:(n.notes?[String(n.notes)]:[]);   // v258b: npcs.notes = jsonb array (migration 0060) — รองรับ text เก่าด้วย · เดิม escapeHtml(array) โชว์ "a,b" ติดกัน
+      const _ntHtml=_nt.length?_nt.map(x=>escapeHtml(String(x))).join('<br>'):'-';
+      body+=`<div class="npc"><button class="npc-head" onclick="tick();this.parentElement.classList.toggle('open')">${escapeHtml(n.name)}${relBadge(mr)}<span class="rel">${escapeHtml(n.relationship||'-')}</span></button><div class="npc-detail">${relDetail(mr)}<div class="kv2"><b>Role</b><span>${escapeHtml(n.role||'-')}</span></div><div class="kv2"><b>Notes</b><span>${_ntHtml}</span></div>${del}</div></div>`;
     });
     const acc=document.createElement('div'); acc.className='acc'+(idx===0?' open':'');
     acc.innerHTML=`<button class="acc-head" onclick="tick();this.parentElement.classList.toggle('open')">${escapeHtml(city)}<span class="cnt">${list.length}</span></button><div class="acc-body">${body}</div>`;
