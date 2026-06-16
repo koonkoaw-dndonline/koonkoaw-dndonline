@@ -1168,7 +1168,7 @@ function show(id){['authScreen','lobbyScreen','charScreen'].forEach(s=>$(s).clas
 })();
 
 function initClient(anon){
-  try{ supa = window.supabase.createClient(SUPA_URL, anon, {auth:{detectSessionInUrl:true,persistSession:true}});
+  try{ supa = window.supabase.createClient(SUPA_URL, anon, {auth:{detectSessionInUrl:true,persistSession:true,autoRefreshToken:true,flowType:'implicit'}});   /* v276: flowType implicit — magic-link token มาใน URL hash ตรงๆ (ไม่ต้องใช้ PKCE code-verifier ในเบราเซอร์เดียวกัน) → มือถือคลิกลิงก์จากแอปเมล/เบราเซอร์อื่นแล้ว session ติด+persist (กันบังคับ login ใหม่ทุกครั้ง ช่วงใช้ publishable key + supabase-js v2 ใหม่ที่ default PKCE) */
     localStorage.setItem('gSupaUrl',SUPA_URL); localStorage.setItem('gSupaAnon',anon);
     supa.auth.onAuthStateChange((_e,s)=>{ session=s; });
     return true;
@@ -3741,6 +3741,27 @@ function buildDmToolsCard(withFrame){
     }catch(e){ toast('ไม่สำเร็จ',true); }
   };
   r2.appendChild(endB); if(!BETA) r2.appendChild(clB); tools.appendChild(r2);
+  // v275: ตั้ง/ลด HP มอนสเตอร์ (host) — ช่วยเคสศึกยากเกิน (เลือกมอนที่ยังอยู่ในศึก · hp 0 = ออกจากศึก) · อยู่ในชุดกู้ภัย (เบต้าเห็นด้วย)
+  const rM=document.createElement('div'); rM.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0';
+  const mSel=styleCtl(document.createElement('select')); mSel.style.maxWidth='168px';
+  { const o=document.createElement('option'); o.value=''; o.textContent='— มอนในศึก —'; mSel.appendChild(o); }
+  (async()=>{ try{ const r=await supa.from('combat_state').select('id, cur_hp, monsters(name, max_hp)').eq('campaign_id',campaign.id).eq('active',true);
+    (r.data||[]).forEach(cs=>{ if(!cs.monsters) return; const o=document.createElement('option'); o.value=cs.id; o.textContent=cs.monsters.name+' ('+(cs.cur_hp==null?'?':cs.cur_hp)+'/'+(cs.monsters.max_hp==null?'?':cs.monsters.max_hp)+')'; mSel.appendChild(o); }); }catch(e){} })();
+  const mHpIn=styleCtl(document.createElement('input')); mHpIn.type='number'; mHpIn.min='0'; mHpIn.placeholder='HP'; mHpIn.style.width='52px';
+  const mBtn=styleCtl(document.createElement('button')); mBtn.className='btn sm'; mBtn.textContent='ตั้ง HP มอน';
+  mBtn.onclick=async()=>{
+    if(!mSel.value){ toast('เลือกมอนในศึกก่อน',true); return; }
+    const hp=parseInt(mHpIn.value,10); if(!Number.isFinite(hp)){ toast('ใส่ตัวเลข HP',true); return; }
+    const lbl=(mSel.options[mSel.selectedIndex]&&mSel.options[mSel.selectedIndex].textContent)||'มอน';
+    if(!confirm('ตั้ง HP ของ '+lbl+' เป็น '+hp+'?'+(hp<=0?'\n(มอนจะออกจากการต่อสู้)':''))) return;
+    mBtn.disabled=true;
+    try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
+      const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,set_mon_hp:{cs_id:mSel.value,hp}})});
+      const j=await r.json(); if(j.error) toast(j.error,true); else { toast(j.name+' → '+j.hp+(j.max!=null?'/'+j.max:'')+(j.dead?' (ออกจากศึก)':'')+' ✓'); try{ if(typeof scheduleBattleScene==='function') scheduleBattleScene(); if(typeof refreshCombatTurn==='function') refreshCombatTurn(); }catch(e){} return; }
+    }catch(e){ toast('ไม่สำเร็จ',true); }
+    mBtn.disabled=false;
+  };
+  rM.appendChild(mSel); rM.appendChild(mHpIn); rM.appendChild(mBtn); tools.appendChild(rM);
   // v211 BETA: เบต้าเทสเตอร์เหลือเฉพาะ 'ชุดกู้ภัย' (ตั้ง HP + จบการต่อสู้) — ซ่อนปุ่มปรับแต่งทั้งหมด
   //   เหตุผล: (1) host หน้าใหม่กดมั่ว (2) ทุกโลกเบต้าต้องรันค่า default เดียวกัน รายงานบั๊กถึงเทียบกันได้
   if(BETA) return tools;
