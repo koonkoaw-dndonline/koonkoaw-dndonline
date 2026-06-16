@@ -932,15 +932,21 @@ body.in-battle .bs-cs-btn{display:block;}
 <div class="center" id="authScreen">
   <div class="card">
     <h2>Sign In</h2>
-    <p class="sub">Enter your email and we'll send a magic sign-in link (no password needed). Click the link in the email and return here.</p>
+    <p class="sub">ใส่อีเมลแล้วกด "ส่ง" — <b>บนคอม</b> คลิกลิงก์ในเมล · <b>บนมือถือ</b> พิมพ์รหัส 6 หลักจากเมลด้านล่าง (ไม่ต้องสลับเบราเซอร์ → session ค้างให้ ไม่ต้องล็อกอินใหม่ทุกครั้ง)</p>
     <label class="fld hidden" id="anonFld">Supabase Anon/Publishable Key
       <input type="password" id="anonKey" placeholder="eyJ... or sb_publishable_..."/>
     </label>
     <label class="fld">Email
       <input type="email" id="email" placeholder="you@example.com" autocomplete="email"/>
     </label>
-    <button class="btn" id="loginBtn" onclick="sendMagicLink()">Send Magic Link</button>
+    <button class="btn" id="loginBtn" onclick="sendMagicLink()">ส่งอีเมลเข้าสู่ระบบ</button>
     <p class="note" id="authNote"></p>
+    <div id="otpBox" class="hidden" style="margin-top:8px">
+      <label class="fld">รหัส 6 หลักจากอีเมล (สำหรับมือถือ)
+        <input type="text" id="otpCode" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="พิมพ์รหัส 6 หลัก"/>
+      </label>
+      <button class="btn" id="verifyBtn" onclick="verifyCode()" style="margin-top:6px">ยืนยันรหัส</button>
+    </div>
   </div>
 </div>
 
@@ -1193,6 +1199,7 @@ async function ensureProfile(){
 }
 
 // ───────── auth ─────────
+let _otpEmail='';   // v276: อีเมลที่เพิ่งส่ง OTP — ใช้ตอน verifyCode (มือถือ)
 async function sendMagicLink(){
   if(!supa){ const k=$('anonKey').value.trim(); if(!k){toast('Enter the Anon Key first',true);return;} if(!initClient(k))return; }
   const email=$('email').value.trim();
@@ -1201,9 +1208,26 @@ async function sendMagicLink(){
   try{
     const { error } = await supa.auth.signInWithOtp({ email, options:{ emailRedirectTo: location.href.split('#')[0] } });
     if(error) throw error;
-    $('authNote').textContent='✅ Magic link sent to '+email+' — open the email and click the link to sign in';
-  }catch(e){ toast(e.message||'Failed to send link',true); }
+    _otpEmail = email;
+    try{ $('otpBox').classList.remove('hidden'); const _f=$('otpCode'); if(_f) _f.focus(); }catch(e){}
+    $('authNote').textContent='✅ ส่งอีเมลไปที่ '+email+' แล้ว — คอม: คลิกลิงก์ในเมล · มือถือ: พิมพ์รหัส 6 หลักจากเมลด้านล่างแล้วกด "ยืนยันรหัส"';
+  }catch(e){ toast(e.message||'ส่งอีเมลไม่สำเร็จ',true); }
   finally{ $('loginBtn').disabled=false; }
+}
+// v276: ยืนยันด้วยรหัส 6 หลัก (มือถือ) — session ลง localStorage ของเบราเซอร์ที่เล่นจริง → กลับมาไม่ต้อง login ใหม่
+async function verifyCode(){
+  if(!supa){ toast('ยังไม่ได้เชื่อมต่อ Supabase',true); return; }
+  const code=(($('otpCode')&&$('otpCode').value)||'').trim();
+  const email=_otpEmail || (($('email')&&$('email').value)||'').trim();
+  if(!email){ toast('ใส่อีเมลก่อน',true); return; }
+  if(!code){ toast('ใส่รหัสจากอีเมล',true); return; }
+  const vb=$('verifyBtn'); if(vb) vb.disabled=true;
+  try{ let { error } = await supa.auth.verifyOtp({ email, token: code, type: 'email' });
+    if(error){ const _r2=await supa.auth.verifyOtp({ email, token: code, type: 'magiclink' }); error=_r2.error; }   // เผื่อ type ต่าง (code vs link)
+    if(error) throw error;
+    await afterAuthChange();
+  }catch(e){ toast(e.message||'รหัสไม่ถูกต้อง/หมดอายุ — ขอใหม่ได้',true); }
+  finally{ if(vb) vb.disabled=false; }
 }
 async function doLogout(){ await supa.auth.signOut(); location.reload(); }
 async function endCampaign(){
@@ -3741,14 +3765,21 @@ function buildDmToolsCard(withFrame){
     }catch(e){ toast('ไม่สำเร็จ',true); }
   };
   r2.appendChild(endB); if(!BETA) r2.appendChild(clB); tools.appendChild(r2);
-  // v275: ตั้ง/ลด HP มอนสเตอร์ (host) — ช่วยเคสศึกยากเกิน (เลือกมอนที่ยังอยู่ในศึก · hp 0 = ออกจากศึก) · อยู่ในชุดกู้ภัย (เบต้าเห็นด้วย)
+  // v275/v277: ตั้ง/ลด HP มอนสเตอร์ (host) — เปลี่ยนได้หลายครั้ง (ช่วยกู้บั๊ก) · เลือกมอนที่ยังอยู่ในศึก · hp 0 = ออกจากศึก · อยู่ในชุดกู้ภัย (เบต้าเห็นด้วย)
   const rM=document.createElement('div'); rM.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0';
   const mSel=styleCtl(document.createElement('select')); mSel.style.maxWidth='168px';
-  { const o=document.createElement('option'); o.value=''; o.textContent='— มอนในศึก —'; mSel.appendChild(o); }
-  (async()=>{ try{ const r=await supa.from('combat_state').select('id, cur_hp, monsters(name, max_hp)').eq('campaign_id',campaign.id).eq('active',true);
-    (r.data||[]).forEach(cs=>{ if(!cs.monsters) return; const o=document.createElement('option'); o.value=cs.id; o.textContent=cs.monsters.name+' ('+(cs.cur_hp==null?'?':cs.cur_hp)+'/'+(cs.monsters.max_hp==null?'?':cs.monsters.max_hp)+')'; mSel.appendChild(o); }); }catch(e){} })();
+  async function _fillMonSel(){
+    const prev=mSel.value; mSel.innerHTML='';
+    { const o=document.createElement('option'); o.value=''; o.textContent='— มอนในศึก —'; mSel.appendChild(o); }
+    try{ const r=await supa.from('combat_state').select('id, cur_hp, monsters(name, max_hp)').eq('campaign_id',campaign.id).eq('active',true);
+      (r.data||[]).forEach(cs=>{ if(!cs.monsters) return; const o=document.createElement('option'); o.value=cs.id; o.textContent=cs.monsters.name+' ('+(cs.cur_hp==null?'?':cs.cur_hp)+'/'+(cs.monsters.max_hp==null?'?':cs.monsters.max_hp)+')'; mSel.appendChild(o); });
+      if(prev && Array.prototype.some.call(mSel.options,o=>o.value===prev)) mSel.value=prev;   // คงตัวเลือกเดิมถ้ามอนยังอยู่
+    }catch(e){}
+  }
+  _fillMonSel();
   const mHpIn=styleCtl(document.createElement('input')); mHpIn.type='number'; mHpIn.min='0'; mHpIn.placeholder='HP'; mHpIn.style.width='52px';
   const mBtn=styleCtl(document.createElement('button')); mBtn.className='btn sm'; mBtn.textContent='ตั้ง HP มอน';
+  const mRef=styleCtl(document.createElement('button')); mRef.className='btn ghost sm'; mRef.textContent='↻'; mRef.title='รีเฟรชรายชื่อ/HP มอน'; mRef.onclick=()=>{ _fillMonSel(); };
   mBtn.onclick=async()=>{
     if(!mSel.value){ toast('เลือกมอนในศึกก่อน',true); return; }
     const hp=parseInt(mHpIn.value,10); if(!Number.isFinite(hp)){ toast('ใส่ตัวเลข HP',true); return; }
@@ -3757,11 +3788,11 @@ function buildDmToolsCard(withFrame){
     mBtn.disabled=true;
     try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
       const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,set_mon_hp:{cs_id:mSel.value,hp}})});
-      const j=await r.json(); if(j.error) toast(j.error,true); else { toast(j.name+' → '+j.hp+(j.max!=null?'/'+j.max:'')+(j.dead?' (ออกจากศึก)':'')+' ✓'); try{ if(typeof scheduleBattleScene==='function') scheduleBattleScene(); if(typeof refreshCombatTurn==='function') refreshCombatTurn(); }catch(e){} return; }
+      const j=await r.json(); if(j.error) toast(j.error,true); else { toast(j.name+' → '+j.hp+(j.max!=null?'/'+j.max:'')+(j.dead?' (ออกจากศึก)':'')+' ✓'); try{ if(typeof scheduleBattleScene==='function') scheduleBattleScene(); if(typeof refreshCombatTurn==='function') refreshCombatTurn(); }catch(e){} try{ await _fillMonSel(); }catch(e){} }
     }catch(e){ toast('ไม่สำเร็จ',true); }
-    mBtn.disabled=false;
+    mBtn.disabled=false;   // v277: re-enable เสมอ (เดิม return ตอนสำเร็จ → ปุ่มค้าง disabled = เปลี่ยนได้ครั้งเดียว)
   };
-  rM.appendChild(mSel); rM.appendChild(mHpIn); rM.appendChild(mBtn); tools.appendChild(rM);
+  rM.appendChild(mSel); rM.appendChild(mHpIn); rM.appendChild(mBtn); rM.appendChild(mRef); tools.appendChild(rM);
   // v211 BETA: เบต้าเทสเตอร์เหลือเฉพาะ 'ชุดกู้ภัย' (ตั้ง HP + จบการต่อสู้) — ซ่อนปุ่มปรับแต่งทั้งหมด
   //   เหตุผล: (1) host หน้าใหม่กดมั่ว (2) ทุกโลกเบต้าต้องรันค่า default เดียวกัน รายงานบั๊กถึงเทียบกันได้
   if(BETA) return tools;
