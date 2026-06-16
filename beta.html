@@ -285,14 +285,14 @@ body.ui-min #worldClock{display:none!important;}
 @media (max-width:560px){ .grid2{gap:0 12px;} }
 
 @media (max-width:600px){
-  .hd{padding:6px 8px;gap:5px;flex-wrap:nowrap;align-items:center;overflow:hidden;}   /* มือถือ: ทุกอย่างบรรทัดเดียว */
+  .hd{padding:6px 8px;gap:5px;flex-wrap:wrap;align-items:center;}   /* v272: มือถือ — ให้ปุ่ม action wrap ลงแถวสองได้ (เดิม nowrap+overflow:hidden ดันปุ่ม End/Leave/Logout หลุดขอบขวา กดไม่ได้) */
   .hd .logo{width:24px;height:24px;font-size:12px;flex-shrink:0;}
   .hd .ttl{flex:1 1 auto;min-width:24px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .hd .who{display:none;}
   .hd .code{font-size:12px;padding:3px 6px;letter-spacing:.5px;flex-shrink:0;}   /* โชว์รหัสเชิญบนมือถือแบบกะทัดรัด */
   .hd .dot{margin-left:0;flex-shrink:0;}
-  .hd-actions{width:auto;margin-left:auto;flex-shrink:0;gap:4px;}
-  .hd-actions .btn,.hd .btn.sm{padding:4px 6px;font-size:9.5px;letter-spacing:0;}
+  .hd-actions{width:100%;margin-left:0;flex-wrap:wrap;justify-content:flex-end;gap:4px;}   /* v272: แถวปุ่มเต็มกว้าง wrap ได้ — ปุ่มออก/ล้างโลก (End World/Leave) + Logout เข้าถึงได้บนมือถือ */
+  .hd-actions .btn,.hd .btn.sm{padding:6px 9px;font-size:10.5px;letter-spacing:0;}   /* v272: ปุ่มใหญ่ขึ้นเล็กน้อยให้กดง่ายบนทัช */
   .center{padding:14px 11px 110px;justify-content:flex-start;-webkit-overflow-scrolling:touch;}
   .card{padding:16px 14px;}
   .card h2{font-size:16px;}
@@ -1488,10 +1488,10 @@ const DEFAULT_MUSIC={
   village:[{url:_mu('village.mp3')}],
 };
 // v228: ระดับเสียงผู้เล่น (base line 50%) + เลือกหมวดเอง (override ชนะ auto รวมถึงฉากรบ) — จำใน localStorage
-let musicVol=0.5, musicOverride='', _curGain=1;
+let musicVol=0.5, musicOverride='', _curGain=1, _fadeTimer=null;   /* v271 L3: handle ของ fade interval — track ไว้ยกเลิกได้ */
 try{ const v=parseFloat(localStorage.getItem('ttrpg_music_vol')); if(Number.isFinite(v)) musicVol=Math.max(0,Math.min(1,v)); }catch(e){}
 try{ musicOverride=localStorage.getItem('ttrpg_music_mood')||''; }catch(e){}
-function setMusicVol(v){ musicVol=Math.max(0,Math.min(1,(+v||0)/100)); try{localStorage.setItem('ttrpg_music_vol',String(musicVol));}catch(e){} if(mAudio){ try{mAudio.volume=Math.max(0,Math.min(1,_curGain*musicVol));}catch(e){} } }
+function setMusicVol(v){ musicVol=Math.max(0,Math.min(1,(+v||0)/100)); try{localStorage.setItem('ttrpg_music_vol',String(musicVol));}catch(e){} if(_fadeTimer){ try{clearInterval(_fadeTimer);}catch(e){} _fadeTimer=null; }   /* v271 L3: หยุด fade ที่กำลังรัน ให้ค่า slider ติดทันที (เดิม fade เขียนทับ volume กลับค่าเก่า = สไลเดอร์ค้าง) */ if(mAudio){ try{mAudio.volume=Math.max(0,Math.min(1,_curGain*musicVol));}catch(e){} } }
 function setMusicMood(m){ musicOverride=String(m||''); try{localStorage.setItem('ttrpg_music_mood',musicOverride);}catch(e){} curMood=null; if(musicOn) _moodNow(); }
 function getAudioEl(){ if(!mAudio){ mAudio=new Audio(); mAudio.preload='auto'; } return mAudio; }
 async function loadMusicLibrary(){
@@ -1581,7 +1581,7 @@ function playMood(mood){
   if(pr&&pr.then){ pr.then(function(){_musicBlocked=false;}).catch(_flagBlocked); } else if(pr&&pr.catch){ pr.catch(_flagBlocked); }
   fadeInEl(el, target, 600);
 }
-function fadeInEl(a,target,ms){ try{a.volume=0;}catch(e){return;} const steps=12,dt=ms/steps; let i=0; const t=setInterval(()=>{ i++; try{a.volume=Math.min(target,target*i/steps);}catch(e){} if(i>=steps) clearInterval(t); },dt); }
+function fadeInEl(a,target,ms){ try{a.volume=0;}catch(e){return;} if(_fadeTimer){ try{clearInterval(_fadeTimer);}catch(e){} _fadeTimer=null; }   /* v271 L3: ล้าง fade เดิมก่อน (กัน interval ซ้อนแย่งคุม volume กระตุก) */ const steps=12,dt=ms/steps; let i=0; _fadeTimer=setInterval(()=>{ i++; try{a.volume=Math.min(target,target*i/steps);}catch(e){} if(i>=steps){ clearInterval(_fadeTimer); _fadeTimer=null; } },dt); }
 // ไอคอนพิกเซลสีสำหรับ HUD
 const ICONS={date:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#f5b942" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="1" height="1"/><rect x="1" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="7" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="0" y="6" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/><rect x="7" y="6" width="1" height="1"/></svg>',time:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#5ad7e0" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="0" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/></svg>',weather:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#cfd6e6" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="7" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="7" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/></svg>',moon:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#e9e6a8" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/></svg>',season:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#7ad17a" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="0" width="1" height="1"/><rect x="6" y="0" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="0" y="6" width="1" height="1"/></svg>',loc:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#ff6b6b" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/></svg>'};
 // เหรียญ pixel (gold/silver/copper)
@@ -2046,7 +2046,8 @@ async function createCharacter(){
       notes:$('cNotes').value.trim()
     };
     persistCombatStats(sheet, classValue());
-    await supa.from('character_sheets').insert({ character_id:ch.id, sheet });
+    const { error: _shErr } = await supa.from('character_sheets').insert({ character_id:ch.id, sheet });   // v271 L5: เช็ค error (เดิมไม่เช็ค → ถ้า insert ล้ม ได้ตัวละครไม่มีชีทเงียบๆ)
+    if(_shErr) throw _shErr;
     // ความสามารถเริ่มต้นตามคลาส → แท็บ Skills (ไม่พังถ้าตาราง skills ยังไม่ได้ migrate)
     try{
       const ck=classKey(); const feats=ck?CLASS_FEATURES[ck]:null;
@@ -2147,13 +2148,16 @@ function notifyMyTurn(){
 // ───────── render: story ─────────
 // ── v164: การ์ดโหวตเส้นทางปาร์ตี้ — DM เปิดผ่าน party_vote · server นับผล · เสมอ = DM ตัดสินตาม urgency ──
 async function castVote(i, finish){
+  let _voteOk=false;   // v271 L4: ติดตามผลส่งจริง (เดิม toast สำเร็จเสมอแม้ส่งล้ม + ขาด ?. ทำ throw ตอน session null)
   try{
-    const tok=(await supa.auth.getSession()).data.session.access_token;
-    await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify(Object.assign({campaign_id:campaign.id, vote_cast:i}, finish?{finish:true}:{}))});
-  }catch(e){}
+    const tok=(await supa.auth.getSession()).data.session?.access_token;
+    if(!tok) throw new Error('no session');
+    const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify(Object.assign({campaign_id:campaign.id, vote_cast:i}, finish?{finish:true}:{}))});
+    _voteOk=r.ok;
+  }catch(e){ _voteOk=false; }
   try{ const r=await supa.from('campaign_state').select('*').eq('campaign_id',campaign.id).maybeSingle(); if(!r.error&&r.data){ worldState=r.data; cacheSave('state',worldState); } }catch(e){}
   try{ renderVoteCard(); }catch(e){}
-  try{ toast('ส่งโหวตแล้ว ✓'); }catch(e){}
+  try{ toast(_voteOk?'ส่งโหวตแล้ว ✓':'ส่งโหวตไม่สำเร็จ ลองใหม่อีกครั้ง', !_voteOk); }catch(e){}
 }
 function renderVoteCard(){
   var host=$('narrFeed'); if(!host||!host.parentNode) return;
@@ -3121,7 +3125,7 @@ async function renderMe(){
   if(eff.length) eff.forEach(e=>{ const dir=(e.kind==='debuff'||e.kind==='down')?'down':'up'; h+=`<div class="fx ${dir}"><span class="ar"></span><b>${esc(e.name||'')}</b> ${esc(e.desc||'')} <span class="dur">${esc(e.dur||'')}</span></div>`; });
   else h+='<div class="note">No active effects</div>';
   h+='<div class="sectitle" style="margin-top:10px">CONDITIONS</div>';
-  h+= conds.length? '<div class="chips">'+conds.map(c=>`<span class="chip cond">${esc(c)}</span>`).join('')+'</div>' : '<div class="note">Normal</div>';
+  { const _cpc=conds.map(prettyCond).filter(Boolean); h+= _cpc.length? '<div class="chips">'+_cpc.map(c=>`<span class="chip cond">${esc(c)}</span>`).join('')+'</div>' : '<div class="note">Normal</div>'; }
   const resA=res.resist||[], immA=res.immune||[], vulA=res.vulnerable||[];
   if(resA.length||immA.length||vulA.length){
     h+='<div class="sectitle" style="margin-top:10px">RESISTANCES</div><div class="chips">'+
@@ -3199,7 +3203,7 @@ async function renderParty(){
     const ps=c.public_status||{};
     const hp=ps.hp?` · HP ${escapeHtml(String(ps.hp))}`:'';
     const conds=Array.isArray(ps.conditions)?ps.conditions:[];
-    const chips=conds.length?'<div class="chips" style="margin-top:5px">'+conds.map(x=>`<span class="chip cond">${escapeHtml(String(x))}</span>`).join('')+'</div>':'';
+    const _cpc=conds.map(prettyCond).filter(Boolean); const chips=_cpc.length?'<div class="chips" style="margin-top:5px">'+_cpc.map(x=>`<span class="chip cond">${escapeHtml(x)}</span>`).join('')+'</div>':'';
     const info=document.createElement('div'); info.style.flex='1';
     info.innerHTML=`<div class="nm">${escapeHtml(c.name)}${mine?' <span class="muted" style="font-size:13px">(คุณ)</span>':''}${c.is_companion?' <span class="chip" style="background:#1d3a5f;color:#9ad;border-color:#9ad">⚔ เพื่อนร่วมทาง</span>':''}${(c.public_status&&c.public_status.wildshape)?' <span class="chip" style="background:#2d5f3a;color:#9fe0a0;border-color:#9fe0a0"><span style="display:inline-block;width:12px;height:12px;vertical-align:-2px;margin-right:3px">'+beastIconSvg(c.public_status.wildshape)+'</span>'+escapeHtml(c.public_status.wildshape)+'</span>':''}</div><div class="sub">${escapeHtml(c.class||'-')} · Lv.${c.level}${hp}</div>`+chips;
     // P1: บรรทัดสถานะออนไลน์ (จากกิจกรรมล่าสุดจริง)
@@ -3407,7 +3411,7 @@ async function renderItems(){
     addBtn.onclick=async()=>{
       const nm=addIn.value.trim(); if(!nm){ toast('ใส่ชื่อไอเท็มก่อน',true); return; }
       try{ const sh={...(mySheet||{})}; sh.inventory=Array.isArray(sh.inventory)?sh.inventory.slice():[]; sh.inventory.push({name:nm.slice(0,80),qty:1});
-        await _saveSheet(sh, mySheet); addIn.value=''; toast('เพิ่ม "'+nm+'" ลงกระเป๋าแล้ว'+(equipSlotFor(nm)?' — กด สวมใส่ ได้เลย':'')); renderItems();
+        await _saveSheet(sh, mySheetUpdatedAt); addIn.value='';   /* v271 H5: ส่ง updated_at (timestamp) ไม่ใช่ object mySheet — เดิม object ทำ optimistic-lock ไม่ match = เพิ่มไอเท็มล้มทุกครั้ง */ toast('เพิ่ม "'+nm+'" ลงกระเป๋าแล้ว'+(equipSlotFor(nm)?' — กด สวมใส่ ได้เลย':'')); renderItems();
       }catch(e){ toast('เพิ่มไม่สำเร็จ',true); }
     };
     addRow.appendChild(addIn); addRow.appendChild(addBtn); bag.appendChild(addRow);
@@ -3608,7 +3612,7 @@ async function renderInitiativeTracker(p){
     let hpTxt='';
     if(isParty){ const c=characters.find(x=>x.id===e.character_id); const hp=(c&&c.public_status&&c.public_status.hp)||''; hpTxt=hp?` · HP ${hp}`:''; }
     else { const cs=csMap[e.combat_state_id]; if(cs){ const mx=cs.monsters&&cs.monsters.max_hp; hpTxt=` · HP ${cs.cur_hp}${mx?'/'+mx:''}`; } }
-    const conds=(Array.isArray(e.conditions)&&e.conditions.length)?' ['+e.conditions.map(escapeHtml).join(',')+']':'';
+    const _cpc=(Array.isArray(e.conditions)?e.conditions:[]).map(prettyCond).filter(Boolean); const conds=_cpc.length?' ['+_cpc.map(escapeHtml).join(',')+']':'';
     const mine=isParty&&myChar&&e.character_id===myChar.id;
     const row=document.createElement('div');
     row.style.cssText='display:flex;align-items:center;gap:8px;padding:5px 8px;border:2px solid '+(isParty?'#5cc8ff':'#ff6b6b')+';border-radius:6px;'+(mine?'box-shadow:0 0 0 2px #000,0 0 0 4px #5cc8ff;':'');
@@ -4011,7 +4015,7 @@ async function renderBattleInitLog(initEl, logEl){
       if(isParty){ const c=characters.find(x=>x.id===e.character_id); const hp=(c&&c.public_status&&c.public_status.hp)||''; hpTxt=hp; if(/^\d+\/\d+/.test(String(hp))){ const m=String(hp).split('/'); pct=Math.max(0,Math.min(1,(+m[0])/(+m[1]||1))); } }
       else { const cs=csMap[e.combat_state_id]; if(cs){ const mx=cs.monsters&&cs.monsters.max_hp; hpTxt=cs.cur_hp+(mx?('/'+mx):''); if(mx) pct=Math.max(0,Math.min(1,cs.cur_hp/mx)); } }
       const mine=isParty&&myChar&&e.character_id===myChar.id; const col=isParty?'#5cc8ff':'#ff6b6b';
-      const conds=(Array.isArray(e.conditions)&&e.conditions.length)?(' ['+e.conditions.map(escapeHtml).join(',')+']'):'';
+      const _cpc=(Array.isArray(e.conditions)?e.conditions:[]).map(prettyCond).filter(Boolean); const conds=_cpc.length?(' ['+_cpc.map(escapeHtml).join(',')+']'):'';
       const row=document.createElement('div'); row.className='bs-initrow'+(mine?' me':'');
       row.innerHTML='<span class="bs-ini">'+(e.initiative==null?'?':e.initiative)+'</span><span class="bs-iname" style="color:'+col+'">'+escapeHtml(e.display_name)+(mine?' (คุณ)':'')+(conds?('<span class="muted" style="font-size:11px">'+escapeHtml(conds)+'</span>'):'')+'</span><span class="bs-ihp">'+escapeHtml(hpTxt||'')+'</span>';
       _frag.appendChild(row);
@@ -5092,7 +5096,7 @@ function subscribeRealtime(){
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_messages',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ const row=payload.new; if(row&&row.id&&!chatMsgs.some(m=>m.id===row.id)){ chatMsgs.push(row); if(chatMsgs.length>300) chatMsgs=chatMsgs.slice(-300); cacheSave('chat',chatMsgs); } if(_bsShown){ try{ renderBattleChat(); }catch(e){} } if(activeTab()==='party'){ renderChatList(); } else if(row && row.user_id!==me.id){ const t=document.querySelector('.tab[data-tab="party"]'); if(t) t.classList.add('blink'); if(_bsShown){ const mb=document.querySelector('#bsMobBar button[data-sheet="chat"]'); if(mb) mb.classList.add('blink'); } } })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'chronicles',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='chron'){ renderChronicle(); } else { const t=document.querySelector('.tab[data-tab="chron"]'); if(t) t.classList.add('blink'); } })
     .on('postgres_changes',{event:'*',schema:'public',table:'music_tracks',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadMusicLibrary(); if(activeTab()==='files') renderFiles(); })
-    .on('postgres_changes',{event:'*',schema:'public',table:'combat_encounters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await refreshCombatTurn(); scheduleBattleScene(); if(activeTab()==='story') renderRoundbar(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'combat_encounters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await updateCombatBadge(); await refreshCombatTurn(); scheduleBattleScene(); if(activeTab()==='story') renderRoundbar(); })   /* v271 H4: refresh _combatActive จาก realtime (กันโหมด input คอมแบต/เรื่อง desync ตอนคนอื่นเปิด/ปิดศึก) */
     .on('postgres_changes',{event:'*',schema:'public',table:'initiative_entries',filter:'campaign_id=eq.'+campaign.id}, async()=>{ scheduleBattleScene(); })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'combat_log',filter:'campaign_id=eq.'+campaign.id}, async()=>{ scheduleBattleScene(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'battle_grids',filter:'campaign_id=eq.'+campaign.id}, async()=>{ scheduleBattleScene(); })
@@ -5112,6 +5116,7 @@ async function resyncAll(force){
   if(typeof campaign==='undefined' || !campaign || !campaign.id) return;
   try{
     await Promise.all([loadRound(), loadNarrative(), loadCharacters(), loadState()]);
+    if(typeof updateCombatBadge==='function'){ try{ await updateCombatBadge(); }catch(e){} }   /* v271 H4: poll/visibility/online ดึง _combatActive ใหม่ (กัน input-mode ค้างหลังศึกจบ) */
     if(typeof refreshCombatTurn==='function'){ try{ await refreshCombatTurn(); }catch(e){} }
     if(typeof scheduleBattleScene==='function'){ try{ scheduleBattleScene(); }catch(e){} }
     rtLastSyncTs=Date.now();
@@ -5142,6 +5147,15 @@ function startRtFallback(){
 }
 function activeTab(){ return document.querySelector('.tab.active')?.dataset.tab; }
 function escapeHtml(s){ return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+// v272: แปลง condition tag (rage:347 · paralyzed:save:wis:13 · legres_used:N) → ป้ายอ่านง่าย ให้ทั้งทีมเห็นสถานะชัด ('' = ซ่อน ตัวนับภายใน)
+function prettyCond(c){
+  const s=String(c||'').trim(); const low=s.toLowerCase();
+  if(low.startsWith('rage')||/เกรี้ยว|คลั่ง/.test(low)) return '🔥 Rage';
+  if(low.startsWith('legres_used')||low.startsWith('se:')) return '';
+  const base=low.split(':')[0];
+  const M={paralyzed:'อัมพาต',frightened:'หวาดกลัว',charmed:'ถูกสะกด',poisoned:'ติดพิษ',stunned:'มึนงง',prone:'ล้มลง',restrained:'ถูกรวบรัด',grappled:'ถูกจับ',blinded:'ตาบอด',unconscious:'หมดสติ',hidden:'🫥 ซ่อนตัว',invisible:'ล่องหน',bardic:'🎵 Bardic',inspiration:'✨ Inspiration',shillelagh:'Shillelagh',helped:'ได้รับการช่วย',disadvantage:'เสียเปรียบ',surprised:'ไม่ทันตั้งตัว',petrified:'กลายเป็นหิน',deafened:'หูหนวก',readied:'เตรียมท่า',concentration:'🧠 สมาธิ'};
+  return M[base]||s.split(':')[0];
+}
 
 /* ============================================================
    COMBAT COMMAND UI (DQ-style structured turn picker) — Phase 1
