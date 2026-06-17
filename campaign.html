@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="dark">
 <title>TTRPG Campaign</title>
+<!-- v281: standalone PWA — "เพิ่มลงหน้าจอหลัก" แล้วเปิดจากไอคอน = แอปแยก storage ถาวร (กัน iOS Safari ITP ลบ session ทุก 7 วัน → ล็อกอินค้างจริง) -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TTRPG">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
@@ -933,6 +938,7 @@ body.in-battle .bs-cs-btn{display:block;}
   <div class="card">
     <h2>Sign In</h2>
     <p class="sub">ใส่อีเมลแล้วกด "ส่ง" — <b>บนคอม</b> คลิกลิงก์ในเมล · <b>บนมือถือ</b> พิมพ์รหัส 6 หลักจากเมลด้านล่าง (ไม่ต้องสลับเบราเซอร์ → session ค้างให้ ไม่ต้องล็อกอินใหม่ทุกครั้ง)</p>
+    <p class="note" id="loginHint" style="color:#f59; font-weight:600"></p>
     <label class="fld hidden" id="anonFld">Supabase Anon/Publishable Key
       <input type="password" id="anonKey" placeholder="eyJ... or sb_publishable_..."/>
     </label>
@@ -1169,9 +1175,30 @@ function show(id){['authScreen','lobbyScreen','charScreen'].forEach(s=>$(s).clas
   let anon = SUPA_ANON || localStorage.getItem('gSupaAnon')||'';
   if(!anon){ $('anonFld').classList.remove('hidden'); }   // ถ้ายังไม่ได้ฮาร์ดโค้ด/เคยตั้ง ค่อยขอกรอก
   else { initClient(anon); }
+  try{ const _le=localStorage.getItem('lastEmail'); const _ef=$('email'); if(_le&&_ef&&!_ef.value) _ef.value=_le; }catch(e){}   // v281: จำอีเมลล่าสุด — ไม่ต้องพิมพ์ใหม่ทุกครั้ง
+  _loginPersistHints();   // v281: เตือนถ้าเบราว์เซอร์ไม่เก็บ session (in-app browser / โหมดส่วนตัว = หลุดทุกครั้ง)
   // ถ้ามี key แล้ว เช็ค session (รวมถึง magic-link ที่เพิ่งกลับมา)
   if(supa){ await afterAuthChange(); }
 })();
+
+// ── v281: ช่วยให้ "ล้อกอินค้าง" บนมือถือ — config persist/refresh ถูกแล้ว แต่ session หลุดเพราะเบราว์เซอร์ล้าง storage ──
+//   2 สาเหตุหลัก: (1) เปิดในเบราว์เซอร์ภายในแอป (Line/FB/เมล) = storage แยกกล่อง/ถูกทิ้งทุกครั้ง · (2) โหมดส่วนตัว = storage ไม่ติด
+function _loginPersistHints(){
+  try{
+    try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist(); }catch(e){}   // v281: ขอ storage ถาวร (กัน Safari ITP 7 วัน/Chrome evict ล้าง session)
+    let storageOk=true;
+    try{ localStorage.setItem('_pt','1'); storageOk=(localStorage.getItem('_pt')==='1'); localStorage.removeItem('_pt'); }catch(e){ storageOk=false; }
+    const ua=(navigator.userAgent||'');
+    const inApp=/(Line\/|FBAN|FBAV|FB_IAB|Instagram|Messenger|MicroMessenger|GSA\/|; wv\)|TikTok|Twitter)/i.test(ua);
+    const isMobile=/Android|iPhone|iPad|iPod/i.test(ua);
+    const standalone=(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||window.navigator.standalone===true;
+    let warn='', col='#f59';
+    if(!storageOk) warn='⚠️ เบราว์เซอร์นี้ไม่เก็บข้อมูล (โหมดไม่ระบุตัวตน/ปิด storage) — ต้องล็อกอินใหม่ทุกครั้ง · ปิดโหมดส่วนตัวแล้วเปิดใหม่ จะล็อกอินค้างให้';
+    else if(inApp) warn='⚠️ คุณเปิดเกมในเบราว์เซอร์ภายในแอป (Line/Facebook/เมล ฯลฯ) — session จะหลุดทุกครั้ง · แตะเมนู ⋮/⋯ มุมจอ → "เปิดในเบราว์เซอร์" (Chrome/Safari) แล้ว "เพิ่มลงหน้าจอหลัก" จะล็อกอินค้างถาวร';
+    else if(isMobile && !standalone){ warn='💡 อยากให้ล็อกอินค้างถาวร (ไม่ต้องล็อกอินใหม่ทุกครั้ง): บน iPhone แตะปุ่มแชร์ ⬆️ → "เพิ่มลงในหน้าจอโฮม" · บน Android แตะเมนู ⋮ → "เพิ่มลงในหน้าจอหลัก" แล้วเปิดเกมจากไอคอนนั้นเสมอ — ล็อกอินครั้งเดียวค้างถาวร (เปิดในแท็บเบราว์เซอร์ปกติ iOS จะลบ session ทุก ~7 วัน)'; col='#7cf'; }
+    const el=$('loginHint'); if(el){ el.textContent=warn; el.style.color=col; }
+  }catch(e){}
+}
 
 function initClient(anon){
   try{ supa = window.supabase.createClient(SUPA_URL, anon, {auth:{detectSessionInUrl:true,persistSession:true,autoRefreshToken:true,flowType:'implicit'}});   /* v276: flowType implicit — magic-link token มาใน URL hash ตรงๆ (ไม่ต้องใช้ PKCE code-verifier ในเบราเซอร์เดียวกัน) → มือถือคลิกลิงก์จากแอปเมล/เบราเซอร์อื่นแล้ว session ติด+persist (กันบังคับ login ใหม่ทุกครั้ง ช่วงใช้ publishable key + supabase-js v2 ใหม่ที่ default PKCE) */
@@ -1209,6 +1236,7 @@ async function sendMagicLink(){
     const { error } = await supa.auth.signInWithOtp({ email, options:{ emailRedirectTo: location.href.split('#')[0] } });
     if(error) throw error;
     _otpEmail = email;
+    try{ localStorage.setItem('lastEmail', email); }catch(e){}   // v281: จำอีเมล
     try{ $('otpBox').classList.remove('hidden'); const _f=$('otpCode'); if(_f) _f.focus(); }catch(e){}
     $('authNote').textContent='✅ ส่งอีเมลไปที่ '+email+' แล้ว — คอม: คลิกลิงก์ในเมล · มือถือ: พิมพ์รหัส 6 หลักจากเมลด้านล่างแล้วกด "ยืนยันรหัส"';
   }catch(e){ toast(e.message||'ส่งอีเมลไม่สำเร็จ',true); }
@@ -1225,6 +1253,7 @@ async function verifyCode(){
   try{ let { error } = await supa.auth.verifyOtp({ email, token: code, type: 'email' });
     if(error){ const _r2=await supa.auth.verifyOtp({ email, token: code, type: 'magiclink' }); error=_r2.error; }   // เผื่อ type ต่าง (code vs link)
     if(error) throw error;
+    try{ localStorage.setItem('lastEmail', email); }catch(e){}   // v281: จำอีเมล
     await afterAuthChange();
   }catch(e){ toast(e.message||'รหัสไม่ถูกต้อง/หมดอายุ — ขอใหม่ได้',true); }
   finally{ if(vb) vb.disabled=false; }
