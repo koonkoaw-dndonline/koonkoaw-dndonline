@@ -2342,6 +2342,22 @@ function persOptsWidget(){
   try{ if(window._persOpts && curRound && window._persOpts.rid===curRound.id && Array.isArray(window._persOpts.list)) renderList(window._persOpts.list); }catch(e){}
   return pw;
 }
+// v287: ผู้เล่นกด "ไปต่อ" หลังอ่านบทปิดท้ายศึก → server เพิ่ม done · ครบทุกคน (หรือ host force) → finalize → VICTORY
+async function submitVictoryAck(force){
+  try{
+    var sess=(await supa.auth.getSession()).data.session; var tok=sess&&sess.access_token;
+    var r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id, victory_ack:true, force:!!force})});
+    var j=await r.json();
+    if(j.error){ toast(j.error,true); return; }
+    // reload worldState (victory_ack.done อัปเดต หรือถูกเคลียร์เมื่อ finalized)
+    try{ var rs=await supa.from('campaign_state').select('*').eq('campaign_id',campaign.id).maybeSingle(); if(!rs.error&&rs.data){ worldState=rs.data; cacheSave('state',worldState); } }catch(e){}
+    if(j.status==='victory_finalized'){ toast('🏆 ชัยชนะ!'); try{ await loadState(); }catch(e){} }
+    else if(j.status==='no_victory_pending'){ /* จบไปแล้ว */ }
+    else toast('✓ พร้อมแล้ว ('+(j.done||0)+'/'+(j.total||0)+')');
+    try{ await renderRoundbar(); }catch(e){}
+    try{ scheduleBattleScene(); }catch(e){}
+  }catch(e){ toast('ส่งไม่สำเร็จ ลองใหม่',true); }
+}
 async function renderRoundbar(){
   const myseq=++roundbarSeq;            // กัน render ซ้อน (ต้นเหตุกล่องตอบซ้ำ)
   const bar=$('roundbar');
@@ -2370,6 +2386,24 @@ async function renderRoundbar(){
     bar.innerHTML='';
     if(isHost){ const b=document.createElement('button'); b.className='btn'; b.textContent='▶ Start First Scene'; b.disabled=resolving; b.onclick=startFirstScene; bar.appendChild(b); }
     else bar.innerHTML='<div class="statusline">Waiting for the host to start the first scene…</div>';
+    return;
+  }
+  // v287: ปิดศึก — บทปิดท้าย DM + ทุกคนกด "ไปต่อ" ก่อนหน้าจอ VICTORY (โชว์ทั้งฉากรบ[bsCmdWrap]และฟีดเนื้อเรื่อง — renderRoundbar ใช้ร่วมกัน)
+  var _va=(worldState&&worldState.settings&&worldState.settings.victory_ack)||null;
+  if(_va&&_va.active){
+    bar.innerHTML='';
+    var _done=Array.isArray(_va.done)?_va.done:[];
+    var _tot=_va.total||(characters.filter(function(c){return !c.is_companion&&c.controller!=='left';}).length||1);
+    var _mineAck=myChar&&_done.indexOf(myChar.id)>=0;
+    var w=document.createElement('div'); w.className='note'; w.style.cssText='text-align:left;padding:9px 8px;line-height:1.6;border:1px solid rgba(250,199,117,0.5);border-radius:8px;background:rgba(250,199,117,0.06)';
+    w.innerHTML='🏆 <b>การต่อสู้สิ้นสุดลง</b><br><span class="muted">อ่านบทปิดท้ายของ DM ด้านบน แล้วกด <b>ไปต่อ</b> เพื่อไปยังหน้าจอชัยชนะพร้อมกัน</span><br>พร้อมแล้ว <b>'+_done.length+'/'+_tot+'</b> คน';
+    bar.appendChild(w);
+    if(_mineAck){
+      var d=document.createElement('div'); d.className='note'; d.style.cssText='padding:6px 4px;color:#7fd17f;font-weight:600'; d.textContent='✓ คุณพร้อมแล้ว — รอเพื่อนอีก '+Math.max(0,_tot-_done.length)+' คน'; bar.appendChild(d);
+    } else if(myChar){
+      var bGo=document.createElement('button'); bGo.className='btn'; bGo.style.marginTop='6px'; bGo.textContent='✓ ไปต่อ (อ่านจบแล้ว)'; bGo.disabled=!!resolving; bGo.onclick=function(){ submitVictoryAck(false); }; bar.appendChild(bGo);
+    }
+    if(isHost){ var fSk=document.createElement('button'); fSk.className='btn warn sm'; fSk.style.marginTop='8px'; fSk.textContent='⚡ ข้ามรอทุกคน → VICTORY'; fSk.onclick=function(){ submitVictoryAck(true); }; bar.appendChild(fSk); }
     return;
   }
   if(curRound.phase==='resolving'){ bar.innerHTML='<div class="statusline"><span class="pill wait">DM is resolving…</span></div>'; return; }
@@ -3196,6 +3230,14 @@ async function renderMe(){
   notes.innerHTML='<div class="sectitle" style="margin-top:0">NOTES (private)</div>';
   const ta=document.createElement('textarea'); ta.id='meNotes'; ta.value=sheet.notes||''; notes.appendChild(ta);
   it4.appendChild(notes);
+  // v288: รอยแผลถาวร (canon จากการรอด TPK) — read-only เครื่องเตือนความพ่ายแพ้
+  if(Array.isArray(sheet.scars) && sheet.scars.length){
+    const sc=document.createElement('div'); sc.style.cssText='margin-top:10px';
+    sc.innerHTML='<div class="sectitle" style="margin-top:0;color:#d98a8a">🩸 รอยแผลถาวร (SCARS)</div>'+
+      '<ul style="margin:4px 0 0;padding-left:18px;font-size:14px;line-height:1.5;color:#c9a9a9">'+
+      sheet.scars.map(function(s){return '<li>'+escapeHtml(String(s))+'</li>';}).join('')+'</ul>';
+    it4.appendChild(sc);
+  }
   const save=document.createElement('button'); save.className='btn sm'; save.textContent='Save Sheet';
   save.onclick=async()=>{ sheet.notes=$('meNotes').value; await supa.from('character_sheets').update({sheet,updated_at:new Date().toISOString()}).eq('character_id',myChar.id); try{ localStorage.setItem('ttrpg_bg_'+campaign.id, sheet.notes||''); }catch(e){} toast('Saved ✓'); };
   it4.appendChild(save); p.appendChild(it4);
@@ -3939,7 +3981,8 @@ async function syncBattleScene(){
     // encounter active แต่ไม่มีศัตรูมีชีวิต = คอมแบตจบ/ค้าง → ถือว่าไม่ใช่คอมแบต (กันค้างในฉากสู้ว่างเปล่า)
     if(enc) livingEnemies=((r2&&r2.data)||[]).filter(x=>x.cur_hp==null||x.cur_hp>0).length;
   }catch(e){}
-  let active = (!!enc && livingEnemies>0) || !!window._combatActive || !!moveMode;   // อย่าออกจากฉากระหว่างเลือกช่องเดิน · ออกถ้า encounter ไม่มีศัตรูมีชีวิต
+  var _vaActive = !!(worldState&&worldState.settings&&worldState.settings.victory_ack&&worldState.settings.victory_ack.active);   // v287
+  let active = (!!enc && livingEnemies>0) || !!window._combatActive || !!moveMode || _vaActive;   // อย่าออกจากฉากระหว่างเลือกช่องเดิน · ออกถ้า encounter ไม่มีศัตรูมีชีวิต · v287: ค้างระหว่างบทปิดท้าย (victory_ack) จนกด "ไปต่อ" ครบ → VICTORY
   // ผู้เล่นใหม่ที่ยังไม่มีตัวละคร: ห้ามดูดเข้าฉากรบ — ให้อยู่หน้าสร้างตัวละครก่อน (ระบบไม่รอเทิร์นเขาอยู่แล้ว)
   if(typeof myChar==='undefined' || !myChar) active=false;
   if(active){
@@ -3958,17 +4001,19 @@ var _bsExiting=false;
 async function exitBattleSceneWithOutro(){
   if(_bsExiting) return; _bsExiting=true;
   try{
-    var won=true;   // ผลศึกจาก log ล่าสุด: TPK/ปาร์ตี้ล้ม = แพ้, นอกนั้น = ชนะ
+    var outcome='win';   // ผลศึกจาก log ล่าสุด: รอด(TPK survival) / แพ้(TPK) / ชนะ
     try{
-      var r=await supa.from('combat_log').select('summary').eq('campaign_id',campaign.id).order('seq',{ascending:false}).limit(3);
-      if(/TPK|ปาร์ตี้ล้ม/i.test((r.data||[]).map(function(x){return x.summary||'';}).join(' '))) won=false;
+      var r=await supa.from('combat_log').select('summary').eq('campaign_id',campaign.id).order('seq',{ascending:false}).limit(4);
+      var _txt=(r.data||[]).map(function(x){return x.summary||'';}).join(' ');
+      if(/รอดมาได้|รอดจากความพ่ายแพ้|รอดแบบหวุดหวิด/i.test(_txt)) outcome='survive';   // v288 TPK survival (เช็คก่อน — marker มีคำว่า "ปาร์ตี้ล้ม" ด้วย)
+      else if(/TPK|ปาร์ตี้ล้ม/i.test(_txt)) outcome='lose';
     }catch(e){}
     var el=document.getElementById('battleScene'), f=document.getElementById('bsFlash');
     if(el && el.classList.contains('on') && f){
       var tx=f.querySelector('.bsf-txt');
-      if(tx) tx.textContent = won ? '🏆 VICTORY!' : '💀 DEFEAT…';
+      if(tx) tx.textContent = outcome==='survive' ? '🩸 รอดมาได้!' : outcome==='lose' ? '💀 DEFEAT…' : '🏆 VICTORY!';
       f.classList.remove('go','go-win','go-lose'); void f.offsetWidth;
-      f.classList.add(won?'go-win':'go-lose');
+      f.classList.add(outcome==='win'?'go-win':'go-lose');   // รอด/แพ้ = สไตล์หม่น (go-lose)
       await new Promise(function(res){ setTimeout(res, 2450); });
     }
   }catch(e){}
