@@ -947,8 +947,8 @@ body.in-battle .bs-cs-btn{display:block;}
     </label>
     <button class="btn" id="loginBtn" onclick="sendMagicLink()">ส่งอีเมลเข้าสู่ระบบ</button>
     <p class="note" id="authNote"></p>
-    <div id="otpBox" class="hidden" style="margin-top:8px">
-      <label class="fld">รหัส 6 หลักจากอีเมล (สำหรับมือถือ)
+    <div id="otpBox" style="margin-top:8px">
+      <label class="fld">📱 มือถือ: พิมพ์รหัส 6 หลักจากอีเมล (หลังกด "ส่งอีเมล" ด้านบน) แล้วกด "ยืนยันรหัส" — คอม: คลิกลิงก์ในเมลแทนได้
         <input type="text" id="otpCode" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="พิมพ์รหัส 6 หลัก"/>
       </label>
       <button class="btn" id="verifyBtn" onclick="verifyCode()" style="margin-top:6px">ยืนยันรหัส</button>
