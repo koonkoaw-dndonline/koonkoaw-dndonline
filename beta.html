@@ -964,7 +964,6 @@ body.in-battle .bs-cs-btn{display:block;}
     <label class="fld">Campaign name<input type="text" id="newName" placeholder="e.g. Legend of Eldraria"/></label>
     <label class="fld">Rules / tone (optional)<textarea id="newRules" placeholder="พิมพ์กติกา/โทนของโลก เช่น &quot;high fantasy, ความรุนแรงต่ำ, เน้นไขปริศนามากกว่าบู๊&quot; — หรือปล่อยว่างให้ DM ใช้กลไกมาตรฐาน (ลอร์เฉพาะโลกใส่ทีหลังด้วยเครื่องมือ ingest)"></textarea></label>
     <div class="srow2" style="gap:8px">
-      <label class="fld">จังหวะเรื่อง (Pace)<select id="newPace" style="background:#000;color:#fff;border:2px solid #fff;font-family:inherit;font-size:15px;padding:4px 6px"><option value="">— ปกติ (สมดุล) —</option><option value="brisk">เร่ง / บู๊รัว (เดินเรื่องเร็ว)</option><option value="normal">ปกติ (สมดุล)</option><option value="slow">เนิบ (เน้น roleplay)</option></select></label>
       <label class="fld">โทนเรื่อง (Tone)<input type="text" id="newTone" placeholder="เช่น heroic, dark, mystery, comedic"/></label>
     </div>
     <!-- (ตัดช่องอัปไฟล์กฎ/อ้างอิงออก — กลไก DM อยู่ในโค้ดกลางแล้ว; ลอร์เฉพาะโลกใช้เครื่องมือ ingest แทน เพื่อไม่ให้ทุกรอบเสีย token/หน่วงเวลา) -->
@@ -1325,8 +1324,8 @@ async function createCampaign(){
     const { data, error } = await supa.rpc('create_campaign', BETA&&betaCode() ? { p_name:name, p_rules:combined, p_beta_code:betaCode() } : { p_name:name, p_rules:combined });
     if(error) throw error;
     campaign = Array.isArray(data)?data[0]:data;
-    const _pace=(($('newPace')||{}).value||'').trim(), _tone=(($('newTone')||{}).value||'').trim();
-    if(_pace||_tone){ try{ await supa.from('campaigns').update({pace:_pace||null, tone:_tone||null}).eq('id',campaign.id); campaign.pace=_pace; campaign.tone=_tone; }catch(e){} }
+    const _tone=(($('newTone')||{}).value||'').trim();   // v296: ถอด pace ออก — บลูพรินท์คุมจังหวะ
+    if(_tone){ try{ await supa.from('campaigns').update({tone:_tone||null}).eq('id',campaign.id); campaign.tone=_tone; }catch(e){} }
     // จัดทำดัชนีกฎเข้า RAG (แยกหมวดตามชื่อไฟล์) → DM ดึงเฉพาะที่จำเป็นต่อโหมดฉาก ประหยัด token
     const rf=$('rulesFiles');
     if(rf && rf.files && rf.files.length){
@@ -3910,22 +3909,7 @@ function buildDmToolsCard(withFrame){
   // v211 BETA: เบต้าเทสเตอร์เหลือเฉพาะ 'ชุดกู้ภัย' (ตั้ง HP + จบการต่อสู้) — ซ่อนปุ่มปรับแต่งทั้งหมด
   //   เหตุผล: (1) host หน้าใหม่กดมั่ว (2) ทุกโลกเบต้าต้องรันค่า default เดียวกัน รายงานบั๊กถึงเทียบกันได้
   if(BETA) return tools;
-  // v39: ปรับ pace การเล่าเรื่องกลางแคมเปญ (มีผลรอบถัดไปทันที)
-  const r3=document.createElement('div'); r3.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px';
-  const pLbl=document.createElement('span'); pLbl.style.cssText=DMF+';color:#9a9a9a'; pLbl.textContent='Pace การเล่า:';
-  const pSel=styleCtl(document.createElement('select'));
-  [['slow','Slow life — เนิบ เน้น roleplay'],['balanced','Balanced — สมดุล'],['brisk','Brisk — เร่งเรื่อง กระชับ']].forEach(([v,t])=>{ const o=document.createElement('option'); o.value=v; o.textContent=t; pSel.appendChild(o); });
-  if(campaign.pace) pSel.value=campaign.pace;
-  const pBtn=styleCtl(document.createElement('button')); pBtn.className='btn sm'; pBtn.textContent='ตั้ง pace';
-  pBtn.onclick=async()=>{
-    pBtn.disabled=true;
-    try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
-      const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,set_pace:pSel.value})});
-      const j=await r.json(); if(j.error) toast(j.error,true); else { campaign.pace=j.pace; toast('pace → '+j.pace+' ✓ (มีผลรอบถัดไป)'); }
-    }catch(e){ toast('ไม่สำเร็จ',true); }
-    pBtn.disabled=false;
-  };
-  r3.appendChild(pLbl); r3.appendChild(pSel); r3.appendChild(pBtn); tools.appendChild(r3);
+  // v296: ถอด pace control ออกจาก DM TOOLS — บลูพรินท์/ผู้กำกับลับคุมจังหวะเรื่องแทนแล้ว (เดิม v39 set_pace)
   // v88: สไตล์การเล่าของ DM — preset 3 แบบ ทับซ้อนบน base DanMachi (มีผลรอบถัดไป)
   const r3s=document.createElement('div'); r3s.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px';
   const sLbl=document.createElement('span'); sLbl.style.cssText=DMF+';color:#9a9a9a'; sLbl.textContent='สไตล์ DM:';
@@ -5370,7 +5354,12 @@ async function prepCommandContext(){
     const _am=_fin?Math.max(_mod('str'),_mod('dex')):_mod('str');
     const _dd=(_wi&&_wi.damage_dice)||'1d6';
     const _sg=n=>(n>=0?'+'+n:''+n);
-    const _rangeFt=(_wi&&+_wi.range_ft)||0;   // v295: >0 = อาวุธยิง/ขว้าง (มีระยะ) · 0 = melee
+    // v296 fix: range_ft ในคลังเป็น string "20/60"/"80/320" (ไม่ใช่ตัวเลข — +range_ft=NaN) → ดึงเลขแรก
+    //   เฉพาะอาวุธ "ยิงแท้" (มี property ammunition: ธนู/หน้าไม้/สลิง) จึงใช้ระยะยิง · อาวุธ thrown (หอก/มีด/ขวาน) ยังนับ melee
+    //   (ค่าเริ่มต้นของ Attack = แทง/ฟันประชิด — ขว้างเป็นเคสพิเศษ ไม่ควรทำให้เป้าไกลกดได้)
+    const _isRanged=_wi&&Array.isArray(_wi.properties)&&_wi.properties.some(x=>/ammunition/i.test(x));
+    const _rm=String((_wi&&_wi.range_ft)||'').match(/\d+/);
+    const _rangeFt=(_isRanged&&_rm)?(+_rm[0]):0;   // ยิงแท้ = ระยะปกติ (ฟุต) · melee/thrown = 0 (ใช้ reach)
     const _reachFt=(_wi&&Array.isArray(_wi.properties)&&_wi.properties.some(x=>/reach/i.test(x)))?10:5;   // อาวุธด้ามยาว = เอื้อม 10ft
     ctx.attack={ name:_wn||'อาวุธ', line:`1d20${_sg(_prof+_am)} atk, ${_dd}${_sg(_am)} dmg`, range_ft:_rangeFt, reach_ft:_reachFt };
   }catch(e){ ctx.attack={name:'อาวุธ',line:'1d20 atk',range_ft:0,reach_ft:5}; }
