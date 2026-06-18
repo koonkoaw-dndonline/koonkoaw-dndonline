@@ -1170,8 +1170,27 @@ function show(id){['authScreen','lobbyScreen','charScreen'].forEach(s=>$(s).clas
   if(id==='campaign'){$('tabs').classList.remove('hidden');switchTab('story'); if(!window._uiInit){ window._uiInit=1; try{ if(matchMedia('(max-width:1023px)').matches){ document.body.classList.add('ui-min'); const _t=document.getElementById('uiToggle'); if(_t)_t.textContent='›'; } }catch(e){} } }
   else{$(id).classList.remove('hidden');}}
 
+// ───────── storage hygiene (v300): กัน localStorage เต็มโควต้า (~5MB) → supabase-js เขียน sb-*-auth-token ไม่ได้ = session ไม่ persist = หลุด login ทุกรีเฟรช ─────────
+//   ตัวการเดิม: cache catalog (itemcat ~138KB) ต่อแคมเปญ × หลายโลก + cache แคมเปญเก่าไม่เคยล้าง → เต็ม 5MB
+function ensureStorageHeadroom(){
+  try{
+    let total=0; for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); total += (localStorage.getItem(k)||'').length + (k?k.length:0); }
+    if(total < 3600000) return;   // < ~3.5MB = เหลือที่ให้ auth token พอ
+    const rm=[]; for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k && /^ttrpg_(c|cat|chron|bg)_/.test(k)) rm.push(k); }   // เคลียร์เฉพาะ cache แอป (disposable · ดึงใหม่จาก DB ได้) — ไม่แตะ sb-*-auth-token/lastEmail/betaCode/ttrpg_music*
+    rm.forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} });
+  }catch(e){}
+}
+function pruneOtherCampaignCache(curId){
+  try{
+    if(!curId) return; const cur=String(curId).toLowerCase(); const rm=[];
+    for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(!k||!k.startsWith('ttrpg_')||/^ttrpg_cat_/.test(k)) continue;   // เก็บ global catalog ไว้
+      const m=k.match(/([0-9a-f-]{36})$/i); if(m && m[1].toLowerCase()!==cur) rm.push(k); }   // cache ต่อแคมเปญของแคมเปญ 'อื่น' → ลบ (เก็บเฉพาะปัจจุบัน)
+    rm.forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} });
+  }catch(e){}
+}
 // ───────── init ─────────
 (async function init(){
+  ensureStorageHeadroom();   // v300: เคลียร์ก่อนแตะ auth — กันหลุด login เพราะ storage เต็ม
   let anon = SUPA_ANON || localStorage.getItem('gSupaAnon')||'';
   if(!anon){ $('anonFld').classList.remove('hidden'); }   // ถ้ายังไม่ได้ฮาร์ดโค้ด/เคยตั้ง ค่อยขอกรอก
   else { initClient(anon); }
@@ -1279,6 +1298,7 @@ async function loadMyCampaign(){
   const active = (mem||[]).map(m=>m.campaigns).filter(c=>c && c.status==='active');
   if(!active.length){ show('lobbyScreen'); return; }
   campaign = active[0];
+  pruneOtherCampaignCache(campaign.id);   // v300: ล้าง cache แคมเปญอื่น (กัน localStorage โตจนเต็ม = หลุด login)
   await enterCampaign();
 }
 
@@ -1454,8 +1474,32 @@ async function updateCombatBadge(){
 }
 // ───────── local cache (โหลดไว + ดูย้อนหลังตอนเน็ตหลุด — DB ยังเป็นตัวหลัก) ─────────
 function cacheKey(kind){ return 'ttrpg_c_'+kind+'_'+((campaign&&campaign.id)||'x'); }
-function cacheSave(kind,data){ try{ localStorage.setItem(cacheKey(kind), JSON.stringify(data)); }catch(e){} }
+// v301 (long-term): เพดานงบ cache แอป — เขียนทุกครั้งคุมไม่ให้ ttrpg_(c|cat|chron|bg)_* รวมเกิน CACHE_BUDGET
+//   ราก: localStorage มีโควต้า ~5MB และ 'แชร์' กับ sb-*-auth-token ของ Supabase → cache โตเกินไป = เขียน auth ไม่ได้ = login พัง
+//   เพดานนี้การันตี cache แอป ≤ 2.5MB เสมอ → เหลือ ≥2.5MB ให้ auth/อื่น → เต็มจนหลุด login 'ไม่ได้อีก' ไม่ว่ามีกี่โลก/โลกใหญ่แค่ไหน
+var CACHE_BUDGET = 2500000;
+function _ttrpgCacheBytes(){ let t=0; try{ for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k&&/^ttrpg_(c|cat|chron|bg)_/.test(k)) t+=(localStorage.getItem(k)||'').length+k.length; } }catch(e){} return t; }
+function _evictCacheFor(need){
+  try{
+    const cur=((campaign&&campaign.id)||'').toLowerCase(); const items=[];
+    for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(!k||!/^ttrpg_(c|cat|chron|bg)_/.test(k)) continue;
+      const m=k.match(/([0-9a-f-]{36})$/i); items.push({k, sz:(localStorage.getItem(k)||'').length+k.length, other: !!(m&&m[1].toLowerCase()!==cur)}); }
+    items.sort((a,b)=> a.other===b.other ? b.sz-a.sz : (a.other?-1:1));   // เขี่ยโลกอื่นก่อน · ก้อนใหญ่ก่อน · เก็บโลกปัจจุบันไว้ท้ายสุด
+    let total=_ttrpgCacheBytes();
+    for(const it of items){ if(total+need <= CACHE_BUDGET) break; try{ localStorage.removeItem(it.k); total-=it.sz; }catch(e){} }
+  }catch(e){}
+}
+function _cacheSet(key,value){
+  try{ value=String(value); const need=key.length+value.length;
+    if(_ttrpgCacheBytes()+need > CACHE_BUDGET) _evictCacheFor(need);
+    localStorage.setItem(key,value);
+  }catch(e){ try{ _evictCacheFor(key.length+String(value).length); localStorage.setItem(key,value); }catch(_e){} }   // quota → evict+retry (กันเขียนล้มเงียบทิ้ง storage เต็มค้าง)
+}
+function cacheSave(kind,data){ _cacheSet(cacheKey(kind), JSON.stringify(data)); }
 function cacheLoad(kind){ try{ const s=localStorage.getItem(cacheKey(kind)); return s?JSON.parse(s):null; }catch(e){ return null; } }
+// v300: catalog (item/class/spell/skill) = ค่าเดียวกันทุกแคมเปญ → cache แบบ global ครั้งเดียว (เดิม per-campaign = itemcat 138KB × N โลก = localStorage เต็ม → หลุด login)
+function _catSet(kind,data){ _cacheSet('ttrpg_cat_'+kind, JSON.stringify(data)); }
+function _catGet(kind){ try{ const s=localStorage.getItem('ttrpg_cat_'+kind); return s?JSON.parse(s):null; }catch(e){ return null; } }
 // เติม global จาก cache ทันที (ก่อน DB ตอบ) → UI ขึ้นไว
 function hydrateCache(){
   const m=cacheLoad('members'); if(m) members=m;
@@ -1498,7 +1542,7 @@ async function loadNarrative(){
     .order('created_at',{ascending:false}).limit(NARR_WINDOW);
     if(error) throw error; const rows=(data||[]); narrMore = rows.length>=NARR_WINDOW; narrative = rows.slice().reverse(); cacheSave('narrative',narrative);
   }catch(e){ const c=cacheLoad('narrative'); if(c) narrative=c; }
-  try{ localStorage.setItem('ttrpg_chron_'+campaign.id, JSON.stringify(narrative.map(n=>n.content))); }catch(e){}
+  _cacheSet('ttrpg_chron_'+campaign.id, JSON.stringify(narrative.map(n=>n.content)));   // v301: ผ่านงบ cache
 }
 async function loadOlderNarrative(){
   if(!narrative.length) return;
@@ -1849,13 +1893,13 @@ async function loadCatalogs(){
       supa.from('spell_catalog').select('slug,name,level,school,classes,casting_time,range_,components,duration,concentration,ritual,save,damage,effect,area_shape,area_size'),
       supa.from('skill_catalog').select('slug,name,classes,level,max_uses,recharge,effect')
     ]);
-    if(!ic.error&&ic.data){ ITEM_CAT={}; ic.data.forEach(r=>ITEM_CAT[r.slug]=r); cacheSave('itemcat',ic.data); }
-    if(!cc.error&&cc.data){ CLASS_CAT={}; cc.data.forEach(r=>CLASS_CAT[r.slug]=r); cacheSave('classcat',cc.data); }
-    if(!sc.error&&sc.data){ SPELL_CAT=sc.data; cacheSave('spellcat',sc.data); }
-    if(!kc.error&&kc.data){ SKILL_CAT=kc.data; cacheSave('skillcat',kc.data); }
+    if(!ic.error&&ic.data){ ITEM_CAT={}; ic.data.forEach(r=>ITEM_CAT[r.slug]=r); _catSet('itemcat',ic.data); }
+    if(!cc.error&&cc.data){ CLASS_CAT={}; cc.data.forEach(r=>CLASS_CAT[r.slug]=r); _catSet('classcat',cc.data); }
+    if(!sc.error&&sc.data){ SPELL_CAT=sc.data; _catSet('spellcat',sc.data); }
+    if(!kc.error&&kc.data){ SKILL_CAT=kc.data; _catSet('skillcat',kc.data); }
     if(!ic.error&&ic.data&&ic.data.length) _catLoaded=true;
   }catch(e){}
-  if(!_catLoaded){ const i=cacheLoad('itemcat'),c=cacheLoad('classcat'); if(i){ITEM_CAT={};i.forEach(r=>ITEM_CAT[r.slug]=r);} if(c){CLASS_CAT={};c.forEach(r=>CLASS_CAT[r.slug]=r);} const sp=cacheLoad('spellcat'); if(sp) SPELL_CAT=sp; const kp=cacheLoad('skillcat'); if(kp) SKILL_CAT=kp; }
+  if(!_catLoaded){ const i=_catGet('itemcat'),c=_catGet('classcat'); if(i){ITEM_CAT={};i.forEach(r=>ITEM_CAT[r.slug]=r);} if(c){CLASS_CAT={};c.forEach(r=>CLASS_CAT[r.slug]=r);} const sp=_catGet('spellcat'); if(sp) SPELL_CAT=sp; const kp=_catGet('skillcat'); if(kp) SKILL_CAT=kp; }
   buildItemIndex();
 }
 function pkgItemNames(pk){ return (pk.items||[]).map(it=>{ const ci=ITEM_CAT[it.slug]; const nm=ci?ci.name:it.slug; return nm+(it.qty>1?(' x'+it.qty):''); }).join(', '); }
@@ -2132,7 +2176,7 @@ async function createCharacter(){
       const _seen={}; const _uniq=rows.filter(r=>{ const k=(r.name||'').toLowerCase(); if(_seen[k]) return false; _seen[k]=1; return true; });
       if(_uniq.length) await supa.from('skills').insert(_uniq);
     }catch(e){}
-    try{ localStorage.setItem('ttrpg_bg_'+campaign.id, sheet.notes||''); }catch(e){}
+    _cacheSet('ttrpg_bg_'+campaign.id, sheet.notes||'');
     myChar=ch; mySheet=sheet; await refreshAll(); show('campaign'); switchTab('story');
   }catch(e){ toast(e.message||'Failed to create character',true); }
   finally{ $('charBtn').disabled=false; }
@@ -3256,7 +3300,7 @@ async function renderMe(){
     it4.appendChild(sc);
   }
   const save=document.createElement('button'); save.className='btn sm'; save.textContent='Save Sheet';
-  save.onclick=async()=>{ sheet.notes=$('meNotes').value; await supa.from('character_sheets').update({sheet,updated_at:new Date().toISOString()}).eq('character_id',myChar.id); try{ localStorage.setItem('ttrpg_bg_'+campaign.id, sheet.notes||''); }catch(e){} toast('Saved ✓'); };
+  save.onclick=async()=>{ sheet.notes=$('meNotes').value; await supa.from('character_sheets').update({sheet,updated_at:new Date().toISOString()}).eq('character_id',myChar.id); _cacheSet('ttrpg_bg_'+campaign.id, sheet.notes||''); toast('Saved ✓'); };
   it4.appendChild(save); p.appendChild(it4);
 
   // PORTRAIT (รูปตัวละคร — เห็นได้ทุกคน) · desktop=บนซ้าย (order:-1) · mobile=ล่างสุด
