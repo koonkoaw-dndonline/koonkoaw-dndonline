@@ -1002,6 +1002,7 @@ body.in-battle .bs-cs-btn{display:block;}
     </div>
     <input type="text" id="cRaceCustom" class="hidden" placeholder="ชื่อเผ่านอกกฎ เช่น Aarakocra" style="margin:6px 0"/>
     <div id="cRaceInfo" class="note hidden" style="text-align:left;border-left:3px solid #5B8DEF;padding:4px 8px;margin:2px 0 6px"></div>
+    <div id="cDragonElem" class="hidden" style="text-align:left;margin:2px 0 6px;font-size:13px">ธาตุสายมังกร (Dragonborn): <select id="cDragonElemSel" onchange="dragonbornElement=this.value" style="margin-left:4px"><option value="fire">ไฟ Fire (แดง/ทอง/ทองเหลือง)</option><option value="cold">เย็น Cold (ขาว/เงิน)</option><option value="lightning">ไฟฟ้า Lightning (น้ำเงิน/บรอนซ์)</option><option value="acid">กรด Acid (ดำ/ทองแดง)</option><option value="poison">พิษ Poison (เขียว)</option></select> <span class="muted" style="font-size:12px">— ใช้กับลมหายใจ + ความต้านทาน</span></div>
     <datalist id="raceList">
       <option value="Human"></option><option value="Elf"></option><option value="Dwarf"></option>
       <option value="Halfling"></option><option value="Half-Elf"></option><option value="Half-Orc"></option>
@@ -1746,6 +1747,7 @@ function abBonusMap(){
   const m={str:0,dex:0,con:0,int:0,wis:0,cha:0};
   if(bonusMode==='2-1'){ if(bonusPick.a) m[bonusPick.a]+=2; if(bonusPick.b&&bonusPick.b!==bonusPick.a) m[bonusPick.b]+=1; }
   else { const seen=[bonusPick.a,bonusPick.b,bonusPick.c]; seen.forEach((k,i)=>{ if(k&&seen.indexOf(k)===i) m[k]+=1; }); }
+  if(raceKey()==='human' && bonusPick.a) m[bonusPick.a]+=1;   // v291 Human (ข): +1 ค่าสถานะพิเศษ (เพิ่มที่ช่องแรก)
   return m;
 }
 function finalAb(k){ return Math.min(17, pb[k]+(abBonusMap()[k]||0)); }
@@ -1807,15 +1809,15 @@ const CLASS_TIPS={
   Artificer:'นักประดิษฐ์เวทมนตร์ — สร้างของ จูนอุปกรณ์ ผสมเวทกับเครื่องจักร · สายช่าง/แก้ปัญหา ระดับกลาง',
 };
 const RACE_TIPS={
-  'Human':'มนุษย์ — เก่งเฉลี่ยทุกด้าน เข้ากับทุกอาชีพ · ตัวเลือกปลอดภัยสุดสำหรับมือใหม่',
+  'Human':'มนุษย์ — เก่งเฉลี่ยทุกด้าน: ได้ค่าสถานะเพิ่ม +1 (ช่องแรก) + ทักษะถนัดเพิ่ม +1 + ทอยใหม่ได้ 1 ครั้ง/long rest เมื่อ d20 ออก 1 (โจมตี/เช็ค/เซฟ) · เข้ากับทุกอาชีพ',
   'Elf':'เอลฟ์ — คล่องแคล่ว สายตาเฉียบในความมืด ไม่ต้องนอน (เข้าฌาน) · เข้ากับ Ranger/Rogue/Wizard',
   'Drow (Dark Elf)':'เอลฟ์มืด — มองมืดไกลพิเศษ + เวทติดตัว แต่แพ้แสงจ้า · มีปมชาติกำเนิดให้เล่น',
   'Dwarf':'คนแคระ — อึด ต้านพิษ ถนัดขวาน/ค้อน รู้เรื่องหิน-เหมือง · เข้ากับ Fighter/Cleric',
   'Halfling':'ฮาล์ฟลิง — ตัวเล็กโชคดี (ทอยแย่ทอยใหม่ได้) แอบเก่ง · เข้ากับ Rogue/Bard',
-  'Half-Elf':'ครึ่งเอลฟ์ — เสน่ห์สูง เก่งเข้าสังคม ได้ดีสองโลก · เข้ากับ Bard/Sorcerer/Paladin',
+  'Half-Elf':'ครึ่งเอลฟ์ — เสน่ห์สูง เก่งเข้าสังคม เลือกทักษะถนัดเพิ่ม +2 อย่าง · เข้ากับ Bard/Sorcerer/Paladin',
   'Half-Orc':'ครึ่งออร์ค — แรงเยอะ ล้มยาก (เหลือ 1 HP แทนสลบครั้งแรก) ตีคริแรงพิเศษ · เข้ากับ Barbarian/Fighter',
   'Tiefling':'เลือดปีศาจ — ต้านไฟ + เวทติดตัว เสน่ห์ลึกลับ คนมักหวาดระแวง · เข้ากับ Warlock/Sorcerer',
-  'Dragonborn':'มังกรครึ่งคน — พ่นลมหายใจธาตุได้! ต้านธาตุตามสายเลือด · เข้ากับ Paladin/Fighter',
+  'Dragonborn':'มังกรครึ่งคน — พ่นลมหายใจธาตุได้! ต้านธาตุตามสายเลือด (เลือกธาตุด้านล่าง) · เข้ากับ Paladin/Fighter',
   'Gnome':'โนม — ฉลาดขี้สงสัย ต้านเวทเก่ง ตัวจิ๋ว · เข้ากับ Wizard/Artificer',
   'Aasimar':'ทูตสวรรค์ครึ่งคน — ฮีลสัมผัส + ออร่าศักดิ์สิทธิ์ ต้านมืด/แสง · เข้ากับ Paladin/Cleric',
   'Goliath':'โกไลแอธ — ยักษ์ภูเขา แบกหนัก ทนหนาว ลดดาเมจที่ได้รับได้ · เข้ากับ Barbarian/Fighter',
@@ -1830,7 +1832,11 @@ function onClassChange(){
   suggestHP(); renderSkillPick(); renderPackages(); renderSpellPick();
 }
 function raceValue(){ const sel=$('cRace'); if(!sel) return ''; return sel.value==='__custom' ? (($('cRaceCustom')||{}).value||'').trim() : (sel.value||'').trim(); }
-function onRaceChange(){ const sel=$('cRace'),cu=$('cRaceCustom'); if(!sel||!cu) return; if(sel.value==='__custom'){ cu.classList.remove('hidden'); cu.focus(); } else { cu.classList.add('hidden'); cu.value=''; } _tipShow('cRaceInfo', RACE_TIPS[sel.value]||''); }
+function onRaceChange(){ const sel=$('cRace'),cu=$('cRaceCustom'); if(!sel||!cu) return; if(sel.value==='__custom'){ cu.classList.remove('hidden'); cu.focus(); } else { cu.classList.add('hidden'); cu.value=''; } _tipShow('cRaceInfo', RACE_TIPS[sel.value]||'');
+  // v291: ตัวเลือกธาตุสายมังกร (Dragonborn) + รีเฟรชสกิล/โบนัส (Human +1 สกิล/+1 ค่าสถานะ · Half-Elf +2 สกิล)
+  const de=$('cDragonElem'); if(de){ if(raceKey()==='dragonborn') de.classList.remove('hidden'); else de.classList.add('hidden'); }
+  try{ renderSkillPick(); renderBonus(); }catch(e){}
+}
 function weaponValue(){ const sel=$('cWeapon'); if(!sel) return ''; return sel.value==='__custom' ? (($('cWeaponCustom')||{}).value||'').trim() : (sel.value||'').trim(); }
 function onWeaponChange(){ const sel=$('cWeapon'),cu=$('cWeaponCustom'); if(!sel||!cu) return; if(sel.value==='__custom'){ cu.classList.remove('hidden'); cu.focus(); } else { cu.classList.add('hidden'); cu.value=''; } }
 // ── คลังไอเทม/คลาส (global catalog จาก DB) — โหลดครั้งเดียว แคชไว้ ──
@@ -1964,8 +1970,10 @@ const CLASS_FEATURES={
 };
 let chosenSkills=[];
 let chosenSpells=[];   // {slug,name,level,effect} ที่เลือกตอนสร้างตัว (สายเวท)
+let dragonbornElement='fire';   // v291: ธาตุสายมังกร (Dragonborn) → sheet.dragonborn_element (resist + Breath Weapon)
 const RACE_FEATURES={
-  human:[{name:'Versatile (Human)',description:'มนุษย์ปรับตัวเก่ง — ค่าสถานะกระจายและทักษะหลากหลายตามพื้นเพ',max_uses:0,recharge:'passive'}],
+  human:[{name:'Versatile (Human)',description:'มนุษย์ปรับตัวเก่ง — ได้ค่าสถานะเพิ่ม +1 และทักษะถนัดเพิ่ม +1 ตอนสร้างตัวละคร',max_uses:0,recharge:'passive'},
+         {name:'Resourceful',description:'ความเก๋าของมนุษย์ — เมื่อ d20 ออก 1 (โจมตี/เช็ค/เซฟ) ทอยใหม่ใช้ผลใหม่ได้ 1 ครั้งต่อ long rest',max_uses:1,recharge:'long'}],
   elf:[{name:'Darkvision',description:'มองเห็นในที่มืดสลัวได้ไกล 60 ฟุต (เป็นโทนสีเทา)',max_uses:0,recharge:'passive'},
        {name:'Fey Ancestry',description:'ได้เปรียบเซฟต้านการสะกดจิต (charm) และเวทมนตร์ทำให้คุณหลับไม่ได้',max_uses:0,recharge:'passive'},
        {name:'Trance',description:'พักผ่อนเต็มที่ด้วยการเข้าภวังค์เพียง 4 ชม. (แทน 8 ชม.)',max_uses:0,recharge:'passive'},
@@ -2009,12 +2017,19 @@ function raceKey(){ const r=(raceValue()||'').toLowerCase(); if(/drow|dark.?elf/
 function classKey(){ const c=(classValue()||'').toLowerCase(); for(const k in CLASS_SKILLS){ if(c.includes(k)) return k; } return null; }
 // เงินเริ่มต้นตาม PHB (class starting wealth, เฉลี่ย gp) — monk = 5d4 gp
 const CLASS_START_GOLD={barbarian:50,bard:125,cleric:125,druid:50,fighter:125,monk:13,paladin:125,ranger:125,rogue:100,sorcerer:75,warlock:100,wizard:100,artificer:125};
-function skillDef(){ const k=classKey(); return k? CLASS_SKILLS[k] : {n:2,list:'ALL'}; }
+function skillDef(){
+  const k=classKey(); const base = k? CLASS_SKILLS[k] : {n:2,list:'ALL'};
+  let n=base.n, list=base.list; const rk=raceKey();
+  if(rk==='human'){ n+=1; list='ALL'; }            // v291 Human (ก): +1 สกิลถนัด เลือกจากทั้งหมด
+  else if(rk==='halfelf'){ n+=2; list='ALL'; }      // v291 Half-Elf Skill Versatility: +2 สกิลถนัด
+  return { n, list };
+}
 function renderSkillPick(){
   const wrap=$('skillWrap'); if(!wrap) return;
   const def=skillDef(); const list=def.list==='ALL'?ALL_SKILLS:def.list;
   chosenSkills=chosenSkills.filter(s=>list.includes(s));
-  const info=$('skillInfo'); if(info) info.textContent=`เลือก ${def.n} สกิล (${chosenSkills.length}/${def.n})`+(classKey()?'':' · คลาสนอกกฎ → เลือกได้ 2 จากทั้งหมด');
+  const rk=raceKey(); const rb = rk==='human'?' (+1 เผ่า Human)':rk==='halfelf'?' (+2 เผ่า Half-Elf)':'';
+  const info=$('skillInfo'); if(info) info.textContent=`เลือก ${def.n} สกิล (${chosenSkills.length}/${def.n})${rb}`+(classKey()?'':' · คลาสนอกกฎ → เลือกได้ 2 จากทั้งหมด');
   wrap.innerHTML=list.map(s=>`<button type="button" class="skbtn${chosenSkills.includes(s)?' on':''}" onclick="toggleSkill('${s}')">${s}</button>`).join('');
 }
 function toggleSkill(s){
@@ -2090,6 +2105,7 @@ async function createCharacter(){
     { const _ck=classKey(); walletp.gp = (selectedPkg && selectedPkg.gold) ? selectedPkg.gold : (CLASS_START_GOLD[_ck]||15); }
     const sheet={
       race:raceValue(), sex:$('cSex').value.trim(), age:$('cAge').value.trim(),
+      dragonborn_element: (raceKey()==='dragonborn') ? dragonbornElement : undefined,   // v291: ธาตุ → resist + Breath Weapon (server ใช้)
       abilities:{ str:finalAb('str'), dex:finalAb('dex'), con:finalAb('con'), int:finalAb('int'), wis:finalAb('wis'), cha:finalAb('cha') },
       skill_proficiencies: chosenSkills.slice(),
       combat:{ hp:maxhp, maxhp:maxhp, hitdice:'' },
@@ -2107,7 +2123,9 @@ async function createCharacter(){
       const rows=[];
       if(feats&&feats.length) feats.forEach((f,i)=>rows.push({campaign_id:campaign.id,character_id:ch.id,name:f.name,description:f.description,max_uses:f.max_uses,used:0,recharge:f.recharge,sort:i}));
       // ความสามารถเฉพาะเผ่า (racial traits: passive/active) → ลง skills เช่นกัน
-      const rk=raceKey(); const rfeats=rk?RACE_FEATURES[rk]:null;
+      const rk=raceKey(); let rfeats=rk?RACE_FEATURES[rk]:null;
+      // v291: Dragonborn → ฝังธาตุที่เลือกในคำอธิบาย (ผู้เล่นเห็นชัด · server ใช้ sheet.dragonborn_element)
+      if(rk==='dragonborn' && rfeats){ const _elTH={fire:'ไฟ',cold:'เย็น',lightning:'ไฟฟ้า',acid:'กรด',poison:'พิษ'}[dragonbornElement]||dragonbornElement; rfeats=rfeats.map(f=>(/breath|resistance|ancestry/i.test(f.name)?{...f,description:f.description+` (ธาตุ: ${_elTH})`}:f)); }
       if(rfeats&&rfeats.length) rfeats.forEach((f,i)=>rows.push({campaign_id:campaign.id,character_id:ch.id,name:f.name,description:f.description,max_uses:f.max_uses,used:0,recharge:f.recharge,sort:50+i}));
       // เวท/cantrip ที่เลือกตอนสร้างตัว → ลง skills (cantrip=at-will ไม่จำกัด · เลเวล1=2 ครั้ง/long rest) → โผล่แท็บ Skills + Command Menu
       chosenSpells.forEach((sp,i)=>rows.push({campaign_id:campaign.id,character_id:ch.id,name:sp.name,description:sp.effect||'',max_uses:sp.level===0?0:2,used:0,recharge:sp.level===0?'atwill':'long',sort:100+i}));
@@ -3630,10 +3648,35 @@ async function renderSkills(){
       const row=document.createElement('div'); row.className='sk-row';
       row.innerHTML=`<button type="button" class="sk-line"><span class="sk-nm">${escapeHtml(s.name)}</span>${uses}<span class="sk-bdg${on?' on':''}">${rechLabel(rech)}</span><span class="sk-arw">▸</span></button><div class="sk-desc">${escapeHtml(s.description||'(ไม่มีคำอธิบาย)')}</div>`;
       row.querySelector('.sk-line').onclick=()=>{ row.classList.toggle('open'); try{tick();}catch(e){} };
+      // v291: ปุ่มใช้ความสามารถ active เผ่า (Breath Weapon/Healing Hands) — server ทอย+คุมเลขทั้งหมด
+      if(/breath|ลมหายใจ|healing hands|มือแห่งการรักษา|สัมผัสเพื่อรักษา/i.test(s.name||'')){
+        const left=(s.max_uses>0)?(s.max_uses-(s.used||0)):1;
+        const ab=document.createElement('button'); ab.type='button'; ab.className='btn sm'; ab.style.cssText='margin:6px 0 2px;display:block';
+        ab.textContent=(left>0?'⚡ ใช้ทันที (server ทอยให้)':'⚡ ใช้ครบแล้ว — รอพักฟื้น'); if(left<=0) ab.disabled=true;
+        ab.onclick=()=>useAbility(s.name, s.description);
+        const desc=row.querySelector('.sk-desc'); if(desc) desc.appendChild(ab);
+      }
       card.appendChild(row);
     });
     p.appendChild(card);
   });
+}
+// v291: ใช้ความสามารถ active เผ่าผ่าน server (Breath Weapon เซฟครึ่งใส่มอน · Healing Hands ฟื้น PC) — server คุมเลขทั้งหมด
+async function useAbility(name, desc){
+  const isHeal=/healing hands|มือ.*รักษา|สัมผัส.*รักษา/i.test(name||'');
+  let target='';
+  if(isHeal){ const t=prompt('Healing Hands — รักษาใคร? (พิมพ์ชื่อตัวละคร · เว้นว่าง = ตัวเอง)',''); if(t===null) return; target=String(t).trim(); }
+  else { if(!confirm('พ่นลมหายใจใส่ศัตรูในศึก? (server ทอยดาเมจ + ให้ศัตรูเซฟครึ่งให้)')) return; }
+  tick();
+  try{
+    const tok=(await supa.auth.getSession()).data.session?.access_token;
+    const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id, use_ability:{name:name, target:target||undefined}})});
+    const j=await r.json();
+    if(j.error){ toast(j.error,true); return; }
+    toast(j.text||'ใช้ความสามารถสำเร็จ ✓');
+    try{ await refreshAll(); }catch(e){} try{ renderSkills(); }catch(e){}
+    try{ resolveRound(false); }catch(e){}   // ให้ DM เล่าผลที่ server เขียนลง combat_log
+  }catch(e){ toast('ใช้ความสามารถไม่สำเร็จ ลองใหม่',true); }
 }
 async function useSkill(id,used,max,name,desc){
   // v186: เลิกหัก used ฝั่ง client — server (skillUseTracker) หักเองตอน resolve ทั้งใน/นอกคอมแบต (จุดเขียนจุดเดียว กันหักซ้ำ)
