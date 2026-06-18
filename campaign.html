@@ -5370,8 +5370,22 @@ async function prepCommandContext(){
     const _am=_fin?Math.max(_mod('str'),_mod('dex')):_mod('str');
     const _dd=(_wi&&_wi.damage_dice)||'1d6';
     const _sg=n=>(n>=0?'+'+n:''+n);
-    ctx.attack={ name:_wn||'อาวุธ', line:`1d20${_sg(_prof+_am)} atk, ${_dd}${_sg(_am)} dmg` };
-  }catch(e){ ctx.attack={name:'อาวุธ',line:'1d20 atk'}; }
+    const _rangeFt=(_wi&&+_wi.range_ft)||0;   // v295: >0 = อาวุธยิง/ขว้าง (มีระยะ) · 0 = melee
+    const _reachFt=(_wi&&Array.isArray(_wi.properties)&&_wi.properties.some(x=>/reach/i.test(x)))?10:5;   // อาวุธด้ามยาว = เอื้อม 10ft
+    ctx.attack={ name:_wn||'อาวุธ', line:`1d20${_sg(_prof+_am)} atk, ${_dd}${_sg(_am)} dmg`, range_ft:_rangeFt, reach_ft:_reachFt };
+  }catch(e){ ctx.attack={name:'อาวุธ',line:'1d20 atk',range_ft:0,reach_ft:5}; }
+  // v295 targetReach: ตำแหน่ง token บนกริด → กรองเป้าหมายตามระยะโจมตีจริง (ผู้เล่น + ศัตรูแต่ละตัว)
+  try{
+    const gr=await supa.from('battle_grids').select('id,cell_ft').eq('campaign_id',campaign.id).eq('active',true).maybeSingle();
+    if(gr.data){
+      ctx.cellFt=gr.data.cell_ft||5;
+      const tk=await supa.from('grid_tokens').select('label,col,row,kind,ref_char_id,ref_combat_state_id').eq('grid_id',gr.data.id);
+      const toks=(tk.data)||[];
+      ctx._myTok=toks.find(t=>myChar&&t.ref_char_id===myChar.id)||null;
+      const byCs={}; toks.forEach(t=>{ if(t.ref_combat_state_id!=null) byCs[t.ref_combat_state_id]=t; });
+      ctx.enemies.forEach(e=>{ const t=byCs[e.id]; if(t){ e.col=+t.col; e.row=+t.row; } });   // enemy.id = combat_state.id ↔ token.ref_combat_state_id
+    }
+  }catch(e){}
   try{ ctx.interactables=(typeof curRound!=='undefined'&&curRound&&curRound.meta&&Array.isArray(curRound.meta.interactables))?curRound.meta.interactables:[]; }catch(e){ ctx.interactables=[]; }
   try{ const _inv=(mySheet&&Array.isArray(mySheet.inventory))?mySheet.inventory:[]; ctx.inventory=_inv.map(function(it){ return {name:(it&&it.name)||String(it||''), qty:(it&&it.qty)||1}; }).filter(function(x){return x.name;}); }catch(e){ ctx.inventory=[]; }
   window.__ccCtx=ctx;
@@ -5426,6 +5440,27 @@ window.cc = (function(){
     } catch(e){}
     if (!out.length) out = [{id:'ally_a', name:'พันธมิตร'}];
     return out;
+  }
+
+  /* ---------- RANGE (v295 targetReach): กรองเป้าหมายตามระยะโจมตีจริงบนกริด (logic เดียวกับ server combat-logic.ts) ---------- */
+  function ccCellFt(){ try{ return (window.__ccCtx&&window.__ccCtx.cellFt)||(window._lastGrid&&window._lastGrid.cell_ft)||5; }catch(e){ return 5; } }
+  function ccMyTok(){ try{ return (window.__ccCtx&&window.__ccCtx._myTok)||null; }catch(e){ return null; } }
+  function ccMoveCells(){ var cf=ccCellFt(); var spd=(character&&character.speed_ft)||30; return Math.floor(spd/cf); }
+  function ccEnemyDistCells(e){ var me=ccMyTok(); if(!me||!e||e.col==null||me.col==null) return null; return Math.max(Math.abs(Math.floor(+e.col)-Math.floor(+me.col)),Math.abs(Math.floor(+e.row)-Math.floor(+me.row))); }
+  // ตีโดน "เทิร์นนี้" ไหม — rangeFt: เอื้อม melee (5/10) หรือ ระยะอาวุธ/เวท · null = ไม่กรอง · ไม่มีตำแหน่ง token = ไม่กรอง (กันบล็อกผิดตอนไม่มีกริด)
+  function ccTargetReach(e, rangeFt){
+    if(rangeFt==null) return {ok:true};
+    var d=ccEnemyDistCells(e); if(d==null) return {ok:true};
+    var cf=ccCellFt();
+    var max=ccMoveCells()+Math.max(1,Math.ceil((rangeFt||0)/cf));   // เดิน + เอื้อม/ระยะ (อย่างน้อย 1 ช่อง)
+    return {ok:d<=max, dist:d, max:max};
+  }
+  // ระยะ (ฟุต) จาก range เวท ('120ft'/'30 feet'/'Touch'/'Self') · null = ไม่รู้ → ไม่กรอง
+  function ccRangeFtFromStr(s){
+    s=String(s||'').toLowerCase();
+    if(s.indexOf('self')>=0||s.indexOf('ตัวเอง')>=0) return 0;
+    if(s.indexOf('touch')>=0||s.indexOf('สัมผัส')>=0) return 5;
+    var m=s.match(/(\d+)\s*(ft|feet|ฟุต)/); return m?(+m[1]):null;
   }
 
   /* ---------- STATE ---------- */
@@ -5530,8 +5565,11 @@ window.cc = (function(){
 
     if(last==='attack'){
       var atk=(window.__ccCtx&&window.__ccCtx.attack)||{name:'อาวุธ',line:'1d20 atk'};
+      var atkRangeFt=(atk.range_ft>0)?atk.range_ft:(atk.reach_ft||5);   // v295: ยิง/ขว้าง = ระยะอาวุธ · melee = เอื้อม (เดิน+1 ช่อง)
       return { items: enemies.map(function(e){
-        return { label: e.name, meta: atk.line, commit:{slot:'action', label:'โจมตี '+e.name+' ('+atk.name+')', dice: atk.line} };
+        var rr=ccTargetReach(e, atkRangeFt);
+        if(rr.ok) return { label: e.name, meta: atk.line, commit:{slot:'action', label:'โจมตี '+e.name+' ('+atk.name+')', dice: atk.line} };
+        return { label: e.name, meta:'⚠ ไกลเกินระยะโจมตี ('+rr.dist+' ช่อง · ตีถึง '+rr.max+') — เดินเข้าใกล้ก่อน', dim:true };
       })};
     }
 
@@ -5589,7 +5627,12 @@ window.cc = (function(){
         opts.push({ label:'เล็งพื้นที่บน Map', meta:'('+spell.target+')', mapPick:true, target:spell.target,
           commit:{slot:slotName, label: spell.name+' ▸ MAP', dice: spell.dice, skillId: spell._skillId||null} });
       } else {
-        enemies.forEach(function(e){ opts.push({ label:e.name, meta:'ศัตรู', commit:{slot:slotName, label: spell.name+' ▸ '+e.name, dice: spell.dice, skillId: spell._skillId||null} }); });
+        var _spRangeFt=ccRangeFtFromStr(spell.range);   // v295: กรองศัตรูที่เกินระยะเวท (เล็งเป้าตัวเดียว)
+        enemies.forEach(function(e){
+          var rr=ccTargetReach(e, _spRangeFt);
+          if(rr.ok){ opts.push({ label:e.name, meta:'ศัตรู', commit:{slot:slotName, label: spell.name+' ▸ '+e.name, dice: spell.dice, skillId: spell._skillId||null} }); }
+          else { opts.push({ label:e.name, meta:'⚠ ไกลเกินระยะเวท ('+rr.dist+' ช่อง · ถึง '+rr.max+')', dim:true }); }
+        });
         opts.push({ label:'ตัวเอง', meta:'พันธมิตร', commit:{slot:slotName, label: spell.name+' ▸ ตัวเอง', dice: spell.dice, skillId: spell._skillId||null} });
         allies.forEach(function(a){ opts.push({ label:a.name, meta:'พันธมิตร', commit:{slot:slotName, label: spell.name+' ▸ '+a.name, dice: spell.dice, skillId: spell._skillId||null} }); });
       }
@@ -5614,6 +5657,10 @@ window.cc = (function(){
       var isHelp = (last==='help_target');
       var tlist = isHelp ? allies.concat(enemies) : enemies;
       return { items: tlist.map(function(t){
+        if(!isHelp){   // v295: Grapple/Shove = melee → ต้องเข้าถึงตัวเป้า (เดิน+เอื้อม 5ft)
+          var rr=ccTargetReach(t, 5);
+          if(!rr.ok) return { label:t.name, meta:'⚠ ไกลเกินระยะ ('+rr.dist+' ช่อง · ถึง '+rr.max+') — เดินเข้าใกล้ก่อน', dim:true };
+        }
         return { label: t.name, mapPick:true, target:'creature',
           commit:{slot:'action',
             label: (isHelp?'Help':'Grapple')+' ▸ '+t.name,
