@@ -3665,6 +3665,48 @@ const _RACE_NAMES=(()=>{const x=new Set();try{Object.values(RACE_FEATURES).forEa
 const _CLASS_FNAMES=(()=>{const x=new Set();try{Object.values(CLASS_FEATURES).forEach(a=>a.forEach(f=>x.add((f.name||'').toLowerCase())));}catch(e){}return x;})();
 function skillCat(s){ const n=(s.name||'').toLowerCase(); if(_RACE_NAMES.has(n)) return 'race'; if(_CLASS_FNAMES.has(n)) return 'class'; return 'spell'; }
 function rechLabel(r){ return ({long:'LONG REST',short:'SHORT REST',atwill:'AT WILL',passive:'PASSIVE'})[r]||String(r||'').toUpperCase(); }
+// v328 Fighting Style picker (Fighter/Paladin/Ranger) — เขียน sheet.fighting_style ให้ server (resolver v328) บังคับโบนัส
+const FIGHTING_STYLE_OPTS=[
+  {id:'', label:'— ยังไม่เลือก —', desc:'เลือกรูปแบบการต่อสู้ของคุณ — server จะบังคับโบนัสให้อัตโนมัติในการรบ'},
+  {id:'archery', label:'Archery (แม่นธนู)', desc:'+2 ค่าโจมตี เมื่อใช้อาวุธยิงไกล (ธนู/หน้าไม้) ✅ บังคับจริง'},
+  {id:'defense', label:'Defense (ตั้งรับ)', desc:'+1 AC ขณะสวมเกราะ ✅ บังคับจริง'},
+  {id:'dueling', label:'Dueling (ดาบเดี่ยว)', desc:'+2 ดาเมจ เมื่อถืออาวุธประชิดมือเดียว ไม่มีอาวุธรอง (มีโล่ได้) ✅ บังคับจริง'},
+  {id:'great-weapon', label:'Great Weapon Fighting (อาวุธสองมือ)', desc:'ทอยซ้ำเต๋าดาเมจอาวุธที่ออก 1-2 ครั้งเดียว (อาวุธสองมือ/versatile) ✅ บังคับจริง'},
+  {id:'two-weapon', label:'Two-Weapon Fighting (อาวุธคู่)', desc:'บวกค่าความสามารถใส่ดาเมจอาวุธมือรอง — ⏳ ยังไม่บังคับ (DM เล่า)'},
+  {id:'protection', label:'Protection (ปกป้อง)', desc:'ใช้โล่บังให้ศัตรูเสียเปรียบเมื่อโจมตีเพื่อนข้างตัว — ⏳ ยังไม่บังคับ (DM เล่า)'},
+];
+function _fsMatch(cur){   // มิเรอร์ server normalizeFightingStyle (combat-logic.ts) — รองรับ id/ชื่ออังกฤษ/ไทย
+  const s=String(cur||'').toLowerCase(); if(!s.trim()) return '';
+  if(/archer|แม่นธนู|ยิงแม่น|ธนูแม่น/.test(s)) return 'archery';
+  if(/great[- ]?weapon|อาวุธหนัก|อาวุธใหญ่|อาวุธสองมือ/.test(s)) return 'great-weapon';
+  if(/two[- ]?weapon|dual|สองอาวุธ|อาวุธคู่|ทวิอาวุธ/.test(s)) return 'two-weapon';
+  if(/duel|ประลอง|ดาบเดี่ยว|อาวุธเดี่ยว/.test(s)) return 'dueling';
+  if(/protection|ปกป้อง|คุ้มกัน/.test(s)) return 'protection';
+  if(/defen[cs]e|ตั้งรับ|ป้องกัน|รับมือ/.test(s)) return 'defense';
+  return '';
+}
+function renderFightingStyleCard(p){
+  const cur=_fsMatch((mySheet||{}).fighting_style);
+  const card=document.createElement('div'); card.className='item'; card.style.cssText='margin-bottom:10px';
+  const optsHtml=FIGHTING_STYLE_OPTS.map(o=>'<option value="'+o.id+'"'+(o.id===cur?' selected':'')+'>'+escapeHtml(o.label)+'</option>').join('');
+  const curDesc=(FIGHTING_STYLE_OPTS.find(o=>o.id===cur)||FIGHTING_STYLE_OPTS[0]).desc;
+  card.innerHTML='<div class="sk-head">รูปแบบการต่อสู้ <span class="en">· FIGHTING STYLE</span></div>'+
+    '<select class="fs-sel" style="width:100%;margin:6px 0;padding:7px;border-radius:8px">'+optsHtml+'</select>'+
+    '<div class="muted fs-desc" style="font-size:.85em;line-height:1.4">'+escapeHtml(curDesc)+'</div>';
+  const sel=card.querySelector('.fs-sel'); const desc=card.querySelector('.fs-desc');
+  sel.onchange=async()=>{
+    const val=sel.value;
+    desc.textContent=(FIGHTING_STYLE_OPTS.find(o=>o.id===val)||FIGHTING_STYLE_OPTS[0]).desc;
+    try{
+      const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle();
+      const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at;
+      if(val) sheet.fighting_style=val; else delete sheet.fighting_style;
+      await _saveSheet(sheet, _prev); tick();
+      toast(val?('ตั้งรูปแบบการต่อสู้: '+(FIGHTING_STYLE_OPTS.find(o=>o.id===val)||{}).label+' ✓'):'ล้างรูปแบบการต่อสู้แล้ว');
+    }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ชีทเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderSkills(); } else toast('บันทึกไม่สำเร็จ ลองใหม่',true); }
+  };
+  p.appendChild(card);
+}
 async function renderSkills(){
   const p=$('panel-skills'); p.innerHTML='';
   if(!myChar){ p.innerHTML='<div class="muted">No character yet</div>'; return; }
@@ -3674,6 +3716,7 @@ async function renderSkills(){
   // v181: การ์ดเตรียมเวทประจำวันอยู่หน้านี้ (ย้ายจากแท็บ Me) — โผล่บนสุดเมื่อถึงกำหนด
   if(needsDailyPrepareFE(myChar.class)){ try{ await renderSpellPreparePanel(p, mySheet||{}); }catch(e){} }
   if(/bard|บาร์ด|กวี|นักดนตรี/i.test(myChar.class||'')){ try{ await renderPerformanceCard(p); }catch(e){} }   // v231: การ์ดเปิดการแสดง (บาร์ด)
+  if(/fighter|paladin|ranger|นักรบ|นักสู้|พาลาดิน|อัศวิน|เรนเจอร์|พราน/i.test(myChar.class||'')){ try{ renderFightingStyleCard(p); }catch(e){} }   // v328: ตัวเลือกรูปแบบการต่อสู้ (Fighter/Paladin/Ranger)
   if(!rows.length){ const m=document.createElement('div'); m.className='muted'; m.innerHTML='ยังไม่มีความสามารถ<br>ความสามารถจะปรากฏหลังสร้างตัวละคร (ตามเผ่า/คลาส) หรือเมื่อ DM มอบให้'; p.appendChild(m); return; }
   const intro=document.createElement('div'); intro.className='note sk-intro'; intro.textContent='แตะที่ชื่อความสามารถเพื่อดูรายละเอียด'; p.appendChild(intro);
   const buckets={class:[],race:[],spell:[]};
