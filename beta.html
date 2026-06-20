@@ -1947,7 +1947,8 @@ function calcAC(sheet, klass){
   const unarmored=!a||/^(none|no armor|unarmored|-|—)$/.test(a)||a.includes('unarmored');
   const ARM={'padded':[11,'light'],'leather':[11,'light'],'studded leather':[12,'light'],'hide':[12,'medium'],'chain shirt':[13,'medium'],'scale mail':[14,'medium'],'breastplate':[14,'medium'],'half plate':[15,'medium'],'ring mail':[14,'heavy'],'chain mail':[16,'heavy'],'splint':[17,'heavy'],'plate':[18,'heavy']};
   const capf=x=>x.replace(/\b\w/g,c=>c.toUpperCase()); let base,label;
-  if(unarmored){ if(cls.includes('barbarian')){base=10+dex+con;label='Unarmored Defense';} else if(cls.includes('monk')){base=10+dex+wis;label='Unarmored Defense';} else {base=10+dex;label='Unarmored';} }
+  const _sub=String(sheet.subclass||'').toLowerCase();   // v335: Draconic Sorc (13+DEX) · Bladesinger (10+DEX+INT) — server เชื่อ AC ที่ frontend bake
+  if(unarmored){ if(cls.includes('barbarian')){base=10+dex+con;label='Unarmored Defense';} else if(cls.includes('monk')){base=10+dex+wis;label='Unarmored Defense';} else if(cls.includes('sorcerer')&&/draconic|มังกร/.test(_sub)){base=13+dex;label='Draconic Resilience';} else if(cls.includes('wizard')&&/bladesing|รำดาบ/.test(_sub)){base=10+dex+md(eAb.int);label='Bladesong';} else {base=10+dex;label='Unarmored';} }
   else { const ci=itemByName(eq.armor);
     if(ci&&ci.category==='armor'&&ci.armor_base!=null){ const b=+ci.armor_base,st=ci.subtype; base=(st==='medium')?b+Math.min(dex,2):(st==='heavy')?b:b+dex; label=ci.name; }
     else { let e=null,key=null; for(const k of Object.keys(ARM).sort((x,y)=>y.length-x.length)){ if(a.includes(k)){e=ARM[k];key=k;break;} } if(!e){base=10+dex;label='?';} else { base=(e[1]==='medium')?e[0]+Math.min(dex,2):(e[1]==='heavy')?e[0]:e[0]+dex; label=capf(key);} } }
@@ -3768,6 +3769,189 @@ function renderHuntersPreyCard(p){
   };
   p.appendChild(card);
 }
+// v335 Subclass picker (Bard/Barbarian/Sorcerer/Wizard/Cleric) — เขียน sheet.subclass (+ sheet.domain_key สำหรับนักบวช) ให้ server (resolver v335) บังคับผล
+// v336: catalog ครบทุกคลาส (id = ชื่อ canonical ตรงกับ server SUBCLASS_FEATURES.name) · ✅=บังคับจริง · ที่เหลือ detection-only (DM เล่าถูกสาย · กลไกตามมา Phase 4)
+const _DM='— DM เล่าถูกสาย (กลไกตามมาภายหลัง)';
+const SUBCLASS_OPTS={
+  bard:{minLevel:3, opts:[
+    {id:'', label:'— ยังไม่เลือก —', desc:'เลือก College (Bard เลเวล 3)'},
+    {id:'College of Eloquence', label:'College of Eloquence (วาทศิลป์)', desc:'Silver Tongue: เช็คโน้มน้าว/หลอกล่อ ทอย d20 ขั้นต่ำ 10 เสมอ ✅ บังคับจริง'},
+    {id:'College of Valor', label:'College of Valor (วีรกรรม)', desc:'Extra Attack เลเวล 6 — โจมตี 2 ครั้ง/เทิร์น ✅ บังคับจริง'},
+    {id:'College of Swords', label:'College of Swords (วิถีดาบ)', desc:'Extra Attack เลเวล 6 — โจมตี 2 ครั้ง/เทิร์น ✅ บังคับจริง'},
+    {id:'College of Lore', label:'College of Lore (ปราชญ์)', desc:'Cutting Words · '+_DM},
+    {id:'College of Glamour', label:'College of Glamour (เสน่ห์มารยา)', desc:_DM},
+    {id:'College of Whispers', label:'College of Whispers (เสียงกระซิบ)', desc:_DM},
+    {id:'College of Creation', label:'College of Creation (รังสรรค์)', desc:_DM},
+    {id:'College of Spirits', label:'College of Spirits (วิญญาณนิทาน)', desc:_DM},
+  ]},
+  barbarian:{minLevel:3, opts:[
+    {id:'', label:'— ยังไม่เลือก —', desc:'เลือก Primal Path (Barbarian เลเวล 3)'},
+    {id:'Path of the Totem Warrior (Bear)', label:'Totem Warrior — Bear (โทเท็มหมี)', desc:'ขณะ Rage ต้านทานดาเมจทุกชนิดยกเว้น psychic ✅ บังคับจริง'},
+    {id:'Path of the Berserker', label:'Berserker (คลั่งสงคราม)', desc:_DM},
+    {id:'Path of the Ancestral Guardian', label:'Ancestral Guardian (บรรพชน)', desc:_DM},
+    {id:'Path of the Storm Herald', label:'Storm Herald (ผู้นำพายุ)', desc:_DM},
+    {id:'Path of the Zealot', label:'Zealot (คลั่งศรัทธา)', desc:_DM},
+    {id:'Path of the Beast', label:'Beast (ร่างอสูร)', desc:_DM},
+    {id:'Path of Wild Magic', label:'Wild Magic (เวทคลั่ง)', desc:_DM},
+  ]},
+  sorcerer:{minLevel:1, opts:[
+    {id:'', label:'— ยังไม่เลือก —', desc:'เลือก Sorcerous Origin (Sorcerer เลเวล 1)'},
+    {id:'Draconic Bloodline', label:'Draconic Bloodline (สายเลือดมังกร)', desc:'Draconic Resilience: AC = 13 + DEX เมื่อไม่สวมเกราะ ✅ บังคับจริง'},
+    {id:'Wild Magic', label:'Wild Magic (เวทมั่ว)', desc:_DM},
+    {id:'Divine Soul', label:'Divine Soul (จิตเทวะ)', desc:_DM},
+    {id:'Shadow Magic', label:'Shadow Magic (เวทเงา)', desc:_DM},
+    {id:'Storm Sorcery', label:'Storm Sorcery (จอมพายุ)', desc:_DM},
+    {id:'Aberrant Mind', label:'Aberrant Mind (จิตวิปริต)', desc:_DM},
+    {id:'Clockwork Soul', label:'Clockwork Soul (จิตกลไก)', desc:_DM},
+  ]},
+  wizard:{minLevel:2, opts:[
+    {id:'', label:'— ยังไม่เลือก —', desc:'เลือก Arcane Tradition (Wizard เลเวล 2)'},
+    {id:'Bladesinging', label:'Bladesinging (รำดาบ)', desc:'Bladesong: AC = 10 + DEX + INT เมื่อไม่สวมเกราะ (ขณะร่ายรำในศึก) ✅ บังคับจริง'},
+    {id:'School of Abjuration', label:'Abjuration (ป้องกัน)', desc:_DM},
+    {id:'School of Conjuration', label:'Conjuration (อัญเชิญ)', desc:_DM},
+    {id:'School of Divination', label:'Divination (พยากรณ์)', desc:_DM},
+    {id:'School of Enchantment', label:'Enchantment (เสน่หา)', desc:_DM},
+    {id:'School of Evocation', label:'Evocation (อภินิหาร)', desc:_DM},
+    {id:'School of Illusion', label:'Illusion (มายา)', desc:_DM},
+    {id:'School of Necromancy', label:'Necromancy (ศพเวท)', desc:_DM},
+    {id:'School of Transmutation', label:'Transmutation (แปรธาตุ)', desc:_DM},
+    {id:'War Magic', label:'War Magic (เวทสงคราม)', desc:_DM},
+    {id:'Chronurgy Magic', label:'Chronurgy (เวทกาล)', desc:_DM},
+    {id:'Graviturgy Magic', label:'Graviturgy (เวทโน้มถ่วง)', desc:_DM},
+    {id:'Order of Scribes', label:'Order of Scribes (อาลักษณ์)', desc:_DM},
+  ]},
+  druid:{minLevel:2, opts:[
+    {id:'', label:'— ยังไม่เลือก —', desc:'เลือก Druid Circle (Druid เลเวล 2)'},
+    {id:'Circle of the Land', label:'Circle of the Land (แดนดิน)', desc:_DM},
+    {id:'Circle of the Moon', label:'Circle of the Moon (จันทรา)', desc:_DM},
+    {id:'Circle of Dreams', label:'Circle of Dreams (สุบิน)', desc:_DM},
+    {id:'Circle of the Shepherd', label:'Circle of the Shepherd (ผู้เลี้ยง)', desc:_DM},
+    {id:'Circle of Spores', label:'Circle of Spores (สปอร์)', desc:_DM},
+    {id:'Circle of Stars', label:'Circle of Stars (ดารา)', desc:_DM},
+    {id:'Circle of Wildfire', label:'Circle of Wildfire (ไฟป่า)', desc:_DM},
+  ]},
+  fighter:{minLevel:3, opts:[
+    {id:'', label:'— ยังไม่เลือก —', desc:'เลือก Martial Archetype (Fighter เลเวล 3)'},
+    {id:'Champion', label:'Champion (ผู้พิชิต)', desc:_DM},
+    {id:'Battle Master', label:'Battle Master (จอมยุทธ์)', desc:'Maneuvers ใช้ผ่านแถวสกิล Superiority Dice (v313) — เลือกสายเพื่อ DM เล่าถูก'},
+    {id:'Eldritch Knight', label:'Eldritch Knight (อัศวินเวท)', desc:_DM},
+    {id:'Arcane Archer', label:'Arcane Archer (นักธนูเวท)', desc:_DM},
+    {id:'Cavalier', label:'Cavalier (ทหารม้า)', desc:_DM},
+    {id:'Samurai', label:'Samurai (ซามูไร)', desc:_DM},
+    {id:'Psi Warrior', label:'Psi Warrior (นักรบจิต)', desc:_DM},
+    {id:'Rune Knight', label:'Rune Knight (อัศวินรูน)', desc:_DM},
+    {id:'Echo Knight', label:'Echo Knight (อัศวินเงาสะท้อน)', desc:_DM},
+  ]},
+  monk:{minLevel:3, opts:[
+    {id:'', label:'— ยังไม่เลือก —', desc:'เลือก Monastic Tradition (Monk เลเวล 3)'},
+    {id:'Way of the Open Hand', label:'Open Hand (หัตถ์เปิด)', desc:_DM},
+    {id:'Way of Shadow', label:'Shadow (วิถีเงา)', desc:_DM},
+    {id:'Way of the Four Elements', label:'Four Elements (จตุธาตุ)', desc:_DM},
+    {id:'Way of the Long Death', label:'Long Death (มรณะ)', desc:_DM},
+    {id:'Way of the Sun Soul', label:'Sun Soul (สุริยะ)', desc:_DM},
+    {id:'Way of the Kensei', label:'Kensei (กระบี่)', desc:_DM},
+    {id:'Way of the Drunken Master', label:'Drunken Master (เมามวย)', desc:_DM},
+    {id:'Way of Mercy', label:'Mercy (เมตตา)', desc:'Hands of Harm/Healing · '+_DM},
+    {id:'Way of the Astral Self', label:'Astral Self (กายทิพย์)', desc:_DM},
+  ]},
+  rogue:{minLevel:3, opts:[
+    {id:'', label:'— ยังไม่เลือก —', desc:'เลือก Roguish Archetype (Rogue เลเวล 3)'},
+    {id:'Thief', label:'Thief (จอมโจร)', desc:_DM},
+    {id:'Assassin', label:'Assassin (นักฆ่า)', desc:_DM},
+    {id:'Arcane Trickster', label:'Arcane Trickster (จอมเล่ห์เวท)', desc:_DM},
+    {id:'Mastermind', label:'Mastermind (จอมบงการ)', desc:_DM},
+    {id:'Swashbuckler', label:'Swashbuckler (นักดาบพเนจร)', desc:_DM},
+    {id:'Scout', label:'Scout (สอดแนม)', desc:_DM},
+    {id:'Inquisitive', label:'Inquisitive (นักสืบ)', desc:_DM},
+    {id:'Phantom', label:'Phantom (ภูติ)', desc:_DM},
+    {id:'Soulknife', label:'Soulknife (มีดจิต)', desc:_DM},
+  ]},
+  warlock:{minLevel:1, opts:[
+    {id:'', label:'— ยังไม่เลือก —', desc:'เลือก Otherworldly Patron (Warlock เลเวล 1)'},
+    {id:'The Fiend', label:'The Fiend (ปีศาจนรก)', desc:_DM},
+    {id:'The Archfey', label:'The Archfey (เจ้าภูต)', desc:_DM},
+    {id:'The Great Old One', label:'The Great Old One (ปฐมภูต)', desc:_DM},
+    {id:'The Hexblade', label:'The Hexblade (ดาบสาป)', desc:_DM},
+    {id:'The Celestial', label:'The Celestial (เทวทูต)', desc:_DM},
+    {id:'The Fathomless', label:'The Fathomless (ห้วงสมุทร)', desc:_DM},
+    {id:'The Genie', label:'The Genie (ญิน)', desc:_DM},
+    {id:'The Undying', label:'The Undying (อมตะ)', desc:_DM},
+    {id:'The Undead', label:'The Undead (อันเดด)', desc:_DM},
+  ]},
+  ranger:{minLevel:3, opts:[
+    {id:'', label:'— ยังไม่เลือก —', desc:'เลือก Ranger Archetype (เลเวล 3) — Hunter ตั้ง Hunter’s Prey เพิ่มในการ์ดด้านบน'},
+    {id:'Hunter', label:'Hunter (นักล่า)', desc:'ตั้ง Hunter’s Prey (Colossus/Horde/Giant) ในการ์ด Hunter’s Prey ✅ บังคับจริง'},
+    {id:'Beast Master', label:'Beast Master (เจ้าสัตว์)', desc:_DM},
+    {id:'Gloom Stalker', label:'Gloom Stalker (นักย่องเงา)', desc:_DM},
+    {id:'Horizon Walker', label:'Horizon Walker (นักเดินขอบฟ้า)', desc:_DM},
+    {id:'Monster Slayer', label:'Monster Slayer (นักล่าอสูร)', desc:_DM},
+    {id:'Fey Wanderer', label:'Fey Wanderer (นักจรภูต)', desc:_DM},
+    {id:'Swarmkeeper', label:'Swarmkeeper (จ่าฝูง)', desc:_DM},
+  ]},
+  artificer:{minLevel:3, opts:[
+    {id:'', label:'— ยังไม่เลือก —', desc:'เลือก Artificer Specialist (เลเวล 3)'},
+    {id:'Alchemist', label:'Alchemist (นักเล่นแร่)', desc:_DM},
+    {id:'Artillerist', label:'Artillerist (พลปืนใหญ่)', desc:_DM},
+    {id:'Battle Smith', label:'Battle Smith (ช่างรบ)', desc:_DM},
+    {id:'Armorer', label:'Armorer (ช่างเกราะ)', desc:_DM},
+  ]},
+  cleric:{minLevel:1, domain:true, opts:[
+    {id:'', label:'— ยังไม่เลือก —', desc:'เลือก Divine Domain (Cleric เลเวล 1) — เวทโดเมนเตรียมเสมออัตโนมัติเมื่อเตรียมเวทรอบถัดไป'},
+    {id:'life', label:'Life Domain (ชีวิต)', desc:'เวทเตรียมเสมอ: Bless, Cure Wounds, Spiritual Weapon, Revivify, Death Ward ฯลฯ ✅'},
+    {id:'light', label:'Light Domain (แสง)', desc:'เวทเตรียมเสมอ: Faerie Fire, Scorching Ray, Fireball, Flame Strike ฯลฯ ✅'},
+    {id:'war', label:'War Domain (สงคราม)', desc:'เวทเตรียมเสมอ: Divine Favor, Shield of Faith, Spirit Guardians ฯลฯ ✅'},
+  ]},
+};
+function _subClassKey(cls){
+  const c=String(cls||'').toLowerCase();
+  if(/bard|บาร์ด|กวี|นักดนตรี/.test(c)) return 'bard';
+  if(/barbarian|บาร์บาเรียน|คนเถื่อน/.test(c)) return 'barbarian';
+  if(/sorcerer|ซอร์เซอเรอร์|จอมเวท/.test(c)) return 'sorcerer';
+  if(/wizard|วิซาร์ด|นักเวทย?มนตร?/.test(c)) return 'wizard';
+  if(/druid|ดรูอิด|นักพรต/.test(c)) return 'druid';
+  if(/fighter|นักรบ|นักสู้/.test(c)) return 'fighter';
+  if(/monk|มังก์|นักพรตยุทธ์|ภิกษุ/.test(c)) return 'monk';
+  if(/rogue|โร้ก|นักโจร|จอมโจร/.test(c)) return 'rogue';
+  if(/warlock|วอร์ล็อก|พ่อมดสัญญา/.test(c)) return 'warlock';
+  if(/ranger|เรนเจอร์|พราน/.test(c)) return 'ranger';
+  if(/artificer|อาร์ติฟิเซอร์|ช่างประดิษฐ์/.test(c)) return 'artificer';
+  if(/cleric|นักบวช|พระ/.test(c)) return 'cleric';
+  return null;
+}
+function _subCurMatch(spec, sheet){   // คืน id ที่ตรงกับค่าในชีท (domain ใช้ domain_key · อื่นใช้ subclass display)
+  sheet=sheet||{};
+  if(spec.domain){ const dk=String(sheet.domain_key||'').toLowerCase(); return spec.opts.find(o=>o.id&&o.id.toLowerCase()===dk)?dk:''; }
+  const sc=String(sheet.subclass||'').toLowerCase(); if(!sc.trim()) return '';
+  const hit=spec.opts.find(o=>o.id&&sc.includes(o.id.toLowerCase().split('(')[0].trim()));
+  return hit?hit.id:'';
+}
+function renderSubclassCard(p){
+  const key=_subClassKey(myChar&&myChar.class); if(!key) return;
+  const spec=SUBCLASS_OPTS[key]; if(!spec) return;
+  const lvl=+(myChar&&myChar.level)||1;
+  const card=document.createElement('div'); card.className='item'; card.style.cssText='margin-bottom:10px';
+  const head='<div class="sk-head">สายอาชีพย่อย <span class="en">· SUBCLASS</span></div>';
+  if(lvl<spec.minLevel){ card.innerHTML=head+'<div class="muted" style="font-size:.85em">🔒 ปลดล็อกเมื่อถึงเลเวล '+spec.minLevel+'</div>'; p.appendChild(card); return; }
+  const cur=_subCurMatch(spec, mySheet||{});
+  const optsHtml=spec.opts.map(o=>'<option value="'+escapeHtml(o.id)+'"'+(o.id===cur?' selected':'')+'>'+escapeHtml(o.label)+'</option>').join('');
+  const curDesc=(spec.opts.find(o=>o.id===cur)||spec.opts[0]).desc;
+  card.innerHTML=head+'<select class="sub-sel" style="width:100%;margin:6px 0;padding:7px;border-radius:8px">'+optsHtml+'</select><div class="muted sub-desc" style="font-size:.85em;line-height:1.4">'+escapeHtml(curDesc)+'</div>';
+  const sel=card.querySelector('.sub-sel'); const desc=card.querySelector('.sub-desc');
+  sel.onchange=async()=>{
+    const val=sel.value; const opt=spec.opts.find(o=>o.id===val)||spec.opts[0];
+    desc.textContent=opt.desc;
+    try{
+      const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle();
+      const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at;
+      if(spec.domain){ if(val){ sheet.domain_key=val; sheet.subclass=opt.label.split('(')[0].trim(); } else { delete sheet.domain_key; delete sheet.subclass; } }
+      else { if(val) sheet.subclass=val; else delete sheet.subclass; }
+      persistCombatStats(sheet, myChar.class);   // re-bake AC (Draconic/Bladesinger เปลี่ยนค่า AC)
+      await _saveSheet(sheet, _prev); tick();
+      toast(val?('ตั้งสายอาชีพย่อย: '+opt.label.split('(')[0].trim()+' ✓'):'ล้างสายอาชีพย่อยแล้ว');
+    }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ชีทเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderSkills(); } else toast('บันทึกไม่สำเร็จ ลองใหม่',true); }
+  };
+  p.appendChild(card);
+}
 async function renderSkills(){
   const p=$('panel-skills'); p.innerHTML='';
   if(!myChar){ p.innerHTML='<div class="muted">No character yet</div>'; return; }
@@ -3779,6 +3963,7 @@ async function renderSkills(){
   if(/bard|บาร์ด|กวี|นักดนตรี/i.test(myChar.class||'')){ try{ await renderPerformanceCard(p); }catch(e){} }   // v231: การ์ดเปิดการแสดง (บาร์ด)
   if(/fighter|paladin|ranger|นักรบ|นักสู้|พาลาดิน|อัศวิน|เรนเจอร์|พราน/i.test(myChar.class||'')){ try{ renderFightingStyleCard(p); }catch(e){} }   // v328: ตัวเลือกรูปแบบการต่อสู้ (Fighter/Paladin/Ranger)
   if(/ranger|เรนเจอร์|พราน/i.test(myChar.class||'')){ try{ renderHuntersPreyCard(p); }catch(e){} }   // v329: Hunter's Prey (Ranger L3+)
+  try{ renderSubclassCard(p); }catch(e){}   // v336: Subclass picker ทุกคลาส (self-gate ผ่าน _subClassKey · paladin ใช้ oath flow แยก)
   if(!rows.length){ const m=document.createElement('div'); m.className='muted'; m.innerHTML='ยังไม่มีความสามารถ<br>ความสามารถจะปรากฏหลังสร้างตัวละคร (ตามเผ่า/คลาส) หรือเมื่อ DM มอบให้'; p.appendChild(m); return; }
   const intro=document.createElement('div'); intro.className='note sk-intro'; intro.textContent='แตะที่ชื่อความสามารถเพื่อดูรายละเอียด'; p.appendChild(intro);
   const buckets={class:[],race:[],spell:[]};
