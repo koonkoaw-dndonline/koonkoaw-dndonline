@@ -1956,7 +1956,8 @@ function calcAC(sheet, klass){
 }
 function itemBonusStr(bon){ const x=[]; const g=(lab,v)=>{ if(v) x.push(lab+' '+(v>=0?'+':'')+v); };
   g('atk',bon.add.attack); g('dmg',bon.add.damage); g('save',bon.add.save); g('check',bon.add.ability_check); g('spellAtk',bon.add.spell_attack); g('spellDC',bon.add.spell_dc); if(bon.add.speed)x.push('speed +'+bon.add.speed); return x.join(', '); }
-function persistCombatStats(sheet, klass){ try{ const r=calcAC(sheet,klass); sheet.combat=sheet.combat||{}; sheet.combat.ac=r.ac; sheet.combat.attune=r.bon.attune; sheet.combat.item_bonus=itemBonusStr(r.bon); }catch(e){} return sheet; }
+function equipBonusNumeric(bon){ const add=(bon&&bon.add)||{}; const KEYS=['attack','damage','spell_attack','spell_dc','save','ability_check']; const cl=v=>Math.max(-2,Math.min(3,Math.floor(+v))); const out={}; for(const k of KEYS){ const v=add[k]; if(v==null||isNaN(+v)) continue; const n=cl(v); if(n) out[k]=n; } return out; }   /* v333 item-bonus: bake ตัวเลข (ไม่รวม ac=bake ใน .ac แล้ว / set_*=effAbility / speed) · clamp [-2,3] ตรง clampItemBonuses server */
+function persistCombatStats(sheet, klass){ try{ const r=calcAC(sheet,klass); sheet.combat=sheet.combat||{}; sheet.combat.ac=r.ac; sheet.combat.attune=r.bon.attune; sheet.combat.item_bonus=itemBonusStr(r.bon); sheet.combat.equip_bonus=equipBonusNumeric(r.bon); }catch(e){} return sheet; }
 function suggestHP(){
   const hpEl=$('cHp'); if(!hpEl) return;
   const cls=(classValue()||'').toLowerCase().trim();
@@ -1998,7 +1999,7 @@ const CLASS_FEATURES={
         {name:'Unarmored Defense',description:'AC = 10 + DEX + WIS',max_uses:0,recharge:'passive'}],
   paladin:[{name:'Divine Sense',description:'Detect celestial/fiend/undead nearby (1+CHA uses/long rest)',max_uses:2,recharge:'long'},
            {name:'Lay on Hands',description:'Healing pool = 5 x level HP per long rest',max_uses:1,recharge:'long'}],
-  ranger:[{name:'Favored Enemy',description:'Advantage to track & recall info on chosen foe',max_uses:0,recharge:'passive'},
+  ranger:[{name:'Favored Foe',description:"Tasha's: mark a creature you hit; first hit each turn deals +1d4 (scales 1d6@L6/1d8@L14). Uses = proficiency bonus per long rest. ประกาศ 'ใช้ Favored Foe ใส่ <ศัตรู>' ในการรบ",max_uses:2,recharge:'long'},
           {name:'Natural Explorer',description:'Bonuses while in favored terrain',max_uses:0,recharge:'passive'}],
   rogue:[{name:'Sneak Attack',description:'+1d6 once/turn with advantage or ally adjacent',max_uses:0,recharge:'atwill'},
          {name:'Thieves Cant',description:'Secret rogue code & signs',max_uses:0,recharge:'passive'}],
@@ -3685,12 +3686,34 @@ function _fsMatch(cur){   // มิเรอร์ server normalizeFightingStyle
   if(/defen[cs]e|ตั้งรับ|ป้องกัน|รับมือ/.test(s)) return 'defense';
   return '';
 }
+// RAW PHB: เลเวลที่ปลดล็อก + ชุดสไตล์ต่อคลาส (มิเรอร์ server fightingStyleAllowed)
+const _FS_CLASS_RULES={
+  fighter:{minLevel:1, styles:['archery','defense','dueling','great-weapon','protection','two-weapon']},
+  paladin:{minLevel:2, styles:['defense','dueling','great-weapon','protection']},
+  ranger:{minLevel:2, styles:['archery','defense','dueling','two-weapon']},
+};
+function _fsClassKey(cls){
+  const c=String(cls||'').toLowerCase();
+  if(/fighter|นักรบ|นักสู้/.test(c)) return 'fighter';
+  if(/paladin|พาลาดิน|อัศวิน/.test(c)) return 'paladin';
+  if(/ranger|เรนเจอร์|พราน/.test(c)) return 'ranger';
+  return null;
+}
 function renderFightingStyleCard(p){
-  const cur=_fsMatch((mySheet||{}).fighting_style);
+  const key=_fsClassKey(myChar&&myChar.class); if(!key) return;
+  const rule=_FS_CLASS_RULES[key]; const lvl=+(myChar&&myChar.level)||1;
   const card=document.createElement('div'); card.className='item'; card.style.cssText='margin-bottom:10px';
-  const optsHtml=FIGHTING_STYLE_OPTS.map(o=>'<option value="'+o.id+'"'+(o.id===cur?' selected':'')+'>'+escapeHtml(o.label)+'</option>').join('');
-  const curDesc=(FIGHTING_STYLE_OPTS.find(o=>o.id===cur)||FIGHTING_STYLE_OPTS[0]).desc;
-  card.innerHTML='<div class="sk-head">รูปแบบการต่อสู้ <span class="en">· FIGHTING STYLE</span></div>'+
+  const head='<div class="sk-head">รูปแบบการต่อสู้ <span class="en">· FIGHTING STYLE</span></div>';
+  if(lvl<rule.minLevel){   // ยังไม่ถึงเลเวลที่ได้ Fighting Style (Fighter L1 · Paladin/Ranger L2)
+    card.innerHTML=head+'<div class="muted" style="font-size:.85em">🔒 ปลดล็อกเมื่อถึงเลเวล '+rule.minLevel+' (คลาส '+key.charAt(0).toUpperCase()+key.slice(1)+')</div>';
+    p.appendChild(card); return;
+  }
+  const cur=_fsMatch((mySheet||{}).fighting_style);
+  const curValid=rule.styles.indexOf(cur)>=0?cur:'';   // สไตล์ที่บันทึกไว้แต่คลาสนี้เลือกไม่ได้ → ถือว่ายังไม่เลือก
+  const opts=FIGHTING_STYLE_OPTS.filter(o=>o.id===''||rule.styles.indexOf(o.id)>=0);   // เฉพาะสไตล์ที่คลาสนี้เลือกได้ (PHB)
+  const optsHtml=opts.map(o=>'<option value="'+o.id+'"'+(o.id===curValid?' selected':'')+'>'+escapeHtml(o.label)+'</option>').join('');
+  const curDesc=(FIGHTING_STYLE_OPTS.find(o=>o.id===curValid)||FIGHTING_STYLE_OPTS[0]).desc;
+  card.innerHTML=head+
     '<select class="fs-sel" style="width:100%;margin:6px 0;padding:7px;border-radius:8px">'+optsHtml+'</select>'+
     '<div class="muted fs-desc" style="font-size:.85em;line-height:1.4">'+escapeHtml(curDesc)+'</div>';
   const sel=card.querySelector('.fs-sel'); const desc=card.querySelector('.fs-desc');
@@ -3707,6 +3730,44 @@ function renderFightingStyleCard(p){
   };
   p.appendChild(card);
 }
+// v329 Hunter's Prey picker (Ranger L3+) — เขียน sheet.hunters_prey ให้ server (resolver v329) บังคับผล
+const HUNTERS_PREY_OPTS=[
+  {id:'', label:'— ยังไม่เลือก —', desc:"เลือก Hunter's Prey (Hunter archetype เลเวล 3) — server บังคับผลในการรบ"},
+  {id:'colossus-slayer', label:'Colossus Slayer (บั่นทอนยักษ์)', desc:'+1d8 ดาเมจ เมื่อตีศัตรูที่ HP ไม่เต็ม (1 ครั้ง/เทิร์น) ✅ บังคับจริง'},
+  {id:'horde-breaker', label:'Horde Breaker (ทลายฝูง)', desc:'โจมตีเพิ่ม 1 ครั้งใส่ศัตรูอีกตัวในระยะ 5ft จากเป้าหลัก (1 ครั้ง/เทิร์น · ต้องมีกริด) ✅ บังคับจริง'},
+  {id:'giant-killer', label:'Giant Killer (สังหารยักษ์)', desc:'reaction: เมื่อศัตรูขนาดใหญ่ (Large+) ในระยะ 5ft โจมตีคุณ → โต้กลับทันที 1 ครั้ง ✅ บังคับจริง'},
+];
+function _preyMatch(cur){   // มิเรอร์ server normalizeHuntersPrey
+  const s=String(cur||'').toLowerCase(); if(!s.trim()) return '';
+  if(/colossus|โคลอสซัส|บั่นทอนยักษ์/.test(s)) return 'colossus-slayer';
+  if(/horde[- ]?breaker|ทลายฝูง|ฝ่าฝูง/.test(s)) return 'horde-breaker';
+  if(/giant[- ]?killer|สังหารยักษ์|นักล่ายักษ์/.test(s)) return 'giant-killer';
+  return '';
+}
+function renderHuntersPreyCard(p){
+  if(!/ranger|เรนเจอร์|พราน/i.test((myChar&&myChar.class)||'')) return;
+  const lvl=+(myChar&&myChar.level)||1;
+  const card=document.createElement('div'); card.className='item'; card.style.cssText='margin-bottom:10px';
+  const head='<div class="sk-head">Hunter’s Prey <span class="en">· HUNTER</span></div>';
+  if(lvl<3){ card.innerHTML=head+'<div class="muted" style="font-size:.85em">🔒 ปลดล็อกเมื่อถึงเลเวล 3 (Hunter archetype)</div>'; p.appendChild(card); return; }
+  const cur=_preyMatch((mySheet||{}).hunters_prey);
+  const optsHtml=HUNTERS_PREY_OPTS.map(o=>'<option value="'+o.id+'"'+(o.id===cur?' selected':'')+'>'+escapeHtml(o.label)+'</option>').join('');
+  const curDesc=(HUNTERS_PREY_OPTS.find(o=>o.id===cur)||HUNTERS_PREY_OPTS[0]).desc;
+  card.innerHTML=head+'<select class="hp-sel" style="width:100%;margin:6px 0;padding:7px;border-radius:8px">'+optsHtml+'</select><div class="muted hp-desc" style="font-size:.85em;line-height:1.4">'+escapeHtml(curDesc)+'</div>';
+  const sel=card.querySelector('.hp-sel'); const desc=card.querySelector('.hp-desc');
+  sel.onchange=async()=>{
+    const val=sel.value;
+    desc.textContent=(HUNTERS_PREY_OPTS.find(o=>o.id===val)||HUNTERS_PREY_OPTS[0]).desc;
+    try{
+      const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle();
+      const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at;
+      if(val) sheet.hunters_prey=val; else delete sheet.hunters_prey;
+      await _saveSheet(sheet, _prev); tick();
+      toast(val?("ตั้ง Hunter’s Prey: "+(HUNTERS_PREY_OPTS.find(o=>o.id===val)||{}).label+' ✓'):"ล้าง Hunter’s Prey แล้ว");
+    }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ชีทเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderSkills(); } else toast('บันทึกไม่สำเร็จ ลองใหม่',true); }
+  };
+  p.appendChild(card);
+}
 async function renderSkills(){
   const p=$('panel-skills'); p.innerHTML='';
   if(!myChar){ p.innerHTML='<div class="muted">No character yet</div>'; return; }
@@ -3717,6 +3778,7 @@ async function renderSkills(){
   if(needsDailyPrepareFE(myChar.class)){ try{ await renderSpellPreparePanel(p, mySheet||{}); }catch(e){} }
   if(/bard|บาร์ด|กวี|นักดนตรี/i.test(myChar.class||'')){ try{ await renderPerformanceCard(p); }catch(e){} }   // v231: การ์ดเปิดการแสดง (บาร์ด)
   if(/fighter|paladin|ranger|นักรบ|นักสู้|พาลาดิน|อัศวิน|เรนเจอร์|พราน/i.test(myChar.class||'')){ try{ renderFightingStyleCard(p); }catch(e){} }   // v328: ตัวเลือกรูปแบบการต่อสู้ (Fighter/Paladin/Ranger)
+  if(/ranger|เรนเจอร์|พราน/i.test(myChar.class||'')){ try{ renderHuntersPreyCard(p); }catch(e){} }   // v329: Hunter's Prey (Ranger L3+)
   if(!rows.length){ const m=document.createElement('div'); m.className='muted'; m.innerHTML='ยังไม่มีความสามารถ<br>ความสามารถจะปรากฏหลังสร้างตัวละคร (ตามเผ่า/คลาส) หรือเมื่อ DM มอบให้'; p.appendChild(m); return; }
   const intro=document.createElement('div'); intro.className='note sk-intro'; intro.textContent='แตะที่ชื่อความสามารถเพื่อดูรายละเอียด'; p.appendChild(intro);
   const buckets={class:[],race:[],spell:[]};
