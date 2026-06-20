@@ -3185,7 +3185,13 @@ async function submitSpellPrepare(slugs, btn){
     try{ if(activeTab()==='skills') renderSkills(); refreshSelectionGate(); }catch(e){}   // v182: badge กระพริบดับทันทีหลังเลือก
   }catch(e){ toast(e.message||'เตรียมไม่สำเร็จ',true); if(btn){ btn.disabled=false; btn.textContent='✓ เตรียมเวท'; } }
 }
-async function renderMe(){
+// v320 fix: กัน render ซ้อน (re-entrancy) — realtime ยิงรัว (เคสจริง: เลเวลอัพยกปาร์ตี้ → campaign_state/characters อัปเดตหลายครั้งติด)
+//   ฟังก์ชัน async ที่ทำ innerHTML='' แล้ว await (renderLevelUpPanel→loadCatalogs/fetchRulesInfo / loadChat) รันพร้อมกัน → append แทรกกันหลัง await = การ์ด/สถานะซ้ำ 4 ชุดเวลา scroll
+//   mutex: รันทีละตัว · ถ้ามี event ระหว่างรัน → rerun รอบเดียวหลังจบ (เคลียร์+สร้างใหม่ชุดเดียวเสมอ)
+function reentrantGuard(fn){ let running=false, rerun=false; return async function(...a){ if(running){ rerun=true; return; } running=true; try{ do{ rerun=false; await fn.apply(this,a); }while(rerun); } finally{ running=false; } }; }
+const renderMe = reentrantGuard(_renderMeInner);
+const renderParty = reentrantGuard(_renderPartyInner);
+async function _renderMeInner(){
   const p=$('panel-me'); p.innerHTML='';
   if(!myChar){ p.innerHTML='<div class="muted">No character yet</div>'; return; }
   // โหลดแผ่นล่าสุด เผื่อ HP/สถานะถูก DM อัปเดตหลังต่อสู้
@@ -3329,7 +3335,7 @@ async function uploadAvatar(fi,btn){
     myChar.avatar_path=path; toast('อัปรูปแล้ว ✓'); await loadCharacters(); myChar=characters.find(c=>c.user_id===me.id)||myChar; renderMe();
   }catch(e){ toast(e.message||'อัปรูปล้มเหลว',true); btn.disabled=false; }
 }
-async function renderParty(){
+async function _renderPartyInner(){
   const p=$('panel-party');
   const _ciEl=document.getElementById('chatInput');   // กันข้อความแชทหลุดตอน re-render
   const _ciSave=_ciEl?{v:_ciEl.value,foc:(document.activeElement===_ciEl),s:_ciEl.selectionStart,e:_ciEl.selectionEnd}:null;
@@ -3761,7 +3767,7 @@ async function renderNPCs(){
     list.forEach(n=>{
       const del = isHost? `<div class="kv2"><b></b><span><button class="btn ghost sm" onclick="event.stopPropagation();deleteNPC('${n.id}')">✕ ลบ (ถ้าซ้ำ/ผิด)</button></span></div>` : '';
       const mr=relOf(n.name);
-      const _nt=Array.isArray(n.notes)?n.notes:(n.notes?[String(n.notes)]:[]);   // v258b: npcs.notes = jsonb array (migration 0060) — รองรับ text เก่าด้วย
+      const _nt=Array.isArray(n.notes)?n.notes:(n.notes?[String(n.notes)]:[]);   // v258b: npcs.notes = jsonb array (migration 0060) — รองรับ text เก่าด้วย · เดิม escapeHtml(array) โชว์ "a,b" ติดกัน
       const _ntHtml=_nt.length?_nt.map(x=>escapeHtml(String(x))).join('<br>'):'-';
       body+=`<div class="npc"><button class="npc-head" onclick="tick();this.parentElement.classList.toggle('open')">${escapeHtml(n.name)}${relBadge(mr)}<span class="rel">${escapeHtml(n.relationship||'-')}</span></button><div class="npc-detail">${relDetail(mr)}<div class="kv2"><b>Role</b><span>${escapeHtml(n.role||'-')}</span></div><div class="kv2"><b>Notes</b><span>${_ntHtml}</span></div>${del}</div></div>`;
     });
