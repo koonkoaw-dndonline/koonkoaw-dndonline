@@ -3931,23 +3931,33 @@ function renderSubclassCard(p){
   const lvl=+(myChar&&myChar.level)||1;
   const card=document.createElement('div'); card.className='item'; card.style.cssText='margin-bottom:10px';
   const head='<div class="sk-head">สายอาชีพย่อย <span class="en">· SUBCLASS</span></div>';
-  if(lvl<spec.minLevel){ card.innerHTML=head+'<div class="muted" style="font-size:.85em">🔒 ปลดล็อกเมื่อถึงเลเวล '+spec.minLevel+'</div>'; p.appendChild(card); return; }
+  // v337: ล็อกจังหวะเลือกตามกฎ — ปลดล็อกที่ minLevel (creation L1 / level-up L2-L3) · เลือกครั้งเดียว ถาวร (มิเรอร์ Sacred Oath)
+  if(lvl<spec.minLevel){ card.innerHTML=head+'<div class="muted" style="font-size:.85em">🔒 ปลดล็อกเมื่อถึงเลเวล '+spec.minLevel+' (เลือกตามกฎ · ถาวร)</div>'; p.appendChild(card); return; }
   const cur=_subCurMatch(spec, mySheet||{});
-  const optsHtml=spec.opts.map(o=>'<option value="'+escapeHtml(o.id)+'"'+(o.id===cur?' selected':'')+'>'+escapeHtml(o.label)+'</option>').join('');
-  const curDesc=(spec.opts.find(o=>o.id===cur)||spec.opts[0]).desc;
-  card.innerHTML=head+'<select class="sub-sel" style="width:100%;margin:6px 0;padding:7px;border-radius:8px">'+optsHtml+'</select><div class="muted sub-desc" style="font-size:.85em;line-height:1.4">'+escapeHtml(curDesc)+'</div>';
+  if(cur){   // เลือกแล้ว = ล็อกถาวร (RAW: subclass/domain เลือกครั้งเดียว เปลี่ยนไม่ได้)
+    const optC=spec.opts.find(o=>o.id===cur)||{};
+    card.innerHTML=head+'<div style="font-size:.92em;font-weight:600;margin:4px 0">'+escapeHtml(optC.label||cur)+' <span class="muted" style="font-weight:400;font-size:.85em">· เลือกแล้ว (ถาวรตามกฎ)</span></div><div class="muted" style="font-size:.82em;line-height:1.4">'+escapeHtml(optC.desc||'')+'</div>';
+    p.appendChild(card); return;
+  }
+  const optsHtml=spec.opts.map(o=>'<option value="'+escapeHtml(o.id)+'"'+(o.id===''?' selected':'')+'>'+escapeHtml(o.label)+'</option>').join('');
+  card.innerHTML=head+'<div class="muted" style="font-size:.8em;margin-bottom:2px">เลือกได้ครั้งเดียว · ถาวรตามกฎ</div><select class="sub-sel" style="width:100%;margin:6px 0;padding:7px;border-radius:8px">'+optsHtml+'</select><div class="muted sub-desc" style="font-size:.85em;line-height:1.4">'+escapeHtml(spec.opts[0].desc)+'</div>';
   const sel=card.querySelector('.sub-sel'); const desc=card.querySelector('.sub-desc');
   sel.onchange=async()=>{
     const val=sel.value; const opt=spec.opts.find(o=>o.id===val)||spec.opts[0];
     desc.textContent=opt.desc;
+    if(!val) return;   // "ยังไม่เลือก" = ไม่บันทึก
+    const _nm=opt.label.split('(')[0].trim();
+    if(!confirm('เลือก "'+_nm+'" เป็นสายอาชีพย่อย?\n\nตามกฎ D&D เลือกได้ครั้งเดียว เปลี่ยนภายหลังไม่ได้')){ sel.value=''; desc.textContent=spec.opts[0].desc; return; }
     try{
       const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle();
       const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at;
-      if(spec.domain){ if(val){ sheet.domain_key=val; sheet.subclass=opt.label.split('(')[0].trim(); } else { delete sheet.domain_key; delete sheet.subclass; } }
-      else { if(val) sheet.subclass=val; else delete sheet.subclass; }
-      persistCombatStats(sheet, myChar.class);   // re-bake AC (Draconic/Bladesinger เปลี่ยนค่า AC)
+      if(_subCurMatch(spec, sheet)){ toast('สายอาชีพย่อยถูกตั้งไว้แล้ว',true); renderSkills(); return; }   // กันแข่ง: client อื่นเพิ่งตั้ง
+      if(spec.domain){ sheet.domain_key=val; sheet.subclass=_nm; }
+      else { sheet.subclass=val; }
+      persistCombatStats(sheet, myChar.class);   // re-bake AC (Draconic/Bladesinger)
       await _saveSheet(sheet, _prev); tick();
-      toast(val?('ตั้งสายอาชีพย่อย: '+opt.label.split('(')[0].trim()+' ✓'):'ล้างสายอาชีพย่อยแล้ว');
+      toast('เลือกสายอาชีพย่อย: '+_nm+' ✓ (ถาวร)');
+      renderSkills();   // re-render → ล็อก
     }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ชีทเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderSkills(); } else toast('บันทึกไม่สำเร็จ ลองใหม่',true); }
   };
   p.appendChild(card);
