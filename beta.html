@@ -3738,7 +3738,7 @@ const FEAT_OPTS=[
   {id:'alert', label:'Alert (ตื่นตัว)', desc:'+5 initiative ✅ บังคับจริง · ไม่ถูกจู่โจมแบบ surprise (DM เล่า)'},
   {id:'great-weapon-master', label:'Great Weapon Master (จอมอาวุธหนัก)', desc:'−5 โจมตี/+10 ดาเมจ อาวุธหนักประชิด — ⏳ บังคับเร็วๆ นี้'},
   {id:'sharpshooter', label:'Sharpshooter (มือแม่นปืน)', desc:'−5 โจมตี/+10 ดาเมจ อาวุธยิงไกล · ข้ามที่กำบัง/ระยะไกล — ⏳ บังคับเร็วๆ นี้'},
-  {id:'lucky', label:'Lucky (ดวงเฮง)', desc:'3 แต้มโชคต่อพักยาว · ทอย d20 ใหม่ได้ — ⏳ บังคับเร็วๆ นี้'},
+  {id:'lucky', label:'Lucky (ดวงเฮง)', desc:'3 แต้มโชคต่อพักยาว · server ทอย d20 ใหม่ให้เมื่อโจมตี/เซฟพลาด (เก็บค่าสูง) ✅ บังคับจริง'},
 ];
 function _featMatch(x){   // มิเรอร์ server parseFeats (combat-logic.ts) — slug/ชื่ออังกฤษ/ไทย → id
   const s=String(x||'').toLowerCase(); if(!s.trim()) return '';
