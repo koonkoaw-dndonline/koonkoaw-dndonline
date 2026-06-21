@@ -3736,10 +3736,21 @@ function renderFightingStyleCard(p){
 const FEAT_OPTS=[
   {id:'tough', label:'Tough (อึด)', desc:'+2 HP ต่อเลเวล (ย้อนหลังทุกเลเวล) ✅ บังคับจริง'},
   {id:'alert', label:'Alert (ตื่นตัว)', desc:'+5 initiative ✅ บังคับจริง · ไม่ถูกจู่โจมแบบ surprise (DM เล่า)'},
-  {id:'great-weapon-master', label:'Great Weapon Master (จอมอาวุธหนัก)', desc:'−5 โจมตี/+10 ดาเมจ อาวุธหนักประชิด — ⏳ บังคับเร็วๆ นี้'},
-  {id:'sharpshooter', label:'Sharpshooter (มือแม่นปืน)', desc:'−5 โจมตี/+10 ดาเมจ อาวุธยิงไกล · ข้ามที่กำบัง/ระยะไกล — ⏳ บังคับเร็วๆ นี้'},
+  {id:'great-weapon-master', label:'Great Weapon Master (จอมอาวุธหนัก)', desc:'−5 โจมตี/+10 ดาเมจ อาวุธหนักประชิด ✅ บังคับจริง · พิมพ์ "ทุ่มสุดแรง"/"power attack" ในแอ็กชันเพื่อใช้'},
+  {id:'sharpshooter', label:'Sharpshooter (มือแม่นปืน)', desc:'−5 โจมตี/+10 ดาเมจ อาวุธยิงไกล · ข้ามที่กำบัง+ยิงไกลไม่ติด disadvantage ✅ บังคับจริง · พิมพ์ "เล็งจุดตาย"/"sharpshooter" ในแอ็กชันเพื่อใช้'},
   {id:'lucky', label:'Lucky (ดวงเฮง)', desc:'3 แต้มโชคต่อพักยาว · server ทอย d20 ใหม่ให้เมื่อโจมตี/เซฟพลาด (เก็บค่าสูง) ✅ บังคับจริง'},
+  {id:'war-caster', label:'War Caster (จอมเวทสนาม)', desc:'ได้เปรียบเซฟ CON รักษาสมาธิเวท (Bless/Hex/Hold Person ฯลฯ ไม่หลุดง่าย) ✅ บังคับจริง · ร่ายขณะถืออาวุธ/โล่ + ร่ายเป็น opportunity attack = DM เล่า'},
+  {id:'resilient', label:'Resilient (แกร่งทน)', desc:'+1 ค่าสถานะ (แก้ในชีทเอง) + ชำนาญเซฟของค่านั้น ✅ บังคับจริง · เลือกค่าสถานะ →', ability:true},
+  {id:'observant', label:'Observant (ช่างสังเกต)', desc:'+5 passive Perception — server คำนวณเลขให้ DM (DM เล่าว่าเห็น/ไม่เห็น · ยังไม่มี surprise guard บังคับ) · +1 INT/WIS เลือกในชีท'},
+  {id:'durable', label:'Durable (ทนทาน)', desc:'พักสั้น: HP ฟื้นต่อ Hit Die อย่างน้อย 2×CON mod (ขั้นต่ำ 2) ✅ บังคับจริง'},
+  {id:'savage-attacker', label:'Savage Attacker (จู่โจมดุดัน)', desc:'1 ครั้ง/เทิร์น: ทอยเต๋าดาเมจอาวุธประชิดใหม่ เก็บค่าสูงกว่า ✅ บังคับจริง'},
+  {id:'sentinel', label:'Sentinel (ผู้พิทักษ์)', desc:'ศัตรูประชิดโจมตี "เพื่อน" (ไม่ใช่ตัวคุณ) → reaction ตีสวนผู้โจมตี 1 ครั้ง ✅ บังคับจริง (ต้องมีกริด · ยืนชิดผู้โจมตี ≤5ft · 1 reaction/รอบ) · OA ทะลุ Disengage + หยุดเป้าที่โดน OA = เร็วๆ นี้'},
 ];
+const RESILIENT_ABILS=[['con','CON'],['dex','DEX'],['str','STR'],['wis','WIS'],['int','INT'],['cha','CHA']];
+function _resilientAbil(featsArr){   // ดึง ability ที่เลือกจาก slug resilient-<ab> (default con)
+  for(var i=0;i<(featsArr||[]).length;i++){ var m=String(featsArr[i]||'').toLowerCase().match(/resilient[- ]?(str|dex|con|int|wis|cha)/); if(m) return m[1]; }
+  return 'con';
+}
 function _featMatch(x){   // มิเรอร์ server parseFeats (combat-logic.ts) — slug/ชื่ออังกฤษ/ไทย → id
   const s=String(x||'').toLowerCase(); if(!s.trim()) return '';
   if(/great[- ]?weapon[- ]?master|\bgwm\b|จอมอาวุธหนัก|เชี่ยวชาญอาวุธหนัก|อาจารย์อาวุธหนัก/.test(s)) return 'great-weapon-master';
@@ -3747,6 +3758,12 @@ function _featMatch(x){   // มิเรอร์ server parseFeats (combat-log
   if(/\btough\b|อึด|ทรหด|กำยำ|บึกบึน/.test(s)) return 'tough';
   if(/\balert\b|ตื่นตัว|ระแวดระวัง|ไหวตัวไว|รู้ทันภัย/.test(s)) return 'alert';
   if(/\blucky\b|ดวงเฮง|โชคช่วย|ดวงดี/.test(s)) return 'lucky';
+  if(/war[- ]?caster|\bwarcaster\b|จอมเวทสนาม|นักเวทสงคราม|เวทกลางศึก/.test(s)) return 'war-caster';
+  if(/resilient|ทนแกร่ง|ต้านเซฟ|แกร่งเซฟ/.test(s)) return 'resilient';
+  if(/\bobservant\b|ช่างสังเกต|ตาไว|สังเกตการณ์/.test(s)) return 'observant';
+  if(/\bdurable\b|ทนทาน|ถึกทน/.test(s)) return 'durable';
+  if(/savage[- ]?attacker|จู่โจมดุดัน|นักจู่โจมดุร้าย|โจมตีป่าเถื่อน/.test(s)) return 'savage-attacker';
+  if(/\bsentinel\b|ผู้พิทักษ์แนว|เฝ้าแนว|ยามเฝ้าระวัง/.test(s)) return 'sentinel';
   return '';
 }
 function _asiSlots(cls, level){   // RAW PHB: จำนวนช่อง ASI/feat ตามคลาส+เลเวล
@@ -3772,7 +3789,12 @@ function renderFeatCard(p){
   html+=FEAT_OPTS.map(function(o){
     const on=curIds.indexOf(o.id)>=0;
     const dis=(!on && used>=slots);
-    return '<label style="display:block;margin:5px 0;cursor:'+(dis?'not-allowed':'pointer')+';opacity:'+(dis?'.45':'1')+'"><input type="checkbox" data-feat="'+o.id+'"'+(on?' checked':'')+(dis?' disabled':'')+' style="margin-right:6px;vertical-align:top"><b>'+escapeHtml(o.label)+'</b><div class="muted" style="font-size:.8em;margin-left:22px;line-height:1.35">'+escapeHtml(o.desc)+'</div></label>';
+    let extra='';
+    if(o.ability && on){   // v357 Resilient: เลือก ability ที่ชำนาญเซฟ (slug resilient-<ab>)
+      const curAb=_resilientAbil(featsArr);
+      extra='<div style="margin-left:22px;margin-top:3px;margin-bottom:5px"><select data-resab="'+o.id+'" style="font-size:.85em;padding:2px 4px">'+RESILIENT_ABILS.map(function(a){return '<option value="'+a[0]+'"'+(a[0]===curAb?' selected':'')+'>'+a[1]+'</option>';}).join('')+'</select> <span class="muted" style="font-size:.78em">← ค่าสถานะที่ชำนาญเซฟ</span></div>';
+    }
+    return '<label style="display:block;margin:5px 0;cursor:'+(dis?'not-allowed':'pointer')+';opacity:'+(dis?'.45':'1')+'"><input type="checkbox" data-feat="'+o.id+'"'+(on?' checked':'')+(dis?' disabled':'')+' style="margin-right:6px;vertical-align:top"><b>'+escapeHtml(o.label)+'</b><div class="muted" style="font-size:.8em;margin-left:22px;line-height:1.35">'+escapeHtml(o.desc)+'</div></label>'+extra;
   }).join('');
   if(used>=slots) html+='<div class="muted" style="font-size:.8em;margin-top:4px">ช่อง feat เต็ม — เลเวลขึ้นเพื่อปลดล็อกเพิ่ม</div>';
   card.innerHTML=html;
@@ -3783,13 +3805,31 @@ function renderFeatCard(p){
         const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle();
         const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at;
         let fa=Array.isArray(sheet.feats)?sheet.feats.slice():[];
-        if(cb.checked){ if(fa.map(_featMatch).indexOf(id)<0) fa.push(id); }
+        if(cb.checked){
+          if(id==='resilient'){ if(fa.map(_featMatch).indexOf('resilient')<0) fa.push('resilient-'+_resilientAbil(fa)); }   // v357: parameterized — default CON
+          else if(fa.map(_featMatch).indexOf(id)<0) fa.push(id);
+        }
         else { fa=fa.filter(function(x){ return _featMatch(x)!==id; }); }
         sheet.feats=fa;
         await _saveSheet(sheet, _prev); tick();
         toast(cb.checked?('เพิ่ม feat: '+((FEAT_OPTS.find(function(o){return o.id===id;})||{}).label||'')+' ✓ — server บังคับผลรอบถัดไป'):'ลบ feat แล้ว');
         renderSkills();
       }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ชีทเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderSkills(); } else { toast('บันทึกไม่สำเร็จ ลองใหม่',true); cb.checked=!cb.checked; } }
+    };
+  });
+  card.querySelectorAll('select[data-resab]').forEach(function(sel){   // v357 Resilient ability sub-picker → เขียน slug resilient-<ab>
+    sel.onchange=async function(){
+      try{
+        const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle();
+        const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at;
+        let fa=Array.isArray(sheet.feats)?sheet.feats.slice():[];
+        fa=fa.filter(function(x){ return _featMatch(x)!=='resilient'; });
+        fa.push('resilient-'+sel.value);
+        sheet.feats=fa;
+        await _saveSheet(sheet, _prev); tick();
+        toast('Resilient: ชำนาญเซฟ '+String(sel.value).toUpperCase()+' ✓ (อย่าลืม +1 ค่าสถานะในชีท)');
+        renderSkills();
+      }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ชีทเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderSkills(); } else { toast('บันทึกไม่สำเร็จ ลองใหม่',true); } }
     };
   });
   p.appendChild(card);
