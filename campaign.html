@@ -3731,6 +3731,69 @@ function renderFightingStyleCard(p){
   };
   p.appendChild(card);
 }
+// v353 Feats picker (RAW-ASI-gated · ทุกคลาส) — เขียน sheet.feats[] (slug) ให้ server (resolver v353 parseFeats) บังคับผล
+//   gating: ได้ feat 1 ช่องต่อ ASI (L4/8/12/16/19 + Fighter L6/14 + Rogue L10) · enforce จำนวน feat ≤ ช่อง ASI
+const FEAT_OPTS=[
+  {id:'tough', label:'Tough (อึด)', desc:'+2 HP ต่อเลเวล (ย้อนหลังทุกเลเวล) ✅ บังคับจริง'},
+  {id:'alert', label:'Alert (ตื่นตัว)', desc:'+5 initiative ✅ บังคับจริง · ไม่ถูกจู่โจมแบบ surprise (DM เล่า)'},
+  {id:'great-weapon-master', label:'Great Weapon Master (จอมอาวุธหนัก)', desc:'−5 โจมตี/+10 ดาเมจ อาวุธหนักประชิด — ⏳ บังคับเร็วๆ นี้'},
+  {id:'sharpshooter', label:'Sharpshooter (มือแม่นปืน)', desc:'−5 โจมตี/+10 ดาเมจ อาวุธยิงไกล · ข้ามที่กำบัง/ระยะไกล — ⏳ บังคับเร็วๆ นี้'},
+  {id:'lucky', label:'Lucky (ดวงเฮง)', desc:'3 แต้มโชคต่อพักยาว · ทอย d20 ใหม่ได้ — ⏳ บังคับเร็วๆ นี้'},
+];
+function _featMatch(x){   // มิเรอร์ server parseFeats (combat-logic.ts) — slug/ชื่ออังกฤษ/ไทย → id
+  const s=String(x||'').toLowerCase(); if(!s.trim()) return '';
+  if(/great[- ]?weapon[- ]?master|\bgwm\b|จอมอาวุธหนัก|เชี่ยวชาญอาวุธหนัก|อาจารย์อาวุธหนัก/.test(s)) return 'great-weapon-master';
+  if(/sharp[- ]?shooter|มือแม่นปืน|นักแม่นปืน|พลซุ่มยิง|มือฉมัง|แม่นปืน/.test(s)) return 'sharpshooter';
+  if(/\btough\b|อึด|ทรหด|กำยำ|บึกบึน/.test(s)) return 'tough';
+  if(/\balert\b|ตื่นตัว|ระแวดระวัง|ไหวตัวไว|รู้ทันภัย/.test(s)) return 'alert';
+  if(/\blucky\b|ดวงเฮง|โชคช่วย|ดวงดี/.test(s)) return 'lucky';
+  return '';
+}
+function _asiSlots(cls, level){   // RAW PHB: จำนวนช่อง ASI/feat ตามคลาส+เลเวล
+  const c=String(cls||'').toLowerCase(); const lv=+level||1; let n=0;
+  [4,8,12,16,19].forEach(function(l){ if(lv>=l) n++; });
+  if(/fighter|นักรบ|นักสู้/.test(c)) [6,14].forEach(function(l){ if(lv>=l) n++; });
+  if(/rogue|โจร/.test(c)){ if(lv>=10) n++; }
+  return n;
+}
+function renderFeatCard(p){
+  const lvl=+(myChar&&myChar.level)||1; const cls=String(myChar&&myChar.class||'');
+  const slots=_asiSlots(cls, lvl);
+  const card=document.createElement('div'); card.className='item'; card.style.cssText='margin-bottom:10px';
+  const head='<div class="sk-head">คุณสมบัติพิเศษ <span class="en">· FEATS</span></div>';
+  if(slots<=0){
+    card.innerHTML=head+'<div class="muted" style="font-size:.85em">🔒 ยังไม่ได้ feat — ปลดล็อกครั้งแรกที่เลเวล 4 (Ability Score Improvement)'+(/fighter|นักรบ|นักสู้/i.test(cls)?' · Fighter เพิ่ม L6':'')+(/rogue|โจร/i.test(cls)?' · Rogue เพิ่ม L10':'')+'</div>';
+    p.appendChild(card); return;
+  }
+  const featsArr=Array.isArray((mySheet||{}).feats)?(mySheet.feats):[];
+  const used=featsArr.length;
+  const curIds=featsArr.map(_featMatch).filter(Boolean);
+  let html=head+'<div class="muted" style="font-size:.85em;margin-bottom:6px">ช่อง feat: <b>'+used+'/'+slots+'</b> ใช้แล้ว (1 ช่องต่อ ASI · L4/8/12/16/19'+(/fighter|นักรบ|นักสู้/i.test(cls)?' +Fighter L6/14':'')+(/rogue|โจร/i.test(cls)?' +Rogue L10':'')+')</div>';
+  html+=FEAT_OPTS.map(function(o){
+    const on=curIds.indexOf(o.id)>=0;
+    const dis=(!on && used>=slots);
+    return '<label style="display:block;margin:5px 0;cursor:'+(dis?'not-allowed':'pointer')+';opacity:'+(dis?'.45':'1')+'"><input type="checkbox" data-feat="'+o.id+'"'+(on?' checked':'')+(dis?' disabled':'')+' style="margin-right:6px;vertical-align:top"><b>'+escapeHtml(o.label)+'</b><div class="muted" style="font-size:.8em;margin-left:22px;line-height:1.35">'+escapeHtml(o.desc)+'</div></label>';
+  }).join('');
+  if(used>=slots) html+='<div class="muted" style="font-size:.8em;margin-top:4px">ช่อง feat เต็ม — เลเวลขึ้นเพื่อปลดล็อกเพิ่ม</div>';
+  card.innerHTML=html;
+  card.querySelectorAll('input[data-feat]').forEach(function(cb){
+    cb.onchange=async function(){
+      const id=cb.getAttribute('data-feat');
+      try{
+        const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle();
+        const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at;
+        let fa=Array.isArray(sheet.feats)?sheet.feats.slice():[];
+        if(cb.checked){ if(fa.map(_featMatch).indexOf(id)<0) fa.push(id); }
+        else { fa=fa.filter(function(x){ return _featMatch(x)!==id; }); }
+        sheet.feats=fa;
+        await _saveSheet(sheet, _prev); tick();
+        toast(cb.checked?('เพิ่ม feat: '+((FEAT_OPTS.find(function(o){return o.id===id;})||{}).label||'')+' ✓ — server บังคับผลรอบถัดไป'):'ลบ feat แล้ว');
+        renderSkills();
+      }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ชีทเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderSkills(); } else { toast('บันทึกไม่สำเร็จ ลองใหม่',true); cb.checked=!cb.checked; } }
+    };
+  });
+  p.appendChild(card);
+}
 // v329 Hunter's Prey picker (Ranger L3+) — เขียน sheet.hunters_prey ให้ server (resolver v329) บังคับผล
 const HUNTERS_PREY_OPTS=[
   {id:'', label:'— ยังไม่เลือก —', desc:"เลือก Hunter's Prey (Hunter archetype เลเวล 3) — server บังคับผลในการรบ"},
@@ -3974,6 +4037,7 @@ async function renderSkills(){
   if(/fighter|paladin|ranger|นักรบ|นักสู้|พาลาดิน|อัศวิน|เรนเจอร์|พราน/i.test(myChar.class||'')){ try{ renderFightingStyleCard(p); }catch(e){} }   // v328: ตัวเลือกรูปแบบการต่อสู้ (Fighter/Paladin/Ranger)
   if(/ranger|เรนเจอร์|พราน/i.test(myChar.class||'')){ try{ renderHuntersPreyCard(p); }catch(e){} }   // v329: Hunter's Prey (Ranger L3+)
   try{ renderSubclassCard(p); }catch(e){}   // v336: Subclass picker ทุกคลาส (self-gate ผ่าน _subClassKey · paladin ใช้ oath flow แยก)
+  try{ renderFeatCard(p); }catch(e){}   // v353: Feats picker (RAW-ASI-gated · ทุกคลาส · L4+)
   if(!rows.length){ const m=document.createElement('div'); m.className='muted'; m.innerHTML='ยังไม่มีความสามารถ<br>ความสามารถจะปรากฏหลังสร้างตัวละคร (ตามเผ่า/คลาส) หรือเมื่อ DM มอบให้'; p.appendChild(m); return; }
   const intro=document.createElement('div'); intro.className='note sk-intro'; intro.textContent='แตะที่ชื่อความสามารถเพื่อดูรายละเอียด'; p.appendChild(intro);
   const buckets={class:[],race:[],spell:[]};
