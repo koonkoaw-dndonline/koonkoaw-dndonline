@@ -1960,7 +1960,9 @@ function calcAC(sheet, klass){
   let _featAc=0;
   if(_featsAc.indexOf('dual-wielder')>=0&&_hasOffhand)_featAc+=1;
   if(_featsAc.indexOf('heavy-armor-master')>=0&&_isHeavyArm)_featAc+=1;
-  const acb=(bon.add.ac||0)+_featAc;
+  // v376 Soul of the Forge (Forge Domain Cleric L1): +1 AC ขณะสวมเกราะหนัก (bake — server เชื่อ AC frontend · มิเรอร์ feat AC)
+  let _domainAc=0; if(String(sheet.domain_key||'').toLowerCase().includes('forge')&&_isHeavyArm)_domainAc+=1;
+  const acb=(bon.add.ac||0)+_featAc+_domainAc;
   return {ac:base+shAc+acb, label, bon, eAb};
 }
 function itemBonusStr(bon){ const x=[]; const g=(lab,v)=>{ if(v) x.push(lab+' '+(v>=0?'+':'')+v); };
@@ -3697,7 +3699,8 @@ const FIGHTING_STYLE_OPTS=[
   {id:'dueling', label:'Dueling (ดาบเดี่ยว)', desc:'+2 ดาเมจ เมื่อถืออาวุธประชิดมือเดียว ไม่มีอาวุธรอง (มีโล่ได้) ✅ บังคับจริง'},
   {id:'great-weapon', label:'Great Weapon Fighting (อาวุธสองมือ)', desc:'ทอยซ้ำเต๋าดาเมจอาวุธที่ออก 1-2 ครั้งเดียว (อาวุธสองมือ/versatile) ✅ บังคับจริง'},
   {id:'two-weapon', label:'Two-Weapon Fighting (อาวุธคู่)', desc:'บวกค่าความสามารถใส่ดาเมจอาวุธมือรอง ✅ บังคับจริง · ใส่อาวุธ light ช่องมือรอง (ปุ่ม ⚔ มือรอง) + พิมพ์ "โจมตีมือรอง"'},
-  {id:'protection', label:'Protection (ปกป้อง)', desc:'ใช้โล่บังให้ศัตรูเสียเปรียบเมื่อโจมตีเพื่อนข้างตัว — ⏳ ยังไม่บังคับ (DM เล่า)'},
+  {id:'protection', label:'Protection (ปกป้อง)', desc:'reaction: ใช้โล่บังให้ศัตรูเสียเปรียบเมื่อโจมตีเพื่อนข้างตัว (≤5ft) ✅ บังคับจริง (ต้องมีกริด + โล่ · 1 reaction/รอบ)'},
+  {id:'interception', label:'Interception (สกัดกั้น)', desc:'reaction: ลดดาเมจที่เพื่อนข้างตัว (≤5ft) รับ 1d10+โบนัสความชำนาญ ✅ บังคับจริง (ต้องมีกริด · 1 reaction/รอบ)'},
 ];
 function _fsMatch(cur){   // มิเรอร์ server normalizeFightingStyle (combat-logic.ts) — รองรับ id/ชื่ออังกฤษ/ไทย
   const s=String(cur||'').toLowerCase(); if(!s.trim()) return '';
@@ -3705,15 +3708,16 @@ function _fsMatch(cur){   // มิเรอร์ server normalizeFightingStyle
   if(/great[- ]?weapon|อาวุธหนัก|อาวุธใหญ่|อาวุธสองมือ/.test(s)) return 'great-weapon';
   if(/two[- ]?weapon|dual|สองอาวุธ|อาวุธคู่|ทวิอาวุธ/.test(s)) return 'two-weapon';
   if(/duel|ประลอง|ดาบเดี่ยว|อาวุธเดี่ยว/.test(s)) return 'dueling';
+  if(/interception|สกัดกั้น|ขวางป้อง|รับแทนเพื่อน/.test(s)) return 'interception';   // v373 (มิเรอร์ server)
   if(/protection|ปกป้อง|คุ้มกัน/.test(s)) return 'protection';
   if(/defen[cs]e|ตั้งรับ|ป้องกัน|รับมือ/.test(s)) return 'defense';
   return '';
 }
 // RAW PHB: เลเวลที่ปลดล็อก + ชุดสไตล์ต่อคลาส (มิเรอร์ server fightingStyleAllowed)
 const _FS_CLASS_RULES={
-  fighter:{minLevel:1, styles:['archery','defense','dueling','great-weapon','protection','two-weapon']},
-  paladin:{minLevel:2, styles:['defense','dueling','great-weapon','protection']},
-  ranger:{minLevel:2, styles:['archery','defense','dueling','two-weapon']},
+  fighter:{minLevel:1, styles:['archery','defense','dueling','great-weapon','protection','two-weapon','interception']},
+  paladin:{minLevel:2, styles:['defense','dueling','great-weapon','protection','interception']},
+  ranger:{minLevel:2, styles:['archery','defense','dueling','two-weapon','interception']},
 };
 function _fsClassKey(cls){
   const c=String(cls||'').toLowerCase();
@@ -3941,6 +3945,35 @@ function renderHuntersPreyCard(p){
   };
   p.appendChild(card);
 }
+// v376 Ascendant Dragon element picker (Monk · ธาตุมังกรที่เลือก → sheet.monk_element · resolver ใช้ Draconic Strike note + Draconic Resilience resist)
+const ASCENDANT_ELEM_OPTS=[
+  {id:'fire', label:'🔥 ไฟ (Fire)'},
+  {id:'cold', label:'❄️ เย็น (Cold)'},
+  {id:'lightning', label:'⚡ สายฟ้า (Lightning)'},
+  {id:'acid', label:'🧪 กรด (Acid)'},
+  {id:'poison', label:'☠️ พิษ (Poison)'},
+];
+function renderAscendantElementCard(p){
+  if(_subClassKey(myChar&&myChar.class)!=='monk') return;
+  if(!/ascendant/i.test(((mySheet||{}).subclass)||'')) return;   // เฉพาะ Way of the Ascendant Dragon (เลือก subclass แล้ว)
+  const card=document.createElement('div'); card.className='item'; card.style.cssText='margin-bottom:10px';
+  const head='<div class="sk-head">ธาตุมังกร <span class="en">· DRACONIC ELEMENT</span></div>';
+  const cur=(ASCENDANT_ELEM_OPTS.find(o=>o.id===((mySheet||{}).monk_element||'fire'))||ASCENDANT_ELEM_OPTS[0]).id;
+  const optsHtml=ASCENDANT_ELEM_OPTS.map(o=>'<option value="'+o.id+'"'+(o.id===cur?' selected':'')+'>'+escapeHtml(o.label)+'</option>').join('');
+  card.innerHTML=head+'<div class="muted" style="font-size:.8em;margin-bottom:2px">Draconic Strike +1d6 · Draconic Resilience ต้านทานครึ่ง — ตามธาตุนี้</div><select class="ae-sel" style="width:100%;margin:6px 0;padding:7px;border-radius:8px">'+optsHtml+'</select>';
+  const sel=card.querySelector('.ae-sel');
+  sel.onchange=async()=>{
+    const val=sel.value||'fire';
+    try{
+      const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle();
+      const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at;
+      sheet.monk_element=val;
+      await _saveSheet(sheet, _prev); tick();
+      toast('ตั้งธาตุมังกร: '+((ASCENDANT_ELEM_OPTS.find(o=>o.id===val)||{}).label||val)+' ✓');
+    }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ชีทเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderSkills(); } else toast('บันทึกไม่สำเร็จ ลองใหม่',true); }
+  };
+  p.appendChild(card);
+}
 // v335 Subclass picker (Bard/Barbarian/Sorcerer/Wizard/Cleric) — เขียน sheet.subclass (+ sheet.domain_key สำหรับนักบวช) ให้ server (resolver v335) บังคับผล
 // v336: catalog ครบทุกคลาส (id = ชื่อ canonical ตรงกับ server SUBCLASS_FEATURES.name) · ✅=บังคับจริง · ที่เหลือ detection-only (DM เล่าถูกสาย · กลไกตามมา Phase 4)
 const _DM='— DM เล่าถูกสาย (กลไกตามมาภายหลัง)';
@@ -4025,6 +4058,7 @@ const SUBCLASS_OPTS={
     {id:'Way of the Drunken Master', label:'Drunken Master (เมามวย)', desc:_DM},
     {id:'Way of Mercy', label:'Mercy (เมตตา)', desc:'Hands of Harm/Healing · '+_DM},
     {id:'Way of the Astral Self', label:'Astral Self (กายทิพย์)', desc:_DM},
+    {id:'Way of the Ascendant Dragon', label:'Ascendant Dragon (วิถีมังกร)', desc:'Draconic Strike: +1d6 ธาตุที่เลือก 1 ครั้ง/เทิร์น · Draconic Resilience: ต้านทานครึ่งตามธาตุ ✅ บังคับจริง (เลือกธาตุในการ์ด "ธาตุมังกร" ด้านล่าง)'},
   ]},
   rogue:{minLevel:3, opts:[
     {id:'', label:'— ยังไม่เลือก —', desc:'เลือก Roguish Archetype (Rogue เลเวล 3)'},
@@ -4072,6 +4106,7 @@ const SUBCLASS_OPTS={
     {id:'life', label:'Life Domain (ชีวิต)', desc:'เวทเตรียมเสมอ: Bless, Cure Wounds, Spiritual Weapon, Revivify, Death Ward ฯลฯ ✅'},
     {id:'light', label:'Light Domain (แสง)', desc:'เวทเตรียมเสมอ: Faerie Fire, Scorching Ray, Fireball, Flame Strike ฯลฯ ✅'},
     {id:'war', label:'War Domain (สงคราม)', desc:'เวทเตรียมเสมอ: Divine Favor, Shield of Faith, Spirit Guardians ฯลฯ ✅'},
+    {id:'forge', label:'Forge Domain (เตาหลอม)', desc:'Soul of the Forge: +1 AC ขณะสวมเกราะหนัก ✅ บังคับจริง (bake AC)'},
   ]},
 };
 function _subClassKey(cls){
@@ -4146,6 +4181,7 @@ async function renderSkills(){
   if(/fighter|paladin|ranger|นักรบ|นักสู้|พาลาดิน|อัศวิน|เรนเจอร์|พราน/i.test(myChar.class||'')){ try{ renderFightingStyleCard(p); }catch(e){} }   // v328: ตัวเลือกรูปแบบการต่อสู้ (Fighter/Paladin/Ranger)
   if(/ranger|เรนเจอร์|พราน/i.test(myChar.class||'')){ try{ renderHuntersPreyCard(p); }catch(e){} }   // v329: Hunter's Prey (Ranger L3+)
   try{ renderSubclassCard(p); }catch(e){}   // v336: Subclass picker ทุกคลาส (self-gate ผ่าน _subClassKey · paladin ใช้ oath flow แยก)
+  try{ renderAscendantElementCard(p); }catch(e){}   // v376: ธาตุมังกร (Ascendant Dragon Monk · gate ในฟังก์ชัน)
   try{ renderFeatCard(p); }catch(e){}   // v353: Feats picker (RAW-ASI-gated · ทุกคลาส · L4+)
   if(!rows.length){ const m=document.createElement('div'); m.className='muted'; m.innerHTML='ยังไม่มีความสามารถ<br>ความสามารถจะปรากฏหลังสร้างตัวละคร (ตามเผ่า/คลาส) หรือเมื่อ DM มอบให้'; p.appendChild(m); return; }
   const intro=document.createElement('div'); intro.className='note sk-intro'; intro.textContent='แตะที่ชื่อความสามารถเพื่อดูรายละเอียด'; p.appendChild(intro);
