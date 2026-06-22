@@ -3584,6 +3584,7 @@ async function renderItems(){
     const addBtn=document.createElement('button'); addBtn.className='btn sm'; addBtn.textContent='เพิ่ม';
     addBtn.onclick=async()=>{
       const nm=addIn.value.trim(); if(!nm){ toast('ใส่ชื่อไอเท็มก่อน',true); return; }
+      const _ci=(typeof itemByName==='function')?itemByName(nm):null; if(_ci&&_ci.is_magic){ toast('🔒 ไอเท็มเวทต้องได้จากเกม (ร้าน/ของรางวัล/DM) — เพิ่มเองไม่ได้',true); return; }   /* v379 L Wall 1: กันเพิ่มไอเท็มเวทจากคลังเองฟรี · free-text ผ่านปกติ (itemByName=null) */
       try{ const sh={...(mySheet||{})}; sh.inventory=Array.isArray(sh.inventory)?sh.inventory.slice():[]; sh.inventory.push({name:nm.slice(0,80),qty:1});
         await _saveSheet(sh, mySheetUpdatedAt); addIn.value='';   /* v271 H5: ส่ง updated_at (timestamp) ไม่ใช่ object mySheet — เดิม object ทำ optimistic-lock ไม่ match = เพิ่มไอเท็มล้มทุกครั้ง */ toast('เพิ่ม "'+nm+'" ลงกระเป๋าแล้ว'+(equipSlotFor(nm)?' — กด สวมใส่ ได้เลย':'')); renderItems();
       }catch(e){ toast('เพิ่มไม่สำเร็จ',true); }
@@ -4116,7 +4117,7 @@ const SUBCLASS_OPTS={
     {id:'Hunter', label:'Hunter (นักล่า)', desc:'ตั้ง Hunter’s Prey (Colossus/Horde/Giant) ในการ์ด Hunter’s Prey ✅ บังคับจริง'},
     {id:'Beast Master', label:'Beast Master (เจ้าสัตว์)', desc:_DM},
     {id:'Gloom Stalker', label:'Gloom Stalker (นักย่องเงา)', desc:_DM},
-    {id:'Horizon Walker', label:'Horizon Walker (นักเดินขอบฟ้า)', desc:_DM},
+    {id:'Horizon Walker', label:'Horizon Walker (นักเดินขอบฟ้า)', desc:'Planar Warrior: พิมพ์ "Planar Warrior"/"พลังมิติ" ใน action → โจมตีหลักครั้งถัดไป +1d8 force (1/เทิร์น) ✅ บังคับจริง'},
     {id:'Monster Slayer', label:'Monster Slayer (นักล่าอสูร)', desc:_DM},
     {id:'Fey Wanderer', label:'Fey Wanderer (นักจรภูต)', desc:_DM},
     {id:'Swarmkeeper', label:'Swarmkeeper (จ่าฝูง)', desc:_DM},
