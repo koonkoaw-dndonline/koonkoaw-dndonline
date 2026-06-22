@@ -1952,7 +1952,15 @@ function calcAC(sheet, klass){
   else { const ci=itemByName(eq.armor);
     if(ci&&ci.category==='armor'&&ci.armor_base!=null){ const b=+ci.armor_base,st=ci.subtype; base=(st==='medium')?b+Math.min(dex,2):(st==='heavy')?b:b+dex; label=ci.name; }
     else { let e=null,key=null; for(const k of Object.keys(ARM).sort((x,y)=>y.length-x.length)){ if(a.includes(k)){e=ARM[k];key=k;break;} } if(!e){base=10+dex;label='?';} else { base=(e[1]==='medium')?e[0]+Math.min(dex,2):(e[1]==='heavy')?e[0]:e[0]+dex; label=capf(key);} } }
-  const sh=(eq.shield||'').toLowerCase().trim(); const hasShield=sh&&!/^(none|no shield|-|—)$/.test(sh); const shCat=itemByName(eq.shield); const shAc=hasShield?((shCat&&shCat.bonuses&&shCat.bonuses.ac)?+shCat.bonuses.ac:2):0; const acb=bon.add.ac||0;
+  const sh=(eq.shield||'').toLowerCase().trim(); const hasShield=sh&&!/^(none|no shield|-|—)$/.test(sh); const shCat=itemByName(eq.shield); const shAc=hasShield?((shCat&&shCat.bonuses&&shCat.bonuses.ac)?+shCat.bonuses.ac:2):0;
+  // v372 task#11 feat AC (bake server เชื่อ): Dual Wielder +1 (ถืออาวุธมือรอง · RAW ทุกเกราะ) · Heavy Armor Master +1 (เกราะหนัก · house rule)
+  const _featsAc=(Array.isArray(sheet.feats)?sheet.feats:[]).map(_featMatch);
+  const _hasOffhand=(()=>{const o=String(eq.offhand||'').trim();return !!o&&!/^(none|no|—|-)$/i.test(o);})();
+  const _ciH=itemByName(eq.armor); const _isHeavyArm=(_ciH&&_ciH.category==='armor'&&_ciH.subtype==='heavy')||(!unarmored&&['ring mail','chain mail','splint','plate'].some(k=>a.includes(k)));
+  let _featAc=0;
+  if(_featsAc.indexOf('dual-wielder')>=0&&_hasOffhand)_featAc+=1;
+  if(_featsAc.indexOf('heavy-armor-master')>=0&&_isHeavyArm)_featAc+=1;
+  const acb=(bon.add.ac||0)+_featAc;
   return {ac:base+shAc+acb, label, bon, eAb};
 }
 function itemBonusStr(bon){ const x=[]; const g=(lab,v)=>{ if(v) x.push(lab+' '+(v>=0?'+':'')+v); };
@@ -3767,6 +3775,9 @@ const FEAT_OPTS=[
   {id:'piercer', label:'Piercer (จอมแทง)', desc:'อาวุธแทง (piercing): ทอยเต๋าดาเมจแทงใหม่ 1 ลูก/เทิร์น (เลือกลูกต่ำสุด) ✅ บังคับจริง · crit → +1 เต๋าแทง ✅ บังคับจริง'},
   {id:'slasher', label:'Slasher (จอมเฉือน)', desc:'อาวุธเฉือน (slashing): crit → เป้าเสียเปรียบการโจมตีจนจบเทิร์นหน้า (DM ให้มอนตีแบบเสียเปรียบ) · ลดความเร็วเป้า 10ft = DM เล่า'},
   {id:'elemental-adept', label:'Elemental Adept (จอมธาตุ)', desc:'เลือกธาตุ: เวทธาตุนั้นเพิกเฉย resistance ของเป้า + เลขเต๋าดาเมจที่ออก 1 นับเป็น 2 ✅ บังคับจริง · เลือกธาตุ →', element:true},
+  {id:'dual-wielder', label:'Dual Wielder (ทวิอาวุธ)', desc:'+1 AC ขณะถืออาวุธมือรอง (ใส่ช่อง ⚔ มือรอง) ✅ บังคับจริง · ถืออาวุธมือเดียวที่ไม่ light เป็นคู่ = DM เล่า'},
+  {id:'heavy-armor-master', label:'Heavy Armor Master (จอมเกราะหนัก)', desc:'สวมเกราะหนัก (Plate/Splint/Ring Mail/Chain Mail): +1 AC + ลดดาเมจ bludgeoning/piercing/slashing ที่ไม่ใช่เวท −3 ✅ บังคับจริง'},
+  {id:'defensive-duelist', label:'Defensive Duelist (นักดวลรับ)', desc:'ถืออาวุธ finesse (กริช/ดาบสั้น/rapier/scimitar/whip): ถูกตีประชิด → reaction +โบนัสความชำนาญ AC (อาจพลิก โดน→พลาด) ✅ บังคับจริง (1 reaction/รอบ)'},
 ];
 const RESILIENT_ABILS=[['con','CON'],['dex','DEX'],['str','STR'],['wis','WIS'],['int','INT'],['cha','CHA']];
 function _resilientAbil(featsArr){   // ดึง ability ที่เลือกจาก slug resilient-<ab> (default con)
@@ -3799,6 +3810,9 @@ function _featMatch(x){   // มิเรอร์ server parseFeats (combat-log
   if(/\bpiercer\b|จอมแทง|นักเจาะ/.test(s)) return 'piercer';
   if(/\bslasher\b|จอมเฉือน|นักฟัน/.test(s)) return 'slasher';
   if(/elemental[- ]?adept|จอมธาตุ|เชี่ยวชาญธาตุ/.test(s)) return 'elemental-adept';
+  if(/dual[- ]?wielder|ทวิอาวุธ|จอมอาวุธคู่|ถือสองมือ/.test(s)) return 'dual-wielder';   // v372 (มิเรอร์ server FEAT_CATALOG)
+  if(/heavy[- ]?armou?r[- ]?master|จอมเกราะหนัก|เชี่ยวชาญเกราะหนัก/.test(s)) return 'heavy-armor-master';   // v372 (มิเรอร์ server)
+  if(/defensive[- ]?duel(?:ist|er)?|นักดวลรับ|ป้องกันดวล|ดวลรับ/.test(s)) return 'defensive-duelist';   // v372 (มิเรอร์ server FEAT_CATALOG)
   return '';
 }
 function _asiSlots(cls, level){   // RAW PHB: จำนวนช่อง ASI/feat ตามคลาส+เลเวล
