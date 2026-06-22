@@ -3746,6 +3746,8 @@ const FEAT_OPTS=[
   {id:'savage-attacker', label:'Savage Attacker (จู่โจมดุดัน)', desc:'1 ครั้ง/เทิร์น: ทอยเต๋าดาเมจอาวุธประชิดใหม่ เก็บค่าสูงกว่า ✅ บังคับจริง'},
   {id:'sentinel', label:'Sentinel (ผู้พิทักษ์)', desc:'ศัตรูประชิดโจมตี "เพื่อน" (ไม่ใช่ตัวคุณ) → reaction ตีสวนผู้โจมตี 1 ครั้ง ✅ บังคับจริง (ต้องมีกริด · ยืนชิดผู้โจมตี ≤5ft · 1 reaction/รอบ) · OA ทะลุ Disengage + หยุดเป้าที่โดน OA = เร็วๆ นี้'},
   {id:'mobile', label:'Mobile (คล่องแคล่ว)', desc:'+10 ฟุต ความเร็ว ✅ บังคับจริง · ตีประชิดศัตรูตัวใดแล้วถอยจากตัวนั้น ไม่โดน Opportunity Attack ✅ (ต้องมีกริด) · Dash ผ่านพื้นยาก = DM เล่า'},
+  {id:'crossbow-expert', label:'Crossbow Expert (เชี่ยวชาญหน้าไม้)', desc:'ยิงหน้าไม้ระยะประชิดไม่ติด disadvantage ✅ บังคับจริง · ข้าม Loading + bonus-action hand crossbow = DM เล่า'},
+  {id:'shield-master', label:'Shield Master (จอมโล่)', desc:'ถือโล่: +2 เซฟ DEX (ผลที่เจาะจงตัวเดียว) ✅ + เซฟ DEX สำเร็จ vs เวทพื้นที่ = รับ 0 ดาเมจ ✅ บังคับจริง · bonus-action ผลัก (shove) = DM เล่า'},
 ];
 const RESILIENT_ABILS=[['con','CON'],['dex','DEX'],['str','STR'],['wis','WIS'],['int','INT'],['cha','CHA']];
 function _resilientAbil(featsArr){   // ดึง ability ที่เลือกจาก slug resilient-<ab> (default con)
@@ -3766,6 +3768,8 @@ function _featMatch(x){   // มิเรอร์ server parseFeats (combat-log
   if(/savage[- ]?attacker|จู่โจมดุดัน|นักจู่โจมดุร้าย|โจมตีป่าเถื่อน/.test(s)) return 'savage-attacker';
   if(/\bsentinel\b|ผู้พิทักษ์แนว|เฝ้าแนว|ยามเฝ้าระวัง/.test(s)) return 'sentinel';
   if(/\bmobile\b|คล่องแคล่ว|ว่องไว|เคลื่อนที่เร็ว|ฝีเท้าไว/.test(s)) return 'mobile';
+  if(/crossbow[- ]?expert|\bcbe\b|เชี่ยวชาญหน้าไม้|มือหน้าไม้|พรานหน้าไม้/.test(s)) return 'crossbow-expert';
+  if(/shield[- ]?master|จอมโล่|เชี่ยวชาญโล่|นักโล่/.test(s)) return 'shield-master';
   return '';
 }
 function _asiSlots(cls, level){   // RAW PHB: จำนวนช่อง ASI/feat ตามคลาส+เลเวล
