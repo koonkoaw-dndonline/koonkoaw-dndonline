@@ -3563,7 +3563,7 @@ async function renderItems(){
     const nm=typeof i==='string'?i:(i.name||'');
     const row=document.createElement('div'); row.className='kv'; row.style.alignItems='center';
     row.innerHTML=`<span class="k">▸ ${escapeHtml(disp)}</span>`;
-    if(equipSlotFor(nm)){ const eb=document.createElement('button'); eb.className='btn ghost sm'; eb.textContent='🛡 สวมใส่'; eb.onclick=()=>equipItem(nm); row.appendChild(eb); }
+    if(equipSlotFor(nm)){ const eb=document.createElement('button'); eb.className='btn ghost sm'; eb.textContent='🛡 สวมใส่'; eb.onclick=()=>equipItem(nm); row.appendChild(eb); if(equipSlotFor(nm)==='weapon'){ const ob=document.createElement('button'); ob.className='btn ghost sm'; ob.textContent='⚔ มือรอง'; ob.onclick=()=>equipOffhand(nm); row.appendChild(ob); } }
     else { const ci=itemByName(nm); if(ci&&(ci.category==='consumable'||ci.category==='wand')){ const ub=document.createElement('button'); ub.className='btn ghost sm'; ub.textContent='✨ ใช้'; ub.onclick=()=>useConsumable(nm, ci.effect); row.appendChild(ub); } }
     bag.appendChild(row);
   });
@@ -3637,6 +3637,20 @@ async function equipItem(name){
     persistCombatStats(sheet, myChar.class); await _saveSheet(sheet, _prev); tick(); toast('สวมใส่ '+name+' ✓'); renderItems();
   }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ของเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderItems(); } else toast('สวมใส่ไม่สำเร็จ',true); }
 }
+// v365 #10: ใส่อาวุธ light ช่องมือรอง (Two-Weapon Fighting — resolver v363 อ่าน equipment.offhand)
+async function equipOffhand(name){
+  if(!myChar||!name) return; if(equipSlotFor(name)!=='weapon'){ toast('ช่องมือรองใส่ได้เฉพาะอาวุธ',true); return; }
+  try{
+    const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle();
+    const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at; sheet.equipment=sheet.equipment||{};
+    let inv=Array.isArray(sheet.inventory)?sheet.inventory.slice():[];
+    const idx=inv.findIndex(i=>(typeof i==='string'?i:(i.name||''))===name);
+    if(idx>=0){ const it=inv[idx]; if(typeof it!=='string' && +it.qty>1){ inv[idx]={...it,qty:+it.qty-1}; } else { inv.splice(idx,1); } }
+    const prev=sheet.equipment.offhand; if(prev) inv.push({name:prev,qty:1});
+    sheet.equipment.offhand=name; sheet.inventory=inv;
+    persistCombatStats(sheet, myChar.class); await _saveSheet(sheet, _prev); tick(); toast('ใส่มือรอง '+name+' ✓'); renderItems();
+  }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ของเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderItems(); } else toast('ใส่มือรองไม่สำเร็จ',true); }
+}
 async function unequipAccessory(name){
   if(!myChar||!name) return;
   try{
@@ -3674,7 +3688,7 @@ const FIGHTING_STYLE_OPTS=[
   {id:'defense', label:'Defense (ตั้งรับ)', desc:'+1 AC ขณะสวมเกราะ ✅ บังคับจริง'},
   {id:'dueling', label:'Dueling (ดาบเดี่ยว)', desc:'+2 ดาเมจ เมื่อถืออาวุธประชิดมือเดียว ไม่มีอาวุธรอง (มีโล่ได้) ✅ บังคับจริง'},
   {id:'great-weapon', label:'Great Weapon Fighting (อาวุธสองมือ)', desc:'ทอยซ้ำเต๋าดาเมจอาวุธที่ออก 1-2 ครั้งเดียว (อาวุธสองมือ/versatile) ✅ บังคับจริง'},
-  {id:'two-weapon', label:'Two-Weapon Fighting (อาวุธคู่)', desc:'บวกค่าความสามารถใส่ดาเมจอาวุธมือรอง — ⏳ ยังไม่บังคับ (DM เล่า)'},
+  {id:'two-weapon', label:'Two-Weapon Fighting (อาวุธคู่)', desc:'บวกค่าความสามารถใส่ดาเมจอาวุธมือรอง ✅ บังคับจริง · ใส่อาวุธ light ช่องมือรอง (ปุ่ม ⚔ มือรอง) + พิมพ์ "โจมตีมือรอง"'},
   {id:'protection', label:'Protection (ปกป้อง)', desc:'ใช้โล่บังให้ศัตรูเสียเปรียบเมื่อโจมตีเพื่อนข้างตัว — ⏳ ยังไม่บังคับ (DM เล่า)'},
 ];
 function _fsMatch(cur){   // มิเรอร์ server normalizeFightingStyle (combat-logic.ts) — รองรับ id/ชื่ออังกฤษ/ไทย
@@ -3746,14 +3760,23 @@ const FEAT_OPTS=[
   {id:'savage-attacker', label:'Savage Attacker (จู่โจมดุดัน)', desc:'1 ครั้ง/เทิร์น: ทอยเต๋าดาเมจอาวุธประชิดใหม่ เก็บค่าสูงกว่า ✅ บังคับจริง'},
   {id:'sentinel', label:'Sentinel (ผู้พิทักษ์)', desc:'ศัตรูประชิดโจมตี "เพื่อน" (ไม่ใช่ตัวคุณ) → reaction ตีสวนผู้โจมตี 1 ครั้ง ✅ บังคับจริง (ต้องมีกริด · ยืนชิดผู้โจมตี ≤5ft · 1 reaction/รอบ) · OA ทะลุ Disengage (ศัตรูถอนตัวก็ยังโดนตีสวน) ✅ บังคับจริง · หยุดความเร็วเป้าที่โดน OA = เร็วๆ นี้'},
   {id:'mobile', label:'Mobile (คล่องแคล่ว)', desc:'+10 ฟุต ความเร็ว ✅ บังคับจริง · ตีประชิดศัตรูตัวใดแล้วถอยจากตัวนั้น ไม่โดน Opportunity Attack ✅ (ต้องมีกริด) · Dash ผ่านพื้นยาก = DM เล่า'},
-  {id:'crossbow-expert', label:'Crossbow Expert (เชี่ยวชาญหน้าไม้)', desc:'ยิงหน้าไม้ระยะประชิดไม่ติด disadvantage ✅ บังคับจริง · ข้าม Loading + bonus-action hand crossbow = DM เล่า'},
-  {id:'shield-master', label:'Shield Master (จอมโล่)', desc:'ถือโล่: +2 เซฟ DEX (ผลที่เจาะจงตัวเดียว) ✅ + เซฟ DEX สำเร็จ vs เวทพื้นที่ = รับ 0 ดาเมจ ✅ บังคับจริง · bonus-action ผลัก (shove) = DM เล่า'},
-  {id:'polearm-master', label:'Polearm Master (จอมทวน)', desc:'ถืออาวุธทวน (ง้าว/halberd/pike/พลอง/หอก): ศัตรูที่ "รุกเข้า" ระยะเอื้อม → Opportunity Attack ✅ บังคับจริง (ต้องมีกริด · 1 reaction/รอบ · ง้าว/halberd/pike เอื้อม 10ft) · ตีก้านท้าย (bonus action 1d4) = DM เล่า'},
+  {id:'crossbow-expert', label:'Crossbow Expert (เชี่ยวชาญหน้าไม้)', desc:'ยิงหน้าไม้ระยะประชิดไม่ติด disadvantage ✅ บังคับจริง · bonus-action ยิงหน้าไม้มือ ✅ พิมพ์ "ยิงอีกนัด" · ข้าม Loading = DM เล่า'},
+  {id:'shield-master', label:'Shield Master (จอมโล่)', desc:'ถือโล่: +2 เซฟ DEX (ผลที่เจาะจงตัวเดียว) ✅ + เซฟ DEX สำเร็จ vs เวทพื้นที่ = รับ 0 ดาเมจ ✅ บังคับจริง · bonus-action ผลัก (shove push) ✅ พิมพ์ "ผลักออก"'},
+  {id:'polearm-master', label:'Polearm Master (จอมทวน)', desc:'ถืออาวุธทวน (ง้าว/halberd/pike/พลอง/หอก): ศัตรูที่ "รุกเข้า" ระยะเอื้อม → Opportunity Attack ✅ บังคับจริง (ต้องมีกริด · 1 reaction/รอบ · ง้าว/halberd/pike เอื้อม 10ft) · ตีก้านท้าย bonus action (1d4) ✅ พิมพ์ "ตีก้านท้าย"'},
+  {id:'crusher', label:'Crusher (จอมทุบ)', desc:'อาวุธทุบ (bludgeoning): crit → เป้าเปราะ ผู้โจมตีทุกคนได้เปรียบจนจบเทิร์นหน้า ✅ บังคับจริง · ผลัก 5ft เมื่อโดน = DM เล่า'},
+  {id:'piercer', label:'Piercer (จอมแทง)', desc:'อาวุธแทง (piercing): ทอยเต๋าดาเมจแทงใหม่ 1 ลูก/เทิร์น (เลือกลูกต่ำสุด) ✅ บังคับจริง · crit → +1 เต๋าแทง ✅ บังคับจริง'},
+  {id:'slasher', label:'Slasher (จอมเฉือน)', desc:'อาวุธเฉือน (slashing): crit → เป้าเสียเปรียบการโจมตีจนจบเทิร์นหน้า (DM ให้มอนตีแบบเสียเปรียบ) · ลดความเร็วเป้า 10ft = DM เล่า'},
+  {id:'elemental-adept', label:'Elemental Adept (จอมธาตุ)', desc:'เลือกธาตุ: เวทธาตุนั้นเพิกเฉย resistance ของเป้า + เลขเต๋าดาเมจที่ออก 1 นับเป็น 2 ✅ บังคับจริง · เลือกธาตุ →', element:true},
 ];
 const RESILIENT_ABILS=[['con','CON'],['dex','DEX'],['str','STR'],['wis','WIS'],['int','INT'],['cha','CHA']];
 function _resilientAbil(featsArr){   // ดึง ability ที่เลือกจาก slug resilient-<ab> (default con)
   for(var i=0;i<(featsArr||[]).length;i++){ var m=String(featsArr[i]||'').toLowerCase().match(/resilient[- ]?(str|dex|con|int|wis|cha)/); if(m) return m[1]; }
   return 'con';
+}
+const ELEM_ADEPT_ELEMS=[['fire','ไฟ Fire'],['cold','น้ำแข็ง Cold'],['lightning','ไฟฟ้า Lightning'],['acid','กรด Acid'],['thunder','ฟ้าร้อง Thunder']];   // v366 #5 Elemental Adept
+function _elemAdeptType(featsArr){   // ดึงธาตุที่เลือกจาก slug elemental-adept-<type> (default fire)
+  for(var i=0;i<(featsArr||[]).length;i++){ var m=String(featsArr[i]||'').toLowerCase().match(/elemental[- ]?adept[- ]?(acid|cold|fire|lightning|thunder)/); if(m) return m[1]; }
+  return 'fire';
 }
 function _featMatch(x){   // มิเรอร์ server parseFeats (combat-logic.ts) — slug/ชื่ออังกฤษ/ไทย → id
   const s=String(x||'').toLowerCase(); if(!s.trim()) return '';
@@ -3772,6 +3795,10 @@ function _featMatch(x){   // มิเรอร์ server parseFeats (combat-log
   if(/crossbow[- ]?expert|\bcbe\b|เชี่ยวชาญหน้าไม้|มือหน้าไม้|พรานหน้าไม้/.test(s)) return 'crossbow-expert';
   if(/shield[- ]?master|จอมโล่|เชี่ยวชาญโล่|นักโล่/.test(s)) return 'shield-master';
   if(/polearm[- ]?master|\bpam\b|เชี่ยวชาญทวน|จอมทวน|อาจารย์ทวน/.test(s)) return 'polearm-master';
+  if(/\bcrusher\b|จอมทุบ|นักทุบ/.test(s)) return 'crusher';
+  if(/\bpiercer\b|จอมแทง|นักเจาะ/.test(s)) return 'piercer';
+  if(/\bslasher\b|จอมเฉือน|นักฟัน/.test(s)) return 'slasher';
+  if(/elemental[- ]?adept|จอมธาตุ|เชี่ยวชาญธาตุ/.test(s)) return 'elemental-adept';
   return '';
 }
 function _asiSlots(cls, level){   // RAW PHB: จำนวนช่อง ASI/feat ตามคลาส+เลเวล
@@ -3802,6 +3829,10 @@ function renderFeatCard(p){
       const curAb=_resilientAbil(featsArr);
       extra='<div style="margin-left:22px;margin-top:3px;margin-bottom:5px"><select data-resab="'+o.id+'" style="font-size:.85em;padding:2px 4px">'+RESILIENT_ABILS.map(function(a){return '<option value="'+a[0]+'"'+(a[0]===curAb?' selected':'')+'>'+a[1]+'</option>';}).join('')+'</select> <span class="muted" style="font-size:.78em">← ค่าสถานะที่ชำนาญเซฟ</span></div>';
     }
+    else if(o.element && on){   // v366 Elemental Adept: เลือกธาตุ (slug elemental-adept-<type>)
+      const curEl=_elemAdeptType(featsArr);
+      extra='<div style="margin-left:22px;margin-top:3px;margin-bottom:5px"><select data-elemad="'+o.id+'" style="font-size:.85em;padding:2px 4px">'+ELEM_ADEPT_ELEMS.map(function(a){return '<option value="'+a[0]+'"'+(a[0]===curEl?' selected':'')+'>'+a[1]+'</option>';}).join('')+'</select> <span class="muted" style="font-size:.78em">← ธาตุที่เพิกเฉย resistance</span></div>';
+    }
     return '<label style="display:block;margin:5px 0;cursor:'+(dis?'not-allowed':'pointer')+';opacity:'+(dis?'.45':'1')+'"><input type="checkbox" data-feat="'+o.id+'"'+(on?' checked':'')+(dis?' disabled':'')+' style="margin-right:6px;vertical-align:top"><b>'+escapeHtml(o.label)+'</b><div class="muted" style="font-size:.8em;margin-left:22px;line-height:1.35">'+escapeHtml(o.desc)+'</div></label>'+extra;
   }).join('');
   if(used>=slots) html+='<div class="muted" style="font-size:.8em;margin-top:4px">ช่อง feat เต็ม — เลเวลขึ้นเพื่อปลดล็อกเพิ่ม</div>';
@@ -3815,6 +3846,7 @@ function renderFeatCard(p){
         let fa=Array.isArray(sheet.feats)?sheet.feats.slice():[];
         if(cb.checked){
           if(id==='resilient'){ if(fa.map(_featMatch).indexOf('resilient')<0) fa.push('resilient-'+_resilientAbil(fa)); }   // v357: parameterized — default CON
+          else if(id==='elemental-adept'){ if(fa.map(_featMatch).indexOf('elemental-adept')<0) fa.push('elemental-adept-'+_elemAdeptType(fa)); }   // v366: parameterized — default fire
           else if(fa.map(_featMatch).indexOf(id)<0) fa.push(id);
         }
         else { fa=fa.filter(function(x){ return _featMatch(x)!==id; }); }
@@ -3836,6 +3868,21 @@ function renderFeatCard(p){
         sheet.feats=fa;
         await _saveSheet(sheet, _prev); tick();
         toast('Resilient: ชำนาญเซฟ '+String(sel.value).toUpperCase()+' ✓ (อย่าลืม +1 ค่าสถานะในชีท)');
+        renderSkills();
+      }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ชีทเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderSkills(); } else { toast('บันทึกไม่สำเร็จ ลองใหม่',true); } }
+    };
+  });
+  card.querySelectorAll('select[data-elemad]').forEach(function(sel){   // v366 Elemental Adept ธาตุ sub-picker → เขียน slug elemental-adept-<type>
+    sel.onchange=async function(){
+      try{
+        const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle();
+        const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at;
+        let fa=Array.isArray(sheet.feats)?sheet.feats.slice():[];
+        fa=fa.filter(function(x){ return _featMatch(x)!=='elemental-adept'; });
+        fa.push('elemental-adept-'+sel.value);
+        sheet.feats=fa;
+        await _saveSheet(sheet, _prev); tick();
+        toast('Elemental Adept: ธาตุ '+String(sel.value).toUpperCase()+' ✓');
         renderSkills();
       }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ชีทเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderSkills(); } else { toast('บันทึกไม่สำเร็จ ลองใหม่',true); } }
     };
