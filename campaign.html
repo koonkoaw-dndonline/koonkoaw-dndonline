@@ -1953,13 +1953,12 @@ function calcAC(sheet, klass){
     if(ci&&ci.category==='armor'&&ci.armor_base!=null){ const b=+ci.armor_base,st=ci.subtype; base=(st==='medium')?b+Math.min(dex,2):(st==='heavy')?b:b+dex; label=ci.name; }
     else { let e=null,key=null; for(const k of Object.keys(ARM).sort((x,y)=>y.length-x.length)){ if(a.includes(k)){e=ARM[k];key=k;break;} } if(!e){base=10+dex;label='?';} else { base=(e[1]==='medium')?e[0]+Math.min(dex,2):(e[1]==='heavy')?e[0]:e[0]+dex; label=capf(key);} } }
   const sh=(eq.shield||'').toLowerCase().trim(); const hasShield=sh&&!/^(none|no shield|-|—)$/.test(sh); const shCat=itemByName(eq.shield); const shAc=hasShield?((shCat&&shCat.bonuses&&shCat.bonuses.ac)?+shCat.bonuses.ac:2):0;
-  // v372 task#11 feat AC (bake server เชื่อ): Dual Wielder +1 (ถืออาวุธมือรอง · RAW ทุกเกราะ) · Heavy Armor Master +1 (เกราะหนัก · house rule)
+  // feat AC (bake server เชื่อ): Dual Wielder +1 (ถืออาวุธมือรอง · RAW ทุกเกราะ) · Heavy Armor Master = ไม่บวก AC (RAW: STR+1 + ลดดาเมจ −3 เท่านั้น · v394 ถอด house-rule +1 AC)
   const _featsAc=(Array.isArray(sheet.feats)?sheet.feats:[]).map(_featMatch);
   const _hasOffhand=(()=>{const o=String(eq.offhand||'').trim();return !!o&&!/^(none|no|—|-)$/i.test(o);})();
   const _ciH=itemByName(eq.armor); const _isHeavyArm=(_ciH&&_ciH.category==='armor'&&_ciH.subtype==='heavy')||(!unarmored&&['ring mail','chain mail','splint','plate'].some(k=>a.includes(k)));
   let _featAc=0;
   if(_featsAc.indexOf('dual-wielder')>=0&&_hasOffhand)_featAc+=1;
-  if(_featsAc.indexOf('heavy-armor-master')>=0&&_isHeavyArm)_featAc+=1;
   // v376 Soul of the Forge (Forge Domain Cleric L1): +1 AC ขณะสวมเกราะหนัก (bake — server เชื่อ AC frontend · มิเรอร์ feat AC)
   let _domainAc=0; if(String(sheet.domain_key||'').toLowerCase().includes('forge')&&_isHeavyArm)_domainAc+=1;
   const acb=(bon.add.ac||0)+_featAc+_domainAc;
@@ -3781,7 +3780,7 @@ const FEAT_OPTS=[
   {id:'slasher', label:'Slasher (จอมเฉือน)', desc:'อาวุธเฉือน (slashing): crit → เป้าเสียเปรียบการโจมตีจนจบเทิร์นหน้า (DM ให้มอนตีแบบเสียเปรียบ) · ลดความเร็วเป้า 10ft = DM เล่า'},
   {id:'elemental-adept', label:'Elemental Adept (จอมธาตุ)', desc:'เลือกธาตุ: เวทธาตุนั้นเพิกเฉย resistance ของเป้า + เลขเต๋าดาเมจที่ออก 1 นับเป็น 2 ✅ บังคับจริง · เลือกธาตุ →', element:true},
   {id:'dual-wielder', label:'Dual Wielder (ทวิอาวุธ)', desc:'+1 AC ขณะถืออาวุธมือรอง (ใส่ช่อง ⚔ มือรอง) ✅ บังคับจริง · ถืออาวุธมือเดียวที่ไม่ light เป็นคู่ = DM เล่า'},
-  {id:'heavy-armor-master', label:'Heavy Armor Master (จอมเกราะหนัก)', desc:'สวมเกราะหนัก (Plate/Splint/Ring Mail/Chain Mail): +1 AC + ลดดาเมจ bludgeoning/piercing/slashing ที่ไม่ใช่เวท −3 ✅ บังคับจริง'},
+  {id:'heavy-armor-master', label:'Heavy Armor Master (จอมเกราะหนัก)', desc:'สวมเกราะหนัก (Plate/Splint/Ring Mail/Chain Mail): ลดดาเมจ bludgeoning/piercing/slashing ที่ไม่ใช่เวท −3 ✅ บังคับจริง (RAW: ไม่มี +1 AC)'},
   {id:'defensive-duelist', label:'Defensive Duelist (นักดวลรับ)', desc:'ถืออาวุธ finesse (กริช/ดาบสั้น/rapier/scimitar/whip): ถูกตีประชิด → reaction +โบนัสความชำนาญ AC (อาจพลิก โดน→พลาด) ✅ บังคับจริง (1 reaction/รอบ)'},
 ];
 const RESILIENT_ABILS=[['con','CON'],['dex','DEX'],['str','STR'],['wis','WIS'],['int','INT'],['cha','CHA']];
