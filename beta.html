@@ -3629,6 +3629,7 @@ async function equipItem(name){
   if(!myChar||!name) return; const slot=equipSlotFor(name); if(!slot){ toast('ไอเทมนี้สวมใส่ไม่ได้',true); return; }
   try{
     const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle();
+    if(r.error) throw r.error;   /* review-r1 F16: เช็ค SELECT error (เดิมเงียบ → _prev undefined → ข้าม optimistic lock → lost update) */
     const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at; sheet.equipment=sheet.equipment||{};
     const ci=itemByName(name);
     if(ci&&ci.requires_attunement){ if(equippedBonuses(sheet).attune>=3){ toast('attunement เต็ม (สูงสุด 3 ชิ้น) — ถอดของเวทก่อน',true); return; } }
@@ -3652,6 +3653,7 @@ async function equipOffhand(name){
   if(!myChar||!name) return; if(equipSlotFor(name)!=='weapon'){ toast('ช่องมือรองใส่ได้เฉพาะอาวุธ',true); return; }
   try{
     const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle();
+    if(r.error) throw r.error;   /* review-r1 F16: เช็ค SELECT error (เดิมเงียบ → _prev undefined → ข้าม optimistic lock → lost update) */
     const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at; sheet.equipment=sheet.equipment||{};
     let inv=Array.isArray(sheet.inventory)?sheet.inventory.slice():[];
     const idx=inv.findIndex(i=>(typeof i==='string'?i:(i.name||''))===name);
@@ -3665,6 +3667,7 @@ async function unequipAccessory(name){
   if(!myChar||!name) return;
   try{
     const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle();
+    if(r.error) throw r.error;   /* review-r1 F16: เช็ค SELECT error (เดิมเงียบ → _prev undefined → ข้าม optimistic lock → lost update) */
     const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at; sheet.equipment=sheet.equipment||{};
     let acc=Array.isArray(sheet.equipment.accessories)?sheet.equipment.accessories.slice():[]; let removed=false;
     const i=acc.findIndex(a=>(typeof a==='string'?a:(a&&a.name))===name);
@@ -3679,6 +3682,7 @@ async function unequipItem(slot){
   if(!myChar) return;
   try{
     const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle();
+    if(r.error) throw r.error;   /* review-r1 F16: เช็ค SELECT error (เดิมเงียบ → _prev undefined → ข้าม optimistic lock → lost update) */
     const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at; sheet.equipment=sheet.equipment||{};
     const val=sheet.equipment[slot]; if(!val) return;
     let inv=Array.isArray(sheet.inventory)?sheet.inventory.slice():[]; inv.push({name:val,qty:1});
@@ -6532,18 +6536,7 @@ window.cc = (function(){
       if (typeof toast==='function') toast('Action submitted ✓');
       // ข้อ 3 (06-08): optimistic — อัปเดตฉากรบทันทีหลังส่ง (มาร์คเดิน/สถานะ) ไม่รอ realtime เด้งกลับ
       try{ if(typeof _bsShown!=='undefined' && _bsShown && typeof renderBattleScene==='function') renderBattleScene(); }catch(e){}
-      // ── B: หักทรัพยากรจริง (skills.used) สำหรับเวท/ความสามารถจำกัดครั้งที่ใช้ในเทิร์นนี้ ──
-      try{
-        var _usedIds = [turn.action, turn.bonus, turn.reaction].filter(function(t){return t && t.skillId;}).map(function(t){return t.skillId;});
-        var _seen = {};
-        for (var _i=0; _i<_usedIds.length; _i++){
-          var _sid=_usedIds[_i]; if(_seen[_sid]) continue; _seen[_sid]=1;
-          var _r = await supa.from('skills').select('id,used,max_uses').eq('id',_sid).maybeSingle();
-          var _sk = _r && _r.data;
-          if (_sk && _sk.max_uses>0 && (_sk.used||0) < _sk.max_uses){ await supa.from('skills').update({used:(_sk.used||0)+1}).eq('id',_sid); }
-        }
-        if (typeof activeTab==='function' && activeTab()==='skills' && typeof renderSkills==='function') renderSkills();
-      }catch(e){ if(window.console) console.warn('[cc] resource decrement skipped', e); }
+      // ── B (review-r1 F15): การหัก skills.used max_uses ย้ายไป server แล้ว (structured block-and-strip · server-authoritative · กัน double-charge ที่เดิม client+server หักซ้ำ) — client ไม่หักเอง · UI รีเฟรชหลัง resolve ผ่าน loadRound ──
       try{ if (typeof loadRound==='function') await loadRound(); if (typeof renderRoundbar==='function') renderRoundbar(); }catch(e){}
       try{
         if (typeof resolveRound==='function') { window._afterSubmit=true; resolveRound(false); }
