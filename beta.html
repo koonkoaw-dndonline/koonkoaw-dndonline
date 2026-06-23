@@ -3752,7 +3752,7 @@ function renderFightingStyleCard(p){
     const val=sel.value;
     desc.textContent=(FIGHTING_STYLE_OPTS.find(o=>o.id===val)||FIGHTING_STYLE_OPTS[0]).desc;
     try{
-      const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle();
+      const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle(); if(r.error) throw r.error;
       const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at;
       if(val) sheet.fighting_style=val; else delete sheet.fighting_style;
       await _saveSheet(sheet, _prev); tick();
@@ -3863,7 +3863,7 @@ function renderFeatCard(p){
     cb.onchange=async function(){
       const id=cb.getAttribute('data-feat');
       try{
-        const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle();
+        const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle(); if(r.error) throw r.error;
         const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at;
         let fa=Array.isArray(sheet.feats)?sheet.feats.slice():[];
         if(cb.checked){
@@ -3882,7 +3882,7 @@ function renderFeatCard(p){
   card.querySelectorAll('select[data-resab]').forEach(function(sel){   // v357 Resilient ability sub-picker → เขียน slug resilient-<ab>
     sel.onchange=async function(){
       try{
-        const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle();
+        const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle(); if(r.error) throw r.error;
         const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at;
         let fa=Array.isArray(sheet.feats)?sheet.feats.slice():[];
         fa=fa.filter(function(x){ return _featMatch(x)!=='resilient'; });
@@ -3897,7 +3897,7 @@ function renderFeatCard(p){
   card.querySelectorAll('select[data-elemad]').forEach(function(sel){   // v366 Elemental Adept ธาตุ sub-picker → เขียน slug elemental-adept-<type>
     sel.onchange=async function(){
       try{
-        const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle();
+        const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle(); if(r.error) throw r.error;
         const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at;
         let fa=Array.isArray(sheet.feats)?sheet.feats.slice():[];
         fa=fa.filter(function(x){ return _featMatch(x)!=='elemental-adept'; });
@@ -3940,7 +3940,7 @@ function renderHuntersPreyCard(p){
     const val=sel.value;
     desc.textContent=(HUNTERS_PREY_OPTS.find(o=>o.id===val)||HUNTERS_PREY_OPTS[0]).desc;
     try{
-      const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle();
+      const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle(); if(r.error) throw r.error;
       const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at;
       if(val) sheet.hunters_prey=val; else delete sheet.hunters_prey;
       await _saveSheet(sheet, _prev); tick();
@@ -3969,7 +3969,7 @@ function renderAscendantElementCard(p){
   sel.onchange=async()=>{
     const val=sel.value||'fire';
     try{
-      const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle();
+      const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle(); if(r.error) throw r.error;
       const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at;
       sheet.monk_element=val;
       await _saveSheet(sheet, _prev); tick();
@@ -3996,7 +3996,7 @@ function renderStormEnvCard(p){
   sel.onchange=async()=>{
     const val=sel.value||'desert';
     try{
-      const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle();
+      const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle(); if(r.error) throw r.error;
       const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at;
       sheet.storm_aura_env=val;
       await _saveSheet(sheet, _prev); tick();
@@ -4187,7 +4187,7 @@ function renderSubclassCard(p){
     const _nm=opt.label.split('(')[0].trim();
     if(!confirm('เลือก "'+_nm+'" เป็นสายอาชีพย่อย?\n\nตามกฎ D&D เลือกได้ครั้งเดียว เปลี่ยนภายหลังไม่ได้')){ sel.value=''; desc.textContent=spec.opts[0].desc; return; }
     try{
-      const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle();
+      const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle(); if(r.error) throw r.error;
       const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at;
       if(_subCurMatch(spec, sheet)){ toast('สายอาชีพย่อยถูกตั้งไว้แล้ว',true); renderSkills(); return; }   // กันแข่ง: client อื่นเพิ่งตั้ง
       if(spec.domain){ sheet.domain_key=val; sheet.subclass=_nm; }
