@@ -2175,7 +2175,7 @@ async function createCharacter(){
     try{
       const ck=classKey(); const feats=ck?CLASS_FEATURES[ck]:null;
       const rows=[];
-      if(feats&&feats.length) feats.forEach((f,i)=>rows.push({campaign_id:campaign.id,character_id:ch.id,name:f.name,description:f.description,max_uses:f.max_uses,used:0,recharge:f.recharge,sort:i}));
+      if(feats&&feats.length) feats.forEach((f,i)=>rows.push({campaign_id:campaign.id,character_id:ch.id,name:f.name,description:f.description,max_uses:(/lay on hands/i.test(f.name)?5:f.max_uses),used:0,recharge:f.recharge,sort:i}));   // v418: Lay on Hands max_uses = พูล 5×level (เริ่ม L1=5 · server อัปตามเลเวล)
       // ความสามารถเฉพาะเผ่า (racial traits: passive/active) → ลง skills เช่นกัน
       const rk=raceKey(); let rfeats=rk?RACE_FEATURES[rk]:null;
       // v291: Dragonborn → ฝังธาตุที่เลือกในคำอธิบาย (ผู้เล่นเห็นชัด · server ใช้ sheet.dragonborn_element)
@@ -2416,6 +2416,8 @@ function persOptsWidget(){
 }
 // v287: ผู้เล่นกด "ไปต่อ" หลังอ่านบทปิดท้ายศึก → server เพิ่ม done · ครบทุกคน (หรือ host force) → finalize → VICTORY
 async function submitVictoryAck(force){
+  if(window._vaSubmitting) return;   // v418: กันกดซ้ำ/ยิงซ้อน → server finalize ซ้ำ → ป้าย VICTORY เด้ง 2 รอบ
+  window._vaSubmitting=true;
   try{
     var sess=(await supa.auth.getSession()).data.session; var tok=sess&&sess.access_token;
     var r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id, victory_ack:true, force:!!force})});
@@ -2429,6 +2431,7 @@ async function submitVictoryAck(force){
     try{ await renderRoundbar(); }catch(e){}
     try{ scheduleBattleScene(); }catch(e){}
   }catch(e){ toast('ส่งไม่สำเร็จ ลองใหม่',true); }
+  finally{ window._vaSubmitting=false; }
 }
 async function renderRoundbar(){
   const myseq=++roundbarSeq;            // กัน render ซ้อน (ต้นเหตุกล่องตอบซ้ำ)
@@ -3752,6 +3755,16 @@ function renderFightingStyleCard(p){
   }
   const cur=_fsMatch((mySheet||{}).fighting_style);
   const curValid=rule.styles.indexOf(cur)>=0?cur:'';   // สไตล์ที่บันทึกไว้แต่คลาสนี้เลือกไม่ได้ → ถือว่ายังไม่เลือก
+  // v418: ล็อกหลังเลือกแล้ว — เปลี่ยนรูปแบบการต่อสู้ได้อีกครั้งเมื่อถึงเลเวล 4 (กันสลับสไตล์ไปมา/รายศึก · RAW: Fighting Style ถาวร)
+  const FS_RELOCK_LV=4;
+  if(curValid && lvl<FS_RELOCK_LV){
+    const _o=FIGHTING_STYLE_OPTS.find(o=>o.id===curValid)||{};
+    card.innerHTML=head+
+      '<div style="margin:6px 0;padding:7px 9px;border-radius:8px;background:#161b25;border:1px solid #2c3344">🔒 <b>'+escapeHtml(_o.label||curValid)+'</b></div>'+
+      '<div class="muted" style="font-size:.85em;line-height:1.4">'+escapeHtml(_o.desc||'')+'</div>'+
+      '<div class="muted" style="font-size:.8em;margin-top:5px;color:#f5c542">ล็อกแล้ว — เลือกรูปแบบการต่อสู้ครั้งเดียว เปลี่ยนได้อีกครั้งเมื่อถึงเลเวล '+FS_RELOCK_LV+'</div>';
+    p.appendChild(card); return;
+  }
   const opts=FIGHTING_STYLE_OPTS.filter(o=>o.id===''||rule.styles.indexOf(o.id)>=0);   // เฉพาะสไตล์ที่คลาสนี้เลือกได้ (PHB)
   const optsHtml=opts.map(o=>'<option value="'+o.id+'"'+(o.id===curValid?' selected':'')+'>'+escapeHtml(o.label)+'</option>').join('');
   const curDesc=(FIGHTING_STYLE_OPTS.find(o=>o.id===curValid)||FIGHTING_STYLE_OPTS[0]).desc;
@@ -4244,7 +4257,9 @@ async function renderSkills(){
       // v180: เวทมีระดับร่ายผ่านสล็อตรวม (PHB) — ไม่มีตัวนับรายเวทแล้ว แสดงระดับที่กิน
       // v220: บอกหน่วยเวลา/โควต้าชัดๆ ให้มือใหม่ (feedback: "speak with animals/heal ควรระบุว่าใช้ได้กี่ครั้งต่อวัน")
       //   สกิลจำกัดครั้ง → "N/M ต่อวัน" · เวทมีระดับ → โชว์ slot คงเหลือวันนี้จาก sheet.slots (โควต้ารวมของเวทระดับนั้นทั้งหมด)
-      const uses=(s.max_uses>0)?`<span class="sk-use">${s.max_uses-(s.used||0)}/${s.max_uses}${rech==='long'?' ต่อวัน':(rech==='short'?' ต่อพักสั้น':'')}</span>`
+      const _isLoH=/lay on hands|วางมือ/i.test(s.name||'');   // v418: Lay on Hands = พูล 5×level HP (ไม่ใช่ 1 ครั้ง) — โชว์พูลคงเหลือ
+      const uses=_isLoH?(()=>{const _pool=5*Math.max(1,(myChar&&+myChar.level)||1);const _left=Math.max(0,_pool-(+s.used||0));return `<span class="sk-use" title="พูลรักษา Lay on Hands = 5 × เลเวล HP ต่อ long rest — ระบุจำนวนได้ เช่น 'ใช้ Lay on Hands 8 ให้ ...'">${_left}/${_pool} HP</span>`;})()
+        :(s.max_uses>0)?`<span class="sk-use">${s.max_uses-(s.used||0)}/${s.max_uses}${rech==='long'?' ต่อวัน':(rech==='short'?' ต่อพักสั้น':'')}</span>`
         :((s.level!=null&&+s.level>=1)?(()=>{let ex='';try{const sl=(mySheet||{}).slots;if(sl&&Array.isArray(sl.lv_max)){const L=Math.max(1,Math.floor(+s.level));const mx=+sl.lv_max[L]||0;if(mx){const left=Math.max(0,mx-(+(((sl.lv_used||{})[String(L)]))||0));ex=' · เหลือ '+left+'/'+mx+' วันนี้';}}}catch(e){}return `<span class="sk-use" title="ร่ายผ่าน spell slot ระดับ ${s.level} — แชร์โควต้ากับเวทระดับเดียวกัน ฟื้นเมื่อพักยาว">slot L${s.level}${ex}</span>`;})():'');
       const row=document.createElement('div'); row.className='sk-row';
       row.innerHTML=`<button type="button" class="sk-line"><span class="sk-nm">${escapeHtml(s.name)}</span>${uses}<span class="sk-bdg${on?' on':''}">${rechLabel(rech)}</span><span class="sk-arw">▸</span></button><div class="sk-desc">${escapeHtml(s.description||'(ไม่มีคำอธิบาย)')}</div>`;
@@ -5321,7 +5336,7 @@ async function renderBattleGrid(p){
     const myTok=toks.find(t=> t.ref_char_id && (typeof myChar!=='undefined') && myChar && t.ref_char_id===myChar.id);
     if(myTok){
       const sp=(typeof mySheet!=='undefined'&&mySheet&&mySheet.combat&&+mySheet.combat.speed)||30;
-      const cf=grid.cell_ft||1; const maxC=Math.max(1,Math.floor(sp/cf));
+      const cf=grid.cell_ft||5; const maxC=Math.max(1,Math.floor(sp/cf));
       const _mc=[]; for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){ const cell=rc2cell(c,r), d=Math.max(Math.abs(c-myTok.col),Math.abs(r-myTok.row)); if(d>0&&d<=maxC&&!walls.has(cell)) _mc.push([c,r]); }
       if(ISO) _mc.sort((a,b)=>(a[0]+a[1])-(b[0]+b[1]));
       _mc.forEach(p=>{ const c=p[0], r=p[1], seld=moveSel&&moveSel.c===c&&moveSel.r===r;
@@ -5357,7 +5372,7 @@ async function renderBattleGrid(p){
   if(moveMode){
     const myTok2=toks.find(t=> t.ref_char_id && (typeof myChar!=='undefined') && myChar && t.ref_char_id===myChar.id);
     const sp=(typeof mySheet!=='undefined'&&mySheet&&mySheet.combat&&+mySheet.combat.speed)||30;
-    const cf=grid.cell_ft||1; const maxC=Math.max(1,Math.floor(sp/cf)); const L2="ABCDEFGHIJKLMNOPQRST";
+    const cf=grid.cell_ft||5; const maxC=Math.max(1,Math.floor(sp/cf)); const L2="ABCDEFGHIJKLMNOPQRST";
     const ctl=document.createElement('div'); ctl.className='optrow'; ctl.style.marginTop='8px';
     ctl.innerHTML = myTok2
       ? `<span class="dicelbl">🚶 แตะช่องเขียวเพื่อเลือกที่จะเดิน (≤ ${sp}ft = ${maxC} ช่อง)${moveSel?(' · เลือก '+((L2[moveSel.c]||'?')+(moveSel.r+1))+' → กด ✓ บนกระดาน'):''}</span>`
