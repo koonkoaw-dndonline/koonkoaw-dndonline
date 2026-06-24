@@ -1057,6 +1057,7 @@ body.in-battle .bs-cs-btn{display:block;}
     <div id="spellInfo" class="note" style="display:none"></div>
     <div id="spellWrap" class="skgrid" style="display:none"></div>
     <label class="fld">Background / notes (private)<textarea id="cNotes" placeholder="ภูมิหลัง ความลับ ฯลฯ (เห็นเฉพาะคุณ)"></textarea></label>
+    <label class="fld">🎯 ปมที่อยากให้ DM หยิบไปผูกเรื่อง (DM เห็น)<textarea id="cHooks" placeholder="เช่น: ตามหาน้องสาวที่หายไป · กลัวไฟเพราะบ้านเคยถูกเผา · เป็นหนี้กิลด์โจร — DM จะค่อยๆ ผูกเข้าเควส/NPC ให้รู้สึกว่าเรื่องเกี่ยวกับเรา (ต่างจาก notes ลับด้านบน)"></textarea></label>
     <button class="btn" id="charBtn" onclick="createCharacter()">Enter the World</button>
   </div>
 </div>
@@ -2166,7 +2167,8 @@ async function createCharacter(){
       equipment:eqp,
       inventory:invp, wallet:walletp, exp:{current:0,next:300},
       conditions:[], resistances:{resist:[],immune:[],vulnerable:[]}, effects:[],
-      notes:$('cNotes').value.trim()
+      notes:$('cNotes').value.trim(),
+      story_hooks:(($('cHooks')&&$('cHooks').value.trim())||'')   // v423 เฟส D: ปม opt-in ให้ DM ผูกเรื่อง (แยกจาก notes ลับ)
     };
     persistCombatStats(sheet, classValue());
     const { error: _shErr } = await supa.from('character_sheets').insert({ character_id:ch.id, sheet });   // v271 L5: เช็ค error (เดิมไม่เช็ค → ถ้า insert ล้ม ได้ตัวละครไม่มีชีทเงียบๆ)
@@ -2675,10 +2677,18 @@ async function renderRoundbar(){
     if(rr.needed){
       const dice=document.createElement('div'); dice.className='dicerow';
       const reason = rr.reason ? (escapeHtml(String(rr.reason).slice(0,140))+(String(rr.reason).length>140?'…':'')) : 'DM ขอให้ทอยเต๋า';   // clamp กันเหตุผลยาวผิดปกติ
-      const itemsTxt = (Array.isArray(rr.items)&&rr.items.length)? rr.items.map(it=>`${it.label||'Roll'} ${it.formula||'1d20'}${it.ability?(' +'+it.ability):''}`).join(', ') : '';
-      dice.innerHTML='<span class="dicelbl">🎲 DM ขอให้ทอย: '+reason+(itemsTxt?(' <span style="color:#9a9a9a">('+escapeHtml(itemsTxt)+')</span>'):'')+'</span>';
-      const dm=document.createElement('button'); dm.className='btn ghost sm'; dm.textContent='DM ทอยให้'; dm.onclick=()=>rollDM(rr.items); dice.appendChild(dm);
-      const sf=document.createElement('button'); sf.className='btn ghost sm'; sf.textContent='ทอยเอง'; sf.onclick=rollSelf; dice.appendChild(sf);
+      const _rrItems = (Array.isArray(rr.items)&&rr.items.length)? rr.items : [];
+      if(_rrItems.length>1){
+        // v424: หลายสกิลใน roll_request = "ทางเลือก" ไม่ใช่ทอยรวดทุกอัน — ผู้เล่นเลือกทอย 'อันเดียว' (กันทอย Persuasion/Intimidation/Deception ออกมาพร้อมกัน 3 ค่า)
+        dice.innerHTML='<span class="dicelbl">🎲 '+reason+' — เลือกแนวทางที่จะทอย (อย่างเดียว):</span>';
+        _rrItems.forEach(it=>{ const b=document.createElement('button'); b.className='btn ghost sm'; b.textContent='🎲 '+escapeHtml(String(it.label||'Roll'))+(it.ability?(' +'+escapeHtml(String(it.ability))):''); b.onclick=()=>rollDM([it]); dice.appendChild(b); });
+        const sf=document.createElement('button'); sf.className='btn ghost sm'; sf.textContent='ทอยเอง'; sf.onclick=rollSelf; dice.appendChild(sf);
+      } else {
+        const itemsTxt = _rrItems.length? (`${_rrItems[0].label||'Roll'} ${_rrItems[0].formula||'1d20'}${_rrItems[0].ability?(' +'+_rrItems[0].ability):''}`) : '';
+        dice.innerHTML='<span class="dicelbl">🎲 DM ขอให้ทอย: '+reason+(itemsTxt?(' <span style="color:#9a9a9a">('+escapeHtml(itemsTxt)+')</span>'):'')+'</span>';
+        const dm=document.createElement('button'); dm.className='btn ghost sm'; dm.textContent='DM ทอยให้'; dm.onclick=()=>rollDM(_rrItems); dice.appendChild(dm);
+        const sf=document.createElement('button'); sf.className='btn ghost sm'; sf.textContent='ทอยเอง'; sf.onclick=rollSelf; dice.appendChild(sf);
+      }
       bar.appendChild(dice);
       const dn=document.createElement('div'); dn.className='econleg'; dn.textContent='“DM ทอยให้” = server สุ่มจริง 100% · “ทอยเอง” = ทอยเต๋าจริงในมือแล้วใส่เลข'; bar.appendChild(dn);
     }
