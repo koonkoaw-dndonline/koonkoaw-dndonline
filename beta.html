@@ -3062,6 +3062,8 @@ async function renderLevelUpPanel(p){
   if(feats.length){ const fb=document.createElement('div'); fb.innerHTML='<div class="sectitle" style="margin-top:8px">ความสามารถใหม่ของเลเวลนี้ (ได้รับอัตโนมัติ)</div>'; feats.forEach(f=>{ const d=document.createElement('div'); d.className='note'; d.style.cssText='text-align:left;color:#9fe0a0;margin:1px 0'; d.innerHTML='\u2726 <b>'+escapeHtml(f.name)+'</b> <span class="muted" style="font-size:11px">'+escapeHtml(f.effect||'')+'</span>'; fb.appendChild(d); }); card.appendChild(fb); }
   const btn=document.createElement('button'); btn.className='btn'; btn.style.marginTop='10px'; btn.textContent='\u2713 ยืนยันเลเวลอัพ';
   btn.onclick=()=>submitLevelUp(asiState, {cantrips:[...cantripPicks], spells:[...spellPicks], oath:oathPick}, feats, btn);
+  // v415: ฝังตัวเลือก Fighting Style ในหน้าเลเวลอัพ — Fighter/Paladin/Ranger ที่เพิ่งได้สไตล์เลือกได้ตรงนี้เลย (กันบั๊ก "ขึ้นมาให้ดูแต่เลือกไม่ได้" — เดิม selector อยู่ท้ายหน้า Stat/แท็บ Skills · gate พามาหน้านี้)
+  try{ if(/fighter|paladin|ranger|นักรบ|นักสู้|พาลาดิน|อัศวิน|เรนเจอร์|พราน/i.test(myChar.class||'')) renderFightingStyleCard(card); }catch(e){}
   card.appendChild(btn); p.appendChild(card);
 }
 async function submitLevelUp(asiState, picks, feats, btn){
@@ -3199,7 +3201,13 @@ async function submitSpellPrepare(slugs, btn){
 // v320 fix: กัน render ซ้อน (re-entrancy) — realtime ยิงรัว (เคสจริง: เลเวลอัพยกปาร์ตี้ → campaign_state/characters อัปเดตหลายครั้งติด)
 //   ฟังก์ชัน async ที่ทำ innerHTML='' แล้ว await (renderLevelUpPanel→loadCatalogs/fetchRulesInfo / loadChat) รันพร้อมกัน → append แทรกกันหลัง await = การ์ด/สถานะซ้ำ 4 ชุดเวลา scroll
 //   mutex: รันทีละตัว · ถ้ามี event ระหว่างรัน → rerun รอบเดียวหลังจบ (เคลียร์+สร้างใหม่ชุดเดียวเสมอ)
-function reentrantGuard(fn){ let running=false, rerun=false; return async function(...a){ if(running){ rerun=true; return; } running=true; try{ do{ rerun=false; await fn.apply(this,a); }while(rerun); } finally{ running=false; } }; }
+function reentrantGuard(fn){ let running=false, rerun=false, gen=0, startedAt=0; return async function(...a){
+  // v415: กันล็อกค้างถาวร — ถ้ารอบก่อนค้างเกิน 12s (await ใน fn ไม่ settle เช่น fetch แขวนบนเน็ตมือถือ) ถือว่าตาย → ปล่อยรอบใหม่รันแทน (กันแท็บ Me/Party ว่างถาวรจนต้องรีโหลด) · generation token กันรอบเก่าที่ค้างมารีเซ็ต flag ของรอบใหม่
+  if(running && (Date.now()-startedAt < 12000)){ rerun=true; return; }
+  const myGen=++gen; running=true; startedAt=Date.now();
+  try{ do{ rerun=false; await fn.apply(this,a); }while(rerun && myGen===gen); }
+  finally{ if(myGen===gen) running=false; }
+}; }
 const renderMe = reentrantGuard(_renderMeInner);
 const renderParty = reentrantGuard(_renderPartyInner);
 async function _renderMeInner(){
@@ -3255,6 +3263,7 @@ async function _renderMeInner(){
     return { ac:base+shAc+acb, label:label+(hasShield?(' + Shield ('+shAc+')'):'')+(acb?(' + items ('+(acb>=0?'+':'')+acb+')'):'') };
   }
   const acRes=computeAC();
+  if(cb.ac!=null && !isNaN(+cb.ac)) acRes.ac=+cb.ac;   /* L17: เชื่อ baked AC (calcAC คุม Draconic Sorc/Bladesinger/featAc/domainAc ที่ computeAC ตกหล่น) · fallback computeAC เมื่อไม่มี baked */
   const prof=2+Math.floor(((myChar.level||1)-1)/4);
   const initv=sign(mod(eAb.dex));
   const hp=(cb.maxhp!=null)?`${cb.hp??cb.maxhp}/${cb.maxhp}`:((myChar.public_status||{}).hp||dash);
@@ -3584,9 +3593,11 @@ async function renderItems(){
     addBtn.onclick=async()=>{
       const nm=addIn.value.trim(); if(!nm){ toast('ใส่ชื่อไอเท็มก่อน',true); return; }
       const _ci=(typeof itemByName==='function')?itemByName(nm):null; if(_ci&&_ci.is_magic){ toast('🔒 ไอเท็มเวทต้องได้จากเกม (ร้าน/ของรางวัล/DM) — เพิ่มเองไม่ได้',true); return; }   /* v379 L Wall 1: กันเพิ่มไอเท็มเวทจากคลังเองฟรี · free-text ผ่านปกติ (itemByName=null) */
-      try{ const sh={...(mySheet||{})}; sh.inventory=Array.isArray(sh.inventory)?sh.inventory.slice():[]; sh.inventory.push({name:nm.slice(0,80),qty:1});
-        await _saveSheet(sh, mySheetUpdatedAt); addIn.value='';   /* v271 H5: ส่ง updated_at (timestamp) ไม่ใช่ object mySheet — เดิม object ทำ optimistic-lock ไม่ match = เพิ่มไอเท็มล้มทุกครั้ง */ toast('เพิ่ม "'+nm+'" ลงกระเป๋าแล้ว'+(equipSlotFor(nm)?' — กด สวมใส่ ได้เลย':'')); renderItems();
-      }catch(e){ toast('เพิ่มไม่สำเร็จ',true); }
+      try{ const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle();
+        if(r.error) throw r.error;   /* L28: re-SELECT สดก่อนแก้ + เช็ค SELECT error (เดิมใช้ mySheet ค้าง + ไม่ reload ตอน conflict) */
+        const sh=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at; sh.inventory=Array.isArray(sh.inventory)?sh.inventory.slice():[]; sh.inventory.push({name:nm.slice(0,80),qty:1});
+        await _saveSheet(sh, _prev); addIn.value='';   /* v271 H5: ส่ง updated_at (timestamp) ไม่ใช่ object mySheet */ toast('เพิ่ม "'+nm+'" ลงกระเป๋าแล้ว'+(equipSlotFor(nm)?' — กด สวมใส่ ได้เลย':'')); renderItems();
+      }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ของเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderItems(); } else toast('เพิ่มไม่สำเร็จ',true); }
     };
     addRow.appendChild(addIn); addRow.appendChild(addBtn); bag.appendChild(addRow);
   }
@@ -4209,7 +4220,7 @@ async function renderSkills(){
   // v181: การ์ดเตรียมเวทประจำวันอยู่หน้านี้ (ย้ายจากแท็บ Me) — โผล่บนสุดเมื่อถึงกำหนด
   if(needsDailyPrepareFE(myChar.class)){ try{ await renderSpellPreparePanel(p, mySheet||{}); }catch(e){} }
   if(/bard|บาร์ด|กวี|นักดนตรี/i.test(myChar.class||'')){ try{ await renderPerformanceCard(p); }catch(e){} }   // v231: การ์ดเปิดการแสดง (บาร์ด)
-  if(/fighter|paladin|ranger|นักรบ|นักสู้|พาลาดิน|อัศวิน|เรนเจอร์|พราน/i.test(myChar.class||'')){ try{ renderFightingStyleCard(p); }catch(e){} }   // v328: ตัวเลือกรูปแบบการต่อสู้ (Fighter/Paladin/Ranger)
+  if(/fighter|paladin|ranger|นักรบ|นักสู้|พาลาดิน|อัศวิน|เรนเจอร์|พราน/i.test(myChar.class||'')){ try{ if(!(worldState&&worldState.level_up&&worldState.level_up.active)) renderFightingStyleCard(p); }catch(e){} }   // v328: ตัวเลือกรูปแบบการต่อสู้ (Fighter/Paladin/Ranger) · v415: ตอนเลเวลอัพย้ายไปฝังในหน้าเลเวลอัพ (กัน selector ซ้ำ)
   if(/ranger|เรนเจอร์|พราน/i.test(myChar.class||'')){ try{ renderHuntersPreyCard(p); }catch(e){} }   // v329: Hunter's Prey (Ranger L3+)
   try{ renderSubclassCard(p); }catch(e){}   // v336: Subclass picker ทุกคลาส (self-gate ผ่าน _subClassKey · paladin ใช้ oath flow แยก)
   try{ renderAscendantElementCard(p); }catch(e){}   // v376: ธาตุมังกร (Ascendant Dragon Monk · gate ในฟังก์ชัน)
@@ -5292,7 +5303,7 @@ async function renderMap(){
     const g=dHit&&dHit.data&&dHit.data.graph;
     if(g&&Array.isArray(g.rooms)&&g.rooms.length){
       inDunMap=true;
-      const dprogD=(((st.settings||{}).dungeon_progress)||{}).rooms||{};
+      const _dpRoot=((st.settings||{}).dungeon_progress)||{}; const _byDD=_dpRoot.byDungeon&&dHit&&_dpRoot.byDungeon[dHit.id]&&_dpRoot.byDungeon[dHit.id].rooms; const dprogD=(_byDD&&typeof _byDD==='object')?_byDD:(_dpRoot.rooms||{});   // M9 (v414): rooms ของดันเจี้ยนนี้ (byDungeon[id] · fallback legacy flat)
       const progOf=nm=>{const l=String(nm).toLowerCase(); for(const k in dprogD){ if(String(k).toLowerCase()===l) return dprogD[k]||{}; } return null;};
       const discD=r=>{const pr=progOf(r.name); return !!(pr&&(pr.discovered||pr.cleared||pr.looted));};
       const curRoomL=String(st.current_room||'').toLowerCase();
@@ -5407,7 +5418,7 @@ async function renderMap(){
     const q0=qs.find(q=>q.blueprint.diff!=='epic')||qs[0];
     if(q0&&!inDunMap){   // v201: อยู่ในดันเจี้ยน = โชว์ DUNGEON MAP แทน
       const sites=q0.blueprint.sites; const bpq=(st.settings||{}).bpq||{}; const sceneI=Math.max(0,Math.floor(+bpq.scene_i||0));
-      const dprog=(((st.settings||{}).dungeon_progress)||{}).rooms||{};
+      const _dpR2=((st.settings||{}).dungeon_progress)||{}; const dprog=Object.assign({},_dpR2.rooms||{}); if(_dpR2.byDungeon&&typeof _dpR2.byDungeon==='object'){for(const _id in _dpR2.byDungeon){const _rm=_dpR2.byDungeon[_id]&&_dpR2.byDungeon[_id].rooms; if(_rm&&typeof _rm==='object')Object.assign(dprog,_rm);}}   // M9 (v414): รวมทุก byDungeon + legacy flat (quest route ข้ามดันเจี้ยน)
       const W2=640,H2=112,n2=sites.length,gap=n2>1?(W2-90)/(n2-1):0;
       let svg2=`<svg viewBox="0 0 ${W2} ${H2}" style="width:100%;background:#10131c;border:2px solid #fff;border-radius:6px;margin-top:4px">`;
       for(let i=0;i<n2-1;i++){const x1=45+i*gap,x2=45+(i+1)*gap; svg2+=`<line x1="${x1.toFixed(0)}" y1="56" x2="${x2.toFixed(0)}" y2="56" stroke="${i<sceneI?'#97C459':'#3a3f4b'}" stroke-width="3"/>`;}
