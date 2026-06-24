@@ -5008,7 +5008,18 @@ async function renderBattleGrid(p){
   const tileX=c=>PADX+c*TILE, tileY=r=>PADTOP+r*TILE*SY;
   const isHill=(c,r)=>HILLS.has((L[c]||'?')+(r+1));
   const footX=(c)=>tileX(c)+TILE/2;
-  const footY=(c,r)=>tileY(r)+TILE*SY*0.78-(isHill(c,r)?RAISE:0);   // หมากบนพื้นสูงยกตามระดับ
+  const footY=(c,r)=>tileY(r)+TILE*SY*0.78-(isHill(c,r)?RAISE:0);
+  // ── v416 ISOMETRIC projection (opt-in via window._isoGrid; build ดีฟอลต์ off จนกว่า wire ครบ) — diamond 2:1 + ฐาน 3D ──
+  const ISO=(window._isoGrid===true);
+  const ITW=64,ITH=32,IEH=14,IWALL=30,IHTW=32,IHTH=16;
+  let isx=null,isy=null,IVW=VW,IVH=VH;
+  if(ISO){ let _aX=1e9,_bX=-1e9,_aY=1e9,_bY=-1e9;
+    for(let _r=0;_r<rows;_r++)for(let _c=0;_c<cols;_c++){ const x=(_c-_r)*IHTW,y=(_c+_r)*IHTH; if(x-IHTW<_aX)_aX=x-IHTW; if(x+IHTW>_bX)_bX=x+IHTW; if(y-IHTH<_aY)_aY=y-IHTH; if(y+IHTH+IWALL>_bY)_bY=y+IHTH+IWALL; }
+    const _PAD=20,_HEAD=44,_OX=-_aX+_PAD,_OY=-_aY+_PAD+_HEAD; IVW=(_bX-_aX)+_PAD*2; IVH=(_bY-_aY)+_PAD*2+_HEAD;
+    isx=(c,r)=>_OX+(c-r)*IHTW; isy=(c,r)=>_OY+(c+r)*IHTH; }
+  // anchor รวม (ใช้ได้ทั้งสองโหมด): footXY=ฐานเท้า token · cellCenter=กลางช่อง (ลูกศร/มาร์ค)
+  const footXY=(c,r)=> ISO ? [isx(c,r), isy(c,r)+IHTH*0.35] : [footX(c), footY(c,r)];
+  const cellCenter=(c,r)=> ISO ? [isx(c,r), isy(c,r)] : [tileX(c)+TILE/2, tileY(r)+TILE*SY/2];   // หมากบนพื้นสูงยกตามระดับ
   // สัญลักษณ์ภูมิประเทศ (object token) — แม็ปจาก glyph หรือชื่อ (ไทย/อังกฤษ) → อิโมจิพิกเซล
   const GLYPH={cave:'🕳️','ถ้ำ':'🕳️',house:'🏠','บ้าน':'🏠',hut:'🛖','กระท่อม':'🛖',well:'🪣','บ่อน้ำ':'🪣',tree:'🌲','ต้นไม้':'🌲',rock:'🪨','หิน':'🪨',fire:'🔥','เตาไฟ':'🔥','ไฟ':'🔥',brazier:'🔥',door:'🚪','ประตู':'🚪',chest:'📦','หีบ':'📦',crate:'📦','ลัง':'📦',barrel:'🛢️','ถัง':'🛢️',statue:'🗿','รูปปั้น':'🗿',altar:'⛩️','แท่นบูชา':'⛩️',bridge:'🌉','สะพาน':'🌉',ladder:'🪜','บันได':'🪜',tent:'⛺','เต็นท์':'⛺',banner:'🚩','ธง':'🚩',grave:'🪦','หลุมศพ':'🪦',lever:'🎚️','คันโยก':'🎚️',torch:'🔥','คบเพลิง':'🔥',crystal:'💎','คริสตัล':'💎'};
   const glyphFor=(t)=>{ const k=String(t.glyph||'').toLowerCase(); if(GLYPH[k])return GLYPH[k]; const lab=String(t.label||'').toLowerCase(); for(const key in GLYPH){ if(lab.includes(key.toLowerCase())) return GLYPH[key]; } return null; };
@@ -5085,8 +5096,55 @@ async function renderBattleGrid(p){
       _decoToks.push({kind:'object', glyph:_deco[pick], label:'', col:c, row:r, z:-1, _deco:true});
     }
   } }catch(e){}
-  let svg=`<svg viewBox="0 0 ${VW} ${VH}" style="display:block;width:100%;max-width:${VW}px;min-width:${cols*22}px;background:#0d1018;border:2px solid #fff;border-radius:6px">`;
+  let svg=`<svg viewBox="0 0 ${ISO?IVW:VW} ${ISO?IVH:VH}" style="display:block;width:100%;max-width:${ISO?IVW:VW}px;min-width:${cols*22}px;background:#0d1018;border:2px solid #fff;border-radius:6px">`;
   svg+='<style>.gtok{cursor:pointer}.gtok .tklbl{visibility:hidden}.gtok:hover .tklbl{visibility:visible}.gtok.lblon .tklbl{visibility:visible}</style>';
+  // ── v416 ISO render path (dormant จน window._isoGrid=true) — drawTok ใช้ footXY + image hook (เติม registry หลังอัปไฟล์) ──
+  const TILE_IMG={}, TOKEN_IMG={};
+  function tileImgHref(){ return null; }   // stub — calibrate กับไฟล์จริงใน bucket 'tiles' ภายหลัง
+  function tokImgHref(){ return null; }
+  function drawTok(t){ const _a=footXY(t.col,t.row), fx=_a[0], fy=_a[1];
+    const down=Array.isArray(t.flags)&&(t.flags.includes('down')||t.flags.includes('dead')); const op=down?0.4:1;
+    const _hd=hd2dCharHref(t); let s=`<g class="gtok"${t._deco?' style="pointer-events:none"':''} onclick="this.classList.toggle('lblon')"><title>${escapeHtml(t.label||'')}</title>`;
+    if(!_hd) s+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy+5).toFixed(1)}" rx="${t._deco?9:13}" ry="${t._deco?3.2:4.5}" fill="rgba(0,0,0,${t._deco?0.3:0.45})"/>`;
+    const _spr=(t.kind==='object')?spriteFn(t):null, gly=glyphFor(t);
+    if(_spr){ s+=_spr(fx,fy,op); }
+    else if(t.kind==='object'&&gly){ s+=`<text x="${fx.toFixed(1)}" y="${(fy-1).toFixed(1)}" text-anchor="middle" font-size="20" opacity="${op}">${gly}</text>`; }
+    else if(t.kind==='object'){ s+=`<rect x="${(fx-9).toFixed(1)}" y="${(fy-12).toFixed(1)}" width="18" height="16" rx="2" fill="${t.color||'#9a9a9a'}" stroke="#000" stroke-width="1.2" opacity="${op}"/>`; }
+    else if(t.kind==='marker'){ s+=`<polygon points="${fx},${fy-12} ${fx+9},${fy} ${fx},${fy+8} ${fx-9},${fy}" fill="${t.color||'#b06cff'}" opacity="0.6"/>`; }
+    else { const _tkimg=tokImgHref(t);
+      if(_tkimg){ const z=40; s+=`<image href="${_tkimg}" x="${(fx-z/2).toFixed(1)}" y="${(fy-z*0.875).toFixed(1)}" width="${z}" height="${z}" style="image-rendering:pixelated" opacity="${op}"/>`; }
+      else if(_hd){ const z=40; s+=`<image href="${_hd}" x="${(fx-z/2).toFixed(1)}" y="${(fy-z*0.875).toFixed(1)}" width="${z}" height="${z}" style="image-rendering:pixelated" opacity="${op}"/>`; }
+      else { const pal=PAL[t.kind]||PAL.pc, ba=pal[0], da=pal[1], li=pal[2];
+        s+=`<rect x="${(fx-9).toFixed(1)}" y="${(fy-16).toFixed(1)}" width="18" height="20" rx="3" fill="${ba}" stroke="${da}" stroke-width="1.2" opacity="${op}"/>`;
+        s+=`<rect x="${(fx-9).toFixed(1)}" y="${(fy-16).toFixed(1)}" width="18" height="4.5" fill="${li}" opacity="${op}"/>`;
+        s+=`<circle cx="${fx.toFixed(1)}" cy="${(fy-20).toFixed(1)}" r="7" fill="${li}" stroke="${da}" stroke-width="1.2" opacity="${op}"/>`;
+        s+=`<text x="${fx.toFixed(1)}" y="${(fy-3).toFixed(1)}" text-anchor="middle" font-family="'Press Start 2P',monospace" font-size="6" fill="#fff">${escapeHtml((t.label||'?').slice(0,1).toUpperCase())}</text>`; }
+      const cur=csMap[t.ref_combat_state_id]; let pct=null;
+      if(t.kind==='monster'&&cur){ const mx=cur.monsters&&cur.monsters.max_hp; if(mx) pct=Math.max(0,Math.min(1,cur.cur_hp/mx)); }
+      else if(t.kind==='pc'||t.kind==='ally'){ const ch=characters.find(x=>x.id===t.ref_char_id); const hp=ch&&ch.public_status&&ch.public_status.hp; if(hp&&/^\d+\/\d+/.test(String(hp))){ const m2=String(hp).split('/'); pct=Math.max(0,Math.min(1,(+m2[0])/(+m2[1]||1))); } }
+      if(pct!=null){ const co=pct<=0.34?'#E24B4A':pct<=0.67?'#EF9F27':'#97C459'; s+=`<rect x="${(fx-12).toFixed(1)}" y="${(fy-32).toFixed(1)}" width="24" height="3.5" fill="rgba(0,0,0,0.7)"/>`; s+=`<rect x="${(fx-12).toFixed(1)}" y="${(fy-32).toFixed(1)}" width="${(24*pct).toFixed(1)}" height="3.5" fill="${co}"/>`; }
+    }
+    const isAct=(activeRef.char&&t.ref_char_id===activeRef.char)||(activeRef.cs&&t.ref_combat_state_id===activeRef.cs);
+    if(isAct) s+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy+5).toFixed(1)}" rx="16" ry="6" fill="none" stroke="#FAC775" stroke-width="2.5"/>`;
+    s+=`<text class="tklbl" x="${fx.toFixed(1)}" y="${(fy+15).toFixed(1)}" text-anchor="middle" font-family="'VT323',monospace" font-size="11" fill="#fff" stroke="#000" stroke-width="0.6" paint-order="stroke">${escapeHtml((t.label||'').slice(0,16))}</text>`;
+    if(down) s+=`<line x1="${(fx-9).toFixed(1)}" y1="${(fy-14).toFixed(1)}" x2="${(fx+9).toFixed(1)}" y2="${(fy+2).toFixed(1)}" stroke="#fff" stroke-width="1.5"/>`;
+    return s+'</g>'; }
+  if(ISO){
+    // iso: tile + token interleave ตาม depth (c+r) — กำแพง/ช่องหน้าบัง token หลัง
+    const _isoTile=(c,r)=>{ const cell=rc2cell(c,r), isW=walls.has(cell), wet=WATER.has(cell), x=isx(c,r), y=isy(c,r), eh=isW?IWALL:IEH;
+      const P= isW?['#5b606b','#23262e','#34383f','#7c8290'] : wet?['#1f4063','#102338','#163150','#3a6fa0'] : ((c+r)%2?['#2f3543','#1b1f27','#252a34','#5a6276']:['#363d4c','#1b1f27','#252a34','#5a6276']);
+      let s=`<polygon points="${x-IHTW},${y} ${x},${y+IHTH} ${x},${y+IHTH+eh} ${x-IHTW},${y+eh}" fill="${P[1]}"/>`;
+      s+=`<polygon points="${x},${y+IHTH} ${x+IHTW},${y} ${x+IHTW},${y+eh} ${x},${y+IHTH+eh}" fill="${P[2]}"/>`;
+      s+=`<polygon points="${x},${y-IHTH} ${x+IHTW},${y} ${x},${y+IHTH} ${x-IHTW},${y}" fill="${P[0]}" stroke="${P[1]}" stroke-width="0.8"><title>${cell}</title></polygon>`;
+      s+=`<polygon points="${x},${y-IHTH} ${x+IHTW*0.5},${y-IHTH*0.5} ${x},${y} ${x-IHTW*0.5},${y-IHTH*0.5}" fill="${P[3]}" opacity="0.22"/>`;
+      if(wet) s+=`<line x1="${x-IHTW*0.5}" y1="${y}" x2="${x+IHTW*0.5}" y2="${y}" stroke="#67a7c9" stroke-width="1" opacity="0.5"/>`;
+      const ti=tileImgHref(c,r,cell,isW,wet); if(ti){ const W=ITW; s+=`<image href="${ti}" x="${(x-W/2).toFixed(1)}" y="${(y-IHTH-(isW?IWALL:0)).toFixed(1)}" width="${W}" height="${(W*0.9).toFixed(1)}" style="image-rendering:pixelated"/>`; }
+      return s; };
+    const _tk={}; toks.concat(_decoToks).forEach(t=>{ const k=t.col+'_'+t.row; (_tk[k]=_tk[k]||[]).push(t); });
+    const _cl=[]; for(let _r=0;_r<rows;_r++)for(let _c=0;_c<cols;_c++) _cl.push([_c,_r]);
+    _cl.sort((a,b)=>(a[0]+a[1])-(b[0]+b[1]));
+    _cl.forEach(p=>{ svg+=_isoTile(p[0],p[1]); const g=_tk[p[0]+'_'+p[1]]; if(g){ g.sort((a,b)=>(a.z||0)-(b.z||0)).forEach(t=>{ svg+=drawTok(t); }); } });
+  } else {
   // tiles (checkerboard + squash = 2.5D) + กำแพง + พื้นสูง (hills) + น้ำ
   for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
     const cell=rc2cell(c,r); const isW=walls.has(cell); const hill=HILLS.has(cell); const wet=WATER.has(cell);
@@ -5155,6 +5213,7 @@ async function renderBattleGrid(p){
     svg+='</g>';
   });
   // ── ข้อ 2 (06-08): ลูกศรทิศทางบนกริด (เส้น+หัวลูกศร) — ใช้ทั้งตอนเลือกช่องและมาร์คค้างหลังยืนยัน ──
+  }   // ── v416: ปิด else (2.5D path) ──
   const _gridArrow=(x1,y1,x2,y2,col,dash)=>{
     const dx=x2-x1, dy=y2-y1, len=Math.sqrt(dx*dx+dy*dy)||1;
     if(len<8) return '';
@@ -5163,15 +5222,18 @@ async function renderBattleGrid(p){
            `<polygon points="${x2.toFixed(1)},${y2.toFixed(1)} ${(ax+px*5).toFixed(1)},${(ay+py*5).toFixed(1)} ${(ax-px*5).toFixed(1)},${(ay-py*5).toFixed(1)}" fill="${col}" style="pointer-events:none"/>`;
   };
   // มาร์คช่องปลายทางที่ยืนยันแล้ว — ค้างบนกริดจนเทิร์นถูก resolve (token เดินถึง = server ขยับให้ → เคลียร์เอง)
+  // v416: helper overlay ใช้ร่วม 2 โหมด — รูปช่อง (diamond iso / rect 2.5D) + y บนสุดของช่อง
+  const cellShape=(c,r,attrs)=>{ if(ISO){ const x=isx(c,r),y=isy(c,r); return `<polygon points="${x},${y-IHTH} ${x+IHTW},${y} ${x},${y+IHTH} ${x-IHTW},${y}" ${attrs}/>`; } const x=tileX(c),y=tileY(r),th=TILE*SY; return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${TILE}" height="${th.toFixed(1)}" ${attrs}/>`; };
+  const cellTopY=(c,r)=> ISO ? isy(c,r)-IHTH : tileY(r);
   if(!moveMode && window._pendingMove && typeof myChar!=='undefined' && myChar){
     const pm=window._pendingMove;
     const myTk=toks.find(t=>t.ref_char_id===myChar.id);
     if(!myTk || (myTk.col===pm.c && myTk.row===pm.r)){ window._pendingMove=null; }
     else if(pm.c<cols && pm.r<rows){
-      const dx2=tileX(pm.c), dy2=tileY(pm.r), th2=TILE*SY, cx2=dx2+TILE/2, cy2=dy2+th2/2;
-      svg+=`<rect x="${dx2.toFixed(1)}" y="${dy2.toFixed(1)}" width="${TILE}" height="${th2.toFixed(1)}" fill="rgba(250,199,117,0.30)" stroke="#FAC775" stroke-width="1.6" style="pointer-events:none"/>`;
-      svg+=_gridArrow(footX(myTk.col), footY(myTk.col,myTk.row), cx2, cy2, '#FAC775', true);
-      svg+=`<text x="${cx2.toFixed(1)}" y="${(dy2-3).toFixed(1)}" text-anchor="middle" font-family="'VT323',monospace" font-size="11" fill="#FAC775" stroke="#000" stroke-width="0.6" paint-order="stroke" style="pointer-events:none">เดินไป ${escapeHtml(pm.cell)}</text>`;
+      const _cc=cellCenter(pm.c,pm.r), cx2=_cc[0], cy2=_cc[1], _mf=footXY(myTk.col,myTk.row);
+      svg+=cellShape(pm.c,pm.r,'fill="rgba(250,199,117,0.30)" stroke="#FAC775" stroke-width="1.6" style="pointer-events:none"');
+      svg+=_gridArrow(_mf[0], _mf[1], cx2, cy2, '#FAC775', true);
+      svg+=`<text x="${cx2.toFixed(1)}" y="${(cellTopY(pm.c,pm.r)-3).toFixed(1)}" text-anchor="middle" font-family="'VT323',monospace" font-size="11" fill="#FAC775" stroke="#000" stroke-width="0.6" paint-order="stroke" style="pointer-events:none">เดินไป ${escapeHtml(pm.cell)}</text>`;
     }
   }
   // ── (06-08) มาร์คเดินของทั้งปาร์ตี้: อ่านจากคำสั่งที่ส่งแล้วในรอบนี้ (actions.structured_turn.move_to) — ทุกเครื่องเห็นเหมือนกันผ่าน DB ──
@@ -5189,22 +5251,23 @@ async function renderBattleGrid(p){
         const c3=L3.indexOf(cell[0]); const r3=parseInt(cell.slice(1),10)-1;
         if(c3<0||!(r3>=0)||c3>=cols||r3>=rows) return;
         if(tk.col===c3&&tk.row===r3) return;   // เดินถึงแล้ว
-        const dx3=tileX(c3), dy3=tileY(r3), th3=TILE*SY, cx3=dx3+TILE/2, cy3=dy3+th3/2;
-        svg+=`<rect x="${dx3.toFixed(1)}" y="${dy3.toFixed(1)}" width="${TILE}" height="${th3.toFixed(1)}" fill="rgba(250,199,117,0.22)" stroke="#FAC775" stroke-width="1.2" stroke-dasharray="4 3" style="pointer-events:none"/>`;
-        svg+=_gridArrow(footX(tk.col), footY(tk.col,tk.row), cx3, cy3, '#FAC775', true);
-        svg+=`<text x="${cx3.toFixed(1)}" y="${(dy3-3).toFixed(1)}" text-anchor="middle" font-family="'VT323',monospace" font-size="10" fill="#FAC775" stroke="#000" stroke-width="0.6" paint-order="stroke" style="pointer-events:none">${escapeHtml((tk.label||'').slice(0,8))} → ${escapeHtml(cell)}</text>`;
+        const _cc3=cellCenter(c3,r3), cx3=_cc3[0], cy3=_cc3[1], _tf=footXY(tk.col,tk.row);
+        svg+=cellShape(c3,r3,'fill="rgba(250,199,117,0.22)" stroke="#FAC775" stroke-width="1.2" stroke-dasharray="4 3" style="pointer-events:none"');
+        svg+=_gridArrow(_tf[0], _tf[1], cx3, cy3, '#FAC775', true);
+        svg+=`<text x="${cx3.toFixed(1)}" y="${(cellTopY(c3,r3)-3).toFixed(1)}" text-anchor="middle" font-family="'VT323',monospace" font-size="10" fill="#FAC775" stroke="#000" stroke-width="0.6" paint-order="stroke" style="pointer-events:none">${escapeHtml((tk.label||'').slice(0,8))} → ${escapeHtml(cell)}</text>`;
       });
     }
   }catch(e){}
   // 🎯 โหมดเล็งพื้นที่ (AoE): ไฮไลต์ช่องที่โดน + ช่องโปร่งใสให้แตะเลือกศูนย์กลาง
   if(aoeMode){
     const affected = aoeCenter ? new Set(aoeCellsFor(aoeCenter.c,aoeCenter.r)) : new Set();
-    for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
-      const cell=rc2cell(c,r), x=tileX(c), y=tileY(r), th=TILE*SY;
-      if(affected.has(cell)) svg+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${TILE}" height="${th.toFixed(1)}" fill="rgba(226,75,74,0.45)" stroke="#ff7b7b" stroke-width="0.8"/>`;
-      svg+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${TILE}" height="${th.toFixed(1)}" fill="rgba(255,255,255,0.02)" style="cursor:crosshair" onclick="aoePickCell(${c},${r})"/>`;
-    }
-    if(aoeCenter){ const cx=tileX(aoeCenter.c)+TILE/2, cy=tileY(aoeCenter.r)+TILE*SY/2; svg+=`<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="4" fill="#fff" stroke="#e23b3b" stroke-width="1.5" style="pointer-events:none"/>`; }
+    const _ac=[]; for(let r=0;r<rows;r++)for(let c=0;c<cols;c++) _ac.push([c,r]);
+    if(ISO) _ac.sort((a,b)=>(a[0]+a[1])-(b[0]+b[1]));   // iso: ช่องหน้าวาดทับ → คลิกโดนช่องบนสุด
+    _ac.forEach(p=>{ const c=p[0], r=p[1], cell=rc2cell(c,r);
+      if(affected.has(cell)) svg+=cellShape(c,r,'fill="rgba(226,75,74,0.45)" stroke="#ff7b7b" stroke-width="0.8" style="pointer-events:none"');
+      svg+=cellShape(c,r,`fill="rgba(255,255,255,0.02)" style="cursor:crosshair" onclick="aoePickCell(${c},${r})"`);
+    });
+    if(aoeCenter){ const _acc=cellCenter(aoeCenter.c,aoeCenter.r); svg+=`<circle cx="${_acc[0].toFixed(1)}" cy="${_acc[1].toFixed(1)}" r="4" fill="#fff" stroke="#e23b3b" stroke-width="1.5" style="pointer-events:none"/>`; }
   }
   // 🚶 โหมดเดิน: ไฮไลต์ช่องในระยะความเร็วของหมากผู้เล่น + แตะเลือก
   if(moveMode){
@@ -5212,24 +5275,23 @@ async function renderBattleGrid(p){
     if(myTok){
       const sp=(typeof mySheet!=='undefined'&&mySheet&&mySheet.combat&&+mySheet.combat.speed)||30;
       const cf=grid.cell_ft||1; const maxC=Math.max(1,Math.floor(sp/cf));
-      for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
-        const cell=rc2cell(c,r); const d=Math.max(Math.abs(c-myTok.col),Math.abs(r-myTok.row));
-        if(d>0 && d<=maxC && !walls.has(cell)){
-          const x=tileX(c),y=tileY(r),th=TILE*SY; const seld=moveSel&&moveSel.c===c&&moveSel.r===r;
-          svg+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${TILE}" height="${th.toFixed(1)}" fill="${seld?'rgba(250,199,117,0.55)':'rgba(90,210,130,0.20)'}" stroke="${seld?'#FAC775':'#5ce08a'}" stroke-width="${seld?'1.6':'0.7'}" style="cursor:pointer" onclick="movePickCell(${c},${r})"><title>${cell}</title></rect>`;
-        }
-      }
-      const sfx=footX(myTok.col), sfy=footY(myTok.col,myTok.row);
+      const _mc=[]; for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){ const cell=rc2cell(c,r), d=Math.max(Math.abs(c-myTok.col),Math.abs(r-myTok.row)); if(d>0&&d<=maxC&&!walls.has(cell)) _mc.push([c,r]); }
+      if(ISO) _mc.sort((a,b)=>(a[0]+a[1])-(b[0]+b[1]));
+      _mc.forEach(p=>{ const c=p[0], r=p[1], seld=moveSel&&moveSel.c===c&&moveSel.r===r;
+        svg+=cellShape(c,r,`fill="${seld?'rgba(250,199,117,0.55)':'rgba(90,210,130,0.20)'}" stroke="${seld?'#FAC775':'#5ce08a'}" stroke-width="${seld?'1.6':'0.7'}" style="cursor:pointer" onclick="movePickCell(${c},${r})"`);
+      });
+      const _sf=footXY(myTok.col,myTok.row), sfx=_sf[0], sfy=_sf[1];
       svg+=`<circle cx="${sfx.toFixed(1)}" cy="${sfy.toFixed(1)}" r="3" fill="#5ce08a" stroke="#0d1018" stroke-width="1" style="pointer-events:none"/>`;
       // ข้อ 2: ลูกศรทิศทางจากตำแหน่งปัจจุบัน → ช่องที่กำลังเลือก (เห็นทิศก่อนกดยืนยัน)
-      if(moveSel) svg+=_gridArrow(sfx, sfy, tileX(moveSel.c)+TILE/2, tileY(moveSel.r)+TILE*SY/2, '#FAC775', false);
+      if(moveSel){ const _sc=cellCenter(moveSel.c,moveSel.r); svg+=_gridArrow(sfx, sfy, _sc[0], _sc[1], '#FAC775', false); }
       // ป๊อปอัปยืนยันเด้งใกล้ช่องที่คลิก (เหนือช่อง) — ปุ่ม ✓ เดิน / ✕ ยกเลิก
       if(moveSel){
-        const cx=tileX(moveSel.c)+TILE/2, top=tileY(moveSel.r);
-        const bw=TILE*1.3, bh=TILE*0.62, gap=3, fs=(TILE*0.5).toFixed(1);
-        let gy=top-bh-5; if(gy<PADTOP-4) gy=tileY(moveSel.r)+TILE*SY+5;
+        const _sc2=cellCenter(moveSel.c,moveSel.r), cx=_sc2[0], _vw=(ISO?IVW:VW);
+        const bw=(ISO?ITW:TILE)*1.3, bh=(ISO?20:TILE*0.62), gap=3, fs=(ISO?13:Math.round(TILE*0.5));
+        const _below=(ISO?(isy(moveSel.c,moveSel.r)+IHTH):(tileY(moveSel.r)+TILE*SY))+6;
+        let gy=cellTopY(moveSel.c,moveSel.r)-bh-5; if(gy<(ISO?6:PADTOP-4)) gy=_below;
         let x1=cx-bw-gap/2, x2=cx+gap/2;
-        if(x1<2){ x1=2; x2=2+bw+gap; } if(x2+bw>VW-2){ x2=VW-2-bw; x1=x2-bw-gap; }
+        if(x1<2){ x1=2; x2=2+bw+gap; } if(x2+bw>_vw-2){ x2=_vw-2-bw; x1=x2-bw-gap; }
         svg+=`<g style="cursor:pointer" onclick="moveConfirm()"><rect x="${x1.toFixed(1)}" y="${gy.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="4" fill="#1c7a3e" stroke="#7CFFB0" stroke-width="1.5"/><text x="${(x1+bw/2).toFixed(1)}" y="${(gy+bh*0.72).toFixed(1)}" text-anchor="middle" font-size="${fs}" fill="#eafff2" style="pointer-events:none">✓</text></g>`;
         svg+=`<g style="cursor:pointer" onclick="moveCancel()"><rect x="${x2.toFixed(1)}" y="${gy.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="4" fill="#7a1c1c" stroke="#ff9a9a" stroke-width="1.5"/><text x="${(x2+bw/2).toFixed(1)}" y="${(gy+bh*0.72).toFixed(1)}" text-anchor="middle" font-size="${fs}" fill="#ffecec" style="pointer-events:none">✕</text></g>`;
       }
