@@ -3765,16 +3765,15 @@ function renderFightingStyleCard(p){
   }
   const cur=_fsMatch((mySheet||{}).fighting_style);
   const curValid=rule.styles.indexOf(cur)>=0?cur:'';   // สไตล์ที่บันทึกไว้แต่คลาสนี้เลือกไม่ได้ → ถือว่ายังไม่เลือก
-  // v418/v419: ล็อกหลังเลือกแล้ว — เปลี่ยนรูปแบบการต่อสู้ได้อีกครั้งเมื่อถึงเลเวล 4 (กันสลับสไตล์ไปมา/รายศึก · RAW: Fighting Style ถาวร)
-  const FS_RELOCK_LV=4;
+  // v428: ล็อกถาวรหลังเลือกแล้ว — Fighting Style เลือกครั้งเดียว เปลี่ยนไม่ได้ (RAW PHB · server fightingStyleGuard ตรึง/คืนค่ากันแก้ผ่าน client)
   const _fsRenderLocked=(styleId)=>{   // วาดสถานะ "ล็อกแล้ว" ทับการ์ด (ใช้ทั้งตอน render + ทันทีหลังเลือก)
     const _o=FIGHTING_STYLE_OPTS.find(o=>o.id===styleId)||{};
     card.innerHTML=head+
       '<div style="margin:6px 0;padding:7px 9px;border-radius:8px;background:#161b25;border:1px solid #2c3344">🔒 <b>'+escapeHtml(_o.label||styleId)+'</b></div>'+
       '<div class="muted" style="font-size:.85em;line-height:1.4">'+escapeHtml(_o.desc||'')+'</div>'+
-      '<div class="muted" style="font-size:.8em;margin-top:5px;color:#f5c542">ล็อกแล้ว — เลือกรูปแบบการต่อสู้ครั้งเดียว เปลี่ยนได้อีกครั้งเมื่อถึงเลเวล '+FS_RELOCK_LV+'</div>';
+      '<div class="muted" style="font-size:.8em;margin-top:5px;color:#f5c542">ล็อกแล้ว — Fighting Style เลือกได้ครั้งเดียว ถาวร (RAW)</div>';
   };
-  if(curValid && lvl<FS_RELOCK_LV){ _fsRenderLocked(curValid); p.appendChild(card); return; }
+  if(curValid){ _fsRenderLocked(curValid); p.appendChild(card); return; }
   const opts=FIGHTING_STYLE_OPTS.filter(o=>o.id===''||rule.styles.indexOf(o.id)>=0);   // เฉพาะสไตล์ที่คลาสนี้เลือกได้ (PHB)
   const optsHtml=opts.map(o=>'<option value="'+o.id+'"'+(o.id===curValid?' selected':'')+'>'+escapeHtml(o.label)+'</option>').join('');
   const curDesc=(FIGHTING_STYLE_OPTS.find(o=>o.id===curValid)||FIGHTING_STYLE_OPTS[0]).desc;
@@ -3791,7 +3790,7 @@ function renderFightingStyleCard(p){
       if(val) sheet.fighting_style=val; else delete sheet.fighting_style;
       await _saveSheet(sheet, _prev); tick();
       toast(val?('ตั้งรูปแบบการต่อสู้: '+(FIGHTING_STYLE_OPTS.find(o=>o.id===val)||{}).label+' ✓'):'ล้างรูปแบบการต่อสู้แล้ว');
-      if(val && lvl<FS_RELOCK_LV) _fsRenderLocked(val);   // v419: เลือกแล้วล็อกการ์ดทันที (กันเปลี่ยนกลับไปมาในหน้าเดียว — เดิม tick() ไม่ re-render → dropdown ค้าง)
+      if(val) _fsRenderLocked(val);   // v428: เลือกแล้วล็อกการ์ดทันที (ถาวร · กันเปลี่ยนกลับไปมาในหน้าเดียว)
     }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ชีทเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderSkills(); } else toast('บันทึกไม่สำเร็จ ลองใหม่',true); }
   };
   p.appendChild(card);
