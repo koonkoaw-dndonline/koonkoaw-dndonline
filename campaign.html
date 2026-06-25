@@ -4962,7 +4962,7 @@ const HD2D=(function(){
 })();
 const _hd2dCache=new Map();
 // v419: เปิดฉากต่อสู้ใหม่ (sprite ตัวละคร/มอนสเตอร์ + iso: พื้น biome + ฉากหลัง) — รูป 743 ไฟล์พร้อมใน bucket 'sprites' · ⚠ iso เปิดครั้งแรก ถ้าวาดเพี้ยน revert = ลบ/ตั้ง false 2 ค่านี้
-if(typeof window!=='undefined'){ window._charSprites=true; window._isoGrid=true; }
+if(typeof window!=='undefined'){ window._charSprites=true; window._isoGrid=true; }   // v420: sprite ใหญ่เต็มช่อง + ตัดเงากลม + anchor เท้าตามชนิด + มอนใช้ label + เพศ/เผ่าเพื่อนจาก flags + tint เวลา + token ทับพื้น
 // v417: raster character sprites pack (128x128 · anchor 64,112 · 13 class × 2 sex × 13 race = 338 PNG)
 //   opt-in window._charSprites=true (อัป bundle ลง bucket 'sprites/characters/' ก่อน · override path: window._spriteBase)
 const SPRITE_ROOT=(typeof window!=='undefined'&&window._spriteRoot)||((typeof PUBLIC_URL!=='undefined'?PUBLIC_URL:'')+'sprites/');
@@ -4973,7 +4973,7 @@ const _OBJ_KEYS=new Set(['pine','tree','cave','rock','table','fireplace','fire',
 const _BG_KEYS=new Set(['cave','plain','wetland','graveyard','dungeon','town','forest','lava','castle','tavern','desert','snow','mountain']);
 const _MON_RENDERED=new Set(['aboleth','acolyte','adult_black_dragon','adult_blue_dragon','adult_brass_dragon','adult_bronze_dragon','adult_copper_dragon','adult_gold_dragon','adult_green_dragon','adult_red_dragon','adult_silver_dragon','adult_white_dragon','air_elemental','ancient_black_dragon','ancient_blue_dragon','ancient_brass_dragon','ancient_bronze_dragon','ancient_copper_dragon','ancient_gold_dragon','ancient_green_dragon','ancient_red_dragon','ancient_silver_dragon','ancient_white_dragon','androsphinx','animated_armor','ankheg','ape','archmage','assassin','awakened_shrub','awakened_tree','axe_beak','azer','baboon','badger','balor','bandit_captain','bandit','barbed_devil','basilisk','bat','bearded_devil','behir','berserker','black_bear','black_dragon_wyrmling','black_pudding','blink_dog','blood_hawk','blue_dragon_wyrmling','boar','bone_devil','brass_dragon_wyrmling','bronze_dragon_wyrmling','brown_bear','bugbear','bulette','camel','cat','centaur','chain_devil','chimera','chuul','clay_golem','cloaker','cloud_giant','cockatrice','commoner','constrictor_snake','copper_dragon_wyrmling','couatl','crab','crocodile','cult_fanatic','cultist','darkmantle','death_dog','deep_gnome_svirfneblin','deer','deva','dire_wolf','djinni','doppelganger','draft_horse','dragon_turtle','dretch','drider','drow','druid','dryad','duergar','dust_mephit','eagle','earth_elemental','efreeti','elephant','elk','erinyes','ettercap','ettin','fire_elemental','fire_giant','flesh_golem','flying_snake','flying_sword','frog','frost_giant','gargoyle','gelatinous_cube','ghast','ghost','ghoul','giant_ape','giant_badger','giant_bat','giant_boar','giant_centipede','giant_constrictor_snake','giant_crab','giant_crocodile','giant_eagle','giant_elk','giant_fire_beetle','giant_frog','giant_goat','giant_hyena','giant_lizard','giant_octopus','giant_owl','giant_poisonous_snake','giant_rat_diseased','giant_rat','giant_scorpion','giant_sea_horse','giant_shark','giant_spider','giant_toad','giant_vulture','giant_wasp','giant_weasel','giant_wolf_spider','gibbering_mouther','glabrezu','gladiator','gnoll','goat','goblin','gold_dragon_wyrmling','gorgon','gray_ooze','green_dragon_wyrmling','green_hag','grick','griffon','grimlock','guard','guardian_naga','gynosphinx','half_red_dragon_veteran','harpy','hawk','hell_hound','hezrou','hill_giant','hippogriff','hobgoblin','homunculus','horned_devil','hunter_shark','hydra','hyena','ice_devil','ice_mephit','imp','invisible_stalker','iron_golem','jackal','killer_whale','knight','kobold','kraken','lamia','lemure','lich','lion','lizard','lizardfolk','mage','magma_mephit','magmin','mammoth','manticore','marilith','mastiff','medusa','merfolk','merrow','mimic','minotaur_skeleton','minotaur','mule','mummy_lord','mummy','nalfeshnee','night_hag','nightmare','noble','ochre_jelly','octopus','ogre_zombie','ogre','oni','orc','otyugh','owl','owlbear','panther','pegasus','phase_spider','pit_fiend','planetar','plesiosaurus','poisonous_snake','polar_bear','pony','priest','pseudodragon','purple_worm','quasit','quipper','rakshasa','rat','raven','red_dragon_wyrmling','reef_shark','remorhaz','rhinoceros','riding_horse','roc','roper','rug_of_smothering','rust_monster','saber_toothed_tiger','sahuagin','salamander','satyr','scorpion','scout','sea_hag','sea_horse','shadow','shambling_mound','shield_guardian','shrieker','silver_dragon_wyrmling','skeleton','solar','specter','spider','spirit_naga','sprite','spy','steam_mephit','stirge','stone_giant','stone_golem','storm_giant','succubus_incubus','swarm_of_bats','swarm_of_beetles','swarm_of_centipedes','swarm_of_insects','swarm_of_poisonous_snakes','swarm_of_quippers','swarm_of_rats','swarm_of_ravens','swarm_of_spiders','swarm_of_wasps','tarrasque','thug','tiger','treant','tribal_warrior','triceratops','troll','tyrannosaurus_rex','unicorn','vampire_bat_form','vampire_mist_form','vampire_spawn','vampire_vampire_form','veteran','violet_fungus','vrock','vulture','warhorse_skeleton','warhorse','water_elemental','weasel','werebear_bear_form','werebear_human_form','werebear_hybrid_form','wereboar_boar_form','wereboar_human_form','wereboar_hybrid_form','wererat_human_form','wererat_hybrid_form','wererat_rat_form','weretiger_human_form','weretiger_hybrid_form','weretiger_tiger_form','werewolf_human_form','werewolf_hybrid_form','werewolf_wolf_form','white_dragon_wyrmling','wight','will_o_wisp','winter_wolf','wolf','worg','wraith','wyvern','xorn','young_black_dragon','young_blue_dragon','young_brass_dragon','young_bronze_dragon','young_copper_dragon','young_gold_dragon','young_green_dragon','young_red_dragon','young_silver_dragon','young_white_dragon','zombie']);
 const _MON_BIG={adult_black_dragon:2,adult_blue_dragon:2,adult_brass_dragon:2,adult_bronze_dragon:2,adult_copper_dragon:2,adult_gold_dragon:2,adult_green_dragon:2,adult_red_dragon:2,adult_silver_dragon:2,adult_white_dragon:2,ancient_black_dragon:3,ancient_blue_dragon:3,ancient_brass_dragon:3,ancient_bronze_dragon:3,ancient_copper_dragon:3,ancient_gold_dragon:3,ancient_green_dragon:3,ancient_red_dragon:3,ancient_silver_dragon:3,ancient_white_dragon:3,awakened_tree:2,balor:2,behir:2,cloud_giant:2,dragon_turtle:3,elephant:2,fire_giant:2,frost_giant:2,giant_ape:2,giant_constrictor_snake:2,giant_crocodile:2,giant_elk:2,giant_shark:2,hill_giant:2,hydra:2,killer_whale:2,kraken:3,mammoth:2,purple_worm:3,remorhaz:2,roc:3,stone_giant:2,storm_giant:2,tarrasque:3,treant:2,triceratops:2,tyrannosaurus_rex:2};
-function _monId(t){ return String((t&&(t.glyph||t.label))||'').toLowerCase().trim().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,''); }
+function _monId(t){ let g=String((t&&t.glyph)||'').toLowerCase().trim(); if(['monster','pc','ally','npc','object','marker',''].indexOf(g)>=0) g=''; const base=g||String((t&&t.label)||''); return base.toLowerCase().trim().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,''); }   // v420: glyph มอน = generic 'monster' → fallback ใช้ label (ชื่อจริง Hobgoblin) match _MON_RENDERED
 function _biomeKey(bg){ const s=String(bg||'').toLowerCase();
   if(/ถ้ำ|\bcave\b/.test(s)) return 'cave'; if(/ดันเจ|dungeon|ใต้ดิน|crypt/.test(s)) return 'dungeon';
   if(/สุสาน|หลุมศพ|grave|tomb|ซาก/.test(s)) return 'graveyard'; if(/ลาวา|lava|ภูเขาไฟ|volcan|นรก/.test(s)) return 'lava';
@@ -4996,6 +4996,7 @@ function hd2dCharHref(t){
     const cls=ch&&ch.class; if(!cls) return null;
     let sex='other', race='Human';
     if(typeof myChar!=='undefined'&&myChar&&t.ref_char_id===myChar.id&&typeof mySheet!=='undefined'&&mySheet){ if(mySheet.sex) sex=mySheet.sex; if(mySheet.race) race=mySheet.race; }
+    else if(Array.isArray(t.flags)){ for(const _f of t.flags){ const _s=/^sex:(.+)$/i.exec(_f); if(_s)sex=_s[1]; const _r=/^race:(.+)$/i.exec(_f); if(_r)race=_r[1]; } }   // v420: เพศ/เผ่าเพื่อน(companion)จาก grid_tokens.flags ที่ server bake (sex:/race:)
     const facing=(t.facing==='W')?'W':'E';
     // v417: เปิด raster sprites + อัปไฟล์แล้ว → คืน URL PNG (class_sex_race) แทน procedural SVG (ใช้ได้ทั้ง 2.5D + iso)
     if(window._charSprites===true && SPRITE_BASE){
@@ -5012,6 +5013,16 @@ function hd2dCharHref(t){
     return href;
   }catch(e){ return null; }
 }
+
+// v420: tint ฉากตามช่วงเวลาของวัน (อ่าน worldState.clock.time จาก campaign_state · มิเรอร์ timeIcon) — เที่ยง/กลางวัน = ไม่ tint
+function _todTintSvg(w,h){ try{ const t=String((typeof worldState!=='undefined'&&worldState&&worldState.clock&&worldState.clock.time)||'').toLowerCase(); let c=null,o=0;
+  if(/dawn|รุ่งอรุณ|รุ่งสาง|เช้าตรู่|sunrise/.test(t)){ c='#ff9a4d'; o=0.16; }
+  else if(/เช้า|morning/.test(t)){ c='#ffe7a8'; o=0.07; }
+  else if(/เย็น|dusk|sunset|พลบค่ำ|โพล้เพล้/.test(t)){ c='#ff7330'; o=0.20; }
+  else if(/กลางคืน|ค่ำ|คืน|night|ดึก|midnight/.test(t)){ c='#16265f'; o=0.36; }
+  else return '';
+  return `<rect x="0" y="0" width="${w}" height="${h}" fill="${c}" opacity="${o}" style="pointer-events:none"/>`;
+}catch(e){ return ''; } }
 
 async function renderBattleGrid(p){
   // ── (06-10) cache: แตะเลือกช่อง/ยืนยันเดิน = วาดจากข้อมูลล่าสุดทันที (0 query) — full fetch เฉพาะ render ปกติ ──
@@ -5158,17 +5169,19 @@ async function renderBattleGrid(p){
   function drawTok(t){ const _a=footXY(t.col,t.row), fx=_a[0], fy=_a[1];
     const down=Array.isArray(t.flags)&&(t.flags.includes('down')||t.flags.includes('dead')); const op=down?0.4:1;
     const _hd=hd2dCharHref(t); let s=`<g class="gtok"${t._deco?' style="pointer-events:none"':''} onclick="this.classList.toggle('lblon')"><title>${escapeHtml(t.label||'')}</title>`;
-    if(!_hd) s+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy+5).toFixed(1)}" rx="${t._deco?9:13}" ry="${t._deco?3.2:4.5}" fill="rgba(0,0,0,${t._deco?0.3:0.45})"/>`;
+    // v420: ตัดเงากลม renderer ออก (ผู้ใช้ขอ — แอสเซ็ทไม่มีฐานในตัว ยืนบน tile โดยตรง) · ขยาย sprite + anchor เท้าตามชนิด (char/obj/mon เท้าคนละแถว 0.875/0.855/0.905)
+    const _SPX=58, _FR={ch:0.875,ob:0.855,mo:0.905};
+    const _imgTok=(href,fr,mul)=>{ const z=_SPX*(mul||1); return `<image href="${href}" x="${(fx-z/2).toFixed(1)}" y="${(fy-z*fr).toFixed(1)}" width="${z.toFixed(1)}" height="${z.toFixed(1)}" style="image-rendering:pixelated" opacity="${op}"/>`; };
     const _oimg=(t.kind==='object')?tokImgHref(t):null;
     const _spr=(t.kind==='object'&&!(_oimg&&_oimg.url))?spriteFn(t):null, gly=glyphFor(t);
-    if(_oimg&&_oimg.url){ const z=40; s+=`<image href="${_oimg.url}" x="${(fx-z/2).toFixed(1)}" y="${(fy-z*0.875).toFixed(1)}" width="${z}" height="${z}" style="image-rendering:pixelated" opacity="${op}"/>`; }
+    if(_oimg&&_oimg.url){ s+=_imgTok(_oimg.url,_FR.ob,1); }
     else if(_spr){ s+=_spr(fx,fy,op); }
     else if(t.kind==='object'&&gly){ s+=`<text x="${fx.toFixed(1)}" y="${(fy-1).toFixed(1)}" text-anchor="middle" font-size="20" opacity="${op}">${gly}</text>`; }
     else if(t.kind==='object'){ s+=`<rect x="${(fx-9).toFixed(1)}" y="${(fy-12).toFixed(1)}" width="18" height="16" rx="2" fill="${t.color||'#9a9a9a'}" stroke="#000" stroke-width="1.2" opacity="${op}"/>`; }
     else if(t.kind==='marker'){ s+=`<polygon points="${fx},${fy-12} ${fx+9},${fy} ${fx},${fy+8} ${fx-9},${fy}" fill="${t.color||'#b06cff'}" opacity="0.6"/>`; }
     else { const _tkimg=tokImgHref(t), _mt=(_tkimg&&_tkimg.tiles)||1;
-      if(_tkimg&&_tkimg.url){ const z=40*_mt; s+=`<image href="${_tkimg.url}" x="${(fx-z/2).toFixed(1)}" y="${(fy-z*0.875).toFixed(1)}" width="${z}" height="${z}" style="image-rendering:pixelated" opacity="${op}"/>`; }
-      else if(_hd){ const z=40; s+=`<image href="${_hd}" x="${(fx-z/2).toFixed(1)}" y="${(fy-z*0.875).toFixed(1)}" width="${z}" height="${z}" style="image-rendering:pixelated" opacity="${op}"/>`; }
+      if(_tkimg&&_tkimg.url){ s+=_imgTok(_tkimg.url,_FR.mo,_mt); }
+      else if(_hd){ s+=_imgTok(_hd,_FR.ch,1); }
       else { const pal=PAL[t.kind]||PAL.pc, ba=pal[0], da=pal[1], li=pal[2];
         if(_mt>1) s+=`<g transform="translate(${fx.toFixed(1)} ${fy.toFixed(1)}) scale(${_mt}) translate(${(-fx).toFixed(1)} ${(-fy).toFixed(1)})">`;
         s+=`<rect x="${(fx-9).toFixed(1)}" y="${(fy-16).toFixed(1)}" width="18" height="20" rx="3" fill="${ba}" stroke="${da}" stroke-width="1.2" opacity="${op}"/>`;
@@ -5178,7 +5191,7 @@ async function renderBattleGrid(p){
       const cur=csMap[t.ref_combat_state_id]; let pct=null;
       if(t.kind==='monster'&&cur){ const mx=cur.monsters&&cur.monsters.max_hp; if(mx) pct=Math.max(0,Math.min(1,cur.cur_hp/mx)); }
       else if(t.kind==='pc'||t.kind==='ally'){ const ch=characters.find(x=>x.id===t.ref_char_id); const hp=ch&&ch.public_status&&ch.public_status.hp; if(hp&&/^\d+\/\d+/.test(String(hp))){ const m2=String(hp).split('/'); pct=Math.max(0,Math.min(1,(+m2[0])/(+m2[1]||1))); } }
-      if(pct!=null){ const co=pct<=0.34?'#E24B4A':pct<=0.67?'#EF9F27':'#97C459'; s+=`<rect x="${(fx-12).toFixed(1)}" y="${(fy-32).toFixed(1)}" width="24" height="3.5" fill="rgba(0,0,0,0.7)"/>`; s+=`<rect x="${(fx-12).toFixed(1)}" y="${(fy-32).toFixed(1)}" width="${(24*pct).toFixed(1)}" height="3.5" fill="${co}"/>`; }
+      if(pct!=null){ const co=pct<=0.34?'#E24B4A':pct<=0.67?'#EF9F27':'#97C459'; const _img=_hd||(_tkimg&&_tkimg.url); const _hy=_img?(fy-Math.round(_SPX*(t.kind==='monster'?_FR.mo*_mt:_FR.ch))-7):(fy-32);   /* v420: ยก HP bar เหนือหัว sprite ที่ใหญ่ขึ้น */ s+=`<rect x="${(fx-12).toFixed(1)}" y="${_hy.toFixed(1)}" width="24" height="3.5" fill="rgba(0,0,0,0.7)"/>`; s+=`<rect x="${(fx-12).toFixed(1)}" y="${_hy.toFixed(1)}" width="${(24*pct).toFixed(1)}" height="3.5" fill="${co}"/>`; }
     }
     const isAct=(activeRef.char&&t.ref_char_id===activeRef.char)||(activeRef.cs&&t.ref_combat_state_id===activeRef.cs);
     if(isAct) s+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy+5).toFixed(1)}" rx="16" ry="6" fill="none" stroke="#FAC775" stroke-width="2.5"/>`;
@@ -5201,7 +5214,9 @@ async function renderBattleGrid(p){
     const _tk={}; toks.concat(_decoToks).forEach(t=>{ const k=t.col+'_'+t.row; (_tk[k]=_tk[k]||[]).push(t); });
     const _cl=[]; for(let _r=0;_r<rows;_r++)for(let _c=0;_c<cols;_c++) _cl.push([_c,_r]);
     _cl.sort((a,b)=>(a[0]+a[1])-(b[0]+b[1]));
-    _cl.forEach(p=>{ svg+=_isoTile(p[0],p[1]); const g=_tk[p[0]+'_'+p[1]]; if(g){ g.sort((a,b)=>(a.z||0)-(b.z||0)).forEach(t=>{ svg+=drawTok(t); }); } });
+    _cl.forEach(p=>{ svg+=_isoTile(p[0],p[1]); });   // v420: pass1 = วาดพื้นทั้งหมดก่อน (กัน tile ช่องหน้าทับเท้า token → เลิกดูลอย)
+    svg+=_todTintSvg(IVW,IVH);                        // v420: tint ตามช่วงเวลาของวัน (เหนือพื้น/backdrop · ใต้ token)
+    _cl.forEach(p=>{ const g=_tk[p[0]+'_'+p[1]]; if(g){ g.sort((a,b)=>(a.z||0)-(b.z||0)).forEach(t=>{ svg+=drawTok(t); }); } });   // v420: pass2 = token ทับบนสุด (depth order ภายในคงเดิม)
   } else {
   // tiles (checkerboard + squash = 2.5D) + กำแพง + พื้นสูง (hills) + น้ำ
   for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
