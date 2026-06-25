@@ -5219,7 +5219,12 @@ async function renderBattleGrid(p){
     _cl.sort((a,b)=>(a[0]+a[1])-(b[0]+b[1]));
     _cl.forEach(p=>{ svg+=_isoTile(p[0],p[1]); });   // v420: pass1 = วาดพื้นทั้งหมดก่อน (กัน tile ช่องหน้าทับเท้า token → เลิกดูลอย)
     svg+=_todTintSvg(IVW,IVH);                        // v420: tint ตามช่วงเวลาของวัน (เหนือพื้น/backdrop · ใต้ token)
-    _cl.forEach(p=>{ const g=_tk[p[0]+'_'+p[1]]; if(g){ g.sort((a,b)=>(a.z||0)-(b.z||0)).forEach(t=>{ svg+=drawTok(t); }); } });   // v420: pass2 = token ทับบนสุด (depth order ภายในคงเดิม)
+    // v421: pass2 = token ทับบนสุด · ลำดับ (tier → depth c+r → z) — มอน/วัตถุวาดก่อน แล้วตัวละคร(pc/ally/npc)วาดทับบนสุดเสมอ
+    //        → มอนตัวใหญ่ (sprite 64×tiles) ไม่บังตัวละครอื่นจนมองไม่เห็น (เห็นทั้งตัว · คร่อมได้แค่ใต้เท้า)
+    const _isChar=t=>(t.kind==='pc'||t.kind==='ally'||t.kind==='npc');
+    const _allTok=[]; _cl.forEach(p=>{ const g=_tk[p[0]+'_'+p[1]]; if(g) for(const _t of g) _allTok.push(_t); });
+    _allTok.sort((a,b)=>((_isChar(a)?1:0)-(_isChar(b)?1:0)) || ((a.col+a.row)-(b.col+b.row)) || ((a.z||0)-(b.z||0)));
+    _allTok.forEach(t=>{ svg+=drawTok(t); });
   } else {
   // tiles (checkerboard + squash = 2.5D) + กำแพง + พื้นสูง (hills) + น้ำ
   for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
@@ -5236,8 +5241,9 @@ async function renderBattleGrid(p){
       if(isW) svg+=`<rect x="${(x+4).toFixed(1)}" y="${(y-6).toFixed(1)}" width="${TILE-8}" height="${(th+6).toFixed(1)}" fill="#4a5160" stroke="#2c3344" stroke-width="0.8" rx="2"/>`;
     }
   }
-  // tokens เรียงตามแถว (painter's: หลัง→หน้า)
-  const order=toks.concat(_decoToks).sort((a,b)=>(a.row-b.row)|| ((a.z||0)-(b.z||0)));
+  // tokens เรียงตามแถว (painter's: หลัง→หน้า) · v421: ตัวละคร(pc/ally/npc)วาดทับบนสุด → มอนตัวใหญ่ไม่บังตัวละครจนมองไม่เห็น
+  const _isCharF=t=>(t.kind==='pc'||t.kind==='ally'||t.kind==='npc');
+  const order=toks.concat(_decoToks).sort((a,b)=>((_isCharF(a)?1:0)-(_isCharF(b)?1:0))||(a.row-b.row)|| ((a.z||0)-(b.z||0)));
   order.forEach(t=>{
     const fx=footX(t.col), fy=footY(t.col,t.row);
     const down=Array.isArray(t.flags)&&(t.flags.includes('down')||t.flags.includes('dead'));
