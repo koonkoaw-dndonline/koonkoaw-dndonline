@@ -2331,31 +2331,13 @@ async function renderStory(){
   }
   // โครงสร้างเปลี่ยน (entry ใหม่/ลบ/โหลดเก่า) → rebuild ทั้งก้อน
   _lastFeedSig=shown.map(n=>`${n.id}:${isig(n)}`).join('|');
-  // ── v218 DICE LOG: ผลทอยจริงจาก server แทรก 'ก่อน' บทบรรยาย — ผู้เล่นเห็นกลไกก่อน แล้วค่อยอ่านว่า DM ตัดสินเล่ายังไง ──
-  //   กติกาจับคู่: บทที่ n ถูกสร้าง placeholder ก่อนทอย → ผลทอยของบทนี้มี timestamp อยู่ระหว่าง n กับบทถัดไป
-  let _dl=[]; try{ const r=await supa.from('combat_log').select('entry_type,summary,created_at').eq('campaign_id',campaign.id).order('seq',{ascending:false}).limit(150); _dl=(r.data||[]).reverse(); }catch(e){}
-  const DL_T={save:1,check:1,heal:1,condition:1};   // ฉากเนื้อเรื่อง: เช็คสกิล/เซฟ/ฮีล — ฉากต่อสู้มี BATTLE LOG อยู่แล้ว ไม่แทรกซ้ำ
-  const DL_COMBAT=/^(attack|damage|death|initiative|round_advance|flee)$/;
-  const diceFor=(n,nx)=>{ if(!_dl.length) return []; const t0=new Date(n.created_at).getTime(); const t1=nx?new Date(nx.created_at).getTime():Infinity;
-    const win=_dl.filter(e=>{ const te=new Date(e.created_at).getTime(); return te>t0&&te<=t1; });
-    if(win.some(e=>DL_COMBAT.test(String(e.entry_type||'').toLowerCase()))) return [];   // หน้าต่างนี้คือคอมแบต → ไม่แทรก
-    return win.filter(e=>DL_T[String(e.entry_type||'').toLowerCase()]); };
+  // ── v432: Dice Log ย้ายไปฝั่ง server — server แทรกบท "🎲 ผลทอย" (created_at ก่อนบทเรื่องของรอบ) → เรียงเหนือบท DM อัตโนมัติ · เลิกใช้กล่องลอย+จับคู่ timestamp ฝั่ง frontend ──
   feed.innerHTML='';
   if(narrMore){ const lb=document.createElement('button'); lb.className='btn ghost sm'; lb.style.cssText='align-self:center;margin:2px 0 8px'; lb.textContent='▲ โหลดบทก่อนหน้า'; lb.title='บทเก่ากว่านี้ดูสรุปได้ในแท็บ Chronicle'; lb.onclick=loadOlderNarrative; feed.appendChild(lb); }
   if(!shown.length){ feed.innerHTML='<div class="muted">No story yet '+(campaign.host_id===me.id?'— press "Begin Adventure" below':'— waiting for the host to begin')+'</div>'; }
   shown.forEach((n,i)=>{
     const d=document.createElement('div'); d.className='narr'; d.dataset.nid=String(n.id); d.dataset.sig=isig(n);
     d.innerHTML='<div class="meta">🎲 DM</div>';
-    try{
-      const rolls=diceFor(n, shown[i+1]);
-      if(rolls.length){
-        const dd=document.createElement('details'); dd.open=true;
-        dd.style.cssText='border:1px dashed #555;border-radius:6px;margin:4px 0 8px;padding:3px 9px;background:#0d1018';
-        dd.innerHTML='<summary style="cursor:pointer;font-size:12px;color:#9aa0a8;padding:3px 0">🎲 ผลทอยเต๋า ('+rolls.length+')</summary>'+
-          rolls.map(e=>'<div style="font-size:12.5px;line-height:1.55;color:#b8bec8;padding:1px 0">'+({attack:'⚔',save:'🛡',check:'🎯',damage:'💥',heal:'💚',death:'☠',condition:'✨'}[String(e.entry_type).toLowerCase()]||'·')+' '+escapeHtml(String(e.summary||''))+'</div>').join('');
-        d.appendChild(dd);
-      }
-    }catch(e){}
     const c=document.createElement('div'); c.className='narrc'; c.innerHTML=cdraw(n);
     d.appendChild(c); feed.appendChild(d);
   });
@@ -3490,7 +3472,9 @@ async function renderQuest(){
   const ended=dedup.filter(q=>q.status==='completed'||q.status==='failed');   // v178: ซ่อน 'merged' (เควสรวมซ้ำ ไม่ใช่เควสที่สำเร็จ)
   // v194: ป้ายความยากจาก quests.blueprint (server ทอยล็อกตอนรับเควส — ผู้เล่นเห็นแค่ป้าย+คำใบ้ ตัวเลขเป็นความลับผู้กำกับ)
   const BP_BADGE={easy:['⭐ ง่าย','#97C459'],normal:['⭐⭐ ปกติ','#FAC775'],hard:['⭐⭐⭐ ยาก','#E8915B'],epic:['💀 มหาโหด','#E24B4A']};
-  const bpBadge=(q)=>{ const d=q.blueprint&&q.blueprint.diff; const x=BP_BADGE[d]; if(!x) return '';
+  const bpBadge=(q)=>{
+    if(q.blueprint&&q.blueprint.kind==='standing') return ' <span style="font-weight:600;font-size:11px;color:#6cb6ff;border:1px solid #6cb6ff;border-radius:6px;padding:0 6px;white-space:nowrap">🛡 เฝ้าระวัง (ต่อเนื่อง)</span>';   // v431: เควสเฝ้าระวัง/ถาวร — ไม่ใช่ศึกครั้งเดียว
+    const d=q.blueprint&&q.blueprint.diff; const x=BP_BADGE[d]; if(!x) return '';
     return ' <span style="font-weight:600;font-size:11px;color:'+x[1]+';border:1px solid '+x[1]+';border-radius:6px;padding:0 6px;white-space:nowrap">'+x[0]+'</span>'; };
   const bpTitle=(q)=>escapeHtml(String(q.title||'').replace(/^[\s💀⭐]+/,''));   // ตัดอิโมจิหน้าชื่อ (ป้ายแสดงแยกแล้ว)
   // จับคู่เบาะแส → เควส: clue.mystery ตรง/คาบเกี่ยวกับชื่อเควส (ที่เหลือเข้าสมุดเบาะแสรวม)
