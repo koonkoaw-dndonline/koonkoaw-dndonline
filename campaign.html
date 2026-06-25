@@ -5952,7 +5952,7 @@ async function renderChronicle(){
   try{ const r=await supa.from('chronicles').select('*').eq('campaign_id',campaign.id).order('idx',{ascending:true}); if(!r.error) chroniclesData=r.data||[]; }catch(e){ chroniclesData=[]; }
 
   const head=document.createElement('div'); head.className='item';
-  head.innerHTML='<div class="nm">Adventure Chronicle <span class="meta-inline">'+chroniclesData.length+' บท</span></div><div class="note" style="text-align:left;padding:4px 2px 0">บทสรุปรวบยอดโดย DM — สร้างอัตโนมัติทุกครั้งที่เดินทางข้ามเมืองหรือจบการต่อสู้</div>';
+  head.innerHTML='<div class="nm">Adventure Chronicle <span class="meta-inline">'+chroniclesData.length+' บท</span></div><div class="note" style="text-align:left;padding:4px 2px 0">บทสรุปรวบยอดโดย DM — สร้างอัตโนมัติเมื่อเดินทางข้ามเมือง จบรอบเควส สิ้นเดือนในเกม หรือจบ session</div>';
   const exp=document.createElement('button'); exp.className='btn ghost sm'; exp.style.marginTop='9px'; exp.textContent='Export as file (HTML)'; exp.onclick=exportChronicle;
   head.appendChild(exp); p.appendChild(head);
 
