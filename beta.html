@@ -4977,6 +4977,8 @@ const HD2D=(function(){
   return {renderCharacterSvg,spriteDataUri,normalizeClass,normalizeSex,normalizeRace};
 })();
 const _hd2dCache=new Map();
+// v419: เปิดฉากต่อสู้ใหม่ (sprite ตัวละคร/มอนสเตอร์ + iso: พื้น biome + ฉากหลัง) — รูป 743 ไฟล์พร้อมใน bucket 'sprites' · ⚠ iso เปิดครั้งแรก ถ้าวาดเพี้ยน revert = ลบ/ตั้ง false 2 ค่านี้
+if(typeof window!=='undefined'){ window._charSprites=true; window._isoGrid=true; }
 // v417: raster character sprites pack (128x128 · anchor 64,112 · 13 class × 2 sex × 13 race = 338 PNG)
 //   opt-in window._charSprites=true (อัป bundle ลง bucket 'sprites/characters/' ก่อน · override path: window._spriteBase)
 const SPRITE_ROOT=(typeof window!=='undefined'&&window._spriteRoot)||((typeof PUBLIC_URL!=='undefined'?PUBLIC_URL:'')+'sprites/');
