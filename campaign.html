@@ -4257,7 +4257,8 @@ async function renderSkills(){
         :((s.level!=null&&+s.level>=1)?(()=>{let ex='';try{const sl=(mySheet||{}).slots;if(sl&&Array.isArray(sl.lv_max)){const L=Math.max(1,Math.floor(+s.level));const mx=+sl.lv_max[L]||0;if(mx){const left=Math.max(0,mx-(+(((sl.lv_used||{})[String(L)]))||0));ex=' · เหลือ '+left+'/'+mx+' วันนี้';}}}catch(e){}return `<span class="sk-use" title="ร่ายผ่าน spell slot ระดับ ${s.level} — แชร์โควต้ากับเวทระดับเดียวกัน ฟื้นเมื่อพักยาว">slot L${s.level}${ex}</span>`;})():'');
       const row=document.createElement('div'); row.className='sk-row';
       row.innerHTML=`<button type="button" class="sk-line"><span class="sk-nm">${escapeHtml(s.name)}</span>${uses}<span class="sk-bdg${on?' on':''}">${rechLabel(rech)}</span><span class="sk-arw">▸</span></button><div class="sk-desc">${escapeHtml(s.description||'(ไม่มีคำอธิบาย)')}</div>`;
-      row.querySelector('.sk-line').onclick=()=>{ row.classList.toggle('open'); try{tick();}catch(e){} };
+      row.querySelector('.sk-line').onclick=()=>{ row.classList.toggle('open'); try{tick();}catch(e){}
+        if(row.classList.contains('open')){ setTimeout(()=>{ try{ const _d=row.querySelector('.sk-desc'); (_d||row).scrollIntoView({block:'nearest',behavior:'smooth'}); }catch(e){} }, 290); } };   // v438: เปิดคำบรรยาย → เลื่อนเข้าจอ (แถวล่างสุดเดิมตกขอบจอ อ่านไม่ได้) · รอ transition .26s จบ
       // v291: ปุ่มใช้ความสามารถ active เผ่า (Breath Weapon/Healing Hands) — server ทอย+คุมเลขทั้งหมด
       if(/breath|ลมหายใจ|healing hands|มือแห่งการรักษา|สัมผัสเพื่อรักษา/i.test(s.name||'')){
         const left=(s.max_uses>0)?(s.max_uses-(s.used||0)):1;
