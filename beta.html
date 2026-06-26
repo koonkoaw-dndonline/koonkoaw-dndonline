@@ -2140,6 +2140,10 @@ function toggleSpell(slug){
 }
 async function createCharacter(){
   const name=$('cName').value.trim(); if(!name){toast('Name your character first',true);return;}
+  // v441: บังคับเลือกอาชีพ/เผ่า/เพศ ก่อนเข้าเกม — กันตัวละครหลุดแบบไม่มีคลาส (ไม่มี sprite + กลไกอาชีพไม่ทำงาน)
+  if(!classValue()){ toast('ยังไม่ได้เลือกอาชีพ (Class) — เลือกก่อนเข้าเกม',true); const _e=$('cClass'); if(_e){try{_e.focus();_e.scrollIntoView({block:'center'});}catch(x){}} return; }
+  if(!raceValue()){ toast('ยังไม่ได้เลือกเผ่าพันธุ์ (Race) — เลือกก่อนเข้าเกม',true); const _e=$('cRace'); if(_e){try{_e.focus();_e.scrollIntoView({block:'center'});}catch(x){}} return; }
+  if(!($('cSex')&&$('cSex').value||'').trim()){ toast('ยังไม่ได้เลือกเพศ (Sex) — เลือกก่อนเข้าเกม',true); const _e=$('cSex'); if(_e){try{_e.focus();_e.scrollIntoView({block:'center'});}catch(x){}} return; }
   $('charBtn').disabled=true;
   try{
     suggestHP(); const hpv=parseInt($('cHp').value); const maxhp=isNaN(hpv)?null:Math.max(1,hpv);
@@ -4977,7 +4981,7 @@ const _MON_RENDERED=new Set(['aboleth','acolyte','adult_black_dragon','adult_blu
 const _MON_BIG={adult_black_dragon:2,adult_blue_dragon:2,adult_brass_dragon:2,adult_bronze_dragon:2,adult_copper_dragon:2,adult_gold_dragon:2,adult_green_dragon:2,adult_red_dragon:2,adult_silver_dragon:2,adult_white_dragon:2,ancient_black_dragon:3,ancient_blue_dragon:3,ancient_brass_dragon:3,ancient_bronze_dragon:3,ancient_copper_dragon:3,ancient_gold_dragon:3,ancient_green_dragon:3,ancient_red_dragon:3,ancient_silver_dragon:3,ancient_white_dragon:3,awakened_tree:2,balor:2,behir:2,cloud_giant:2,dragon_turtle:3,elephant:2,fire_giant:2,frost_giant:2,giant_ape:2,giant_constrictor_snake:2,giant_crocodile:2,giant_elk:2,giant_shark:2,hill_giant:2,hydra:2,killer_whale:2,kraken:3,mammoth:2,purple_worm:3,remorhaz:2,roc:3,stone_giant:2,storm_giant:2,tarrasque:3,treant:2,triceratops:2,tyrannosaurus_rex:2};
 // revert: ขนาดมอน = ×tiles (medium 1 · Large 2 · Huge 3 · Gargantuan 4 ตาม footprint D&D 5e จาก catalog) · ไม่อยู่ในตาราง = 1
 const _MON_TILES={aboleth:2, adult_black_dragon:3, adult_blue_dragon:3, adult_brass_dragon:3, adult_bronze_dragon:3, adult_copper_dragon:3, adult_gold_dragon:3, adult_green_dragon:3, adult_red_dragon:3, adult_silver_dragon:3, adult_white_dragon:3, air_elemental:2, ancient_black_dragon:4, ancient_blue_dragon:4, ancient_brass_dragon:4, ancient_bronze_dragon:4, ancient_copper_dragon:4, ancient_gold_dragon:4, ancient_green_dragon:4, ancient_red_dragon:4, ancient_silver_dragon:4, ancient_white_dragon:4, androsphinx:2, ankheg:2, awakened_tree:3, axe_beak:2, balor:3, behir:3, black_pudding:2, bone_devil:2, brown_bear:2, bulette:2, camel:2, centaur:2, chimera:2, chuul:2, clay_golem:2, cloaker:2, cloud_giant:3, constrictor_snake:2, crocodile:2, dire_wolf:2, djinni:2, draft_horse:2, dragon_turtle:4, drider:2, earth_elemental:2, efreeti:2, elephant:3, elk:2, ettin:2, fire_elemental:2, fire_giant:3, frost_giant:3, gelatinous_cube:2, giant_ape:3, giant_bat:2, giant_boar:2, giant_constrictor_snake:3, giant_crocodile:3, giant_eagle:2, giant_elk:3, giant_goat:2, giant_hyena:2, giant_lizard:2, giant_octopus:2, giant_owl:2, giant_scorpion:2, giant_sea_horse:2, giant_shark:3, giant_spider:2, giant_toad:2, giant_vulture:2, glabrezu:2, gorgon:2, griffon:2, guardian_naga:2, gynosphinx:2, hezrou:2, hill_giant:3, hippogriff:2, horned_devil:2, hydra:3, ice_devil:2, iron_golem:2, killer_whale:3, kraken:4, lamia:2, lion:2, mammoth:3, manticore:2, marilith:2, merrow:2, minotaur:2, minotaur_skeleton:2, nalfeshnee:2, nightmare:2, ochre_jelly:2, ogre:2, ogre_zombie:2, oni:2, otyugh:2, owlbear:2, pegasus:2, phase_spider:2, pit_fiend:2, planetar:2, plesiosaurus:2, polar_bear:2, purple_worm:4, remorhaz:3, rhinoceros:2, riding_horse:2, roc:4, roper:2, rug_of_smothering:2, saber_toothed_tiger:2, salamander:2, shambling_mound:2, shield_guardian:2, solar:2, spirit_naga:2, stone_giant:3, stone_golem:2, storm_giant:3, tarrasque:4, tiger:2, treant:3, triceratops:3, troll:2, tyrannosaurus_rex:3, unicorn:2, vrock:2, warhorse:2, warhorse_skeleton:2, water_elemental:2, winter_wolf:2, worg:2, wyvern:2, young_black_dragon:2, young_blue_dragon:2, young_brass_dragon:2, young_bronze_dragon:2, young_copper_dragon:2, young_gold_dragon:2, young_green_dragon:2, young_red_dragon:2, young_silver_dragon:2, young_white_dragon:2};
-function _monId(t){ let g=String((t&&t.glyph)||'').toLowerCase().trim(); if(['monster','pc','ally','npc','object','marker',''].indexOf(g)>=0) g=''; const base=g||String((t&&t.label)||''); return base.toLowerCase().trim().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,''); }   // v420: glyph มอน = generic 'monster' → fallback ใช้ label (ชื่อจริง Hobgoblin) match _MON_RENDERED
+function _monId(t){ let g=String((t&&t.glyph)||'').toLowerCase().trim(); if(['monster','pc','ally','npc','object','marker',''].indexOf(g)>=0) g=''; const base=g||String((t&&t.label)||''); const id=base.toLowerCase().trim().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,''); if(_MON_RENDERED.has(id)) return id; const _s=id.replace(/_(?:[a-z]|\d+)$/,''); return (_s.length>=3&&_MON_RENDERED.has(_s))?_s:id; }   // v420: glyph มอน = generic → fallback label · v444: ตัด suffix แยกตัว (Bugbear A→bugbear_a→bugbear) ให้ match sprite มอนตัวซ้ำ A/B/2
 function _biomeKey(bg){ const s=String(bg||'').toLowerCase();
   if(/ถ้ำ|\bcave\b/.test(s)) return 'cave'; if(/ดันเจ|dungeon|ใต้ดิน|crypt/.test(s)) return 'dungeon';
   if(/สุสาน|หลุมศพ|grave|tomb|ซาก/.test(s)) return 'graveyard'; if(/ลาวา|lava|ภูเขาไฟ|volcan|นรก/.test(s)) return 'lava';
@@ -4995,12 +4999,17 @@ function _spriteRaceKey(raw){ const r=String(HD2D.normalizeRace(raw)).toLowerCas
   if(r.includes('tiefling')) return 'tiefling'; if(r==='orc') return 'orc'; if(r.includes('elf')) return 'elf'; return 'human'; }
 function hd2dCharHref(t){
   try{
-    if(!t||!(t.kind==='pc'||t.kind==='ally')) return null;
-    const ch=(typeof characters!=='undefined'&&characters)?characters.find(x=>x.id===t.ref_char_id):null;
-    const cls=ch&&ch.class; if(!cls) return null;
-    let sex='other', race='Human';
-    if(typeof myChar!=='undefined'&&myChar&&t.ref_char_id===myChar.id&&typeof mySheet!=='undefined'&&mySheet){ if(mySheet.sex) sex=mySheet.sex; if(mySheet.race) race=mySheet.race; }
-    else if(Array.isArray(t.flags)){ for(const _f of t.flags){ const _s=/^sex:(.+)$/i.exec(_f); if(_s)sex=_s[1]; const _r=/^race:(.+)$/i.exec(_f); if(_r)race=_r[1]; } }   // v420: เพศ/เผ่าเพื่อน(companion)จาก grid_tokens.flags ที่ server bake (sex:/race:)
+    if(!t) return null;
+    let cls=null, sex='other', race='Human';
+    if(t.kind==='pc'||t.kind==='ally'){
+      const ch=(typeof characters!=='undefined'&&characters)?characters.find(x=>x.id===t.ref_char_id):null;
+      cls=ch&&ch.class; if(!cls) return null;
+      if(typeof myChar!=='undefined'&&myChar&&t.ref_char_id===myChar.id&&typeof mySheet!=='undefined'&&mySheet){ if(mySheet.sex) sex=mySheet.sex; if(mySheet.race) race=mySheet.race; }
+      else if(Array.isArray(t.flags)){ for(const _f of t.flags){ const _s=/^sex:(.+)$/i.exec(_f); if(_s)sex=_s[1]; const _r=/^race:(.+)$/i.exec(_f); if(_r)race=_r[1]; } }   // v420: เพศ/เผ่าเพื่อนจาก flags ที่ server bake
+    } else if(t.kind==='monster'&&Array.isArray(t.flags)){   // v441: มอน humanoid ที่ server ใส่ sprite_class → render เป็นตัวละคร (แทน token เปล่า · ลำดับหลัง monster sprite จริง)
+      for(const _f of t.flags){ const _c=/^sprite_class:(.+)$/i.exec(_f); if(_c)cls=_c[1]; const _s=/^sex:(.+)$/i.exec(_f); if(_s)sex=_s[1]; const _r=/^race:(.+)$/i.exec(_f); if(_r)race=_r[1]; }
+      if(!cls) return null;
+    } else return null;
     const facing=(t.facing==='W')?'W':'E';
     // v417: เปิด raster sprites + อัปไฟล์แล้ว → คืน URL PNG (class_sex_race) แทน procedural SVG (ใช้ได้ทั้ง 2.5D + iso)
     if(window._charSprites===true && SPRITE_BASE){
