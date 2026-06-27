@@ -753,6 +753,7 @@ body.role-player .dm-only{display:none!important;}
 .copt button{font-family:'Noto Sans Thai',sans-serif;font-size:13px;font-weight:600;text-align:left;border:2px dashed #fff;border-radius:6px;padding:9px 12px;background:#000;color:#fff;line-height:1.4;cursor:pointer;}
 .copt button:hover{background:#fff;color:#000;border-style:solid;}
 .whbox{border:2px solid #fff;border-radius:6px;padding:6px 9px;display:flex;flex-direction:column;gap:4px;}
+#bsHud .whbox+.whbox{margin-top:7px;}   /* v453: แยกกล่อง WORLD/LOCATION ไม่ให้ขอบชนกัน */
 .cc-inline{border:3px solid #fff;border-radius:10px;padding:12px;background:#000;}
 .cc-inline .cc-close{display:none;}
 .cc-item,.cc-btn,.copt button,.bs-mobbar button,.bs-chat-in button,.bs-sheet-close,.sk-chip{touch-action:manipulation;}
@@ -811,7 +812,7 @@ body.in-battle .bs-cs-btn{display:block;}
 .bs-charsheet.on{display:block;}
 .bs-cs-close{position:sticky;top:0;float:right;z-index:2;background:#fff;color:#000;border:0;border-radius:8px;padding:8px 13px;font-family:'IBM Plex Sans Thai',sans-serif;font-size:13px;font-weight:700;cursor:pointer;}
 @media (max-width:1023px){ .bs-charsheet{inset:2% 3%;} }
-.bscene-stage{position:absolute;inset:0;display:flex;flex-direction:column;gap:10px;padding:0 12px 12px;overflow-y:auto;-webkit-overflow-scrolling:touch;}   /* v452: ตัด padding-top → ฉากสู้ชิดขอบบนจอ */
+.bscene-stage{position:absolute;inset:0;display:flex;flex-direction:column;gap:10px;padding:8px 12px 12px;overflow-y:auto;-webkit-overflow-scrolling:touch;}   /* v453: เว้นช่องไฟบนเล็กน้อย (8px) ทั้ง 3 column */
 .bs-box{min-height:0;}
 .bs-col{display:flex;flex-direction:column;gap:10px;min-width:0;min-height:0;}
 .bs-hud{display:flex;flex-direction:column;gap:6px;flex:0 0 auto;}
@@ -879,7 +880,7 @@ body.in-battle .bs-cs-btn{display:block;}
   .bscene-stage{flex-direction:row;align-items:stretch;}
   .bs-left{flex:0 0 322px;}
   .bs-center{flex:1;min-width:0;}
-  .bs-right{flex:0 0 430px;}
+  .bs-right{flex:0 0 360px;}   /* v453: ลดความกว้าง ~16% → เพิ่มพื้นที่ column กลาง */
 }
 @media (max-width:1023px){
   /* มือถือ: เรียงทุกส่วนต่อกันตามความสูงจริง แล้วเลื่อนทั้งฉากได้ (กันถูกบีบจนหาย) */
@@ -4710,7 +4711,7 @@ async function renderBattleScene(){
       var hud4=document.getElementById('bsHud');
       if(hud4 && campaign.host_id===me.id && !document.getElementById('bsDmTg')){
         var dtg=document.createElement('button'); dtg.type='button'; dtg.id='bsDmTg';
-        dtg.style.cssText="width:100%;background:none;border:none;border-top:2px solid #fff;cursor:pointer;text-align:left;font-family:'Press Start 2P',monospace;font-size:8px;letter-spacing:1px;color:#FAC775;padding:8px 2px 4px;margin-top:8px";
+        dtg.style.cssText="width:100%;background:none;border:none;cursor:pointer;text-align:left;font-family:'Press Start 2P',monospace;font-size:8px;letter-spacing:1px;color:#FAC775;padding:6px 2px 4px;margin-top:6px";   // v453: ตัดเส้นขวางเหนือ DM TOOLS
         dtg.textContent='🎛 DM TOOLS ▸';
         var dbody=document.createElement('div'); dbody.id='bsDmBody'; dbody.style.display='none';
         dtg.onclick=function(){ var on=dbody.style.display==='none'; dbody.style.display=on?'block':'none'; dtg.textContent='🎛 DM TOOLS '+(on?'▾':'▸'); if(on){ dbody.innerHTML=''; try{ dbody.appendChild(buildDmToolsCard(false)); }catch(e){} } };
