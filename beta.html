@@ -3265,7 +3265,8 @@ async function _renderMeInner(){
   if(cb.ac!=null && !isNaN(+cb.ac)) acRes.ac=+cb.ac;   /* L17: เชื่อ baked AC (calcAC คุม Draconic Sorc/Bladesinger/featAc/domainAc ที่ computeAC ตกหล่น) · fallback computeAC เมื่อไม่มี baked */
   const prof=2+Math.floor(((myChar.level||1)-1)/4);
   const initv=sign(mod(eAb.dex));
-  const hp=(cb.maxhp!=null)?`${cb.hp??cb.maxhp}/${cb.maxhp}`:((myChar.public_status||{}).hp||dash);
+  const _thp=(cb&&Number.isFinite(+cb.temp_hp)&&+cb.temp_hp>0)?+cb.temp_hp:0;   // v446: temp HP (Heroism/False Life/Aid) — โชว์ให้ผู้เล่นเห็น
+  const hp=((cb.maxhp!=null)?`${cb.hp??cb.maxhp}/${cb.maxhp}`:((myChar.public_status||{}).hp||dash))+(_thp?` (+${_thp} ชั่วคราว)`:'');
   const sub=[sheet.race, sheet.sex, sheet.age?('อายุ '+sheet.age):'', myChar.class||'Adventurer', sheet.subclass||'', 'Lv.'+myChar.level].filter(Boolean).join(' · ');   // v183: โชว์ subclass (Oath)
   const spd=(cb.speed!=null)?(cb.speed+(bon.add.speed||0)):(bon.add.speed?('+'+bon.add.speed):null);
   const bsum=[]; if(bon.add.attack) bsum.push('โจมตี '+sign(bon.add.attack)); if(bon.add.damage) bsum.push('ดาเมจ '+sign(bon.add.damage)); if(bon.add.save) bsum.push('save '+sign(bon.add.save)); if(bon.add.ability_check) bsum.push('ability check '+sign(bon.add.ability_check)); if(bon.add.spell_attack) bsum.push('spell atk '+sign(bon.add.spell_attack)); if(bon.add.spell_dc) bsum.push('spell DC '+sign(bon.add.spell_dc));
@@ -6154,9 +6155,9 @@ function escapeHtml(s){ return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;',
 function prettyCond(c){
   const s=String(c||'').trim(); const low=s.toLowerCase();
   if(low.startsWith('rage')||/เกรี้ยว|คลั่ง/.test(low)) return '🔥 Rage';
-  if(low.startsWith('legres_used')||low.startsWith('se:')) return '';
+  if(low.startsWith('legres_used')||low.startsWith('se:')||low.startsWith('react-used')||low.startsWith('reckless')) return '';   // v446: token ภายใน ไม่ต้องโชว์
   const base=low.split(':')[0];
-  const M={paralyzed:'อัมพาต',frightened:'หวาดกลัว',charmed:'ถูกสะกด',poisoned:'ติดพิษ',stunned:'มึนงง',prone:'ล้มลง',restrained:'ถูกรวบรัด',grappled:'ถูกจับ',blinded:'ตาบอด',unconscious:'หมดสติ',hidden:'🫥 ซ่อนตัว',invisible:'ล่องหน',bardic:'🎵 Bardic',inspiration:'✨ Inspiration',shillelagh:'Shillelagh',helped:'ได้รับการช่วย',disadvantage:'เสียเปรียบ',surprised:'ไม่ทันตั้งตัว',petrified:'กลายเป็นหิน',deafened:'หูหนวก',readied:'เตรียมท่า',concentration:'🧠 สมาธิ'};
+  const M={paralyzed:'อัมพาต',frightened:'หวาดกลัว',charmed:'ถูกสะกด',poisoned:'ติดพิษ',stunned:'มึนงง',prone:'ล้มลง',restrained:'ถูกรวบรัด',grappled:'ถูกจับ',blinded:'ตาบอด',unconscious:'หมดสติ',hidden:'🫥 ซ่อนตัว',invisible:'ล่องหน',bardic:'🎵 Bardic',inspiration:'✨ Inspiration',shillelagh:'Shillelagh',helped:'ได้รับการช่วย',disadvantage:'เสียเปรียบ',surprised:'ไม่ทันตั้งตัว',petrified:'กลายเป็นหิน',deafened:'หูหนวก',readied:'เตรียมท่า',concentration:'🧠 สมาธิ',shield_of_faith:'🛡 Shield of Faith +2 AC',shield_ac:'🛡 Shield +5 AC',heroism:'🦁 Heroism (temp HP)',bless:'✨ Bless +1d4',bane:'💀 Bane −1d4',divine_favor:'⚜ Divine Favor +1d4',hex:'😈 Hex +1d6',hunters_mark:'🎯 Hunter’s Mark +1d6',favored_foe:'🎯 Favored Foe'};
   return M[base]||s.split(':')[0];
 }
 
