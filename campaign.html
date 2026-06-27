@@ -5170,7 +5170,7 @@ async function renderBattleGrid(p){
   svg+='<style>.gtok{cursor:pointer}.gtok .tklbl{visibility:hidden}.gtok:hover .tklbl{visibility:visible}.gtok.lblon .tklbl{visibility:visible}</style>';
   // ── v416 ISO render path (dormant จน window._isoGrid=true) — drawTok ใช้ footXY + image hook (เติม registry หลังอัปไฟล์) ──
   // v418: terrain image (iso diamond ตาม biome จาก grid.background · non-wall · gated window._charSprites)
-  function tileImgHref(c,r,cell,isW,wet){ if(window._charSprites!==true||isW) return null; if(wet) return _ASSET.terrain+'water.png'; const bk=_biomeKey(grid.background); return bk?(_ASSET.terrain+bk+'.png'):null; }
+  function tileImgHref(c,r,cell,isW,wet){ if(window._charSprites!==true||isW) return null; if(wet) return _ASSET.terrain+'water.png'; if(window._floorImage!==false) return null; const bk=_biomeKey(grid.background); return bk?(_ASSET.terrain+bk+'.png'):null; }   // v446 floorImage: พื้น biome ใช้ backdrop เต็มผืนแทนกระเบื้องซ้ำ (ลดลายตา) · น้ำยังเป็นกระเบื้อง
   // v418: object/monster image → {url,tiles} · object resolve ผ่าน SPR_ALIAS · monster ขนาดจาก _MON_BIG (Huge=2/Garg=3)
   function tokImgHref(t){ if(window._charSprites!==true||!t) return null; try{
     if(t.kind==='object'){ const k=String(t.glyph||'').toLowerCase().trim(); let key=_OBJ_KEYS.has(k)?k:((SPR_ALIAS[k]&&_OBJ_KEYS.has(SPR_ALIAS[k]))?SPR_ALIAS[k]:null);
@@ -5214,10 +5214,11 @@ async function renderBattleGrid(p){
     return s+'</g>'; }
   if(ISO){
     // iso: tile + token interleave ตาม depth (c+r) — กำแพง/ช่องหน้าบัง token หลัง
-    if(window._charSprites===true){ const _bk=_biomeKey(grid.background); if(_bk&&_BG_KEYS.has(_bk)) svg+=`<image href="${_ASSET.bg+_bk+'.png'}" x="0" y="0" width="${IVW}" height="${IVH}" preserveAspectRatio="xMidYMid slice" opacity="0.4"/>`; }   // v418 backdrop biome
+    if(window._charSprites===true){ const _bk=_biomeKey(grid.background); if(_bk&&_BG_KEYS.has(_bk)) svg+=`<image href="${_ASSET.bg+_bk+'.png'}" x="0" y="0" width="${IVW}" height="${IVH}" preserveAspectRatio="xMidYMid slice" opacity="${window._floorImage!==false?0.95:0.4}"/>`; }   // v418 backdrop biome · v446 floorImage: backdrop เป็นพื้นหลัก opacity สูง
     const _isoTile=(c,r)=>{ const cell=rc2cell(c,r), isW=walls.has(cell), wet=WATER.has(cell), x=isx(c,r), y=isy(c,r), eh=isW?IWALL:IEH;
       const ti=tileImgHref(c,r,cell,isW,wet);
       if(ti){ const W=ITW*1.15; return `<image href="${ti}" x="${(x-W/2).toFixed(1)}" y="${(y-W*0.46).toFixed(1)}" width="${W.toFixed(1)}" height="${W.toFixed(1)}" style="image-rendering:pixelated"><title>${cell}</title></image>`; }
+      if(window._floorImage!==false && !isW && !wet){ return `<polygon points="${x},${y-IHTH} ${x+IHTW},${y} ${x},${y+IHTH} ${x-IHTW},${y}" fill="none" stroke="#ffffff" stroke-width="0.5" opacity="0.10"><title>${cell}</title></polygon>`; }   // v446 floorImage: พื้นปกติโชว์ backdrop วาดแค่เส้นขอบช่องบางๆ (เลิกถมกระเบื้องซ้ำ = ลายตาหาย) · กำแพง/น้ำยังวาด relief เต็ม
       const P= isW?['#5b606b','#23262e','#34383f','#7c8290'] : wet?['#1f4063','#102338','#163150','#3a6fa0'] : ((c+r)%2?['#2f3543','#1b1f27','#252a34','#5a6276']:['#363d4c','#1b1f27','#252a34','#5a6276']);
       let s=`<polygon points="${x-IHTW},${y} ${x},${y+IHTH} ${x},${y+IHTH+eh} ${x-IHTW},${y+eh}" fill="${P[1]}"/>`;
       s+=`<polygon points="${x},${y+IHTH} ${x+IHTW},${y} ${x+IHTW},${y+eh} ${x},${y+IHTH+eh}" fill="${P[2]}"/>`;
