@@ -5183,7 +5183,7 @@ async function renderBattleGrid(p){
   function drawTok(t){ const _a=footXY(t.col,t.row), fx=_a[0], fy=_a[1];
     let down=Array.isArray(t.flags)&&(t.flags.includes('down')||t.flags.includes('dead'));
     if(!down){ if(t.kind==='pc'||t.kind==='ally'||t.kind==='npc'){ const _dc=characters.find(x=>x.id===t.ref_char_id); if(_dc&&/^0\s*\//.test(String((_dc.public_status||{}).hp||''))) down=true; } else if(t.kind==='monster'){ const _dcs=csMap[t.ref_combat_state_id]; if(_dcs&&Number.isFinite(+_dcs.cur_hp)&&+_dcs.cur_hp<=0) down=true; } }   // v448: ล้ม = HP 0 แม้ไม่มี flag (PC/ally จาก public_status · มอนจาก cur_hp)
-    const op=down?0.4:1;
+    const op=(down&&t.kind!=='pc'&&t.kind!=='ally'&&t.kind!=='npc')?0.4:1;   // v449.1: ตัวละครล้ม = หมุนนอนตะแคงแต่ "ไม่จางสี" (ผู้ใช้ขอ) · มอน/วัตถุล้มยังจางเหมือนเดิม
     const _hd=hd2dCharHref(t); let s=`<g class="gtok"${t._deco?' style="pointer-events:none"':''} onclick="this.classList.toggle('lblon')"><title>${escapeHtml(t.label||'')}</title>`;
     // v420: ตัดเงากลม renderer ออก (ผู้ใช้ขอ — แอสเซ็ทไม่มีฐานในตัว ยืนบน tile โดยตรง) · ขยาย sprite + anchor เท้าตามชนิด (char/obj/mon เท้าคนละแถว 0.875/0.855/0.905)
     const _FR={ch:0.875,ob:0.855,mo:0.905}, _SZ={ch:64,mo:64,ob:64};   // revert: uniform 64px ทุก asset (≈1 ช่อง · PNG คุมสัดส่วนเอง) · มอนใหญ่ = ×tiles (_MON_TILES)
@@ -5256,7 +5256,7 @@ async function renderBattleGrid(p){
     const fx=footX(t.col), fy=footY(t.col,t.row);
     let down=Array.isArray(t.flags)&&(t.flags.includes('down')||t.flags.includes('dead'));
     if(!down){ if(t.kind==='pc'||t.kind==='ally'||t.kind==='npc'){ const _dc=characters.find(x=>x.id===t.ref_char_id); if(_dc&&/^0\s*\//.test(String((_dc.public_status||{}).hp||''))) down=true; } else if(t.kind==='monster'){ const _dcs=csMap[t.ref_combat_state_id]; if(_dcs&&Number.isFinite(+_dcs.cur_hp)&&+_dcs.cur_hp<=0) down=true; } }   // v448: ล้ม = HP 0 แม้ไม่มี flag
-    const op=down?0.4:1;
+    const op=(down&&t.kind!=='pc'&&t.kind!=='ally'&&t.kind!=='npc')?0.4:1;   // v449.1: ตัวละครล้ม = หมุนนอนตะแคงแต่ "ไม่จางสี" (ผู้ใช้ขอ) · มอน/วัตถุล้มยังจางเหมือนเดิม
     const _hd=hd2dCharHref(t);   // v1 HD2D: PC/ally → sprite ตาม class (null = pawn เดิม)
     svg+=`<g class="gtok"${t._deco?' style="pointer-events:none"':''} onclick="this.classList.toggle('lblon')"><title>${escapeHtml(t.label||'')}</title>`;
     // เงา (HD2D มีฐานในตัว — ข้ามเงาซ้ำ)
