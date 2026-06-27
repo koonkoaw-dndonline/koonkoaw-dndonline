@@ -5171,7 +5171,7 @@ async function renderBattleGrid(p){
   svg+='<style>.gtok{cursor:pointer}.gtok .tklbl{visibility:hidden}.gtok:hover .tklbl{visibility:visible}.gtok.lblon .tklbl{visibility:visible}</style>';
   // ── v416 ISO render path (dormant จน window._isoGrid=true) — drawTok ใช้ footXY + image hook (เติม registry หลังอัปไฟล์) ──
   // v418: terrain image (iso diamond ตาม biome จาก grid.background · non-wall · gated window._charSprites)
-  function tileImgHref(c,r,cell,isW,wet){ if(window._charSprites!==true||isW) return null; if(wet) return _ASSET.terrain+'water.png'; if(window._floorImage!==false) return null; const bk=_biomeKey(grid.background); return bk?(_ASSET.terrain+bk+'.png'):null; }   // v446 floorImage: พื้น biome ใช้ backdrop เต็มผืนแทนกระเบื้องซ้ำ (ลดลายตา) · น้ำยังเป็นกระเบื้อง
+  function tileImgHref(c,r,cell,isW,wet){ if(window._charSprites!==true||isW) return null; if(wet) return _ASSET.terrain+'water.png'; const bk=_biomeKey(grid.background); return bk?(_ASSET.terrain+bk+'.png'):null; }
   // v418: object/monster image → {url,tiles} · object resolve ผ่าน SPR_ALIAS · monster ขนาดจาก _MON_BIG (Huge=2/Garg=3)
   function tokImgHref(t){ if(window._charSprites!==true||!t) return null; try{
     if(t.kind==='object'){ const k=String(t.glyph||'').toLowerCase().trim(); let key=_OBJ_KEYS.has(k)?k:((SPR_ALIAS[k]&&_OBJ_KEYS.has(SPR_ALIAS[k]))?SPR_ALIAS[k]:null);
@@ -5186,7 +5186,8 @@ async function renderBattleGrid(p){
     // v420: ตัดเงากลม renderer ออก (ผู้ใช้ขอ — แอสเซ็ทไม่มีฐานในตัว ยืนบน tile โดยตรง) · ขยาย sprite + anchor เท้าตามชนิด (char/obj/mon เท้าคนละแถว 0.875/0.855/0.905)
     const _DETAIL=1.3;   // v422: ขยาย sprite +30% (เห็นรายละเอียดงานศิลป์ชัดขึ้น) — ปรับค่านี้ตัวเดียว
     const _FR={ch:0.875,ob:0.855,mo:0.905}, _SZ={ch:64*_DETAIL,mo:64*_DETAIL,ob:64*_DETAIL};   // base 64px × _DETAIL · uniform ทุก asset (≈1 ช่อง · PNG คุมสัดส่วนเอง) · มอนใหญ่ = ×tiles (_MON_TILES)
-    const _imgTok=(href,fr,px)=>{ const z=px; return `<image href="${href}" x="${(fx-z/2).toFixed(1)}" y="${(fy-z*fr).toFixed(1)}" width="${z.toFixed(1)}" height="${z.toFixed(1)}" style="image-rendering:pixelated" opacity="${op}"/>`; };
+    const _rotDown=down?` transform="rotate(74 ${fx.toFixed(1)} ${fy.toFixed(1)})"`:'';   // v448: ล้ม/หมดสติ → หมุน sprite นอนตะแคง (หมุนรอบเท้า)
+    const _imgTok=(href,fr,px)=>{ const z=px; return `<image href="${href}" x="${(fx-z/2).toFixed(1)}" y="${(fy-z*fr).toFixed(1)}" width="${z.toFixed(1)}" height="${z.toFixed(1)}" style="image-rendering:pixelated" opacity="${op}"${_rotDown}/>`; };
     const _oimg=(t.kind==='object')?tokImgHref(t):null;
     const _spr=(t.kind==='object'&&!(_oimg&&_oimg.url))?spriteFn(t):null, gly=glyphFor(t);
     if(_oimg&&_oimg.url){ s+=_imgTok(_oimg.url,_FR.ob,_SZ.ob); }
@@ -5198,11 +5199,12 @@ async function renderBattleGrid(p){
       if(_tkimg&&_tkimg.url){ s+=_imgTok(_tkimg.url,_FR.mo,_mpx); }
       else if(_hd){ s+=_imgTok(_hd,_FR.ch,_SZ.ch); }
       else { const pal=PAL[t.kind]||PAL.pc, ba=pal[0], da=pal[1], li=pal[2];
-        if(_mt>1) s+=`<g transform="translate(${fx.toFixed(1)} ${fy.toFixed(1)}) scale(${_mt}) translate(${(-fx).toFixed(1)} ${(-fy).toFixed(1)})">`;
+        const _tf=`${down?`rotate(74 ${fx.toFixed(1)} ${fy.toFixed(1)}) `:''}${_mt>1?`translate(${fx.toFixed(1)} ${fy.toFixed(1)}) scale(${_mt}) translate(${(-fx).toFixed(1)} ${(-fy).toFixed(1)})`:''}`.trim();   // v448: ล้ม=หมุนนอนตะแคง + มอนใหญ่=scale
+        if(_tf) s+=`<g transform="${_tf}">`;
         s+=`<rect x="${(fx-9).toFixed(1)}" y="${(fy-16).toFixed(1)}" width="18" height="20" rx="3" fill="${ba}" stroke="${da}" stroke-width="1.2" opacity="${op}"/>`;
         s+=`<rect x="${(fx-9).toFixed(1)}" y="${(fy-16).toFixed(1)}" width="18" height="4.5" fill="${li}" opacity="${op}"/>`;
         s+=`<circle cx="${fx.toFixed(1)}" cy="${(fy-20).toFixed(1)}" r="7" fill="${li}" stroke="${da}" stroke-width="1.2" opacity="${op}"/>`;
-        s+=`<text x="${fx.toFixed(1)}" y="${(fy-3).toFixed(1)}" text-anchor="middle" font-family="'Press Start 2P',monospace" font-size="6" fill="#fff">${escapeHtml((t.label||'?').slice(0,1).toUpperCase())}</text>`+(_mt>1?'</g>':''); }
+        s+=`<text x="${fx.toFixed(1)}" y="${(fy-3).toFixed(1)}" text-anchor="middle" font-family="'Press Start 2P',monospace" font-size="6" fill="#fff">${escapeHtml((t.label||'?').slice(0,1).toUpperCase())}</text>`+(_tf?'</g>':''); }
       const cur=csMap[t.ref_combat_state_id]; let pct=null;
       if(t.kind==='monster'&&cur){ const mx=cur.monsters&&cur.monsters.max_hp; if(mx) pct=Math.max(0,Math.min(1,cur.cur_hp/mx)); }
       else if(t.kind==='pc'||t.kind==='ally'){ const ch=characters.find(x=>x.id===t.ref_char_id); const hp=ch&&ch.public_status&&ch.public_status.hp; if(hp&&/^\d+\/\d+/.test(String(hp))){ const m2=String(hp).split('/'); pct=Math.max(0,Math.min(1,(+m2[0])/(+m2[1]||1))); } }
@@ -5211,15 +5213,14 @@ async function renderBattleGrid(p){
     const isAct=(activeRef.char&&t.ref_char_id===activeRef.char)||(activeRef.cs&&t.ref_combat_state_id===activeRef.cs);
     if(isAct) s+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy+5).toFixed(1)}" rx="16" ry="6" fill="none" stroke="#FAC775" stroke-width="2.5"/>`;
     s+=`<text class="tklbl" x="${fx.toFixed(1)}" y="${(fy+15).toFixed(1)}" text-anchor="middle" font-family="'VT323',monospace" font-size="11" fill="#fff" stroke="#000" stroke-width="0.6" paint-order="stroke">${escapeHtml((t.label||'').slice(0,16))}</text>`;
-    if(down) s+=`<line x1="${(fx-9).toFixed(1)}" y1="${(fy-14).toFixed(1)}" x2="${(fx+9).toFixed(1)}" y2="${(fy+2).toFixed(1)}" stroke="#fff" stroke-width="1.5"/>`;
+    // v448: ตัวล้ม/หมดสติ = หมุน sprite นอนตะแคง + จาง (แทนขีดทับเดิม)
     return s+'</g>'; }
   if(ISO){
     // iso: tile + token interleave ตาม depth (c+r) — กำแพง/ช่องหน้าบัง token หลัง
-    if(window._charSprites===true){ const _bk=_biomeKey(grid.background); if(_bk&&_BG_KEYS.has(_bk)) svg+=`<image href="${_ASSET.bg+_bk+'.png'}" x="0" y="0" width="${IVW}" height="${IVH}" preserveAspectRatio="xMidYMid slice" opacity="${window._floorImage!==false?0.95:0.4}"/>`; }   // v418 backdrop biome · v446 floorImage: backdrop เป็นพื้นหลัก opacity สูง
+    if(window._charSprites===true){ const _bk=_biomeKey(grid.background); if(_bk&&_BG_KEYS.has(_bk)) svg+=`<image href="${_ASSET.bg+_bk+'.png'}" x="0" y="0" width="${IVW}" height="${IVH}" preserveAspectRatio="xMidYMid slice" opacity="0.4"/>`; }   // v418 backdrop biome
     const _isoTile=(c,r)=>{ const cell=rc2cell(c,r), isW=walls.has(cell), wet=WATER.has(cell), x=isx(c,r), y=isy(c,r), eh=isW?IWALL:IEH;
       const ti=tileImgHref(c,r,cell,isW,wet);
       if(ti){ const W=ITW*1.15; return `<image href="${ti}" x="${(x-W/2).toFixed(1)}" y="${(y-W*0.46).toFixed(1)}" width="${W.toFixed(1)}" height="${W.toFixed(1)}" style="image-rendering:pixelated"><title>${cell}</title></image>`; }
-      if(window._floorImage!==false && !isW && !wet){ return `<polygon points="${x},${y-IHTH} ${x+IHTW},${y} ${x},${y+IHTH} ${x-IHTW},${y}" fill="none" stroke="#ffffff" stroke-width="0.5" opacity="0.10"><title>${cell}</title></polygon>`; }   // v446 floorImage: พื้นปกติโชว์ backdrop วาดแค่เส้นขอบช่องบางๆ (เลิกถมกระเบื้องซ้ำ = ลายตาหาย) · กำแพง/น้ำยังวาด relief เต็ม
       const P= isW?['#5b606b','#23262e','#34383f','#7c8290'] : wet?['#1f4063','#102338','#163150','#3a6fa0'] : ((c+r)%2?['#2f3543','#1b1f27','#252a34','#5a6276']:['#363d4c','#1b1f27','#252a34','#5a6276']);
       let s=`<polygon points="${x-IHTW},${y} ${x},${y+IHTH} ${x},${y+IHTH+eh} ${x-IHTW},${y+eh}" fill="${P[1]}"/>`;
       s+=`<polygon points="${x},${y+IHTH} ${x+IHTW},${y} ${x+IHTW},${y+eh} ${x},${y+IHTH+eh}" fill="${P[2]}"/>`;
@@ -5280,15 +5281,17 @@ async function renderBattleGrid(p){
       if(_hd){
         // HD2D character sprite — anchor 64/112 → footX/footY (pixelated, ตามทิศ facing)
         const _sz=36;
-        svg+=`<image href="${_hd}" x="${(fx-_sz/2).toFixed(1)}" y="${(fy-_sz*0.875).toFixed(1)}" width="${_sz}" height="${_sz}" style="image-rendering:pixelated" opacity="${op}"/>`;
+        svg+=`<image href="${_hd}" x="${(fx-_sz/2).toFixed(1)}" y="${(fy-_sz*0.875).toFixed(1)}" width="${_sz}" height="${_sz}" style="image-rendering:pixelated" opacity="${op}"${down?` transform="rotate(74 ${fx.toFixed(1)} ${fy.toFixed(1)})"`:''}/>`;   // v448: ล้ม=หมุนนอนตะแคง
       } else {
       const pal=PAL[t.kind]||PAL.pc; const [ba,da,li]=pal;
+      if(down) svg+=`<g transform="rotate(74 ${fx.toFixed(1)} ${fy.toFixed(1)})">`;   // v448: ล้ม=หมุนนอนตะแคง
       // ตัวยืน (3D): ตัว+แถบบน+หัว
       svg+=`<rect x="${(fx-9).toFixed(1)}" y="${(fy-16).toFixed(1)}" width="18" height="20" rx="3" fill="${ba}" stroke="${da}" stroke-width="1.2" opacity="${op}"/>`;
       svg+=`<rect x="${(fx-9).toFixed(1)}" y="${(fy-16).toFixed(1)}" width="18" height="4.5" fill="${li}" opacity="${op}"/>`;
       svg+=`<circle cx="${fx.toFixed(1)}" cy="${(fy-20).toFixed(1)}" r="7" fill="${li}" stroke="${da}" stroke-width="1.2" opacity="${op}"/>`;
       // อักษรย่อในตัว
       svg+=`<text x="${fx.toFixed(1)}" y="${(fy-3).toFixed(1)}" text-anchor="middle" font-family="'Press Start 2P',monospace" font-size="6" fill="#fff">${escapeHtml((t.label||'?').slice(0,1).toUpperCase())}</text>`;
+      if(down) svg+=`</g>`;
       }
       // HP bar
       const cur=csMap[t.ref_combat_state_id]; let pct=null;
@@ -5304,7 +5307,7 @@ async function renderBattleGrid(p){
     if(isActive) svg+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy+5).toFixed(1)}" rx="16" ry="6" fill="none" stroke="#FAC775" stroke-width="2.5"/>`;
     // ชื่อใต้ตัว
     svg+=`<text class="tklbl" x="${fx.toFixed(1)}" y="${(fy+15).toFixed(1)}" text-anchor="middle" font-family="'VT323',monospace" font-size="11" fill="#fff" stroke="#000" stroke-width="0.6" paint-order="stroke">${escapeHtml((t.label||'').slice(0,16))}</text>`;
-    if(down) svg+=`<line x1="${(fx-9).toFixed(1)}" y1="${(fy-14).toFixed(1)}" x2="${(fx+9).toFixed(1)}" y2="${(fy+2).toFixed(1)}" stroke="#fff" stroke-width="1.5"/>`;
+    // v448: ตัวล้ม/หมดสติ = หมุน sprite นอนตะแคง + จาง (แทนขีดทับเดิม)
     svg+='</g>';
   });
   // ── ข้อ 2 (06-08): ลูกศรทิศทางบนกริด (เส้น+หัวลูกศร) — ใช้ทั้งตอนเลือกช่องและมาร์คค้างหลังยืนยัน ──
