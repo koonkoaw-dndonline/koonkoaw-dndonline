@@ -5082,11 +5082,13 @@ async function renderBattleGrid(p){
   const footY=(c,r)=>tileY(r)+TILE*SY*0.78-(isHill(c,r)?RAISE:0);
   // ── v416 ISOMETRIC projection (opt-in via window._isoGrid; build ดีฟอลต์ off จนกว่า wire ครบ) — diamond 2:1 + ฐาน 3D ──
   const ISO=(window._isoGrid===true);
-  const ITW=64,ITH=32,IEH=14,IWALL=30,IHTW=32,IHTH=16;
+  const ITW=64,ITH=32,IEH=14,IWALL=30,IHTW=32,IHTH=10;   // v451: แบนราบลง ~40% (เดิม IHTH=16 = diamond 2:1 → 10 ≈ 3.2:1 มองราบกับพื้นกว่า)
   let isx=null,isy=null,IVW=VW,IVH=VH;
-  if(ISO){ let _aX=1e9,_bX=-1e9,_aY=1e9,_bY=-1e9;
-    for(let _r=0;_r<rows;_r++)for(let _c=0;_c<cols;_c++){ const x=(_c-_r)*IHTW,y=(_c+_r)*IHTH; if(x-IHTW<_aX)_aX=x-IHTW; if(x+IHTW>_bX)_bX=x+IHTW; if(y-IHTH<_aY)_aY=y-IHTH; if(y+IHTH+IWALL>_bY)_bY=y+IHTH+IWALL; }
-    const _PAD=20,_HEAD=44,_OX=-_aX+_PAD,_OY=-_aY+_PAD+_HEAD; IVW=(_bX-_aX)+_PAD*2; IVH=(_bY-_aY)+_PAD*2+_HEAD;
+  if(ISO){
+    // v451: วาง grid โซน "ล่าง 1/3" ของ backdrop (เปิดฉาก 2/3 บน) — กระดานสูง = 3× ความสูงตาราง · grid อยู่ล่าง
+    const _gridW=(cols+rows)*IHTW, _playH=(cols+rows)*IHTH, _PADX=24, _BOT=Math.round(_playH*0.45);
+    IVW=_gridW+_PADX*2; IVH=Math.round(_playH*3);
+    const _OX=_PADX+rows*IHTW, _OY=(IVH-_BOT)-((cols+rows-2)*IHTH+IHTH);
     isx=(c,r)=>_OX+(c-r)*IHTW; isy=(c,r)=>_OY+(c+r)*IHTH; }
   // anchor รวม (ใช้ได้ทั้งสองโหมด): footXY=ฐานเท้า token · cellCenter=กลางช่อง (ลูกศร/มาร์ค)
   const footXY=(c,r)=> ISO ? [isx(c,r), isy(c,r)+IHTH*0.35] : [footX(c), footY(c,r)];
@@ -5218,43 +5220,19 @@ async function renderBattleGrid(p){
     return s+'</g>'; }
   if(ISO){
     // iso: tile + token interleave ตาม depth (c+r) — กำแพง/ช่องหน้าบัง token หลัง
-    if(window._charSprites===true){ const _bk=_biomeKey(grid.background); if(_bk&&_BG_KEYS.has(_bk)) svg+=`<image href="${_ASSET.bg+_bk+'.png'}" x="0" y="0" width="${IVW}" height="${IVH}" preserveAspectRatio="xMidYMid slice" opacity="0.4"/>`; }   // v418 backdrop biome
-    // ── v450: ปู terrain "ชิ้นเดียว" เต็ม grid (แทน per-cell tile) — grid = แท่น iso ก้อนเดียว ──
-    //   texture top-down (terrain/<biome>.png) affine-map ลง parallelogram ของ grid (พอดีทุกขนาด cols≠rows ก็ไม่เบี้ยว) + skirt ขอบแท่น 3D
-    //   ช่องปกติ = เส้น grid เท่านั้น · กำแพง = บล็อกนูน · น้ำ = overlay (วาดทับ texture)
-    const _platBiome=(window._charSprites===true)?(function(){ const bk=_biomeKey(grid.background); return (bk&&_BG_KEYS.has(bk))?bk:null; })():null;
-    const platform=!!_platBiome;
-    if(platform){
-      const Nx=isx(0,0), Ny=isy(0,0)-IHTH;                        // มุมเหนือ (บนสุด)
-      const Ex=isx(cols-1,0)+IHTW, Ey=isy(cols-1,0);             // มุมตะวันออก (ขวา)
-      const Sx=isx(cols-1,rows-1), Sy=isy(cols-1,rows-1)+IHTH;   // มุมใต้ (ล่างสุด)
-      const Wx=isx(0,rows-1)-IHTW, Wy=isy(0,rows-1);            // มุมตะวันตก (ซ้าย)
-      const sk=Math.round((Sy-Ny)*0.16)+8;                       // ความลึกขอบแท่น (skirt)
-      svg+=`<polygon points="${Wx.toFixed(1)},${Wy.toFixed(1)} ${Sx.toFixed(1)},${Sy.toFixed(1)} ${Ex.toFixed(1)},${Ey.toFixed(1)} ${Ex.toFixed(1)},${(Ey+sk).toFixed(1)} ${Sx.toFixed(1)},${(Sy+sk).toFixed(1)} ${Wx.toFixed(1)},${(Wy+sk).toFixed(1)}" fill="#0d0b08" opacity="0.9"/>`;   // skirt = ผนังหน้าแท่น
-      const _FW=512, _ma=((Ex-Nx)/_FW).toFixed(4), _mb=((Ey-Ny)/_FW).toFixed(4), _mc=((Wx-Nx)/_FW).toFixed(4), _md=((Wy-Ny)/_FW).toFixed(4);   // affine: (0,0)→N (FW,0)→E (0,FW)→W (FW,FW)→S
-      svg+=`<image href="${_ASSET.terrain+_platBiome+'.png'}" width="${_FW}" height="${_FW}" transform="matrix(${_ma} ${_mb} ${_mc} ${_md} ${Nx.toFixed(1)} ${Ny.toFixed(1)})" style="image-rendering:auto"/>`;
-    }
+    if(window._charSprites===true){ const _bk=_biomeKey(grid.background); if(_bk&&_BG_KEYS.has(_bk)) svg+=`<image href="${_ASSET.bg+_bk+'.png'}" x="0" y="0" width="${IVW}" height="${IVH}" preserveAspectRatio="xMidYMid slice" opacity="0.55"/>`; }   // v451 backdrop biome (เด่นขึ้น รับเลย์เอาต์ฉาก 2/3)
+    // ── v451: พื้น = ตารางหมากรุก iso จาง (ตัด terrain texture ออกหมด — ไม่พึ่งรูปใน Supabase) ──
+    //   ช่องปกติ = หมากรุก ~7% + เส้น grid ~22% · กำแพง = บล็อกนูน · น้ำ = overlay
     const _isoTile=(c,r)=>{ const cell=rc2cell(c,r), isW=walls.has(cell), wet=WATER.has(cell), x=isx(c,r), y=isy(c,r), eh=isW?IWALL:IEH;
-      if(platform){
-        if(isW){ const P=['#5b606b','#23262e','#34383f'];   // กำแพง = บล็อกนูนเหนือพื้นแท่น
-          let s=`<polygon points="${x-IHTW},${y} ${x},${y+IHTH} ${x},${y+IHTH+eh} ${x-IHTW},${y+eh}" fill="${P[1]}"/>`;
-          s+=`<polygon points="${x},${y+IHTH} ${x+IHTW},${y} ${x+IHTW},${y+eh} ${x},${y+IHTH+eh}" fill="${P[2]}"/>`;
-          s+=`<polygon points="${x},${y-IHTH} ${x+IHTW},${y} ${x},${y+IHTH} ${x-IHTW},${y}" fill="${P[0]}" stroke="${P[1]}" stroke-width="0.8"><title>${cell}</title></polygon>`;
-          return s; }
-        if(wet){ let s=`<polygon points="${x},${y-IHTH} ${x+IHTW},${y} ${x},${y+IHTH} ${x-IHTW},${y}" fill="#1f4063" stroke="#102338" stroke-width="0.8" opacity="0.9"><title>${cell}</title></polygon>`;
-          s+=`<line x1="${x-IHTW*0.5}" y1="${y}" x2="${x+IHTW*0.5}" y2="${y}" stroke="#67a7c9" stroke-width="1" opacity="0.5"/>`; return s; }
-        return `<polygon points="${x},${y-IHTH} ${x+IHTW},${y} ${x},${y+IHTH} ${x-IHTW},${y}" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="0.8"><title>${cell}</title></polygon>`;   // ช่องปกติ = เส้น grid
-      }
-      // ── fallback (ไม่รู้จัก biome / sprite off) : per-cell polygon เดิม ──
-      const ti=tileImgHref(c,r,cell,isW,wet);
-      if(ti){ const W=ITW*1.15; return `<image href="${ti}" x="${(x-W/2).toFixed(1)}" y="${(y-W*0.46).toFixed(1)}" width="${W.toFixed(1)}" height="${W.toFixed(1)}" style="image-rendering:pixelated"><title>${cell}</title></image>`; }
-      const P= isW?['#5b606b','#23262e','#34383f','#7c8290'] : wet?['#1f4063','#102338','#163150','#3a6fa0'] : ((c+r)%2?['#2f3543','#1b1f27','#252a34','#5a6276']:['#363d4c','#1b1f27','#252a34','#5a6276']);
-      let s=`<polygon points="${x-IHTW},${y} ${x},${y+IHTH} ${x},${y+IHTH+eh} ${x-IHTW},${y+eh}" fill="${P[1]}"/>`;
-      s+=`<polygon points="${x},${y+IHTH} ${x+IHTW},${y} ${x+IHTW},${y+eh} ${x},${y+IHTH+eh}" fill="${P[2]}"/>`;
-      s+=`<polygon points="${x},${y-IHTH} ${x+IHTW},${y} ${x},${y+IHTH} ${x-IHTW},${y}" fill="${P[0]}" stroke="${P[1]}" stroke-width="0.8"><title>${cell}</title></polygon>`;
-      s+=`<polygon points="${x},${y-IHTH} ${x+IHTW*0.5},${y-IHTH*0.5} ${x},${y} ${x-IHTW*0.5},${y-IHTH*0.5}" fill="${P[3]}" opacity="0.22"/>`;
-      if(wet) s+=`<line x1="${x-IHTW*0.5}" y1="${y}" x2="${x+IHTW*0.5}" y2="${y}" stroke="#67a7c9" stroke-width="1" opacity="0.5"/>`;
-      return s; };
+      if(isW){ const P=['#5b606b','#23262e','#34383f'];   // กำแพง = บล็อกนูน
+        let s=`<polygon points="${x-IHTW},${y} ${x},${y+IHTH} ${x},${y+IHTH+eh} ${x-IHTW},${y+eh}" fill="${P[1]}"/>`;
+        s+=`<polygon points="${x},${y+IHTH} ${x+IHTW},${y} ${x+IHTW},${y+eh} ${x},${y+IHTH+eh}" fill="${P[2]}"/>`;
+        s+=`<polygon points="${x},${y-IHTH} ${x+IHTW},${y} ${x},${y+IHTH} ${x-IHTW},${y}" fill="${P[0]}" stroke="${P[1]}" stroke-width="0.8"><title>${cell}</title></polygon>`;
+        return s; }
+      if(wet){ let s=`<polygon points="${x},${y-IHTH} ${x+IHTW},${y} ${x},${y+IHTH} ${x-IHTW},${y}" fill="#1f4063" stroke="#102338" stroke-width="0.8" opacity="0.85"><title>${cell}</title></polygon>`;
+        s+=`<line x1="${x-IHTW*0.5}" y1="${y}" x2="${x+IHTW*0.5}" y2="${y}" stroke="#67a7c9" stroke-width="1" opacity="0.5"/>`; return s; }
+      const lit=(((c+r)&1)===0);   // ตารางหมากรุก: สลับสว่าง/มืดจางๆ
+      return `<polygon points="${x},${y-IHTH} ${x+IHTW},${y} ${x},${y+IHTH} ${x-IHTW},${y}" fill="${lit?'rgba(255,255,255,0.07)':'rgba(0,0,0,0.10)'}" stroke="rgba(255,255,255,0.22)" stroke-width="0.8"><title>${cell}</title></polygon>`; };
     const _tk={}; toks.concat(_decoToks).forEach(t=>{ const k=t.col+'_'+t.row; (_tk[k]=_tk[k]||[]).push(t); });
     const _cl=[]; for(let _r=0;_r<rows;_r++)for(let _c=0;_c<cols;_c++) _cl.push([_c,_r]);
     _cl.sort((a,b)=>(a[0]+a[1])-(b[0]+b[1]));
