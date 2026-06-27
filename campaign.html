@@ -5181,7 +5181,9 @@ async function renderBattleGrid(p){
     return null;
   }catch(e){ return null; } }
   function drawTok(t){ const _a=footXY(t.col,t.row), fx=_a[0], fy=_a[1];
-    const down=Array.isArray(t.flags)&&(t.flags.includes('down')||t.flags.includes('dead')); const op=down?0.4:1;
+    let down=Array.isArray(t.flags)&&(t.flags.includes('down')||t.flags.includes('dead'));
+    if(!down){ if(t.kind==='pc'||t.kind==='ally'||t.kind==='npc'){ const _dc=characters.find(x=>x.id===t.ref_char_id); if(_dc&&/^0\s*\//.test(String((_dc.public_status||{}).hp||''))) down=true; } else if(t.kind==='monster'){ const _dcs=csMap[t.ref_combat_state_id]; if(_dcs&&Number.isFinite(+_dcs.cur_hp)&&+_dcs.cur_hp<=0) down=true; } }   // v448: ล้ม = HP 0 แม้ไม่มี flag (PC/ally จาก public_status · มอนจาก cur_hp)
+    const op=down?0.4:1;
     const _hd=hd2dCharHref(t); let s=`<g class="gtok"${t._deco?' style="pointer-events:none"':''} onclick="this.classList.toggle('lblon')"><title>${escapeHtml(t.label||'')}</title>`;
     // v420: ตัดเงากลม renderer ออก (ผู้ใช้ขอ — แอสเซ็ทไม่มีฐานในตัว ยืนบน tile โดยตรง) · ขยาย sprite + anchor เท้าตามชนิด (char/obj/mon เท้าคนละแถว 0.875/0.855/0.905)
     const _DETAIL=1.3;   // v422: ขยาย sprite +30% (เห็นรายละเอียดงานศิลป์ชัดขึ้น) — ปรับค่านี้ตัวเดียว
@@ -5237,7 +5239,7 @@ async function renderBattleGrid(p){
     //        → มอนตัวใหญ่ (sprite 64×tiles) ไม่บังตัวละครอื่นจนมองไม่เห็น (เห็นทั้งตัว · คร่อมได้แค่ใต้เท้า)
     const _isChar=t=>(t.kind==='pc'||t.kind==='ally'||t.kind==='npc');
     const _allTok=[]; _cl.forEach(p=>{ const g=_tk[p[0]+'_'+p[1]]; if(g) for(const _t of g) _allTok.push(_t); });
-    _allTok.sort((a,b)=>((_isChar(a)?1:0)-(_isChar(b)?1:0)) || ((a.col+a.row)-(b.col+b.row)) || ((a.z||0)-(b.z||0)));
+    _allTok.sort((a,b)=>((a.col+a.row)-(b.col+b.row)) || ((_isChar(a)?1:0)-(_isChar(b)?1:0)) || ((a.z||0)-(b.z||0)));   // v448: depth (col+row) ก่อน = หน้าทับหลังถูกต้อง (มอนยืนหน้า PC ไม่ถูก PC บัง) · char เป็น tiebreak เมื่อ depth เท่ากัน
     _allTok.forEach(t=>{ svg+=drawTok(t); });
   } else {
   // tiles (checkerboard + squash = 2.5D) + กำแพง + พื้นสูง (hills) + น้ำ
@@ -5257,10 +5259,11 @@ async function renderBattleGrid(p){
   }
   // tokens เรียงตามแถว (painter's: หลัง→หน้า) · v421: ตัวละคร(pc/ally/npc)วาดทับบนสุด → มอนตัวใหญ่ไม่บังตัวละครจนมองไม่เห็น
   const _isCharF=t=>(t.kind==='pc'||t.kind==='ally'||t.kind==='npc');
-  const order=toks.concat(_decoToks).sort((a,b)=>((_isCharF(a)?1:0)-(_isCharF(b)?1:0))||(a.row-b.row)|| ((a.z||0)-(b.z||0)));
+  const order=toks.concat(_decoToks).sort((a,b)=>(a.row-b.row)||((_isCharF(a)?1:0)-(_isCharF(b)?1:0))|| ((a.z||0)-(b.z||0)));   // v448: row (depth) ก่อน = หน้าทับหลัง · char tiebreak
   order.forEach(t=>{
     const fx=footX(t.col), fy=footY(t.col,t.row);
-    const down=Array.isArray(t.flags)&&(t.flags.includes('down')||t.flags.includes('dead'));
+    let down=Array.isArray(t.flags)&&(t.flags.includes('down')||t.flags.includes('dead'));
+    if(!down){ if(t.kind==='pc'||t.kind==='ally'||t.kind==='npc'){ const _dc=characters.find(x=>x.id===t.ref_char_id); if(_dc&&/^0\s*\//.test(String((_dc.public_status||{}).hp||''))) down=true; } else if(t.kind==='monster'){ const _dcs=csMap[t.ref_combat_state_id]; if(_dcs&&Number.isFinite(+_dcs.cur_hp)&&+_dcs.cur_hp<=0) down=true; } }   // v448: ล้ม = HP 0 แม้ไม่มี flag
     const op=down?0.4:1;
     const _hd=hd2dCharHref(t);   // v1 HD2D: PC/ally → sprite ตาม class (null = pawn เดิม)
     svg+=`<g class="gtok"${t._deco?' style="pointer-events:none"':''} onclick="this.classList.toggle('lblon')"><title>${escapeHtml(t.label||'')}</title>`;
