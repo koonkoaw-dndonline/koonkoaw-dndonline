@@ -815,7 +815,7 @@ body.in-battle .bs-cs-btn{display:block;}
 #bsCharSheetBody{display:flex;gap:14px;align-items:flex-start;}   /* v460: ชีท/สกิล 2 คอลัมน์ (สมดุล · portrait ขวาบน · ลด scroll) · v456 base: เว้นช่องกล่องไม่ให้กรอบชนกัน */
 .bs-cs-col{flex:1;min-width:0;display:flex;flex-direction:column;gap:12px;}
 @media(max-width:760px){ #bsCharSheetBody{flex-direction:column;} }
-.bs-cs-close{position:sticky;top:0;float:right;z-index:2;background:#fff;color:#000;border:0;border-radius:8px;padding:8px 13px;font-family:'IBM Plex Sans Thai',sans-serif;font-size:13px;font-weight:700;cursor:pointer;}
+.bs-cs-close{position:sticky;top:0;display:block;width:fit-content;margin:0 -2px 8px auto;z-index:3;background:#fff;color:#000;border:0;border-radius:8px;padding:8px 13px;font-family:'IBM Plex Sans Thai',sans-serif;font-size:13px;font-weight:700;cursor:pointer;}   /* v461: เป็นบล็อกชิดขวาบน (ไม่ float = content ไม่ลอดใต้/ซ้อน portrait) */
 @media (max-width:1023px){ .bs-charsheet{inset:2% 3%;} }
 .bscene-stage{position:absolute;inset:0;display:flex;flex-direction:column;gap:10px;padding:8px 12px 12px;overflow-y:auto;-webkit-overflow-scrolling:touch;}   /* v453: เว้นช่องไฟบนเล็กน้อย (8px) ทั้ง 3 column */
 .bs-box{min-height:0;}
@@ -4449,7 +4449,7 @@ function bsToggleCharSheet(){
   }
   if(ov.classList.contains('on')){ ov.classList.remove('on'); return; }
   var fill=function(){ try{ var src=document.getElementById('panel-me'); var bd2=document.getElementById('bsCharSheetBody'); if(src&&bd2){ bd2.innerHTML=src.innerHTML;
-    try{ var _kids=Array.prototype.slice.call(bd2.children); if(_kids.length>1){ var _L=document.createElement('div'),_R=document.createElement('div'); _L.className='bs-cs-col'; _R.className='bs-cs-col'; var _RC=['avatarwin','mecard-status','mecard-level','mecard-notes']; _kids.forEach(function(k){ var _toR=k.classList&&_RC.some(function(c){return k.classList.contains(c);}); (_toR?_R:_L).appendChild(k); }); var _av=_R.querySelector('.avatarwin'); if(_av) _R.insertBefore(_av,_R.firstChild); if(_L.children.length&&_R.children.length){ bd2.innerHTML=''; bd2.appendChild(_L); bd2.appendChild(_R); } } }catch(_e){}   // v460: จัด 2 คอลัมน์ — ซ้าย=stats · ขวา=portrait(บน)+status+level+notes
+    try{ var _kids=Array.prototype.slice.call(bd2.children); if(_kids.length>1){ var _L=document.createElement('div'),_R=document.createElement('div'); _L.className='bs-cs-col'; _R.className='bs-cs-col'; var _RC=['avatarwin','mecard-status','mecard-level'];   // v461: notes ไปซ้าย (สมดุล) — ขวา=portrait+status+level _kids.forEach(function(k){ var _toR=k.classList&&_RC.some(function(c){return k.classList.contains(c);}); (_toR?_R:_L).appendChild(k); }); var _av=_R.querySelector('.avatarwin'); if(_av) _R.insertBefore(_av,_R.firstChild); if(_L.children.length&&_R.children.length){ bd2.innerHTML=''; bd2.appendChild(_L); bd2.appendChild(_R); } } }catch(_e){}   // v460: จัด 2 คอลัมน์ — ซ้าย=stats · ขวา=portrait(บน)+status+level+notes
   } }catch(e){} ov.classList.add('on'); };
   try{ Promise.resolve(typeof renderMe==='function'?renderMe():null).then(fill,fill); }catch(e){ fill(); }
 }
