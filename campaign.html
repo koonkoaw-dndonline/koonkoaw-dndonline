@@ -325,7 +325,7 @@ body.ui-min #worldClock{display:none!important;}
   .panel[data-tab="quest"].active,
   .panel[data-tab="skills"].active{
     display:grid;
-    grid-template-columns:repeat(auto-fill,minmax(330px,1fr));
+    grid-template-columns:repeat(auto-fit,minmax(330px,1fr));   /* v462: auto-fill→auto-fit (การ์ดยืดเต็มแถว ไม่เหลือช่องว่างขวา = สมดุล) */
     gap:16px;align-items:start;align-content:start;
   }
   .panel .note,.panel > .muted{grid-column:1/-1;}
@@ -559,7 +559,7 @@ body.role-player .dm-only{display:none!important;}
 .wh b{color:#fff;font-family:'VT323',monospace;font-size:16px;font-weight:400;letter-spacing:.5px;}
 .whtxt{font-family:'Press Start 2P',monospace;font-size:7px;color:#9a9a9a;letter-spacing:.5px;}
 @media (min-width:1300px){
-  .worldhud{position:fixed;top:104px;left:16px;width:208px;z-index:6;}  /* ฝั่งซ้าย ใต้แท็บ ไม่ขวาง */
+  .worldhud{position:fixed;top:150px;left:16px;width:208px;z-index:6;}  /* v462: top 104→150 (กันกรอบ WORLD ซ้อนแถบบน/แท็บ) · ฝั่งซ้าย ใต้แท็บ */
 }
 /* สีเน้นคำสำคัญในเนื้อเรื่อง (place / npc / item) */
 .hl-place{color:#6cc0ff;font-weight:600;}
@@ -635,7 +635,7 @@ body.role-player .dm-only{display:none!important;}
 @media (min-width:900px){
   .panel[data-tab="items"].active,.panel[data-tab="skills"].active,
   .panel[data-tab="npc"].active,.panel[data-tab="mon"].active,.panel[data-tab="files"].active{
-    display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:16px;align-items:start;align-content:start;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:16px;align-items:start;align-content:start;   /* v462: auto-fill→auto-fit (สมดุล ไม่เหลือช่องว่างขวา) */
   }
   .panel[data-tab="chron"]{max-width:820px;}
 }
