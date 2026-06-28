@@ -4385,7 +4385,7 @@ async function renderInitiativeTracker(p){
     const lc=document.createElement('div'); lc.className='item';
     lc.innerHTML='<div class="sectitle">COMBAT LOG</div>';
     const feed=document.createElement('div'); feed.style.cssText='display:flex;flex-direction:column;gap:3px;margin-top:6px;max-height:260px;overflow:auto;font-size:13px;line-height:1.5';
-    logs.forEach(l=>{ const d=document.createElement('div'); d.style.color=l.entry_type==='round_advance'?'#9a9a9a':'#fff'; d.innerHTML=(ICON[l.entry_type]||'•')+' '+escapeHtml(l.summary); feed.appendChild(d); });
+    logs.forEach(l=>{ if(l.entry_type==='note'&&/^\s*(⚔️|✦|✕|⚠|💢|🛡|💀)|^\s*\(แก้|ยังไม่(ล้ม|ตาย|ฟื้น)|ถูกกำจัดไปแล้ว|ไม่มี(บาดแผล|การรักษา|การโจมตีจาก)|รอดบาดแผล|การโจมตี(พลาด|ไม่เข้า)|ระบบ:/.test(String(l.summary||''))) return;   /* v459: ซ่อน note ของ guard/ระบบ (สับสนกับบทบรรยาย) */ const d=document.createElement('div'); d.style.color=l.entry_type==='round_advance'?'#9a9a9a':'#fff'; d.innerHTML=(ICON[l.entry_type]||'•')+' '+escapeHtml(l.summary); feed.appendChild(d); });
     lc.appendChild(feed); p.appendChild(lc);
     setTimeout(()=>{ feed.scrollTop=feed.scrollHeight; },0);
   }
@@ -4802,7 +4802,7 @@ async function renderBattleInitLog(initEl, logEl){
     let logs=_logsPre||[];   // (06-11) ใช้ผลที่ fetch รวมไว้ข้างบน
     const ICON={initiative:'🎲',attack:'🎲',damage:'💥',heal:'💚',save:'🛡',check:'🎯',move:'👣',condition:'⭐',death:'☠',flee:'🏃',round_advance:'🔄',note:'📝'};
     const _lfrag=document.createDocumentFragment();
-    logs.forEach(l=>{ const d=document.createElement('div'); d.className='bs-logrow'; if(l.entry_type==='round_advance') d.style.color='#9a9a9a'; d.innerHTML=(ICON[l.entry_type]||'•')+' '+escapeHtml(l.summary); _lfrag.appendChild(d); });
+    logs.forEach(l=>{ if(l.entry_type==='note'&&/^\s*(⚔️|✦|✕|⚠|💢|🛡|💀)|^\s*\(แก้|ยังไม่(ล้ม|ตาย|ฟื้น)|ถูกกำจัดไปแล้ว|ไม่มี(บาดแผล|การรักษา|การโจมตีจาก)|รอดบาดแผล|การโจมตี(พลาด|ไม่เข้า)|ระบบ:/.test(String(l.summary||''))) return;   /* v459: ซ่อน note ของ guard/ระบบ (สับสนกับบทบรรยาย) */ const d=document.createElement('div'); d.className='bs-logrow'; if(l.entry_type==='round_advance') d.style.color='#9a9a9a'; d.innerHTML=(ICON[l.entry_type]||'•')+' '+escapeHtml(l.summary); _lfrag.appendChild(d); });
     if(!_lfrag.childNodes.length){ const d=document.createElement('div'); d.className='note'; d.style.color='#9a9a9a'; d.textContent='— ยังไม่มีบันทึกการรบ —'; _lfrag.appendChild(d); }
     var _lg=document.createElement('div'); _lg.appendChild(_lfrag.cloneNode(true));
     if(logEl.getAttribute('data-sig')!==_lg.innerHTML){
@@ -5155,15 +5155,24 @@ async function renderBattleGrid(p){
     let _h=2166136261; const _sid=String(grid.id||'');
     for(let i=0;i<_sid.length;i++){ _h^=_sid.charCodeAt(i); _h=Math.imul(_h,16777619); }
     const _rnd=(function(a){ return function(){ a|=0; a=(a+0x6D2B79F5)|0; let t=Math.imul(a^(a>>>15),1|a); t=(t+Math.imul(t^(t>>>7),61|t))^t; return ((t^(t>>>14))>>>0)/4294967296; }; })(_h);
-    const _bg=String(grid.background||'').toLowerCase();
-    let _deco;
-    if(/ถ้ำ|cave|dungeon|ดันเจี้ยน|ใต้ดิน|crypt|สุสาน|tomb|ซาก/.test(_bg)) _deco=['rock','rock','mushroom','bones','skull','web','crystal','pillar'];
-    else if(/เมือง|หมู่บ้าน|town|village|ตลาด|market|ลาน|โรงเตี๊ยม|tavern|ท่าเรือ|dock/.test(_bg)) _deco=['barrel','crate','fence','signpost','haystack','lantern','flower','bush'];
-    else if(/ทะเลทราย|desert/.test(_bg)) _deco=['cactus','cactus','rock','rock','bones','skull'];
-    else if(/หิมะ|snow|น้ำแข็ง|ice|ภูเขา|mountain|ผา/.test(_bg)) _deco=['rock','rock','pine','pine','stump'];
-    else if(/บึง|หนอง|swamp|marsh/.test(_bg)) _deco=['tree','bush','mushroom','mushroom','log','web','stump'];
-    else if(/ป่า|forest|wood|ทุ่ง|field|เนิน|ชายป่า/.test(_bg)) _deco=['pine','tree','bush','rock','mushroom','stump','flower','log'];
-    else _deco=['pine','tree','bush','rock','flower','stump'];   // default ธรรมชาติ
+    // v457: object สุ่มตาม biome (ใช้ _biomeKey ครบ 13 ฉาก — เดิม regex หลุด castle/lava/graveyard → ตกไป default ที่มีต้นไม้ผิด)
+    //   ของซ้ำในชุด = น้ำหนักมาก · ฉากในร่ม/หิน/แดนตาย ไม่มีต้นไม้ (castle/cave/dungeon/lava/graveyard/tavern)
+    const _DECO_BY_BIOME={
+      forest:['tree','tree','pine','bush','flower','flower','mushroom','stump','log','rock'],   // ต้นไม้/ดอกไม้เด่น · หินน้อย
+      plain:['flower','flower','bush','bush','tree','haystack','stump','rock'],
+      wetland:['tree','bush','mushroom','mushroom','log','log','web','stump'],
+      graveyard:['grave','grave','skull','bones','coffin','pillar','web','rock'],                // ไม่มีต้นไม้
+      cave:['rock','rock','crystal','mushroom','bones','skull','web','pillar'],                  // ไม่มีต้นไม้
+      dungeon:['pillar','rock','crate','barrel','bones','skull','torch','web'],                  // ไม่มีต้นไม้
+      town:['barrel','crate','fence','signpost','well','wagon','lantern','flower','bush'],
+      tavern:['barrel','barrel','crate','table','chest','fireplace','lantern','cauldron'],       // ในร่ม ไม่มีต้นไม้
+      castle:['pillar','banner','statue','torch','chest','barrel','table','altar'],              // ไม่มีต้นไม้
+      lava:['rock','rock','fire','bones','skull','crystal','pillar'],                            // ไม่มีต้นไม้
+      desert:['cactus','cactus','rock','rock','bones','skull','stump'],
+      snow:['pine','pine','rock','rock','stump','crystal'],
+      mountain:['rock','rock','rock','pine','stump','crystal'],
+    };
+    const _deco=_DECO_BY_BIOME[_biomeKey(grid.background)]||['tree','pine','bush','flower','rock','stump'];   // default ธรรมชาติ (road/water/ไม่รู้จัก)
     const _occ=new Set(toks.map(t=>rc2cell(t.col,t.row)));
     for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
       const roll=_rnd(), pick=Math.floor(_rnd()*_deco.length);   // ทอยทุกช่องตามลำดับเสมอ — ช่องเดิมได้ของเดิม ไม่ย้ายที่เอง
@@ -5187,14 +5196,16 @@ async function renderBattleGrid(p){
     return null;
   }catch(e){ return null; } }
   function drawTok(t){ const _a=footXY(t.col,t.row), fx=_a[0], fy=_a[1];
-    let down=Array.isArray(t.flags)&&(t.flags.includes('down')||t.flags.includes('dead'));
-    if(!down){ if(t.kind==='pc'||t.kind==='ally'||t.kind==='npc'){ const _dc=characters.find(x=>x.id===t.ref_char_id); if(_dc&&/^0\s*\//.test(String((_dc.public_status||{}).hp||''))) down=true; } else if(t.kind==='monster'){ const _dcs=csMap[t.ref_combat_state_id]; if(_dcs&&Number.isFinite(+_dcs.cur_hp)&&+_dcs.cur_hp<=0) down=true; } }   // v448: ล้ม = HP 0 แม้ไม่มี flag (PC/ally จาก public_status · มอนจาก cur_hp)
+    let down=Array.isArray(t.flags)&&(t.flags.includes('down')||t.flags.includes('dead')||t.flags.includes('prone'));
+    let _supine=Array.isArray(t.flags)&&t.flags.includes('dead');   // v458: HP0/dead → หงาย (rotate -74) · ล้ม/prone (HP>0) → คว่ำ (rotate 74)
+    if(t.kind==='pc'||t.kind==='ally'||t.kind==='npc'){ const _dc=characters.find(x=>x.id===t.ref_char_id); if(_dc&&/^0\s*\//.test(String((_dc.public_status||{}).hp||''))){ down=true; _supine=true; } } else if(t.kind==='monster'){ const _dcs=csMap[t.ref_combat_state_id]; if(_dcs&&Number.isFinite(+_dcs.cur_hp)&&+_dcs.cur_hp<=0){ down=true; _supine=true; } }   // v448 ล้ม=HP0 · v458 HP0=หงาย
+    const _lieDeg=_supine?-74:74;
     const op=(down&&t.kind!=='pc'&&t.kind!=='ally'&&t.kind!=='npc')?0.4:1;   // v449.1: ตัวละครล้ม = หมุนนอนตะแคงแต่ "ไม่จางสี" (ผู้ใช้ขอ) · มอน/วัตถุล้มยังจางเหมือนเดิม
     const _hd=hd2dCharHref(t); let s=`<g class="gtok"${t._deco?' style="pointer-events:none"':''} onclick="this.classList.toggle('lblon')"><title>${escapeHtml(t.label||'')}</title>`;
     // v420: ตัดเงากลม renderer ออก (ผู้ใช้ขอ — แอสเซ็ทไม่มีฐานในตัว ยืนบน tile โดยตรง) · ขยาย sprite + anchor เท้าตามชนิด (char/obj/mon เท้าคนละแถว 0.875/0.855/0.905)
     const _DETAIL=1.3;   // v422: ขยาย sprite +30% (เห็นรายละเอียดงานศิลป์ชัดขึ้น) — ปรับค่านี้ตัวเดียว
     const _FR={ch:0.875,ob:0.855,mo:0.905}, _SZ={ch:64*_DETAIL,mo:64*_DETAIL,ob:64*_DETAIL};   // base 64px × _DETAIL · uniform ทุก asset (≈1 ช่อง · PNG คุมสัดส่วนเอง) · มอนใหญ่ = ×tiles (_MON_TILES)
-    const _imgTok=(href,fr,px)=>{ const z=px; const _rd=down?` transform="rotate(74 ${fx.toFixed(1)} ${(fy-z*fr+z/2).toFixed(1)})"`:''; return `<image href="${href}" x="${(fx-z/2).toFixed(1)}" y="${(fy-z*fr).toFixed(1)}" width="${z.toFixed(1)}" height="${z.toFixed(1)}" style="image-rendering:pixelated" opacity="${op}"${_rd}/>`; };   // v449: ล้ม=หมุนรอบ 'กึ่งกลางภาพ' (นอนตะแคงอยู่กับที่ ไม่เหวี่ยงหลุดนอกช่องจนหาย)
+    const _imgTok=(href,fr,px)=>{ const z=px; const _rd=down?` transform="rotate(${_lieDeg} ${fx.toFixed(1)} ${(fy-z*fr+z/2).toFixed(1)})"`:''; return `<image href="${href}" x="${(fx-z/2).toFixed(1)}" y="${(fy-z*fr).toFixed(1)}" width="${z.toFixed(1)}" height="${z.toFixed(1)}" style="image-rendering:pixelated" opacity="${op}"${_rd}/>`; };   // v449: ล้ม=หมุนรอบ 'กึ่งกลางภาพ' (นอนตะแคงอยู่กับที่ ไม่เหวี่ยงหลุดนอกช่องจนหาย)
     const _oimg=(t.kind==='object')?tokImgHref(t):null;
     const _spr=(t.kind==='object'&&!(_oimg&&_oimg.url))?spriteFn(t):null, gly=glyphFor(t);
     if(_oimg&&_oimg.url){ s+=_imgTok(_oimg.url,_FR.ob,_SZ.ob); }
@@ -5206,7 +5217,7 @@ async function renderBattleGrid(p){
       if(_tkimg&&_tkimg.url){ s+=_imgTok(_tkimg.url,_FR.mo,_mpx); }
       else if(_hd){ s+=_imgTok(_hd,_FR.ch,_SZ.ch); }
       else { const pal=PAL[t.kind]||PAL.pc, ba=pal[0], da=pal[1], li=pal[2];
-        const _tf=`${down?`rotate(74 ${fx.toFixed(1)} ${(fy-8).toFixed(1)}) `:''}${_mt>1?`translate(${fx.toFixed(1)} ${fy.toFixed(1)}) scale(${_mt}) translate(${(-fx).toFixed(1)} ${(-fy).toFixed(1)})`:''}`.trim();   // v449: ล้ม=หมุนรอบกึ่งกลาง pawn (อยู่กับที่) + มอนใหญ่=scale
+        const _tf=`${down?`rotate(${_lieDeg} ${fx.toFixed(1)} ${(fy-8).toFixed(1)}) `:''}${_mt>1?`translate(${fx.toFixed(1)} ${fy.toFixed(1)}) scale(${_mt}) translate(${(-fx).toFixed(1)} ${(-fy).toFixed(1)})`:''}`.trim();   // v449: ล้ม=หมุนรอบกึ่งกลาง pawn (อยู่กับที่) + มอนใหญ่=scale
         if(_tf) s+=`<g transform="${_tf}">`;
         s+=`<rect x="${(fx-9).toFixed(1)}" y="${(fy-16).toFixed(1)}" width="18" height="20" rx="3" fill="${ba}" stroke="${da}" stroke-width="1.2" opacity="${op}"/>`;
         s+=`<rect x="${(fx-9).toFixed(1)}" y="${(fy-16).toFixed(1)}" width="18" height="4.5" fill="${li}" opacity="${op}"/>`;
@@ -5269,8 +5280,10 @@ async function renderBattleGrid(p){
   const order=toks.concat(_decoToks).sort((a,b)=>(a.row-b.row)||((_isCharF(a)?1:0)-(_isCharF(b)?1:0))|| ((a.z||0)-(b.z||0)));   // v448: row (depth) ก่อน = หน้าทับหลัง · char tiebreak
   order.forEach(t=>{
     const fx=footX(t.col), fy=footY(t.col,t.row);
-    let down=Array.isArray(t.flags)&&(t.flags.includes('down')||t.flags.includes('dead'));
-    if(!down){ if(t.kind==='pc'||t.kind==='ally'||t.kind==='npc'){ const _dc=characters.find(x=>x.id===t.ref_char_id); if(_dc&&/^0\s*\//.test(String((_dc.public_status||{}).hp||''))) down=true; } else if(t.kind==='monster'){ const _dcs=csMap[t.ref_combat_state_id]; if(_dcs&&Number.isFinite(+_dcs.cur_hp)&&+_dcs.cur_hp<=0) down=true; } }   // v448: ล้ม = HP 0 แม้ไม่มี flag
+    let down=Array.isArray(t.flags)&&(t.flags.includes('down')||t.flags.includes('dead')||t.flags.includes('prone'));
+    let _supine=Array.isArray(t.flags)&&t.flags.includes('dead');   // v458: HP0/dead → หงาย (rotate -74) · ล้ม/prone (HP>0) → คว่ำ (rotate 74)
+    if(t.kind==='pc'||t.kind==='ally'||t.kind==='npc'){ const _dc=characters.find(x=>x.id===t.ref_char_id); if(_dc&&/^0\s*\//.test(String((_dc.public_status||{}).hp||''))){ down=true; _supine=true; } } else if(t.kind==='monster'){ const _dcs=csMap[t.ref_combat_state_id]; if(_dcs&&Number.isFinite(+_dcs.cur_hp)&&+_dcs.cur_hp<=0){ down=true; _supine=true; } }   // v448 ล้ม=HP0 · v458 HP0=หงาย
+    const _lieDeg=_supine?-74:74;
     const op=(down&&t.kind!=='pc'&&t.kind!=='ally'&&t.kind!=='npc')?0.4:1;   // v449.1: ตัวละครล้ม = หมุนนอนตะแคงแต่ "ไม่จางสี" (ผู้ใช้ขอ) · มอน/วัตถุล้มยังจางเหมือนเดิม
     const _hd=hd2dCharHref(t);   // v1 HD2D: PC/ally → sprite ตาม class (null = pawn เดิม)
     svg+=`<g class="gtok"${t._deco?' style="pointer-events:none"':''} onclick="this.classList.toggle('lblon')"><title>${escapeHtml(t.label||'')}</title>`;
@@ -5291,10 +5304,10 @@ async function renderBattleGrid(p){
       if(_hd){
         // HD2D character sprite — anchor 64/112 → footX/footY (pixelated, ตามทิศ facing)
         const _sz=36;
-        svg+=`<image href="${_hd}" x="${(fx-_sz/2).toFixed(1)}" y="${(fy-_sz*0.875).toFixed(1)}" width="${_sz}" height="${_sz}" style="image-rendering:pixelated" opacity="${op}"${down?` transform="rotate(74 ${fx.toFixed(1)} ${(fy-_sz*0.375).toFixed(1)})"`:''}/>`;   // v449: ล้ม=หมุนรอบกึ่งกลางภาพ (นอนตะแคงอยู่กับที่)
+        svg+=`<image href="${_hd}" x="${(fx-_sz/2).toFixed(1)}" y="${(fy-_sz*0.875).toFixed(1)}" width="${_sz}" height="${_sz}" style="image-rendering:pixelated" opacity="${op}"${down?` transform="rotate(${_lieDeg} ${fx.toFixed(1)} ${(fy-_sz*0.375).toFixed(1)})"`:''}/>`;   // v449: ล้ม=หมุนรอบกึ่งกลางภาพ (นอนตะแคงอยู่กับที่)
       } else {
       const pal=PAL[t.kind]||PAL.pc; const [ba,da,li]=pal;
-      if(down) svg+=`<g transform="rotate(74 ${fx.toFixed(1)} ${(fy-8).toFixed(1)})">`;   // v449: ล้ม=หมุนรอบกึ่งกลาง pawn (อยู่กับที่)
+      if(down) svg+=`<g transform="rotate(${_lieDeg} ${fx.toFixed(1)} ${(fy-8).toFixed(1)})">`;   // v449: ล้ม=หมุนรอบกึ่งกลาง pawn (อยู่กับที่)
       // ตัวยืน (3D): ตัว+แถบบน+หัว
       svg+=`<rect x="${(fx-9).toFixed(1)}" y="${(fy-16).toFixed(1)}" width="18" height="20" rx="3" fill="${ba}" stroke="${da}" stroke-width="1.2" opacity="${op}"/>`;
       svg+=`<rect x="${(fx-9).toFixed(1)}" y="${(fy-16).toFixed(1)}" width="18" height="4.5" fill="${li}" opacity="${op}"/>`;
@@ -6115,7 +6128,7 @@ function subscribeRealtime(){
     .on('postgres_changes',{event:'*',schema:'public',table:'quests',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='quest') renderQuest(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'rounds',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); await loadRound(); if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'actions',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); if(activeTab()==='story') renderRoundbar(); })
-    .on('postgres_changes',{event:'*',schema:'public',table:'characters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadCharacters(); if(activeTab()==='party') renderParty(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'characters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadCharacters(); if(activeTab()==='party') renderParty(); if(typeof scheduleBattleScene==='function') scheduleBattleScene(); })   // v458: PC HP เปลี่ยน → re-render battle grid (แถบเลือดบน token อัปเดต · เดิมตกหล่น = เลือดค้าง)
     .on('postgres_changes',{event:'*',schema:'public',table:'campaign_state',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadState(); applyMood(); refreshSelectionGate(); if(activeTab()==='story'){ renderClock(); renderRoundbar(); } if(activeTab()==='map') renderMap(); const _lu=worldState&&worldState.level_up; if(activeTab()==='me'){ const md=_lu&&_lu.active&&(_lu.done||[]).includes(myChar&&myChar.id); if(!_lu||!_lu.active||md) renderMe(); } else if(worldState&&worldState.settings&&worldState.settings.prepare_due&&Array.isArray(worldState.settings.prepare_due.ids)&&worldState.settings.prepare_due.ids.includes(myChar&&myChar.id)){ /* เตรียมเวทค้าง: ปล่อยให้ blink เตือน */ } })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_messages',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ const row=payload.new; if(row&&row.id&&!chatMsgs.some(m=>m.id===row.id)){ chatMsgs.push(row); if(chatMsgs.length>300) chatMsgs=chatMsgs.slice(-300); cacheSave('chat',chatMsgs); } if(_bsShown){ try{ renderBattleChat(); }catch(e){} } if(activeTab()==='party'){ renderChatList(); } else if(row && row.user_id!==me.id){ const t=document.querySelector('.tab[data-tab="party"]'); if(t) t.classList.add('blink'); if(_bsShown){ const mb=document.querySelector('#bsMobBar button[data-sheet="chat"]'); if(mb) mb.classList.add('blink'); } } })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'chronicles',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='chron'){ renderChronicle(); } else { const t=document.querySelector('.tab[data-tab="chron"]'); if(t) t.classList.add('blink'); } })
