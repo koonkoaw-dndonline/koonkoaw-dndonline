@@ -4337,7 +4337,11 @@ async function renderNPCs(){
   Object.keys(byCity).forEach((city,idx)=>{
     const list=byCity[city];
     let body='';
+    const _relRank=(r)=>{const x=String(r||'').toLowerCase(); return (x.includes('ally')||x.includes('friend')||x.includes('king'))?0 : (x.includes('enemy')||x.includes('hostile')||x.includes('rival'))?2 : 1;};
+    list.sort((a,b)=>_relRank(a.relationship)-_relRank(b.relationship) || String(a.name||'').localeCompare(String(b.name||'')));   // v459: จัดกลุ่มในเมือง — ฝ่ายเรา→เป็นกลาง→ศัตรู แล้วเรียงชื่อ (ลดรก)
+    let _lastRank=-1;
     list.forEach(n=>{
+      const _rk=_relRank(n.relationship); if(_rk!==_lastRank){ body+=`<div class="sub" style="margin:6px 0 2px;font-size:11px;opacity:.7">${_rk===0?'— ฝ่ายเรา —':_rk===2?'— ศัตรู —':'— เป็นกลาง —'}</div>`; _lastRank=_rk; }
       const del = isHost? `<div class="kv2"><b></b><span><button class="btn ghost sm" onclick="event.stopPropagation();deleteNPC('${n.id}')">✕ ลบ (ถ้าซ้ำ/ผิด)</button></span></div>` : '';
       const mr=relOf(n.name);
       const _nt=Array.isArray(n.notes)?n.notes:(n.notes?[String(n.notes)]:[]);   // v258b: npcs.notes = jsonb array (migration 0060) — รองรับ text เก่าด้วย · เดิม escapeHtml(array) โชว์ "a,b" ติดกัน
