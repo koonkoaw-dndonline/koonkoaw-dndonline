@@ -4633,16 +4633,16 @@ function scheduleBattleScene(){ clearTimeout(_bsRenderT); _bsRenderT=setTimeout(
 async function syncBattleScene(){
   if(typeof campaign==='undefined' || !campaign) return;
   // (06-11) ยิงพร้อมกัน (เดิม serial 2 รอบ) — เช็คนี้รันทุก 8 วิใน battle scene
-  let enc=null, livingEnemies=0;
+  let enc=null, livingEnemies=0, _queryFailed=false;
   try{
     const [r,r2]=await Promise.all([
       supa.from('combat_encounters').select('id,status').eq('campaign_id',campaign.id).neq('status','ended').maybeSingle(),
       supa.from('combat_state').select('cur_hp').eq('campaign_id',campaign.id).eq('active',true)
     ]);
-    if(!r.error) enc=r.data;
-    // encounter active แต่ไม่มีศัตรูมีชีวิต = คอมแบตจบ/ค้าง → ถือว่าไม่ใช่คอมแบต (กันค้างในฉากสู้ว่างเปล่า)
-    if(enc) livingEnemies=((r2&&r2.data)||[]).filter(x=>x.cur_hp==null||x.cur_hp>0).length;
-  }catch(e){}
+    // v467 B6: query ล้ม (token refresh 401/เน็ตหลุด) = 'ไม่รู้สถานะ' ไม่ใช่ 'ไม่มีศึก' — กันเด้งออก VICTORY ปลอม
+    if(r.error||r2.error){ _queryFailed=true; }
+    else { enc=r.data; if(enc) livingEnemies=((r2&&r2.data)||[]).filter(x=>x.cur_hp==null||x.cur_hp>0).length; }   // encounter active แต่ไม่มีศัตรูมีชีวิต = คอมแบตจบ/ค้าง → ถือว่าไม่ใช่คอมแบต
+  }catch(e){ _queryFailed=true; }
   var _vaActive = !!(worldState&&worldState.settings&&worldState.settings.victory_ack&&worldState.settings.victory_ack.active);   // v287
   let active = (!!enc && livingEnemies>0) || !!window._combatActive || !!moveMode || _vaActive;   // อย่าออกจากฉากระหว่างเลือกช่องเดิน · ออกถ้า encounter ไม่มีศัตรูมีชีวิต · v287: ค้างระหว่างบทปิดท้าย (victory_ack) จนกด "ไปต่อ" ครบ → VICTORY
   // ผู้เล่นใหม่ที่ยังไม่มีตัวละคร: ห้ามดูดเข้าฉากรบ — ให้อยู่หน้าสร้างตัวละครก่อน (ระบบไม่รอเทิร์นเขาอยู่แล้ว)
@@ -4652,6 +4652,8 @@ async function syncBattleScene(){
     if(!_bsShown && !_bsExiting){ enterBattleScene(); }
     await renderBattleScene();
   } else if(_bsShown){
+    // v467 B6: query ล้ม = 'ไม่รู้' → คงฉากไว้ retry ไม่นับ _bsMiss (เด้งออกเฉพาะตอนยืนยันจริงว่าไม่มีคอมแบต)
+    if(_queryFailed){ setTimeout(function(){ try{ syncBattleScene(); }catch(e){} }, 900); return; }
     // debounce: query แว้บชั่วคราว (เน็ต/realtime สะดุด) อย่าเพิ่งออกฉาก — ต้องยืนยัน 'ไม่มีคอมแบต' 2 รอบติด (กันเด้งออก-เข้า flash ซ้ำ)
     window._bsMiss=(window._bsMiss||0)+1;
     if(window._bsMiss>=2){ window._bsMiss=0; exitBattleSceneWithOutro(); }
@@ -4663,15 +4665,16 @@ var _bsExiting=false;
 async function exitBattleSceneWithOutro(){
   if(_bsExiting) return; _bsExiting=true;
   try{
-    var outcome='win';   // ผลศึกจาก log ล่าสุด: รอด(TPK survival) / แพ้(TPK) / ชนะ
+    var outcome='win', _logOk=false;   // ผลศึกจาก log ล่าสุด: รอด(TPK survival) / แพ้(TPK) / ชนะ
     try{
       var r=await supa.from('combat_log').select('summary').eq('campaign_id',campaign.id).order('seq',{ascending:false}).limit(4);
-      var _txt=(r.data||[]).map(function(x){return x.summary||'';}).join(' ');
-      if(/รอดมาได้|รอดจากความพ่ายแพ้|รอดแบบหวุดหวิด/i.test(_txt)) outcome='survive';   // v288 TPK survival (เช็คก่อน — marker มีคำว่า "ปาร์ตี้ล้ม" ด้วย)
-      else if(/TPK|ปาร์ตี้ล้ม/i.test(_txt)) outcome='lose';
+      if(!r.error){ _logOk=true; var _txt=(r.data||[]).map(function(x){return x.summary||'';}).join(' ');
+        if(/รอดมาได้|รอดจากความพ่ายแพ้|รอดแบบหวุดหวิด/i.test(_txt)) outcome='survive';   // v288 TPK survival (เช็คก่อน — marker มีคำว่า "ปาร์ตี้ล้ม" ด้วย)
+        else if(/TPK|ปาร์ตี้ล้ม/i.test(_txt)) outcome='lose';
+      }
     }catch(e){}
     var el=document.getElementById('battleScene'), f=document.getElementById('bsFlash');
-    if(el && el.classList.contains('on') && f){
+    if(el && el.classList.contains('on') && f && _logOk){   // v467 B6: ไม่โชว์ VICTORY/DEFEAT flash ถ้าอ่าน combat_log ไม่สำเร็จ (กัน VICTORY ปลอมตอน outage)
       var tx=f.querySelector('.bsf-txt');
       if(tx) tx.textContent = outcome==='survive' ? '🩸 รอดมาได้!' : outcome==='lose' ? '💀 DEFEAT…' : '🏆 VICTORY!';
       f.classList.remove('go','go-win','go-lose'); void f.offsetWidth;
