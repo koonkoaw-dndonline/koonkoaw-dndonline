@@ -1859,7 +1859,7 @@ const CLASS_TIPS={
   Artificer:'นักประดิษฐ์เวทมนตร์ — สร้างของ จูนอุปกรณ์ ผสมเวทกับเครื่องจักร · สายช่าง/แก้ปัญหา ระดับกลาง',
 };
 const RACE_TIPS={
-  'Human':'มนุษย์ — เก่งเฉลี่ยทุกด้าน: ได้ค่าสถานะเพิ่ม +1 (ช่องแรก) + ทักษะถนัดเพิ่ม +1 + ทอยใหม่ได้ 1 ครั้ง/long rest เมื่อ d20 ออก 1 (โจมตี/เช็ค/เซฟ) · เข้ากับทุกอาชีพ',
+  'Human':'มนุษย์ (2024) — เก่งเฉลี่ยทุกด้าน: ทักษะถนัด +1 (Skillful) + Origin feat 1 อย่าง (Versatile · เลือกในการ์ด FEATS) + Heroic Inspiration (จบ long rest ได้ 1 แต้ม ทอย d20 ใหม่เมื่อพลาด) · เข้ากับทุกอาชีพ',
   'Elf':'เอลฟ์ — คล่องแคล่ว สายตาเฉียบในความมืด ไม่ต้องนอน (เข้าฌาน) · เข้ากับ Ranger/Rogue/Wizard',
   'Drow (Dark Elf)':'เอลฟ์มืด — มองมืดไกลพิเศษ + เวทติดตัว แต่แพ้แสงจ้า · มีปมชาติกำเนิดให้เล่น',
   'Dwarf':'คนแคระ — อึด ต้านพิษ ถนัดขวาน/ค้อน รู้เรื่องหิน-เหมือง · เข้ากับ Fighter/Cleric',
@@ -2033,8 +2033,9 @@ let chosenSkills=[];
 let chosenSpells=[];   // {slug,name,level,effect} ที่เลือกตอนสร้างตัว (สายเวท)
 let dragonbornElement='fire';   // v291: ธาตุสายมังกร (Dragonborn) → sheet.dragonborn_element (resist + Breath Weapon)
 const RACE_FEATURES={
-  human:[{name:'Versatile (Human)',description:'มนุษย์ปรับตัวเก่ง — ได้ค่าสถานะเพิ่ม +1 และทักษะถนัดเพิ่ม +1 ตอนสร้างตัวละคร',max_uses:0,recharge:'passive'},
-         {name:'Resourceful',description:'ความเก๋าของมนุษย์ — เมื่อ d20 ออก 1 (โจมตี/เช็ค/เซฟ) ทอยใหม่ใช้ผลใหม่ได้ 1 ครั้งต่อ long rest',max_uses:1,recharge:'long'}],
+  human:[{name:'Skillful (Human)',description:'มนุษย์ปรับตัวเก่ง — ได้ทักษะถนัดเพิ่ม +1 ตอนสร้างตัวละคร (2024 Human)',max_uses:0,recharge:'passive'},
+         {name:'Versatile (Human)',description:'ได้ Origin feat เพิ่ม 1 อย่าง ตอนสร้างตัวละคร — เลือกในการ์ด "คุณสมบัติพิเศษ · FEATS" (2024 Human Versatile)',max_uses:0,recharge:'passive'},
+         {name:'Heroic Inspiration',description:'ความเก๋าของมนุษย์ — จบ long rest ได้ Heroic Inspiration 1 แต้ม: ทอย d20 ใหม่ได้ 1 ครั้งเมื่อทอยพลาด ใช้ผลใหม่ (1 ครั้ง/long rest · 2024 Human Resourceful)',max_uses:1,recharge:'long'}],
   elf:[{name:'Darkvision',description:'มองเห็นในที่มืดสลัวได้ไกล 60 ฟุต (เป็นโทนสีเทา)',max_uses:0,recharge:'passive'},
        {name:'Fey Ancestry',description:'ได้เปรียบเซฟต้านการสะกดจิต (charm) และเวทมนตร์ทำให้คุณหลับไม่ได้',max_uses:0,recharge:'passive'},
        {name:'Trance',description:'พักผ่อนเต็มที่ด้วยการเข้าภวังค์เพียง 4 ชม. (แทน 8 ชม.)',max_uses:0,recharge:'passive'},
@@ -3816,6 +3817,7 @@ const FEAT_OPTS=[
   {id:'heavy-armor-master', label:'Heavy Armor Master (จอมเกราะหนัก)', desc:'สวมเกราะหนัก (Plate/Splint/Ring Mail/Chain Mail): ลดดาเมจ bludgeoning/piercing/slashing ที่ไม่ใช่เวท −3 ✅ บังคับจริง (RAW: ไม่มี +1 AC)'},
   {id:'defensive-duelist', label:'Defensive Duelist (นักดวลรับ)', desc:'ถืออาวุธ finesse (กริช/ดาบสั้น/rapier/scimitar/whip): ถูกตีประชิด → reaction +โบนัสความชำนาญ AC (อาจพลิก โดน→พลาด) ✅ บังคับจริง (1 reaction/รอบ)'},
 ];
+const ORIGIN_FEAT_IDS=['tough','alert','lucky','savage-attacker'];   // v466 Versatile: Origin feats (2024) ที่ implement แล้ว — ช่อง Origin ของ Human เลือกได้เฉพาะนี้
 const RESILIENT_ABILS=[['con','CON'],['dex','DEX'],['str','STR'],['wis','WIS'],['int','INT'],['cha','CHA']];
 function _resilientAbil(featsArr){   // ดึง ability ที่เลือกจาก slug resilient-<ab> (default con)
   for(var i=0;i<(featsArr||[]).length;i++){ var m=String(featsArr[i]||'').toLowerCase().match(/resilient[- ]?(str|dex|con|int|wis|cha)/); if(m) return m[1]; }
@@ -3861,7 +3863,8 @@ function _asiSlots(cls, level){   // RAW PHB: จำนวนช่อง ASI/fe
 }
 function renderFeatCard(p){
   const lvl=+(myChar&&myChar.level)||1; const cls=String(myChar&&myChar.class||'');
-  const slots=_asiSlots(cls, lvl);
+  const _rcV=String((mySheet||{}).race||'').trim().toLowerCase(); const _isHumanV=(_rcV==='human'||_rcV==='มนุษย์');   // v466 Versatile: Human ได้ Origin feat +1 ช่อง (ตอนสร้างตัว)
+  const asiSlots=_asiSlots(cls, lvl); const originBonus=_isHumanV?1:0; const slots=asiSlots+originBonus;
   const card=document.createElement('div'); card.className='item'; card.style.cssText='margin-bottom:10px';
   const head='<div class="sk-head">คุณสมบัติพิเศษ <span class="en">· FEATS</span></div>';
   if(slots<=0){
@@ -3871,10 +3874,13 @@ function renderFeatCard(p){
   const featsArr=Array.isArray((mySheet||{}).feats)?(mySheet.feats):[];
   const used=featsArr.length;
   const curIds=featsArr.map(_featMatch).filter(Boolean);
-  let html=head+'<div class="muted" style="font-size:.85em;margin-bottom:6px">ช่อง feat: <b>'+used+'/'+slots+'</b> ใช้แล้ว (1 ช่องต่อ ASI · L4/8/12/16/19'+(/fighter|นักรบ|นักสู้/i.test(cls)?' +Fighter L6/14':'')+(/rogue|โจร/i.test(cls)?' +Rogue L10':'')+')</div>';
+  const _isOriginFeat=function(id){ return ORIGIN_FEAT_IDS.indexOf(id)>=0; };   // v466 Versatile
+  const generalPicked=curIds.filter(function(id){ return !_isOriginFeat(id); }).length;   // feat ทั่วไปกินเฉพาะช่อง ASI (Origin feat ใช้ช่อง Versatile/ASI ก็ได้)
+  let html=head+'<div class="muted" style="font-size:.85em;margin-bottom:6px">ช่อง feat: <b>'+used+'/'+slots+'</b> ใช้แล้ว (1 ช่องต่อ ASI · L4/8/12/16/19'+(/fighter|นักรบ|นักสู้/i.test(cls)?' +Fighter L6/14':'')+(/rogue|โจร/i.test(cls)?' +Rogue L10':'')+(originBonus?' · +1 Origin feat (เผ่า Human — ช่องนี้เลือกได้เฉพาะ Origin feat: Tough/Alert/Lucky/Savage Attacker)':'')+')</div>';
   html+=FEAT_OPTS.map(function(o){
     const on=curIds.indexOf(o.id)>=0;
-    const dis=(!on && used>=slots);
+    const _orig=_isOriginFeat(o.id);   // v466 Versatile: feat ทั่วไปใช้ได้เฉพาะช่อง ASI · Origin feat ใช้ช่องไหนก็ได้ (Human L1 จึงเลือกได้เฉพาะ Origin feat)
+    const dis=(!on) && (_orig ? (used>=slots) : (generalPicked>=asiSlots || used>=slots));
     let extra='';
     if(o.ability && on){   // v357 Resilient: เลือก ability ที่ชำนาญเซฟ (slug resilient-<ab>)
       const curAb=_resilientAbil(featsArr);
