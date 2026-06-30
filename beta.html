@@ -5114,6 +5114,11 @@ async function renderBattleGrid(p){
   // anchor รวม (ใช้ได้ทั้งสองโหมด): footXY=ฐานเท้า token · cellCenter=กลางช่อง (ลูกศร/มาร์ค)
   const footXY=(c,r)=> ISO ? [isx(c,r), isy(c,r)+IHTH*0.35] : [footX(c), footY(c,r)];
   const cellCenter=(c,r)=> ISO ? [isx(c,r), isy(c,r)] : [tileX(c)+TILE/2, tileY(r)+TILE*SY/2];   // หมากบนพื้นสูงยกตามระดับ
+  // v473: ไฮไลต์เจ้าของเทิน = "ช่อง grid ที่ยืนเรืองแสง" (แทนวงแหวนใต้เท้าที่ดูลอย) — รูปตรงโหมด (ISO diamond / flat rect) + pulse
+  const _cellGlow=(c,r)=>{ if(c==null||r==null) return '';
+    if(ISO){ const x=isx(c,r),y=isy(c,r); return `<polygon points="${x},${(y-IHTH).toFixed(1)} ${(x+IHTW).toFixed(1)},${y.toFixed(1)} ${x},${(y+IHTH).toFixed(1)} ${(x-IHTW).toFixed(1)},${y.toFixed(1)}" fill="#FAC775" opacity="0.3" stroke="#FFE9A8" stroke-width="2" style="pointer-events:none"><animate attributeName="opacity" values="0.16;0.46;0.16" dur="1.5s" repeatCount="indefinite"/></polygon>`; }
+    const x=tileX(c), y=tileY(r)-(isHill(c,r)?RAISE:0), th=TILE*SY;
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${TILE}" height="${th.toFixed(1)}" rx="2" fill="#FAC775" opacity="0.3" stroke="#FFE9A8" stroke-width="2" style="pointer-events:none"><animate attributeName="opacity" values="0.16;0.46;0.16" dur="1.5s" repeatCount="indefinite"/></rect>`; };
   // สัญลักษณ์ภูมิประเทศ (object token) — แม็ปจาก glyph หรือชื่อ (ไทย/อังกฤษ) → อิโมจิพิกเซล
   const GLYPH={cave:'🕳️','ถ้ำ':'🕳️',house:'🏠','บ้าน':'🏠',hut:'🛖','กระท่อม':'🛖',well:'🪣','บ่อน้ำ':'🪣',tree:'🌲','ต้นไม้':'🌲',rock:'🪨','หิน':'🪨',fire:'🔥','เตาไฟ':'🔥','ไฟ':'🔥',brazier:'🔥',door:'🚪','ประตู':'🚪',chest:'📦','หีบ':'📦',crate:'📦','ลัง':'📦',barrel:'🛢️','ถัง':'🛢️',statue:'🗿','รูปปั้น':'🗿',altar:'⛩️','แท่นบูชา':'⛩️',bridge:'🌉','สะพาน':'🌉',ladder:'🪜','บันได':'🪜',tent:'⛺','เต็นท์':'⛺',banner:'🚩','ธง':'🚩',grave:'🪦','หลุมศพ':'🪦',lever:'🎚️','คันโยก':'🎚️',torch:'🔥','คบเพลิง':'🔥',crystal:'💎','คริสตัล':'💎'};
   const glyphFor=(t)=>{ const k=String(t.glyph||'').toLowerCase(); if(GLYPH[k])return GLYPH[k]; const lab=String(t.label||'').toLowerCase(); for(const key in GLYPH){ if(lab.includes(key.toLowerCase())) return GLYPH[key]; } return null; };
@@ -5245,7 +5250,7 @@ async function renderBattleGrid(p){
       if(pct!=null){ const co=pct<=0.34?'#E24B4A':pct<=0.67?'#EF9F27':'#97C459'; const _img=_hd||(_tkimg&&_tkimg.url); const _ph=(t.kind==='monster'?_SZ.mo*_mt:_SZ.ch); const _hy=_img?(fy-Math.round(_ph*(t.kind==='monster'?_FR.mo:_FR.ch))-7):(fy-32);   /* v420: ยก HP bar เหนือหัว sprite ที่ใหญ่ขึ้น */ s+=`<rect x="${(fx-12).toFixed(1)}" y="${_hy.toFixed(1)}" width="24" height="3.5" fill="rgba(0,0,0,0.7)"/>`; s+=`<rect x="${(fx-12).toFixed(1)}" y="${_hy.toFixed(1)}" width="${(24*pct).toFixed(1)}" height="3.5" fill="${co}"/>`; }
     }
     const isAct=(activeRef.char&&t.ref_char_id===activeRef.char)||(activeRef.cs&&t.ref_combat_state_id===activeRef.cs);
-    if(isAct) s+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy+5).toFixed(1)}" rx="16" ry="6" fill="none" stroke="#FAC775" stroke-width="2.5"/>`;
+    if(isAct) s+=_cellGlow(t.col,t.row);   // v473: เจ้าของเทิน = ช่อง grid เรืองแสง (แทนวงแหวนใต้เท้าที่ดูลอย)
     s+=`<text class="tklbl" x="${fx.toFixed(1)}" y="${(fy+15).toFixed(1)}" text-anchor="middle" font-family="'VT323',monospace" font-size="11" fill="#fff" stroke="#000" stroke-width="0.6" paint-order="stroke">${escapeHtml((t.label||'').slice(0,16))}</text>`;
     // v448: ตัวล้ม/หมดสติ = หมุน sprite นอนตะแคง + จาง (แทนขีดทับเดิม)
     return s+'</g>'; }
@@ -5337,7 +5342,7 @@ async function renderBattleGrid(p){
     }
     // ไฮไลต์ "ถึงตา"
     const isActive=(activeRef.char&&t.ref_char_id===activeRef.char)||(activeRef.cs&&t.ref_combat_state_id===activeRef.cs);
-    if(isActive) svg+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy+5).toFixed(1)}" rx="16" ry="6" fill="none" stroke="#FAC775" stroke-width="2.5"/>`;
+    if(isActive) svg+=_cellGlow(t.col,t.row);   // v473: เจ้าของเทิน = ช่อง grid เรืองแสง (แทนวงแหวนใต้เท้าที่ดูลอย)
     // ชื่อใต้ตัว
     svg+=`<text class="tklbl" x="${fx.toFixed(1)}" y="${(fy+15).toFixed(1)}" text-anchor="middle" font-family="'VT323',monospace" font-size="11" fill="#fff" stroke="#000" stroke-width="0.6" paint-order="stroke">${escapeHtml((t.label||'').slice(0,16))}</text>`;
     // v448: ตัวล้ม/หมดสติ = หมุน sprite นอนตะแคง + จาง (แทนขีดทับเดิม)
