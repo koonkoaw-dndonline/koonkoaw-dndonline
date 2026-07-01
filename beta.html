@@ -5096,6 +5096,7 @@ async function renderBattleGrid(p){
   const walls=new Set(Array.isArray(T.walls)?T.walls:[]);
   const HILLS=new Set(Array.isArray(T.hills)?T.hills:[]);     // พื้นสูง (ยกระดับ)
   const WATER=new Set(Array.isArray(T.water)?T.water:[]);     // น้ำ
+  const PITS=new Set(Array.isArray(T.pits)?T.pits:[]);        // v482: เหว/หลุมลึก (ทุ่ม/ผลักตก = fall damage)
   const RAISE=9;                                              // ความสูงของพื้นต่างระดับ (px)
   const tileX=c=>PADX+c*TILE, tileY=r=>PADTOP+r*TILE*SY;
   const isHill=(c,r)=>HILLS.has((L[c]||'?')+(r+1));
@@ -5279,7 +5280,7 @@ async function renderBattleGrid(p){
   } else {
   // tiles (checkerboard + squash = 2.5D) + กำแพง + พื้นสูง (hills) + น้ำ
   for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
-    const cell=rc2cell(c,r); const isW=walls.has(cell); const hill=HILLS.has(cell); const wet=WATER.has(cell);
+    const cell=rc2cell(c,r); const isW=walls.has(cell); const hill=HILLS.has(cell); const wet=WATER.has(cell); const pit=PITS.has(cell);
     const x=tileX(c), y=tileY(r), th=TILE*SY;
     if(hill){
       // พื้นต่างระดับ: หน้าผาด้านข้าง (ฐาน) + พื้นบนยกขึ้น RAISE
@@ -5290,6 +5291,7 @@ async function renderBattleGrid(p){
       svg+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${TILE}" height="${th.toFixed(1)}" fill="${fill}" stroke="#2c3344" stroke-width="0.8"><title>${cell}</title></rect>`;
       if(wet) svg+=`<line x1="${(x+3).toFixed(1)}" y1="${(y+th*0.45).toFixed(1)}" x2="${(x+TILE-3).toFixed(1)}" y2="${(y+th*0.45).toFixed(1)}" stroke="#3a6fa0" stroke-width="0.9"/>`;
       if(isW) svg+=`<rect x="${(x+4).toFixed(1)}" y="${(y-6).toFixed(1)}" width="${TILE-8}" height="${(th+6).toFixed(1)}" fill="#4a5160" stroke="#2c3344" stroke-width="0.8" rx="2"/>`;
+      if(pit) svg+=`<ellipse cx="${(x+TILE/2).toFixed(1)}" cy="${(y+th*0.52).toFixed(1)}" rx="${(TILE*0.42).toFixed(1)}" ry="${(th*0.52).toFixed(1)}" fill="#05070a" stroke="#241a12" stroke-width="1"/><ellipse cx="${(x+TILE/2).toFixed(1)}" cy="${(y+th*0.44).toFixed(1)}" rx="${(TILE*0.30).toFixed(1)}" ry="${(th*0.36).toFixed(1)}" fill="#000"/>`;   /* v482: เหว = หลุมดำ */
     }
   }
   // tokens เรียงตามแถว (painter's: หลัง→หน้า)
