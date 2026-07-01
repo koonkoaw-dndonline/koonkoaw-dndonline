@@ -5218,6 +5218,11 @@ async function renderBattleGrid(p){
     if(t.kind==='monster'){ const id=_monId(t); return {url:_MON_RENDERED.has(id)?(_ASSET.monster+id+'.png'):null, tiles:(_MON_TILES[id]||1)}; }   // revert: มอน = ×tiles (Large2/Huge3/Garg4 ตาม footprint D&D)
     return null;
   }catch(e){ return null; } }
+  // v483 proportional sizing: สเกลวัตถุเทียบ "มนุษย์=1.0" (แก้วัตถุขนาดเท่ากันหมด) — คูณ _SZ.ob (PNG) / scale transform (SVG) · ปรับค่าตรงนี้จูนได้
+  const _OBJ_SCALE={pine:2.0,tree:1.9,cave:2.0,rock:0.72,table:0.78,fireplace:1.0,fire:0.55,barrel:0.66,chest:0.55,crate:0.62,door:1.15,well:0.85,tent:1.1,torch:0.5,grave:0.66,statue:1.35,crystal:0.6,banner:1.05,bush:0.62,mushroom:0.4,stump:0.5,log:0.6,bridge:1.2,stairs:0.85,altar:0.95,pillar:1.7,bones:0.4,skull:0.38,bookshelf:1.2,bed:0.6,cauldron:0.66,anvil:0.5,signpost:1.0,coffin:0.6,magiccircle:0.55,lever:0.6,fence:0.7,haystack:0.85,lantern:0.45,web:0.7,flower:0.32,cactus:0.9,wagon:1.15,brazier:0.75,chair:0.6,stool:0.45,rubble:0.5,sack:0.55};
+  function objScaleFor(t){ if(!t||t.kind!=='object') return 1; let k=String(t.glyph||'').toLowerCase().trim(); if(!(k in _OBJ_SCALE)){ const a=SPR_ALIAS[k]; if(a&&(a in _OBJ_SCALE)) k=a; else { const lab=String(t.label||'').toLowerCase(); for(const al in SPR_ALIAS){ if(lab.includes(al.toLowerCase())){ const g=SPR_ALIAS[al]; if(g in _OBJ_SCALE){ k=g; break; } } } } } return (k in _OBJ_SCALE)?_OBJ_SCALE[k]:0.85; }
+  // v485 occlusion-fade: วัตถุ (โดยเฉพาะสูง) ที่บังตัวละคร/มอนที่ยืน 'หลัง' มัน → จางลงเหลือ 40% (โปร่ง 60%) กันบังหมาก
+  function objOccludes(t,list){ if(!t||t.kind!=='object') return false; const s=objScaleFor(t); if(s<0.5) return false; const reach=Math.max(1,Math.round(s*2)); const oc=+t.col, or=+t.row; for(const c of (list||[])){ if(!c) continue; const k=c.kind; if(k!=='pc'&&k!=='ally'&&k!=='npc'&&k!=='monster') continue; const cr=+c.row; if(cr<or && (or-cr)<=reach && Math.abs((+c.col)-oc)<=1) return true; } return false; }
   function drawTok(t){ const _a=footXY(t.col,t.row), fx=_a[0], fy=_a[1];
     let down=Array.isArray(t.flags)&&(t.flags.includes('down')||t.flags.includes('dead')||t.flags.includes('prone'));
     let _supine=Array.isArray(t.flags)&&t.flags.includes('dead');   // v458: HP0/dead → หงาย (rotate -74) · ล้ม/prone (HP>0) → คว่ำ (rotate 74)
@@ -5231,8 +5236,10 @@ async function renderBattleGrid(p){
     const _imgTok=(href,fr,px)=>{ const z=px; const _rd=down?` transform="rotate(${_lieDeg} ${fx.toFixed(1)} ${(fy-z*fr+z/2).toFixed(1)})"`:''; return `<image href="${href}" x="${(fx-z/2).toFixed(1)}" y="${(fy-z*fr).toFixed(1)}" width="${z.toFixed(1)}" height="${z.toFixed(1)}" style="image-rendering:pixelated" opacity="${op}"${_rd}/>`; };   // v449: ล้ม=หมุนรอบ 'กึ่งกลางภาพ' (นอนตะแคงอยู่กับที่ ไม่เหวี่ยงหลุดนอกช่องจนหาย)
     const _oimg=(t.kind==='object')?tokImgHref(t):null;
     const _spr=(t.kind==='object'&&!(_oimg&&_oimg.url))?spriteFn(t):null, gly=glyphFor(t);
-    if(_oimg&&_oimg.url){ s+=_imgTok(_oimg.url,_FR.ob,_SZ.ob); }
-    else if(_spr){ s+=_spr(fx,fy,op); }
+    const _os=(t.kind==='object')?objScaleFor(t):1;   // v483 proportional
+    const _occ=(t.kind==='object')&&objOccludes(t,toks);   // v485 บังหมาก → จาง
+    if(_oimg&&_oimg.url){ let _o=_imgTok(_oimg.url,_FR.ob,_SZ.ob*_os); s+=(_occ?`<g opacity="0.4">`+_o+`</g>`:_o); }
+    else if(_spr){ let _o=(_os===1?_spr(fx,fy,op):`<g transform="translate(${fx.toFixed(1)} ${fy.toFixed(1)}) scale(${_os}) translate(${(-fx).toFixed(1)} ${(-fy).toFixed(1)})">`+_spr(fx,fy,op)+`</g>`); s+=(_occ?`<g opacity="0.4">`+_o+`</g>`:_o); }
     else if(t.kind==='object'&&gly){ s+=`<text x="${fx.toFixed(1)}" y="${(fy-1).toFixed(1)}" text-anchor="middle" font-size="20" opacity="${op}">${gly}</text>`; }
     else if(t.kind==='object'){ s+=`<rect x="${(fx-9).toFixed(1)}" y="${(fy-12).toFixed(1)}" width="18" height="16" rx="2" fill="${t.color||'#9a9a9a'}" stroke="#000" stroke-width="1.2" opacity="${op}"/>`; }
     else if(t.kind==='marker'){ s+=`<polygon points="${fx},${fy-12} ${fx+9},${fy} ${fx},${fy+8} ${fx-9},${fy}" fill="${t.color||'#b06cff'}" opacity="0.6"/>`; }
@@ -5310,7 +5317,10 @@ async function renderBattleGrid(p){
     const _spr=(t.kind==='object')?spriteFn(t):null;
     const gly=glyphFor(t);
     if(_spr){
-      svg+=_spr(fx,fy,op);
+      const _os=objScaleFor(t);   // v483 proportional (SVG path)
+      let _o=(_os===1?_spr(fx,fy,op):`<g transform="translate(${fx.toFixed(1)} ${fy.toFixed(1)}) scale(${_os}) translate(${(-fx).toFixed(1)} ${(-fy).toFixed(1)})">`+_spr(fx,fy,op)+`</g>`);
+      if(objOccludes(t,toks)) _o=`<g opacity="0.4">`+_o+`</g>`;   // v485 บังหมาก → จาง
+      svg+=_o;
     } else if(t.kind==='object' && gly){
       // fallback: emoji ถ้าไม่มี sprite
       svg+=`<text x="${fx.toFixed(1)}" y="${(fy-1).toFixed(1)}" text-anchor="middle" font-size="20" opacity="${op}">${gly}</text>`;
