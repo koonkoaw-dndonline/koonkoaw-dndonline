@@ -5224,6 +5224,7 @@ async function renderBattleGrid(p){
     const _lieDeg=_supine?-74:74;
     const op=(down&&t.kind!=='pc'&&t.kind!=='ally'&&t.kind!=='npc')?0.4:1;   // v449.1: ตัวละครล้ม = หมุนนอนตะแคงแต่ "ไม่จางสี" (ผู้ใช้ขอ) · มอน/วัตถุล้มยังจางเหมือนเดิม
     const _hd=hd2dCharHref(t); let s=`<g class="gtok"${t._deco?' style="pointer-events:none"':''} onclick="this.classList.toggle('lblon')"><title>${escapeHtml(t.label||'')}</title>`;
+    if(t.kind==='object'&&Array.isArray(t.flags)&&t.flags.includes('hazard')){ s+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy-2).toFixed(1)}" rx="14" ry="7" fill="#ff6a2b" opacity="0.32" style="pointer-events:none"><animate attributeName="opacity" values="0.18;0.5;0.18" dur="0.9s" repeatCount="indefinite"/><animate attributeName="rx" values="12;15;12" dur="0.9s" repeatCount="indefinite"/></ellipse>`; }   /* v482 P5: hazard (ไฟ/กรดบนพื้น) = วงเรืองส้มเต้น แยกจากไฟตกแต่ง */
     // v420: ตัดเงากลม renderer ออก (ผู้ใช้ขอ — แอสเซ็ทไม่มีฐานในตัว ยืนบน tile โดยตรง) · ขยาย sprite + anchor เท้าตามชนิด (char/obj/mon เท้าคนละแถว 0.875/0.855/0.905)
     const _DETAIL=1.3;   // v422: ขยาย sprite +30% (เห็นรายละเอียดงานศิลป์ชัดขึ้น) — ปรับค่านี้ตัวเดียว
     const _FR={ch:0.875,ob:0.855,mo:0.905}, _SZ={ch:64*_DETAIL,mo:64*_DETAIL,ob:64*_DETAIL};   // base 64px × _DETAIL · uniform ทุก asset (≈1 ช่อง · PNG คุมสัดส่วนเอง) · มอนใหญ่ = ×tiles (_MON_TILES)
