@@ -3442,6 +3442,18 @@ async function renderQuest(){
   // ── v261b: ถอดมิเตอร์ "งบกำกับเรื่อง" (เดิม v253 §13c) ออกจากจอเล่น ──
   //   งบแชท/บอส+CR/จำนวนฉาก-เบาะแส = ความลับผู้กำกับ (server/Gemini คุมเอง) — โชว์บนจอ = สปอยล์ผู้เล่น (host ในเกมนี้ก็คือผู้เล่น เพราะ DM คือ Gemini)
   //   ผู้เล่นเห็นเฉพาะ "ป้ายความยาก ⭐/💀 + คำใบ้สาธารณะ (hint)" ด้านล่าง = เปิดเผยแค่บางส่วนตามดีไซน์
+  // ── v490 STORY ACTS: ก้อนบรรยากาศองก์ (settings.story_arc) — ชื่อเชิงกวีเท่านั้น ไม่โชว์เลของก์/เงื่อนไข (กัน meta-gaming) ──
+  try{
+    const arc=(worldState&&worldState.settings||{}).story_arc;
+    const actN=(arc&&+arc.act)||0;
+    if(actN>=1){
+      const ACT_MOOD={1:['🕯️','เงาแรกทาบทับแผ่นดิน','โลกยังหมุนไปตามวิถีของมัน — แต่บางสิ่งเริ่มขยับตัวในความมืด'],2:['🌒','เงื้อมมือที่มองไม่เห็น','เหตุการณ์ต่างๆ เริ่มเชื่อมโยงถึงกัน ผู้คนกระซิบถึงสิ่งที่ไม่มีใครกล้าเอ่ยนาม'],3:['⛈️','พายุใกล้เข้ามา','ทุกย่างก้าวสั่นสะเทือนถึงเบื้องลึก — จุดจบของบางสิ่งใกล้เข้ามาเต็มที']};
+      const m=ACT_MOOD[Math.min(3,Math.max(1,actN))];
+      const ab=document.createElement('div'); ab.className='item';
+      ab.innerHTML='<div style="'+FONT+';font-size:13px;text-align:left;color:#c9b98a"><span style="font-size:15px">'+m[0]+'</span> <b>'+m[1]+'</b><div style="font-size:12px;color:#9a9a9a;margin-top:2px">'+m[2]+'</div></div>';
+      p.appendChild(ab);
+    }
+  }catch(e){}
   // ── v204 WORLD THREADS: เรื่องค้างคาในโลก (settings.threads) — โชว์แค่ชื่อปม open (เส้นตาย/ผลล่วงหน้า = ความลับ กัน meta-gaming) ──
   try{
     const ths=Array.isArray((worldState&&worldState.settings||{}).threads)?worldState.settings.threads:[];
@@ -3488,6 +3500,12 @@ async function renderQuest(){
     if(q.blueprint&&q.blueprint.kind==='standing') return ' <span style="font-weight:600;font-size:11px;color:#6cb6ff;border:1px solid #6cb6ff;border-radius:6px;padding:0 6px;white-space:nowrap">🛡 เฝ้าระวัง (ต่อเนื่อง)</span>';   // v431: เควสเฝ้าระวัง/ถาวร — ไม่ใช่ศึกครั้งเดียว
     const d=q.blueprint&&q.blueprint.diff; const x=BP_BADGE[d]; if(!x) return '';
     return ' <span style="font-weight:600;font-size:11px;color:'+x[1]+';border:1px solid '+x[1]+';border-radius:6px;padding:0 6px;white-space:nowrap">'+x[0]+'</span>'; };
+  // v490 hook badge: ป้าย "ที่มาของเควส" จาก blueprint.hook (hook director ฝั่ง server stamp ตอนรับเควส)
+  const HOOK_BADGE={npc_plea:['🙏 คำขอร้อง','#B6D88A'],thread:['🕸 จากปมค้าง','#b09ae8'],faction_call:['⚔ งานฝ่าย','#6cb6ff'],rumor:['👂 ตามเบาะแส','#FAC775'],board:['🪧 กระดาน','#9a9a9a']};
+  const hookBadge=(q)=>{
+    const hk=q.blueprint&&q.blueprint.hook; const x=hk&&HOOK_BADGE[hk.channel]; if(!x) return '';
+    const who=hk.npc?(' · '+String(hk.npc)):(hk.faction?(' · '+String(hk.faction)):'');
+    return ' <span style="font-weight:600;font-size:11px;color:'+x[1]+';border:1px dashed '+x[1]+';border-radius:6px;padding:0 6px;white-space:nowrap">'+x[0]+escapeHtml(who)+'</span>'; };
   const bpTitle=(q)=>escapeHtml(String(q.title||'').replace(/^[\s💀⭐]+/,''));   // ตัดอิโมจิหน้าชื่อ (ป้ายแสดงแยกแล้ว)
   // จับคู่เบาะแส → เควส: clue.mystery ตรง/คาบเกี่ยวกับชื่อเควส (ที่เหลือเข้าสมุดเบาะแสรวม)
   const usedClue=new Set();
@@ -3507,7 +3525,7 @@ async function renderQuest(){
     const hints=hintsFor(q);
     const det=document.createElement('details'); det.className='item'; det.style.cssText=FONT; if(qi===0) det.open=true;
     const sum=document.createElement('summary'); sum.style.cssText='cursor:pointer;font-weight:700;font-size:15px;padding:4px 0;'+FONT;
-    sum.innerHTML=bpTitle(q)+bpBadge(q)+(hints.length?(' <span style="font-weight:400;font-size:12px;color:#FAC775">('+hints.length+' เบาะแส)</span>'):'');
+    sum.innerHTML=bpTitle(q)+bpBadge(q)+hookBadge(q)+(hints.length?(' <span style="font-weight:400;font-size:12px;color:#FAC775">('+hints.length+' เบาะแส)</span>'):'');
     det.appendChild(sum);
     const body=document.createElement('div'); body.style.cssText=FONT+';text-align:left;padding:2px 0 4px';
     let html=q.description?('<div style="font-size:13px;color:#bbb;line-height:1.6">'+escapeHtml(q.description)+'</div>'):'';
@@ -3529,7 +3547,7 @@ async function renderQuest(){
     ended.forEach(q=>{
       const hints=hintsFor(q);
       const row=document.createElement('div'); row.style.cssText=FONT+';border-top:1px solid #333;padding:6px 0;text-align:left';
-      row.innerHTML='<div style="font-size:14px;font-weight:600">'+bpTitle(q)+bpBadge(q)+' <span style="font-weight:400;font-size:12px;color:'+(q.status==='completed'?'#97C459':'#E24B4A')+'">'+(q.status==='completed'?'สำเร็จ':'ล้มเหลว')+'</span></div>'+
+      row.innerHTML='<div style="font-size:14px;font-weight:600">'+bpTitle(q)+bpBadge(q)+hookBadge(q)+' <span style="font-weight:400;font-size:12px;color:'+(q.status==='completed'?'#97C459':'#E24B4A')+'">'+(q.status==='completed'?'สำเร็จ':'ล้มเหลว')+'</span></div>'+
                     (q.description?'<div style="font-size:13px;color:#9a9a9a">'+escapeHtml(q.description)+'</div>':'')+
                     (hints.length?'<div style="font-size:12px;color:#888;margin-top:3px">'+hints.map(h=>'<div>– '+escapeHtml(String(h))+'</div>').join('')+'</div>':'');
       det.appendChild(row);
@@ -3641,7 +3659,8 @@ async function _saveSheet(sheet, prev){
 }
 // สวมใส่: ย้ายของจากกระเป๋า → ช่อง equipment (ของเดิมในช่องเด้งกลับกระเป๋า)
 function useConsumable(name, effect){
-  const ta=$('actInput'); const txt='ใช้ '+name+(effect?(' — '+effect):'');
+  /* v488 (checklist 3.4): แนบ marker machine-generated "[ใช้ไอเทม: ชื่อ]" — server หักของแบบ deterministic (consumeIntent fast-path) ไม่ต้องเดา verb จากภาษา (มิเรอร์ marker [เป้าหมายพื้นที่:] ของ AoE) */
+  const ta=$('actInput'); const txt='ใช้ '+name+(effect?(' — '+effect):'')+' [ใช้ไอเทม: '+name+']';
   if(ta){ ta.value=(ta.value?ta.value.trim()+'\n':'')+txt; switchTab('story'); try{ta.focus();}catch(e){} toast('ใส่ "'+name+'" ในช่องสั่งการแล้ว — กดส่งให้ DM บรรยายผล'); }
   else { switchTab('story'); toast('พิมพ์ "ใช้ '+name+'" ในช่องสั่งการ เพื่อให้ DM ประมวลผล',true); }
 }
