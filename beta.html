@@ -1147,8 +1147,22 @@ async function betaAskKey(){
     const tok=(await supa.auth.getSession()).data.session?.access_token;
     const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,set_gemini_key:k})});
     const j=await r.json();
-    if(j&&j.ok){ toast('ตั้ง Gemini key แล้ว ✓ — เล่นต่อได้เลย'); } else { alert((j&&j.message)||'key ไม่ถูกต้อง — ลองใหม่'); }
+    if(j&&j.ok){ toast('ตั้ง Gemini key แล้ว ✓ — เล่นต่อได้เลย'); await betaAskBackupKeys(tok); } else { alert((j&&j.message)||'key ไม่ถูกต้อง — ลองใหม่'); }
   }catch(e){ alert('ตั้ง key ไม่สำเร็จ: '+(e.message||e)); }
+}
+// v499: คีย์สำรอง optional สูงสุด 2 — โควต้าคีย์หลักหมดกลางเกม server สลับให้อัตโนมัติ (ไม่สะดุด)
+// แนะนำเฉพาะคนใช้คีย์ฟรี · ใช้คีย์แบบเสียเงินอยู่แล้วไม่จำเป็น · ต้องสร้างจาก "คนละโปรเจกต์" Google Cloud โควต้าถึงแยกกัน
+async function betaAskBackupKeys(tok){
+  try{
+    for(const n of [2,3]){
+      const k=(prompt('🔑 (ไม่บังคับ) Gemini key สำรอง #'+n+' — กัน "โควต้าหมด" กลางเซสชัน ระบบจะสลับคีย์ให้อัตโนมัติ\n\n• ใช้คีย์ฟรี: แนะนำให้ใส่ — สร้างจาก Google Cloud "โปรเจกต์ใหม่" (คนละโปรเจกต์กับคีย์หลัก ไม่งั้นโควต้าไม่แยกกัน)\n• ใช้คีย์แบบเสียเงินอยู่แล้ว: ไม่จำเป็น — กด Cancel ข้ามได้เลย')||'').trim();
+      if(!k) return;
+      const body={campaign_id:campaign.id}; body['set_gemini_key'+n]=k;
+      const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify(body)});
+      const j=await r.json();
+      if(j&&j.ok){ toast('คีย์สำรอง #'+n+' พร้อม ✓'); } else { alert((j&&j.message)||'key ไม่ถูกต้อง — ข้ามคีย์สำรองไปก่อน (ใส่ใหม่ทีหลังได้)'); return; }
+    }
+  }catch(e){}
 }
 let campaign=null, members=[], myChar=null, characters=[], curRound=null, narrative=[], mySheet={}, mySheetUpdatedAt=null, worldState=null, chatMsgs=[];
 let econUsed={}, econUsedRound=null;   // action economy: มาร์ก local ว่าผู้เล่นใช้อะไรไปแล้วในเทิร์น
@@ -1399,7 +1413,7 @@ async function createCampaign(){
         try{
           const rK=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tokB},body:JSON.stringify({campaign_id:campaign.id,set_gemini_key:k})});
           const jK=await rK.json();
-          if(jK&&jK.ok){ toast('Gemini key พร้อม ✓ เริ่มผจญภัยได้เลย!'); break; }
+          if(jK&&jK.ok){ toast('Gemini key พร้อม ✓ เริ่มผจญภัยได้เลย!'); await betaAskBackupKeys(tokB); break; }
           alert((jK&&jK.message)||'key ไม่ถูกต้อง — ลองใหม่');
         }catch(e){ break; }
       }
