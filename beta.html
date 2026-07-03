@@ -2941,6 +2941,21 @@ function beastIconSvg(name){
   return pxSvg(M[key], {'1':'#9fe0a0'});
 }
 function charClassKey(klass){ const c=String(klass||'').toLowerCase(); const L=['artificer','barbarian','bard','cleric','druid','fighter','monk','paladin','ranger','rogue','sorcerer','warlock','wizard']; for(const k of L){ if(c.includes(k)) return k; } return null; }
+// v499: companion ไม่มีรูปอวาตาร์ → ใช้ sprite ภาษาเดียวกับ battle scene แทน (สัตว์ = pixel sprite beastIconSvg · คน = วงสี+อักษรย่อแบบหมากในฉากรบ)
+function companionFaceSvg(c){
+  const n=String(c&&c.name||''), k=String(c&&c.class||'');
+  const hay=(n+' '+k).toLowerCase();
+  const beastish=/wolf|หมาป่า|bear|หมี|hawk|eagle|owl|raven|falcon|นก|อินทรี|เหยี่ยว|cat|แมว|panther|tiger|lion|เสือ|สิงโต|snake|งู|spider|แมงมุม|boar|หมูป่า|horse|pony|ม้า|rat|mouse|หนู|dog|hound|mastiff|หมา|สุนัข|จิ้งจอก|fox|ape|ลิง|crocodile|จระเข้|fish|ปลา|beast|สัตว์/.test(hay);
+  let inner;
+  if(beastish){ inner=beastIconSvg(hay); }
+  else{
+    const cols={artificer:'#c98f4e',barbarian:'#d1553f',bard:'#c76bd1',cleric:'#e8d26b',druid:'#6bbf59',fighter:'#b0413e',monk:'#5fb0a5',paladin:'#e0c26e',ranger:'#4e8f52',rogue:'#8a8a9c',sorcerer:'#d16b6b',warlock:'#8b5fbf',wizard:'#5f7fbf'};
+    const ck=charClassKey(k); const col=(ck&&cols[ck])||'#6b8caf';
+    const init=escapeHtml((n.trim().charAt(0)||'?').toUpperCase());
+    inner='<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="14" fill="'+col+'" stroke="#15151c" stroke-width="2.5"/><text x="16" y="21.5" text-anchor="middle" font-family="monospace" font-weight="bold" font-size="15" fill="#fff">'+init+'</text></svg>';
+  }
+  return '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:15%;box-sizing:border-box">'+inner.replace('<svg ','<svg style="width:100%;height:100%;image-rendering:pixelated" ')+'</div>';
+}
 // v180: สล็อตเวทแยกระดับ (PHB) จาก sheet.slots — แสดงในการ์ด COMBAT
 function slotPillsHtml(sheet){
   try{
@@ -3388,7 +3403,8 @@ async function _renderPartyInner(){
     const it=document.createElement('div'); it.className='item';
     const row=document.createElement('div'); row.style.cssText='display:flex;gap:12px;align-items:center';
     const face=document.createElement('div'); face.className='facebox';
-    if(c.avatar_path){ const im=document.createElement('img'); im.src=PUBLIC_URL+'avatars/'+c.avatar_path; im.onerror=()=>{face.innerHTML='';}; face.appendChild(im); }
+    if(c.avatar_path){ const im=document.createElement('img'); im.src=PUBLIC_URL+'avatars/'+c.avatar_path; im.onerror=()=>{face.innerHTML=c.is_companion?companionFaceSvg(c):'';}; face.appendChild(im); }
+    else if(c.is_companion){ face.innerHTML=companionFaceSvg(c); }   // v499: companion ไร้รูป → sprite แบบ battle scene แทนช่องว่าง
     const ps=c.public_status||{};
     const hp=ps.hp?` · HP ${escapeHtml(String(ps.hp))}`:'';
     const conds=Array.isArray(ps.conditions)?ps.conditions:[];
@@ -6068,8 +6084,14 @@ async function renderChronicle(){
   if(!chroniclesData.length){
     log.innerHTML='<div class="muted">ยังไม่มีบทสรุป — บทแรกจะถูกสร้างเมื่อปาร์ตี้เดินทางข้ามเมือง หรือจบการต่อสู้ครั้งแรก</div>';
   } else {
-    const kindIcon={travel:'🧭',combat:'⚔',manual:'📜'};
+    const kindIcon={travel:'🧭',combat:'⚔',manual:'📜',month:'📅',quest_arc:'🏆',session:'🎬',auto:'✍️'};   // v494: icon ครบทุกชนิด
     chroniclesData.forEach(ch=>{
+      // v494: "เล่ม" (รวบทุก 10 บท) — การ์ดคั่นพิเศษ อ่านเป็นสารบบอดีตไกล
+      if(ch.kind==='volume'){
+        const v=document.createElement('div'); v.style.cssText='margin:12px 0 8px;padding:9px 12px;border:1px solid #6b5b3e;border-radius:8px;background:rgba(201,185,138,.07)';
+        v.innerHTML='<div class="nm" style="color:#c9b98a;margin-bottom:4px">'+escapeHtml(ch.title||'เล่ม')+'</div><div class="chron-text" style="font-size:13px;color:#bfb69f">'+colorizeNarr(ch.summary)+'</div>';
+        log.appendChild(v); return;
+      }
       const m=document.createElement('div'); m.className='chron-meta';
       m.textContent=(kindIcon[ch.kind]||'📖')+' บทที่ '+ch.idx+(ch.to_round?(' · ถึงรอบ '+ch.to_round):'');
       const ti=document.createElement('div'); ti.className='nm'; ti.style.margin='2px 0 4px'; ti.textContent=ch.title||('บทที่ '+ch.idx);
@@ -6159,8 +6181,13 @@ async function deleteCapture(id,path){
   toast('ลบแล้ว'); renderChronicle();
 }
 function exportChronicle(){
-  const body=narrative.map((n,i)=>'<h3>Entry '+(i+1)+'</h3><p>'+escapeHtml(n.content).replace(/\n/g,'<br>')+'</p>').join('');
-  const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>'+escapeHtml(campaign.name)+'</title></head><body style="font-family:sans-serif;max-width:720px;margin:auto;padding:24px;line-height:1.8;background:#fff;color:#111"><h1>'+escapeHtml(campaign.name)+'</h1>'+body+'</body></html>';
+  // v494 fix: export "พงศาวดารจริง" เป็นหนังสือ (เดิมหยิบ narrative ดิบทั้งหมด — ปุ่มชื่อ Chronicle แต่ได้ Entry 1,2,3...) · ไม่มีบท = fallback เนื้อเรื่องเต็มแบบเดิม
+  const body=chroniclesData.length
+    ? chroniclesData.map(ch=> ch.kind==='volume'
+        ? '<h2 style="border-bottom:2px solid #999;padding-bottom:4px;margin-top:28px">'+escapeHtml(ch.title||'เล่ม')+'</h2><p><em>'+escapeHtml(ch.summary).replace(/\n/g,'<br>')+'</em></p>'
+        : '<h3 style="margin-top:20px">บทที่ '+ch.idx+' — '+escapeHtml(ch.title||'')+'</h3><p>'+escapeHtml(ch.summary).replace(/\n/g,'<br>')+'</p>').join('')
+    : narrative.map((n,i)=>'<h3>Entry '+(i+1)+'</h3><p>'+escapeHtml(n.content).replace(/\n/g,'<br>')+'</p>').join('');
+  const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>'+escapeHtml(campaign.name)+'</title></head><body style="font-family:sans-serif;max-width:720px;margin:auto;padding:24px;line-height:1.8;background:#fff;color:#111"><h1>'+escapeHtml(campaign.name)+(chroniclesData.length?' — พงศาวดาร':'')+'</h1>'+body+'</body></html>';
   const blob=new Blob([html],{type:'text/html'}); const url=URL.createObjectURL(blob);
   const a=document.createElement('a'); a.href=url; a.download='chronicle.html'; a.click(); URL.revokeObjectURL(url); toast('Saved ✓');
 }
