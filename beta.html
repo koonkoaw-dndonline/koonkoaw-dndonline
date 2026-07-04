@@ -2226,7 +2226,8 @@ function switchTab(t){
   document.querySelectorAll('.tab').forEach(b=>{ b.classList.toggle('active',b.dataset.tab===t); if(b.dataset.tab===t) b.classList.remove('blink'); });
   document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.dataset.tab===t));
   document.body.classList.toggle('tab-story', t==='story');
-  if(t==='story') renderStory();
+  // v508: มือถือกลับเข้าแท็บบทบรรยาย → เลื่อนไปบทล่าสุดเสมอ (เดิมค้างตำแหน่งเดิม/หัวฟีด ต้องไถลงเอง — คำสั่ง Koon 07-04)
+  if(t==='story'){ renderStory(); try{ if(matchMedia('(max-width:1023px)').matches){ requestAnimationFrame(()=>{ try{ scrollToLatest(); }catch(e){} }); } }catch(e){} }
   else if(t==='me') renderMe();
   else if(t==='items') renderItems();
   else if(t==='skills') renderSkills();
@@ -2677,6 +2678,14 @@ async function renderRoundbar(){
       }
       // (Force Resolve ใช้ปุ่มกลางท้ายฟังก์ชัน — ห้ามเพิ่มซ้ำตรงนี้)
     } else {
+      // v512: ตัวเลือกนอกคอมแบต (เช่น standoff เจรจา/ข่มขู่/ถอย/สู้ จาก parleyGuard v501) — server ส่งผ่าน meta.combat.options แม้ active=false
+      //   กดแล้วเติมช่องพิมพ์ (แก้ไขต่อได้ก่อนส่ง — ไม่ยิงทันทีแบบในศึก)
+      if(Array.isArray(cb.options) && cb.options.length){
+        const opts=document.createElement('div'); opts.className='copt';
+        const oh=document.createElement('div'); oh.className='copt-h'; oh.textContent='— ทางเลือกในจังหวะนี้ (กดเลือก แล้วแก้ไขเพิ่มได้) —'; opts.appendChild(oh);
+        cb.options.slice(0,5).forEach(o=>{ const _o=(typeof plainNarr==='function')?plainNarr(o):o; const ob=document.createElement('button'); ob.type='button'; ob.textContent=_o; ob.onclick=()=>{ const t=document.getElementById('actInput'); if(t){ t.value=_o; t.focus(); } }; opts.appendChild(ob); });
+        bar.appendChild(opts);
+      }
       const ta=document.createElement('textarea'); ta.id='actInput'; ta.placeholder='จะให้ตัวละครทำอะไร? พิมพ์ได้อิสระ เช่น  •เดินไปคุยกับพ่อค้าเรื่องข่าวลือ  •ตรวจหากับดักรอบประตู  •โจมตีกอบลินตัวซ้ายด้วยดาบ  •ลองโน้มน้าวยามให้ปล่อยผ่าน  •ค้นหีบในมุมห้อง (ใส่เป้าหมาย/รายละเอียดยิ่งเยอะ DM ยิ่งบรรยายตรงใจ)'; if(keepAct) ta.value=keepAct; bar.appendChild(ta);
     }
     // เต๋า + ปุ่มส่ง (เฉพาะนอกคอมแบต — ในคอมแบตใช้ SUBMIT ในเมนู)
@@ -3531,7 +3540,7 @@ async function renderQuest(){
     const d=q.blueprint&&q.blueprint.diff; const x=BP_BADGE[d]; if(!x) return '';
     return ' <span style="font-weight:600;font-size:11px;color:'+x[1]+';border:1px solid '+x[1]+';border-radius:6px;padding:0 6px;white-space:nowrap">'+x[0]+'</span>'; };
   // v490 hook badge: ป้าย "ที่มาของเควส" จาก blueprint.hook (hook director ฝั่ง server stamp ตอนรับเควส)
-  const HOOK_BADGE={npc_plea:['🙏 คำขอร้อง','#B6D88A'],thread:['🕸 จากปมค้าง','#b09ae8'],faction_call:['⚔ งานฝ่าย','#6cb6ff'],rumor:['👂 ตามเบาะแส','#FAC775'],board:['🪧 กระดาน','#9a9a9a']};
+  const HOOK_BADGE={npc_plea:['🙏 คำขอร้อง','#B6D88A'],thread:['🕸 จากปมค้าง','#b09ae8'],faction_call:['⚔ งานฝ่าย','#6cb6ff'],rumor:['👂 ตามเบาะแส','#FAC775'],board:['🪧 กระดาน','#9a9a9a'],lore:['📜 จากตำนาน','#c9b98a']};   // v508: +lore (v507 เควสจากหนังสือ ingest — ป้ายฝั่ง frontend ที่ตกหล่น)
   const hookBadge=(q)=>{
     const hk=q.blueprint&&q.blueprint.hook; const x=hk&&HOOK_BADGE[hk.channel]; if(!x) return '';
     const who=hk.npc?(' · '+String(hk.npc)):(hk.faction?(' · '+String(hk.faction)):'');
@@ -5293,7 +5302,8 @@ async function renderBattleGrid(p){
     if(t.kind==='object'&&Array.isArray(t.flags)&&t.flags.includes('hazard')){ s+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy-2).toFixed(1)}" rx="14" ry="7" fill="#ff6a2b" opacity="0.32" style="pointer-events:none"><animate attributeName="opacity" values="0.18;0.5;0.18" dur="0.9s" repeatCount="indefinite"/><animate attributeName="rx" values="12;15;12" dur="0.9s" repeatCount="indefinite"/></ellipse>`; }   /* v482 P5: hazard (ไฟ/กรดบนพื้น) = วงเรืองส้มเต้น แยกจากไฟตกแต่ง */
     if(Array.isArray(t.flags)&&t.flags.includes('trap')&&t.flags.includes('revealed')){ s+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy-2).toFixed(1)}" rx="15" ry="8" fill="#ff2d2d" opacity="0.28" style="pointer-events:none"><animate attributeName="opacity" values="0.14;0.55;0.14" dur="0.85s" repeatCount="indefinite"/><animate attributeName="rx" values="12;16;12" dur="0.85s" repeatCount="indefinite"/></ellipse>`; }   /* v486 REQ3: กับดักเปิดเผย = พื้นแดงจางกระพริบ */
     // v420: ตัดเงากลม renderer ออก (ผู้ใช้ขอ — แอสเซ็ทไม่มีฐานในตัว ยืนบน tile โดยตรง) · ขยาย sprite + anchor เท้าตามชนิด (char/obj/mon เท้าคนละแถว 0.875/0.855/0.905)
-    const _FR={ch:0.875,ob:0.855,mo:0.905}, _SZ={ch:64,mo:64,ob:64};   // revert: uniform 64px ทุก asset (≈1 ช่อง · PNG คุมสัดส่วนเอง) · มอนใหญ่ = ×tiles (_MON_TILES)
+    const _DETAIL=1.3;   // v422: ขยาย sprite +30% (เห็นรายละเอียดงานศิลป์ชัดขึ้น) — ปรับค่านี้ตัวเดียว
+    const _FR={ch:0.875,ob:0.855,mo:0.905}, _SZ={ch:64*_DETAIL,mo:64*_DETAIL,ob:64*_DETAIL};   // base 64px × _DETAIL · uniform ทุก asset (≈1 ช่อง · PNG คุมสัดส่วนเอง) · มอนใหญ่ = ×tiles (_MON_TILES)
     const _imgTok=(href,fr,px)=>{ const z=px; const _rd=down?` transform="rotate(${_lieDeg} ${fx.toFixed(1)} ${(fy-z*fr+z/2).toFixed(1)})"`:''; return `<image href="${href}" x="${(fx-z/2).toFixed(1)}" y="${(fy-z*fr).toFixed(1)}" width="${z.toFixed(1)}" height="${z.toFixed(1)}" style="image-rendering:pixelated" opacity="${op}"${_rd}/>`; };   // v449: ล้ม=หมุนรอบ 'กึ่งกลางภาพ' (นอนตะแคงอยู่กับที่ ไม่เหวี่ยงหลุดนอกช่องจนหาย)
     const _oimg=(t.kind==='object')?tokImgHref(t):null;
     const _spr=(t.kind==='object'&&!(_oimg&&_oimg.url))?spriteFn(t):null, gly=glyphFor(t);
@@ -5345,7 +5355,12 @@ async function renderBattleGrid(p){
     _cl.sort((a,b)=>(a[0]+a[1])-(b[0]+b[1]));
     _cl.forEach(p=>{ svg+=_isoTile(p[0],p[1]); });   // v420: pass1 = วาดพื้นทั้งหมดก่อน (กัน tile ช่องหน้าทับเท้า token → เลิกดูลอย)
     svg+=_todTintSvg(IVW,IVH);                        // v420: tint ตามช่วงเวลาของวัน (เหนือพื้น/backdrop · ใต้ token)
-    _cl.forEach(p=>{ const g=_tk[p[0]+'_'+p[1]]; if(g){ g.sort((a,b)=>(a.z||0)-(b.z||0)).forEach(t=>{ svg+=drawTok(t); }); } });   // v420: pass2 = token ทับบนสุด (depth order ภายในคงเดิม)
+    // v421: pass2 = token ทับบนสุด · ลำดับ (tier → depth c+r → z) — มอน/วัตถุวาดก่อน แล้วตัวละคร(pc/ally/npc)วาดทับบนสุดเสมอ
+    //        → มอนตัวใหญ่ (sprite 64×tiles) ไม่บังตัวละครอื่นจนมองไม่เห็น (เห็นทั้งตัว · คร่อมได้แค่ใต้เท้า)
+    const _isChar=t=>(t.kind==='pc'||t.kind==='ally'||t.kind==='npc');
+    const _allTok=[]; _cl.forEach(p=>{ const g=_tk[p[0]+'_'+p[1]]; if(g) for(const _t of g) _allTok.push(_t); });
+    _allTok.sort((a,b)=>((a.col+a.row)-(b.col+b.row)) || ((_isChar(a)?1:0)-(_isChar(b)?1:0)) || ((a.z||0)-(b.z||0)));   // v448: depth (col+row) ก่อน = หน้าทับหลังถูกต้อง (มอนยืนหน้า PC ไม่ถูก PC บัง) · char เป็น tiebreak เมื่อ depth เท่ากัน
+    _allTok.forEach(t=>{ svg+=drawTok(t); });
   } else {
   // tiles (checkerboard + squash = 2.5D) + กำแพง + พื้นสูง (hills) + น้ำ
   for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
@@ -5363,8 +5378,9 @@ async function renderBattleGrid(p){
       if(pit) svg+=`<ellipse cx="${(x+TILE/2).toFixed(1)}" cy="${(y+th*0.52).toFixed(1)}" rx="${(TILE*0.42).toFixed(1)}" ry="${(th*0.52).toFixed(1)}" fill="#05070a" stroke="#241a12" stroke-width="1"/><ellipse cx="${(x+TILE/2).toFixed(1)}" cy="${(y+th*0.44).toFixed(1)}" rx="${(TILE*0.30).toFixed(1)}" ry="${(th*0.36).toFixed(1)}" fill="#000"/>`;   /* v482: เหว = หลุมดำ */
     }
   }
-  // tokens เรียงตามแถว (painter's: หลัง→หน้า)
-  const order=toks.concat(_decoToks).sort((a,b)=>(a.row-b.row)|| ((a.z||0)-(b.z||0)));
+  // tokens เรียงตามแถว (painter's: หลัง→หน้า) · v421: ตัวละคร(pc/ally/npc)วาดทับบนสุด → มอนตัวใหญ่ไม่บังตัวละครจนมองไม่เห็น
+  const _isCharF=t=>(t.kind==='pc'||t.kind==='ally'||t.kind==='npc');
+  const order=toks.concat(_decoToks).sort((a,b)=>(a.row-b.row)||((_isCharF(a)?1:0)-(_isCharF(b)?1:0))|| ((a.z||0)-(b.z||0)));   // v448: row (depth) ก่อน = หน้าทับหลัง · char tiebreak
   order.forEach(t=>{
     const fx=footX(t.col), fy=footY(t.col,t.row);
     let down=Array.isArray(t.flags)&&(t.flags.includes('down')||t.flags.includes('dead')||t.flags.includes('prone'));

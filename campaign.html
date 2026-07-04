@@ -2226,7 +2226,8 @@ function switchTab(t){
   document.querySelectorAll('.tab').forEach(b=>{ b.classList.toggle('active',b.dataset.tab===t); if(b.dataset.tab===t) b.classList.remove('blink'); });
   document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.dataset.tab===t));
   document.body.classList.toggle('tab-story', t==='story');
-  if(t==='story') renderStory();
+  // v508: มือถือกลับเข้าแท็บบทบรรยาย → เลื่อนไปบทล่าสุดเสมอ (เดิมค้างตำแหน่งเดิม/หัวฟีด ต้องไถลงเอง — คำสั่ง Koon 07-04)
+  if(t==='story'){ renderStory(); try{ if(matchMedia('(max-width:1023px)').matches){ requestAnimationFrame(()=>{ try{ scrollToLatest(); }catch(e){} }); } }catch(e){} }
   else if(t==='me') renderMe();
   else if(t==='items') renderItems();
   else if(t==='skills') renderSkills();
@@ -2677,6 +2678,14 @@ async function renderRoundbar(){
       }
       // (Force Resolve ใช้ปุ่มกลางท้ายฟังก์ชัน — ห้ามเพิ่มซ้ำตรงนี้)
     } else {
+      // v512: ตัวเลือกนอกคอมแบต (เช่น standoff เจรจา/ข่มขู่/ถอย/สู้ จาก parleyGuard v501) — server ส่งผ่าน meta.combat.options แม้ active=false
+      //   กดแล้วเติมช่องพิมพ์ (แก้ไขต่อได้ก่อนส่ง — ไม่ยิงทันทีแบบในศึก)
+      if(Array.isArray(cb.options) && cb.options.length){
+        const opts=document.createElement('div'); opts.className='copt';
+        const oh=document.createElement('div'); oh.className='copt-h'; oh.textContent='— ทางเลือกในจังหวะนี้ (กดเลือก แล้วแก้ไขเพิ่มได้) —'; opts.appendChild(oh);
+        cb.options.slice(0,5).forEach(o=>{ const _o=(typeof plainNarr==='function')?plainNarr(o):o; const ob=document.createElement('button'); ob.type='button'; ob.textContent=_o; ob.onclick=()=>{ const t=document.getElementById('actInput'); if(t){ t.value=_o; t.focus(); } }; opts.appendChild(ob); });
+        bar.appendChild(opts);
+      }
       const ta=document.createElement('textarea'); ta.id='actInput'; ta.placeholder='จะให้ตัวละครทำอะไร? พิมพ์ได้อิสระ เช่น  •เดินไปคุยกับพ่อค้าเรื่องข่าวลือ  •ตรวจหากับดักรอบประตู  •โจมตีกอบลินตัวซ้ายด้วยดาบ  •ลองโน้มน้าวยามให้ปล่อยผ่าน  •ค้นหีบในมุมห้อง (ใส่เป้าหมาย/รายละเอียดยิ่งเยอะ DM ยิ่งบรรยายตรงใจ)'; if(keepAct) ta.value=keepAct; bar.appendChild(ta);
     }
     // เต๋า + ปุ่มส่ง (เฉพาะนอกคอมแบต — ในคอมแบตใช้ SUBMIT ในเมนู)
@@ -3531,7 +3540,7 @@ async function renderQuest(){
     const d=q.blueprint&&q.blueprint.diff; const x=BP_BADGE[d]; if(!x) return '';
     return ' <span style="font-weight:600;font-size:11px;color:'+x[1]+';border:1px solid '+x[1]+';border-radius:6px;padding:0 6px;white-space:nowrap">'+x[0]+'</span>'; };
   // v490 hook badge: ป้าย "ที่มาของเควส" จาก blueprint.hook (hook director ฝั่ง server stamp ตอนรับเควส)
-  const HOOK_BADGE={npc_plea:['🙏 คำขอร้อง','#B6D88A'],thread:['🕸 จากปมค้าง','#b09ae8'],faction_call:['⚔ งานฝ่าย','#6cb6ff'],rumor:['👂 ตามเบาะแส','#FAC775'],board:['🪧 กระดาน','#9a9a9a']};
+  const HOOK_BADGE={npc_plea:['🙏 คำขอร้อง','#B6D88A'],thread:['🕸 จากปมค้าง','#b09ae8'],faction_call:['⚔ งานฝ่าย','#6cb6ff'],rumor:['👂 ตามเบาะแส','#FAC775'],board:['🪧 กระดาน','#9a9a9a'],lore:['📜 จากตำนาน','#c9b98a']};   // v508: +lore (v507 เควสจากหนังสือ ingest — ป้ายฝั่ง frontend ที่ตกหล่น)
   const hookBadge=(q)=>{
     const hk=q.blueprint&&q.blueprint.hook; const x=hk&&HOOK_BADGE[hk.channel]; if(!x) return '';
     const who=hk.npc?(' · '+String(hk.npc)):(hk.faction?(' · '+String(hk.faction)):'');
