@@ -5272,6 +5272,7 @@ async function renderBattleGrid(p){
       const _bk=(typeof _biomeKey==='function'&&typeof grid!=='undefined'&&grid)?_biomeKey(grid.background):'';
       if(_bk&&OBJ_INDEX[_bk]&&OBJ_INDEX[_bk].has(key)) return {url:_ASSET.object+_bk+'/'+key+'.png',tiles:1};
       if(OBJ_INDEX.common&&OBJ_INDEX.common.has(key)) return {url:_ASSET.object+'common/'+key+'.png',tiles:1};
+      for(const _b in OBJ_INDEX){ if(_b!==_bk&&OBJ_INDEX[_b]&&OBJ_INDEX[_b].has(key)) return {url:_ASSET.object+_b+'/'+key+'.png',tiles:1}; }   // v505: ค้นข้าม biome ก่อนถอยไปไฟล์แบน — เคสจริง 07-04: tall_grass มีแค่ plain/ แต่ถูกวางในป่า → path แบน 400 = ไอคอนรูปเสีย "กล่องสีฟ้า" กลางฉาก
       return {url:_ASSET.object+key+'.png',tiles:1}; }
     if(t.kind==='monster'){ const id=_monId(t); return {url:_MON_RENDERED.has(id)?(_ASSET.monster+id+'.png'):null, tiles:(_MON_TILES[id]||1)}; }   // revert: มอน = ×tiles (Large2/Huge3/Garg4 ตาม footprint D&D)
     return null;
