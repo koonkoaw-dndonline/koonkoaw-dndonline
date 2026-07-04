@@ -2628,6 +2628,7 @@ async function renderRoundbar(){
   if(!mine){
     const meta=curRound.meta||{};
     const cb=meta.combat||{}, rr=meta.roll_request||{}, inter=meta.interactables||[];
+    window._gridLight=(cb.light==='dim'||cb.light==='dark')?cb.light:null;   // v518 P5: ระดับแสงจริงจาก server (meta.combat.light) → renderBattleGrid วาดม่านมืด
     // v252: โหมด UI (คำสั่งคอมแบต vs ช่องเนื้อเรื่อง) ผูกกับ 'encounter active จริง' (_combatActive จาก combat_state) เท่านั้น —
     //   เดิมใช้ cb.active (meta จาก DM) เป็น fallback → ฉาก offer ที่ DM ตั้ง active แต่ encGuard บล็อกเปิดจริง = โชว์คำสั่งคอมแบตในฉาก story (ราก desync Cockatrice)
     //   ราก: combat command ต้องไม่โผล่ในเนื้อเรื่อง + ไม่ถามเนื้อเรื่องในศึก → ความจริงเดียว = มีศัตรู active จริงไหม
@@ -5523,6 +5524,12 @@ async function renderBattleGrid(p){
         svg+=`<g style="cursor:pointer" onclick="moveCancel()"><rect x="${x2.toFixed(1)}" y="${gy.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="4" fill="#7a1c1c" stroke="#ff9a9a" stroke-width="1.5"/><text x="${(x2+bw/2).toFixed(1)}" y="${(gy+bh*0.72).toFixed(1)}" text-anchor="middle" font-size="${fs}" fill="#ffecec" style="pointer-events:none">✕</text></g>`;
       }
     }
+  }
+  // v518 P5 (BATTLE_GRID_VISUAL §P5): ม่านแสงจริงจาก server (meta.combat.light — deriveLight v292) — มืด/สลัวต้อง "เห็น" บนกระดาน ไม่ใช่แค่กลไกลับหลังฉาก
+  if(window._gridLight==='dim'||window._gridLight==='dark'){
+    const _dkL=window._gridLight==='dark', _lwL=(ISO?IVW:VW), _lhL=(ISO?IVH:VH);
+    svg+=`<rect x="0" y="0" width="${_lwL}" height="${_lhL}" fill="${_dkL?'#05070f':'#0a1020'}" opacity="${_dkL?'0.5':'0.26'}" style="pointer-events:none"/>`;
+    svg+=`<text x="${_lwL-8}" y="16" text-anchor="end" font-family="'VT323',monospace" font-size="13" fill="${_dkL?'#8fa3c8':'#c8d4ea'}" opacity="0.85" style="pointer-events:none">${_dkL?'🌑 มืด':'🌗 สลัว'}</text>`;
   }
   svg+='</svg>';
   const box=document.createElement('div'); box.className='item';
