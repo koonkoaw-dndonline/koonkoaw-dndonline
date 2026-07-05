@@ -5310,11 +5310,20 @@ async function renderBattleGrid(p){
   const _OBJ_SCALE={pine:2.0,tree:1.9,cave:2.0,rock:0.72,table:0.78,fireplace:1.0,fire:0.55,barrel:0.66,chest:0.55,crate:0.62,door:1.15,well:0.85,tent:1.1,torch:0.5,grave:0.66,statue:1.35,crystal:0.6,banner:1.05,bush:0.62,mushroom:0.4,stump:0.5,log:0.6,bridge:1.2,stairs:0.85,altar:0.95,pillar:1.7,bones:0.4,skull:0.38,bookshelf:1.2,bed:0.6,cauldron:0.66,anvil:0.5,signpost:1.0,coffin:0.6,magiccircle:0.55,lever:0.6,fence:0.7,haystack:0.85,lantern:0.45,web:0.7,flower:0.32,cactus:0.9,wagon:1.7,brazier:0.75,chair:0.6,stool:0.45,rubble:0.5,sack:0.55,animal_skull:0.5,armor_stand:1.1,ash_pile:0.5,bar_counter:0.9,basalt_column:1.7,basket:0.4,bench:0.55,berry_bush:0.6,boulder:1.0,broken_pillar:1.4,cage:1.2,cairn:0.75,cart:1.4,cattail:0.85,chains:0.9,chandelier:0.9,crates_stack:1.0,creek:0.9,cupboard:1.2,dead_tree:1.9,dune:0.9,fallen_tree:0.6,fern:0.5,fire_crystal:0.6,fountain:1.0,frozen_tree:1.9,ice_crystal:0.6,ice_shard:0.85,icicle:0.7,iron_fence:0.9,lamppost:1.8,lava_floor:0.85,lava_pool:0.9,lilypad:0.4,magma_vent:0.75,mangrove:1.7,market_stall:1.3,mausoleum:1.7,mud_mound:0.55,oasis:0.95,obelisk:1.9,obsidian:0.7,ore_vein:1.2,palm:1.9,pond:0.9,portcullis:1.6,reeds:0.85,roots:0.45,rug:0.5,sandstone_ruin:1.5,sarcophagus:0.6,shelf:1.2,snowdrift:0.7,spike_trap:0.4,stalactite:1.3,tall_grass:0.6,throne:1.35,urn:0.6,water_grass:0.6,weapon_rack:1.1};
   function objScaleFor(t){ if(!t||t.kind!=='object') return 1; let k=String(t.glyph||'').toLowerCase().trim(); if(!(k in _OBJ_SCALE)){ const a=SPR_ALIAS[k]; if(a&&(a in _OBJ_SCALE)) k=a; else { const lab=String(t.label||'').toLowerCase(); for(const al in SPR_ALIAS){ if(lab.includes(al.toLowerCase())){ const g=SPR_ALIAS[al]; if(g in _OBJ_SCALE){ k=g; break; } } } } } return (k in _OBJ_SCALE)?_OBJ_SCALE[k]:0.85; }
   // v485 occlusion-fade: วัตถุ (โดยเฉพาะสูง) ที่บังตัวละคร/มอนที่ยืน 'หลัง' มัน → จางลงเหลือ 40% (โปร่ง 60%) กันบังหมาก
-  // v524: iso-aware — เดิมใช้เรขาคณิต 2.5D (row เดี่ยว + |Δcol|≤1) กับกระดาน iso → จางผิดตัว (เคสจริง: ต้นไม้บังแซมไม่จาง แต่กระโจมแถวหลังจางแทน)
-  //   iso: ความลึก = col+row (มาก = อยู่หน้า วาดทับ) · แกนนอนบนจอ = col−row → วัตถุบังตัวละครเมื่อ ลึกกว่า ≤reach และแกนจอห่าง ≤1
-  function objOccludes(t,list){ if(!t||t.kind!=='object') return false; const s=objScaleFor(t); if(s<0.5) return false; const reach=Math.max(1,Math.round(s*2)); const oc=+t.col, or=+t.row; for(const c of (list||[])){ if(!c) continue; const k=c.kind; if(k!=='pc'&&k!=='ally'&&k!=='npc'&&k!=='monster') continue; const cc=+c.col, cr=+c.row;
-    if(ISO){ const dd=(oc+or)-(cc+cr); if(dd>0 && dd<=reach && Math.abs((oc-or)-(cc-cr))<=1) return true; }
-    else if(cr<or && (or-cr)<=reach && Math.abs(cc-oc)<=1) return true; } return false; }
+  // v527: วัดจาก "สี่เหลี่ยมภาพจริงบนจอ" (screen-rect) — v524 ใช้เรขาคณิตระดับช่อง (|Δแกน|≤1) แคบไปสำหรับ sprite สูงอย่างต้นไม้ (~160px กว้างกว่า 1 ช่องมาก) → ต้นไม้บังแซมยังไม่จาง
+  //   เงื่อนไข: (1) ตัวละครลึกน้อยกว่าวัตถุ (วาดก่อน = ถูกวัตถุทับ — เท่ากันตัวละครชนะ tiebreak v421 อยู่แล้ว) (2) กรอบภาพวัตถุ (foot-anchored ตาม _SZ/_FR ใน drawTok) ซ้อนกรอบลำตัวตัวละคร >10px ทั้งสองแกน
+  function objOccludes(t,list){ if(!t||t.kind!=='object') return false; const s=objScaleFor(t); if(s<0.5) return false;
+    const _a=footXY(+t.col,+t.row), ox=_a[0], oy=_a[1];
+    const ow=64*1.3*s, oh=64*1.3*s, od=(+t.col)+(+t.row);
+    const oL=ox-ow/2, oR=ox+ow/2, oT=oy-oh*0.855, oB=oy;
+    for(const c of (list||[])){ if(!c) continue; const k=c.kind; if(k!=='pc'&&k!=='ally'&&k!=='npc'&&k!=='monster') continue;
+      if(ISO ? ((+c.col)+(+c.row))>=od : (+c.row)>=(+t.row)) continue;   // ตัวละครอยู่หน้า/ลึกเท่าวัตถุ = ไม่ถูกบัง
+      const _b=footXY(+c.col,+c.row), cx=_b[0], cy=_b[1];
+      const cw=64*1.3*0.7, chh=64*1.3;   // กรอบลำตัว (แคบกว่ารูปเต็ม — ตัวยืนกลางภาพ)
+      const cL=cx-cw/2, cR=cx+cw/2, cT=cy-chh*0.875, cB=cy;
+      if(Math.min(oR,cR)-Math.max(oL,cL)>10 && Math.min(oB,cB)-Math.max(oT,cT)>10) return true;
+    }
+    return false; }
   function drawTok(t){ const _a=footXY(t.col,t.row), fx=_a[0], fy=_a[1];
     if(Array.isArray(t.flags)&&t.flags.includes('trap')&&t.flags.includes('hidden')) return '';   /* v486 REQ3: กับดักซ่อน — ไม่วาด (เห็นเมื่อ perception ผ่าน) */
     let down=Array.isArray(t.flags)&&(t.flags.includes('down')||t.flags.includes('dead')||t.flags.includes('prone'));
