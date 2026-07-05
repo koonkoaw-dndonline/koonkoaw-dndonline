@@ -4309,6 +4309,21 @@ async function renderSkills(){
   try{ renderAscendantElementCard(p); }catch(e){}   // v376: ธาตุมังกร (Ascendant Dragon Monk · gate ในฟังก์ชัน)
   try{ renderStormEnvCard(p); }catch(e){}   // v377: สิ่งแวดล้อมพายุ (Storm Herald · gate ในฟังก์ชัน)
   try{ renderFeatCard(p); }catch(e){}   // v353: Feats picker (RAW-ASI-gated · ทุกคลาส · L4+)
+  // v525: 🔮 รวมโควต้าเวท/ความสามารถต่อวันไว้จุดเดียว (feedback วิสาด 07-05 — เดิมกระจาย: slot อยู่การ์ด COMBAT · ครั้งต่อวันอยู่รายสกิล)
+  try{
+    const _slU=(mySheet||{}).slots; const _perDayU=(rows||[]).filter(s=>+s.max_uses>0 && !/lay on hands|วางมือ/i.test(s.name||''));
+    const _isCasterU=needsDailyPrepareFE(myChar.class)||/wizard|sorcerer|bard|warlock|วิซาร์ด|จอมเวท|กวี|บาร์ด|วอร์ล็อก/i.test(myChar.class||'');
+    const _hasSlots=_slU&&Array.isArray(_slU.lv_max)&&_slU.lv_max.some(n=>+n>0);
+    if(_hasSlots||_perDayU.length||_isCasterU){
+      const card=document.createElement('div'); card.className='item';
+      let h='<div class="sectitle">🔮 พลังเวท & ความสามารถวันนี้ (จุดเดียวจบ)</div>';
+      if(_hasSlots){ h+=slotPillsHtml(mySheet); h+='<div class="note" style="margin-top:3px">สล็อต = โควต้าร่วมของเวท "ระดับนั้นทั้งหมด" · ร่ายเวทระดับต่ำด้วยสล็อตสูงกว่าได้ · ฟื้นเมื่อพักยาว (1 ครั้ง/24 ชม.เกม)</div>'; }
+      else if(_isCasterU){ h+='<div class="note">สล็อตเวทจะปรากฏเมื่อร่ายเวทมีระดับครั้งแรก/เข้าศึกครั้งแรกของวัน</div>'; }
+      h+='<div class="note">Cantrip (เวทระดับ 0): ร่ายได้ไม่จำกัด ไม่กินสล็อต</div>';
+      if(_perDayU.length){ h+='<div class="chips" style="margin-top:6px">'+_perDayU.map(s=>{const left=Math.max(0,(+s.max_uses||0)-(+s.used||0));const u=s.recharge==='short'?'/พักสั้น':'/วัน';return '<span class="chip" style="'+(left?'':'opacity:.45')+'" title="'+escapeHtml(String(s.description||'').slice(0,120))+'">'+escapeHtml(s.name)+' '+left+'/'+s.max_uses+u+'</span>';}).join('')+'</div>'; }
+      card.innerHTML=h; p.appendChild(card);
+    }
+  }catch(e){}
   if(!rows.length){ const m=document.createElement('div'); m.className='muted'; m.innerHTML='ยังไม่มีความสามารถ<br>ความสามารถจะปรากฏหลังสร้างตัวละคร (ตามเผ่า/คลาส) หรือเมื่อ DM มอบให้'; p.appendChild(m); return; }
   const intro=document.createElement('div'); intro.className='note sk-intro'; intro.textContent='แตะที่ชื่อความสามารถเพื่อดูรายละเอียด'; p.appendChild(intro);
   const buckets={class:[],race:[],spell:[]};
@@ -4937,7 +4952,11 @@ function aoePickCell(c,r){ if(!aoeMode) return; aoeCenter={c:c,r:r}; gridFastRef
 // เปิดตัวเลือกพื้นที่บน Map ให้ Command Menu (คืนผลผ่าน callback) — รัศมีจาก target เช่น sphere_20/cone_15/line_30
 function ccGridPick(target, cb){
   const m=/^(?:sphere|cone|line|cube|square|cylinder)_?(\d+)/.exec(String(target||'')); const ft=m?parseInt(m[1]):20;
-  aoeMode={radiusFt:ft, cb:cb}; aoeCenter=null; if(_bsShown){ renderBattleScene(); } else { switchTab('mon'); }
+  aoeMode={radiusFt:ft, cb:cb}; aoeCenter=null;
+  // v524 (เคสจริง Thunderwave): ต้องปิดชีตคำสั่ง + เข้าฉากรบก่อน — เดิมชีตคำสั่ง (mobile) บังกระดาน = แตะเลือกพื้นที่ไม่ติด (มิเรอร์ ccMovePick ที่ทำถูกอยู่แล้ว)
+  try{ if(typeof bsCloseSheets==='function') bsCloseSheets(); }catch(e){}
+  if(!_bsShown && typeof enterBattleScene==='function'){ try{ enterBattleScene(); }catch(e){} }
+  if(_bsShown){ renderBattleScene(); } else { switchTab('mon'); }
   toast('แตะช่องศูนย์กลางบน Map แล้วกด ✓ ยืนยันพื้นที่');
 }
 function aoeConfirm(){
@@ -5288,10 +5307,14 @@ async function renderBattleGrid(p){
     return null;
   }catch(e){ return null; } }
   // v483 proportional sizing: สเกลวัตถุเทียบ "มนุษย์=1.0" (แก้วัตถุขนาดเท่ากันหมด) — คูณ _SZ.ob (PNG) / scale transform (SVG) · ปรับค่าตรงนี้จูนได้
-  const _OBJ_SCALE={pine:2.0,tree:1.9,cave:2.0,rock:0.72,table:0.78,fireplace:1.0,fire:0.55,barrel:0.66,chest:0.55,crate:0.62,door:1.15,well:0.85,tent:1.1,torch:0.5,grave:0.66,statue:1.35,crystal:0.6,banner:1.05,bush:0.62,mushroom:0.4,stump:0.5,log:0.6,bridge:1.2,stairs:0.85,altar:0.95,pillar:1.7,bones:0.4,skull:0.38,bookshelf:1.2,bed:0.6,cauldron:0.66,anvil:0.5,signpost:1.0,coffin:0.6,magiccircle:0.55,lever:0.6,fence:0.7,haystack:0.85,lantern:0.45,web:0.7,flower:0.32,cactus:0.9,wagon:1.15,brazier:0.75,chair:0.6,stool:0.45,rubble:0.5,sack:0.55,animal_skull:0.5,armor_stand:1.1,ash_pile:0.5,bar_counter:0.9,basalt_column:1.7,basket:0.4,bench:0.55,berry_bush:0.6,boulder:1.0,broken_pillar:1.4,cage:1.2,cairn:0.75,cart:1.0,cattail:0.85,chains:0.9,chandelier:0.9,crates_stack:1.0,creek:0.9,cupboard:1.2,dead_tree:1.9,dune:0.9,fallen_tree:0.6,fern:0.5,fire_crystal:0.6,fountain:1.0,frozen_tree:1.9,ice_crystal:0.6,ice_shard:0.85,icicle:0.7,iron_fence:0.9,lamppost:1.8,lava_floor:0.85,lava_pool:0.9,lilypad:0.4,magma_vent:0.75,mangrove:1.7,market_stall:1.3,mausoleum:1.7,mud_mound:0.55,oasis:0.95,obelisk:1.9,obsidian:0.7,ore_vein:1.2,palm:1.9,pond:0.9,portcullis:1.6,reeds:0.85,roots:0.45,rug:0.5,sandstone_ruin:1.5,sarcophagus:0.6,shelf:1.2,snowdrift:0.7,spike_trap:0.4,stalactite:1.3,tall_grass:0.6,throne:1.35,urn:0.6,water_grass:0.6,weapon_rack:1.1};
+  const _OBJ_SCALE={pine:2.0,tree:1.9,cave:2.0,rock:0.72,table:0.78,fireplace:1.0,fire:0.55,barrel:0.66,chest:0.55,crate:0.62,door:1.15,well:0.85,tent:1.1,torch:0.5,grave:0.66,statue:1.35,crystal:0.6,banner:1.05,bush:0.62,mushroom:0.4,stump:0.5,log:0.6,bridge:1.2,stairs:0.85,altar:0.95,pillar:1.7,bones:0.4,skull:0.38,bookshelf:1.2,bed:0.6,cauldron:0.66,anvil:0.5,signpost:1.0,coffin:0.6,magiccircle:0.55,lever:0.6,fence:0.7,haystack:0.85,lantern:0.45,web:0.7,flower:0.32,cactus:0.9,wagon:1.7,brazier:0.75,chair:0.6,stool:0.45,rubble:0.5,sack:0.55,animal_skull:0.5,armor_stand:1.1,ash_pile:0.5,bar_counter:0.9,basalt_column:1.7,basket:0.4,bench:0.55,berry_bush:0.6,boulder:1.0,broken_pillar:1.4,cage:1.2,cairn:0.75,cart:1.4,cattail:0.85,chains:0.9,chandelier:0.9,crates_stack:1.0,creek:0.9,cupboard:1.2,dead_tree:1.9,dune:0.9,fallen_tree:0.6,fern:0.5,fire_crystal:0.6,fountain:1.0,frozen_tree:1.9,ice_crystal:0.6,ice_shard:0.85,icicle:0.7,iron_fence:0.9,lamppost:1.8,lava_floor:0.85,lava_pool:0.9,lilypad:0.4,magma_vent:0.75,mangrove:1.7,market_stall:1.3,mausoleum:1.7,mud_mound:0.55,oasis:0.95,obelisk:1.9,obsidian:0.7,ore_vein:1.2,palm:1.9,pond:0.9,portcullis:1.6,reeds:0.85,roots:0.45,rug:0.5,sandstone_ruin:1.5,sarcophagus:0.6,shelf:1.2,snowdrift:0.7,spike_trap:0.4,stalactite:1.3,tall_grass:0.6,throne:1.35,urn:0.6,water_grass:0.6,weapon_rack:1.1};
   function objScaleFor(t){ if(!t||t.kind!=='object') return 1; let k=String(t.glyph||'').toLowerCase().trim(); if(!(k in _OBJ_SCALE)){ const a=SPR_ALIAS[k]; if(a&&(a in _OBJ_SCALE)) k=a; else { const lab=String(t.label||'').toLowerCase(); for(const al in SPR_ALIAS){ if(lab.includes(al.toLowerCase())){ const g=SPR_ALIAS[al]; if(g in _OBJ_SCALE){ k=g; break; } } } } } return (k in _OBJ_SCALE)?_OBJ_SCALE[k]:0.85; }
   // v485 occlusion-fade: วัตถุ (โดยเฉพาะสูง) ที่บังตัวละคร/มอนที่ยืน 'หลัง' มัน → จางลงเหลือ 40% (โปร่ง 60%) กันบังหมาก
-  function objOccludes(t,list){ if(!t||t.kind!=='object') return false; const s=objScaleFor(t); if(s<0.5) return false; const reach=Math.max(1,Math.round(s*2)); const oc=+t.col, or=+t.row; for(const c of (list||[])){ if(!c) continue; const k=c.kind; if(k!=='pc'&&k!=='ally'&&k!=='npc'&&k!=='monster') continue; const cr=+c.row; if(cr<or && (or-cr)<=reach && Math.abs((+c.col)-oc)<=1) return true; } return false; }
+  // v524: iso-aware — เดิมใช้เรขาคณิต 2.5D (row เดี่ยว + |Δcol|≤1) กับกระดาน iso → จางผิดตัว (เคสจริง: ต้นไม้บังแซมไม่จาง แต่กระโจมแถวหลังจางแทน)
+  //   iso: ความลึก = col+row (มาก = อยู่หน้า วาดทับ) · แกนนอนบนจอ = col−row → วัตถุบังตัวละครเมื่อ ลึกกว่า ≤reach และแกนจอห่าง ≤1
+  function objOccludes(t,list){ if(!t||t.kind!=='object') return false; const s=objScaleFor(t); if(s<0.5) return false; const reach=Math.max(1,Math.round(s*2)); const oc=+t.col, or=+t.row; for(const c of (list||[])){ if(!c) continue; const k=c.kind; if(k!=='pc'&&k!=='ally'&&k!=='npc'&&k!=='monster') continue; const cc=+c.col, cr=+c.row;
+    if(ISO){ const dd=(oc+or)-(cc+cr); if(dd>0 && dd<=reach && Math.abs((oc-or)-(cc-cr))<=1) return true; }
+    else if(cr<or && (or-cr)<=reach && Math.abs(cc-oc)<=1) return true; } return false; }
   function drawTok(t){ const _a=footXY(t.col,t.row), fx=_a[0], fy=_a[1];
     if(Array.isArray(t.flags)&&t.flags.includes('trap')&&t.flags.includes('hidden')) return '';   /* v486 REQ3: กับดักซ่อน — ไม่วาด (เห็นเมื่อ perception ผ่าน) */
     let down=Array.isArray(t.flags)&&(t.flags.includes('down')||t.flags.includes('dead')||t.flags.includes('prone'));
@@ -6666,13 +6689,14 @@ window.cc = (function(){
     }
 
     if(last==='bonus'){
-      var items = [
-        {label:'Cast Bonus Spell', drill:'cast_bonus'},
-        {label:'Two-Weapon', meta:'(n/a)', dim:true}
-      ];
+      // v524 (เคสจริง): เดิมโชว์ 'Cast Bonus Spell' เสมอทั้งที่ตัวละครไม่มีเวท bonus action สักตัว (กดเข้าไป = ว่างเปล่า) + 'Two-Weapon (n/a)' ค้างถาวร = เมนูขยะ
+      var items = [];
+      var _hasBSpell = (character.spells||[]).some(function(s){return s.cast==='1B';});
+      if(_hasBSpell) items.push({label:'Cast Bonus Spell', drill:'cast_bonus'});
       ((character.features&&character.features.bonus)||[]).forEach(function(f){
         items.push({label:f.name, meta:f.uses, commit:{slot:'bonus', label:f.name, skillId:f.id||null}});
       });
+      if(!items.length) items.push({label:'(ไม่มี bonus action ที่ใช้ได้สำหรับตัวละครนี้ — ข้ามช่องนี้ได้เลย)', dim:true});
       return { items: items };
     }
 
