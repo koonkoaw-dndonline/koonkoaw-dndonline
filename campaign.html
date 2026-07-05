@@ -2436,6 +2436,7 @@ async function submitVictoryAck(force){
     // reload worldState (victory_ack.done อัปเดต หรือถูกเคลียร์เมื่อ finalized)
     try{ var rs=await supa.from('campaign_state').select('*').eq('campaign_id',campaign.id).maybeSingle(); if(!rs.error&&rs.data){ worldState=rs.data; cacheSave('state',worldState); } }catch(e){}
     if(j.status==='victory_finalized'){ toast('🏆 ชัยชนะ!'); try{ await loadState(); }catch(e){} }
+    else if(j.status==='defeat_finalized'){ toast('💀 พ่ายแพ้… แต่เรื่องราวยังไม่จบ'); try{ await loadState(); }catch(e){} }   /* v531b: defeat gate (v506) จบ — ห้ามใช้ข้อความชัยชนะ */
     else if(j.status==='no_victory_pending'){ /* จบไปแล้ว */ }
     else toast('✓ พร้อมแล้ว ('+(j.done||0)+'/'+(j.total||0)+')');
     try{ await renderRoundbar(); }catch(e){}
@@ -2480,15 +2481,18 @@ async function renderRoundbar(){
     var _done=Array.isArray(_va.done)?_va.done:[];
     var _tot=_va.total||(characters.filter(function(c){return !c.is_companion&&c.controller!=='left';}).length||1);
     var _mineAck=myChar&&_done.indexOf(myChar.id)>=0;
-    var w=document.createElement('div'); w.className='note'; w.style.cssText='text-align:left;padding:9px 8px;line-height:1.6;border:1px solid rgba(250,199,117,0.5);border-radius:8px;background:rgba(250,199,117,0.06)';
-    w.innerHTML='🏆 <b>การต่อสู้สิ้นสุดลง</b><br><span class="muted">อ่านบทปิดท้ายของ DM ด้านบน แล้วกด <b>ไปต่อ</b> เพื่อไปยังหน้าจอชัยชนะพร้อมกัน</span><br>พร้อมแล้ว <b>'+_done.length+'/'+_tot+'</b> คน';
+    var _vaDefeat=(_va.kind==='defeat');   /* v531b: defeat gate (v506) ใช้ปุ่ม "ไปต่อ" เดิมแต่ต้องเล่าฝั่งแพ้ — เดิม hard-code ข้อความชัยชนะ ผู้เล่นเพิ่ง TPK แต่เห็น "หน้าจอชัยชนะ" */
+    var w=document.createElement('div'); w.className='note'; w.style.cssText='text-align:left;padding:9px 8px;line-height:1.6;border:1px solid '+(_vaDefeat?'rgba(226,75,74,0.5)':'rgba(250,199,117,0.5)')+';border-radius:8px;background:'+(_vaDefeat?'rgba(226,75,74,0.06)':'rgba(250,199,117,0.06)');
+    w.innerHTML=_vaDefeat
+      ? '💀 <b>การต่อสู้จบลงด้วยความพ่ายแพ้</b><br><span class="muted">อ่านฉากสุดท้ายของ DM ด้านบน แล้วกด <b>ไปต่อ</b> เพื่อรับรู้ชะตากรรมของปาร์ตี้พร้อมกัน</span><br>พร้อมแล้ว <b>'+_done.length+'/'+_tot+'</b> คน'
+      : '🏆 <b>การต่อสู้สิ้นสุดลง</b><br><span class="muted">อ่านบทปิดท้ายของ DM ด้านบน แล้วกด <b>ไปต่อ</b> เพื่อไปยังหน้าจอชัยชนะพร้อมกัน</span><br>พร้อมแล้ว <b>'+_done.length+'/'+_tot+'</b> คน';
     bar.appendChild(w);
     if(_mineAck){
       var d=document.createElement('div'); d.className='note'; d.style.cssText='padding:6px 4px;color:#7fd17f;font-weight:600'; d.textContent='✓ คุณพร้อมแล้ว — รอเพื่อนอีก '+Math.max(0,_tot-_done.length)+' คน'; bar.appendChild(d);
     } else if(myChar){
       var bGo=document.createElement('button'); bGo.className='btn'; bGo.style.marginTop='6px'; bGo.textContent='✓ ไปต่อ (อ่านจบแล้ว)'; bGo.disabled=!!resolving; bGo.onclick=function(){ submitVictoryAck(false); }; bar.appendChild(bGo);
     }
-    if(isHost){ var fSk=document.createElement('button'); fSk.className='btn warn sm'; fSk.style.marginTop='8px'; fSk.textContent='⚡ ข้ามรอทุกคน → VICTORY'; fSk.onclick=function(){ submitVictoryAck(true); }; bar.appendChild(fSk); }
+    if(isHost){ var fSk=document.createElement('button'); fSk.className='btn warn sm'; fSk.style.marginTop='8px'; fSk.textContent=_vaDefeat?'⚡ ข้ามรอทุกคน → ไปต่อ':'⚡ ข้ามรอทุกคน → VICTORY'; fSk.onclick=function(){ submitVictoryAck(true); }; bar.appendChild(fSk); }
     return;
   }
   if(curRound.phase==='resolving'){ bar.innerHTML='<div class="statusline"><span class="pill wait">DM is resolving…</span></div>'; return; }
@@ -5309,12 +5313,26 @@ async function renderBattleGrid(p){
   // v483 proportional sizing: สเกลวัตถุเทียบ "มนุษย์=1.0" (แก้วัตถุขนาดเท่ากันหมด) — คูณ _SZ.ob (PNG) / scale transform (SVG) · ปรับค่าตรงนี้จูนได้
   const _OBJ_SCALE={pine:2.0,tree:1.9,cave:2.0,rock:0.72,table:0.78,fireplace:1.0,fire:0.55,barrel:0.66,chest:0.55,crate:0.62,door:1.15,well:0.85,tent:1.1,torch:0.5,grave:0.66,statue:1.35,crystal:0.6,banner:1.05,bush:0.62,mushroom:0.4,stump:0.5,log:0.6,bridge:1.2,stairs:0.85,altar:0.95,pillar:1.7,bones:0.4,skull:0.38,bookshelf:1.2,bed:0.6,cauldron:0.66,anvil:0.5,signpost:1.0,coffin:0.6,magiccircle:0.55,lever:0.6,fence:0.7,haystack:0.85,lantern:0.45,web:0.7,flower:0.32,cactus:0.9,wagon:1.7,brazier:0.75,chair:0.6,stool:0.45,rubble:0.5,sack:0.55,animal_skull:0.5,armor_stand:1.1,ash_pile:0.5,bar_counter:0.9,basalt_column:1.7,basket:0.4,bench:0.55,berry_bush:0.6,boulder:1.0,broken_pillar:1.4,cage:1.2,cairn:0.75,cart:1.4,cattail:0.85,chains:0.9,chandelier:0.9,crates_stack:1.0,creek:0.9,cupboard:1.2,dead_tree:1.9,dune:0.9,fallen_tree:0.6,fern:0.5,fire_crystal:0.6,fountain:1.0,frozen_tree:1.9,ice_crystal:0.6,ice_shard:0.85,icicle:0.7,iron_fence:0.9,lamppost:1.8,lava_floor:0.85,lava_pool:0.9,lilypad:0.4,magma_vent:0.75,mangrove:1.7,market_stall:1.3,mausoleum:1.7,mud_mound:0.55,oasis:0.95,obelisk:1.9,obsidian:0.7,ore_vein:1.2,palm:1.9,pond:0.9,portcullis:1.6,reeds:0.85,roots:0.45,rug:0.5,sandstone_ruin:1.5,sarcophagus:0.6,shelf:1.2,snowdrift:0.7,spike_trap:0.4,stalactite:1.3,tall_grass:0.6,throne:1.35,urn:0.6,water_grass:0.6,weapon_rack:1.1};
   function objScaleFor(t){ if(!t||t.kind!=='object') return 1; let k=String(t.glyph||'').toLowerCase().trim(); if(!(k in _OBJ_SCALE)){ const a=SPR_ALIAS[k]; if(a&&(a in _OBJ_SCALE)) k=a; else { const lab=String(t.label||'').toLowerCase(); for(const al in SPR_ALIAS){ if(lab.includes(al.toLowerCase())){ const g=SPR_ALIAS[al]; if(g in _OBJ_SCALE){ k=g; break; } } } } } return (k in _OBJ_SCALE)?_OBJ_SCALE[k]:0.85; }
+  // v531 obj-fill normalize: PNG วัตถุแต่ละชุดมีขอบโปร่งใสไม่เท่ากัน — scale คูณที่ "กรอบ" อย่างเดียวทำให้สัดส่วนจริงเพี้ยน
+  //   เคสจริง 07-05: barrel (common/ 240px เนื้อ 82%) vs wagon (ไฟล์แบนเก่า 128px เนื้อ 43%) → ถังใหญ่เกวียนเล็กบนจอ
+  //   แก้ทั้งคลาส: วัด bbox เนื้อภาพ (alpha>10) ครั้งเดียวต่อรูป → ตัวคูณชดเชย 0.8/fill (0.8 ≈ fill มาตรฐาน asset ส่วนใหญ่ · เท่ากรอบตัวละคร) clamp [0.8,1.9] · ระหว่างวัด=1 (พฤติกรรมเดิม) วัดเสร็จ re-render หนึ่งครั้ง · CORS ล้ม/รูปเสีย=1
+  const _objFill={};
+  function objFillNorm(url){ if(!url) return 1; const c=_objFill[url];
+    if(c!==undefined) return c||1;
+    _objFill[url]=0;
+    try{ const im=new Image(); im.crossOrigin='anonymous';
+      im.onload=()=>{ try{ const cv=document.createElement('canvas'); cv.width=im.naturalWidth; cv.height=im.naturalHeight; const g=cv.getContext('2d'); g.drawImage(im,0,0); const d=g.getImageData(0,0,cv.width,cv.height).data; let x0=1e9,y0=1e9,x1=-1,y1=-1; for(let y=0;y<cv.height;y++)for(let x=0;x<cv.width;x++){ if(d[(y*cv.width+x)*4+3]>10){ if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; } } const f=Math.max((x1-x0+1)/cv.width,(y1-y0+1)/cv.height); _objFill[url]=(x1<0||!isFinite(f)||f<=0)?1:Math.max(0.8,Math.min(1.9,0.8/f)); }catch(e){ _objFill[url]=1; } try{ if(typeof renderBattleGrid==='function') renderBattleGrid(); }catch(e){} };
+      im.onerror=()=>{ _objFill[url]=1; };
+      im.src=url;
+    }catch(e){ _objFill[url]=1; }
+    return 1; }
   // v485 occlusion-fade: วัตถุ (โดยเฉพาะสูง) ที่บังตัวละคร/มอนที่ยืน 'หลัง' มัน → จางลงเหลือ 40% (โปร่ง 60%) กันบังหมาก
   // v527: วัดจาก "สี่เหลี่ยมภาพจริงบนจอ" (screen-rect) — v524 ใช้เรขาคณิตระดับช่อง (|Δแกน|≤1) แคบไปสำหรับ sprite สูงอย่างต้นไม้ (~160px กว้างกว่า 1 ช่องมาก) → ต้นไม้บังแซมยังไม่จาง
   //   เงื่อนไข: (1) ตัวละครลึกน้อยกว่าวัตถุ (วาดก่อน = ถูกวัตถุทับ — เท่ากันตัวละครชนะ tiebreak v421 อยู่แล้ว) (2) กรอบภาพวัตถุ (foot-anchored ตาม _SZ/_FR ใน drawTok) ซ้อนกรอบลำตัวตัวละคร >10px ทั้งสองแกน
   function objOccludes(t,list){ if(!t||t.kind!=='object') return false; const s=objScaleFor(t); if(s<0.5) return false;
     const _a=footXY(+t.col,+t.row), ox=_a[0], oy=_a[1];
-    const ow=64*1.3*s, oh=64*1.3*s, od=(+t.col)+(+t.row);
+    const _uO=(typeof tokImgHref==='function')?tokImgHref(t):null; const _fN=(_uO&&_uO.url)?objFillNorm(_uO.url):1;   /* v531: กรอบ occlusion ต้องเท่ากับขนาดวาดจริง (fill-normalized) */
+    const ow=64*1.3*s*_fN, oh=64*1.3*s*_fN, od=(+t.col)+(+t.row);
     const oL=ox-ow/2, oR=ox+ow/2, oT=oy-oh*0.855, oB=oy;
     for(const c of (list||[])){ if(!c) continue; const k=c.kind; if(k!=='pc'&&k!=='ally'&&k!=='npc'&&k!=='monster') continue;
       if(ISO ? ((+c.col)+(+c.row))>=od : (+c.row)>=(+t.row)) continue;   // ตัวละครอยู่หน้า/ลึกเท่าวัตถุ = ไม่ถูกบัง
@@ -5342,7 +5360,7 @@ async function renderBattleGrid(p){
     const _spr=(t.kind==='object'&&!(_oimg&&_oimg.url))?spriteFn(t):null, gly=glyphFor(t);
     const _os=(t.kind==='object')?objScaleFor(t):1;   // v483 proportional
     const _occ=(t.kind==='object')&&objOccludes(t,toks);   // v485 บังหมาก → จาง
-    if(_oimg&&_oimg.url){ let _o=_imgTok(_oimg.url,_FR.ob,_SZ.ob*_os); s+=(_occ?`<g opacity="0.4">`+_o+`</g>`:_o); }
+    if(_oimg&&_oimg.url){ let _o=_imgTok(_oimg.url,_FR.ob,_SZ.ob*_os*objFillNorm(_oimg.url)); s+=(_occ?`<g opacity="0.4">`+_o+`</g>`:_o); }   /* v531: ×fill-normalize (padding ต่างชุด) */
     else if(_spr){ let _o=(_os===1?_spr(fx,fy,op):`<g transform="translate(${fx.toFixed(1)} ${fy.toFixed(1)}) scale(${_os}) translate(${(-fx).toFixed(1)} ${(-fy).toFixed(1)})">`+_spr(fx,fy,op)+`</g>`); s+=(_occ?`<g opacity="0.4">`+_o+`</g>`:_o); }
     else if(t.kind==='object'&&gly){ s+=`<text x="${fx.toFixed(1)}" y="${(fy-1).toFixed(1)}" text-anchor="middle" font-size="20" opacity="${op}">${gly}</text>`; }
     else if(t.kind==='object'){ s+=`<rect x="${(fx-9).toFixed(1)}" y="${(fy-12).toFixed(1)}" width="18" height="16" rx="2" fill="${t.color||'#9a9a9a'}" stroke="#000" stroke-width="1.2" opacity="${op}"/>`; }
