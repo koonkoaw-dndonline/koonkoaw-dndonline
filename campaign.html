@@ -1499,8 +1499,10 @@ async function refreshAll(){
 }
 // ไอคอน Monster กระพริบเมื่อมี combat active (combat_state) — เงียบถ้ายังไม่ได้รัน migration
 async function updateCombatBadge(){
-  let active=false;
-  try{ const r=await supa.from('combat_state').select('id').eq('campaign_id',campaign.id).eq('active',true).limit(1); active=!r.error && (r.data||[]).length>0; }catch(e){}
+  // v538 M20: query ล้ม = "ไม่รู้สถานะ" คงค่าเดิม (มิเรอร์ v467 B6 syncBattleScene) — เดิม error→false → textarea story โผล่กลางคอมแบตตอนเน็ตกระตุก
+  let active=false, _ok=false;
+  try{ const r=await supa.from('combat_state').select('id').eq('campaign_id',campaign.id).eq('active',true).limit(1); if(!r.error){ active=(r.data||[]).length>0; _ok=true; } }catch(e){}
+  if(!_ok && window._combatActive!==undefined) active=window._combatActive;   // คงสถานะเดิมเมื่อ query ล้ม
   window._combatActive = active;   // server-truth: มีศัตรู active ไหม (ใช้เปิดเมนูคอมแบตโดยไม่พึ่ง DM flag)
   const t=document.querySelector('.tab[data-tab="mon"]'); if(t) t.classList.toggle('combat',active);
 }
@@ -2513,7 +2515,7 @@ async function renderRoundbar(){
   if(myChar && worldState&&worldState.settings&&worldState.settings.prepare_due&&Array.isArray(worldState.settings.prepare_due.ids)&&worldState.settings.prepare_due.ids.includes(myChar.id)){
     bar.innerHTML='<div class="statusline"><span class="pill wait">วันใหม่ — เตรียมเวทในแท็บ Skills ก่อน ถึงจะสั่งการต่อได้</span></div>'; return;
   }
-  if(worldState&&worldState.level_up&&worldState.level_up.active){ const dn=(worldState.level_up.done||[]).length; const tot=characters.filter(c=>!c.is_companion).length||1; bar.innerHTML='<div class="statusline"><span class="pill wait">\u2b50 เลเวลอัพ '+dn+'/'+tot+' \u2014 เลือกสกิลในแท็บ Stat ก่อน</span></div>'; return; }
+  if(worldState&&worldState.level_up&&worldState.level_up.active){ const dn=(worldState.level_up.done||[]).length; const tot=characters.filter(c=>!c.is_companion&&c.controller!=='left').length||1;   /* v538 H5: นับ controller!=='left' ให้ตรง server RPC (เดิมค้าง "2/3" เมื่อมีคนออกปาร์ตี้) */ bar.innerHTML='<div class="statusline"><span class="pill wait">\u2b50 เลเวลอัพ '+dn+'/'+tot+' \u2014 เลือกสกิลในแท็บ Stat ก่อน</span></div>'; return; }
   // ดึงข้อมูลให้ครบ "ก่อน" สร้าง DOM (await อยู่ก่อน guard เท่านั้น → ไม่เกิด append ซ้อน)
   const { data:acts } = await supa.from('actions').select('user_id, action_text, character_id').eq('round_id',curRound.id).order('submitted_at',{ascending:true});
   // total = เฉพาะสมาชิกที่ 'มีตัวละครแล้ว' (คนเพิ่ง join ที่ยังไม่สร้างตัวละครไม่นับ → รอบไม่ค้าง)
@@ -2527,9 +2529,10 @@ async function renderRoundbar(){
   // ถ้าผู้เล่นกำลังพิมพ์ในช่อง action อยู่ และรอบ/สถานะไม่เปลี่ยน → อย่า rebuild ทั้งกล่อง (กันข้อความหาย+หลุดโฟกัส)
   // อัปเดตแค่ตัวนับ Submitted ในที่เดิม แล้วจบ
   const _cbBusy=(curRound.meta||{}).combat||{};
-  if(typeof window.cc==='object' && window.cc.isBusy && window.cc.isBusy() && document.getElementById('ccFrame')){ return; }   // กำลังสร้างเทิร์น/พิมพ์ในเมนู — อย่า rebuild แถบ (กันข้อความหาย)
+  if(typeof window.cc==='object' && window.cc.isBusy && window.cc.isBusy() && document.getElementById('ccFrame') && window.__ccRound===(curRound&&curRound.id)){ return; }   // v538 M17: กำลังสร้างเทิร์น/พิมพ์ในเมนู — อย่า rebuild (กันข้อความหาย) · แต่ถ้า round เปลี่ยน (โดนข้าม/รอบใหม่) = ต้อง rebuild ไม่งั้นค้างเทิร์นเก่าถาวร
   const rbKey=`${curRound.id}|${curRound.phase}|${mine?1:0}`;
-  const typingNow=document.activeElement && document.activeElement.id==='actInput';
+  const _aidNow=document.activeElement && document.activeElement.id;
+  const typingNow=_aidNow==='actInput'||_aidNow==='petActInput';   // v538 M19: ครอบ petActInput ด้วย (เดิมเฉพาะ actInput → คำสั่ง pet หายตอน realtime rebuild)
   if(typingNow && rbKey===_lastRoundbarKey){
     const sl=bar.querySelector('.statusline');
     const _cbq=(curRound.meta||{}).combat||{}; const _incq=_cbq.active||!!window._combatActive; const _rngq=_incq?`<span class="cs">${escapeHtml(_cbq.range||'COMBAT')}</span>`:'';
@@ -2844,10 +2847,12 @@ function gateBeforePlay(){
 }
 async function submitAction(charIdOverride){
   if(gateBeforePlay()) return;
+  if(window._actSubmitting) return;   // v538: กัน double-click (มิเรอร์ _quickBusy/_vaSubmitting) — เดิมไม่มี guard → 2 insert ชน unique(round_id,user_id) = toast error ดิบ
   const isPet=(typeof charIdOverride==='string');
   const cid=isPet?charIdOverride:(myChar?.id||null);
   let txt=$(isPet?'petActInput':'actInput')?.value.trim(); if(!txt){toast('Type your action first',true);return;}
   if(!isPet && pendingAoE){ txt+=`\n[เป้าหมายพื้นที่: ศูนย์กลาง ${pendingAoE.centerCell} ${pendingAoE.radiusFt?('รัศมี '+pendingAoE.radiusFt+' ฟุต'):'(จุดเดียว)'} ครอบคลุม ${pendingAoE.cells.join(', ')}]`; }
+  window._actSubmitting=true;
   try{
     const { error } = await supa.from('actions').insert({
       campaign_id:campaign.id, round_id:curRound.id, user_id:me.id, character_id:cid, action_text:txt
@@ -2858,6 +2863,7 @@ async function submitAction(charIdOverride){
     await loadRound(); renderRoundbar();
     window._afterSubmit=true; resolveRound(false);   // ลองประมวลผล — backend ตอบ waiting ถ้ายังไม่ครบ
   }catch(e){ toast(e.message||'Submit failed',true); }
+  finally{ window._actSubmitting=false; }
 }
 
 async function quickSubmit(text){
@@ -3022,7 +3028,7 @@ async function fetchRulesInfo(force){
 }
 async function renderLevelUpPanel(p){
   const lu=(worldState&&worldState.level_up)||{}; const done=lu.done||[];
-  const total=characters.filter(c=>!c.is_companion).length||1;
+  const total=characters.filter(c=>!c.is_companion&&c.controller!=='left').length||1;   /* v538 H5: นับ controller!=='left' ให้ตรง server RPC */
   const card=document.createElement('div'); card.className='item'; card.style.cssText='border:2px solid #f5c542';
   if(done.includes(myChar.id)){
     card.innerHTML='<div class="sectitle" style="color:#f5c542">\u2b50 LEVEL UP</div><div class="note">เลือกเสร็จแล้ว \u2014 รอเพื่อน '+done.length+'/'+total+' คน</div>';
@@ -5330,12 +5336,12 @@ async function renderBattleGrid(p){
   // v531 obj-fill normalize: PNG วัตถุแต่ละชุดมีขอบโปร่งใสไม่เท่ากัน — scale คูณที่ "กรอบ" อย่างเดียวทำให้สัดส่วนจริงเพี้ยน
   //   เคสจริง 07-05: barrel (common/ 240px เนื้อ 82%) vs wagon (ไฟล์แบนเก่า 128px เนื้อ 43%) → ถังใหญ่เกวียนเล็กบนจอ
   //   แก้ทั้งคลาส: วัด bbox เนื้อภาพ (alpha>10) ครั้งเดียวต่อรูป → ตัวคูณชดเชย 0.8/fill (0.8 ≈ fill มาตรฐาน asset ส่วนใหญ่ · เท่ากรอบตัวละคร) clamp [0.8,1.9] · ระหว่างวัด=1 (พฤติกรรมเดิม) วัดเสร็จ re-render หนึ่งครั้ง · CORS ล้ม/รูปเสีย=1
-  const _objFill={};
+  const _objFill=(window._objFill=window._objFill||{});   // v538 H5: persist ข้าม render (เดิม const {} สร้างใหม่ทุก render → วัดแล้วทิ้ง + new Image ทุก URL ทุกครั้ง → onload เรียก render ซ้ำ = query loop ไม่รู้จบตลอดคอมแบต)
   function objFillNorm(url){ if(!url) return 1; const c=_objFill[url];
     if(c!==undefined) return c||1;
     _objFill[url]=0;
     try{ const im=new Image(); im.crossOrigin='anonymous';
-      im.onload=()=>{ try{ const cv=document.createElement('canvas'); cv.width=im.naturalWidth; cv.height=im.naturalHeight; const g=cv.getContext('2d'); g.drawImage(im,0,0); const d=g.getImageData(0,0,cv.width,cv.height).data; let x0=1e9,y0=1e9,x1=-1,y1=-1; for(let y=0;y<cv.height;y++)for(let x=0;x<cv.width;x++){ if(d[(y*cv.width+x)*4+3]>10){ if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; } } const f=Math.max((x1-x0+1)/cv.width,(y1-y0+1)/cv.height); _objFill[url]=(x1<0||!isFinite(f)||f<=0)?1:Math.max(0.8,Math.min(1.9,0.8/f)); }catch(e){ _objFill[url]=1; } try{ if(typeof renderBattleGrid==='function') renderBattleGrid(); }catch(e){} };
+      im.onload=()=>{ try{ const cv=document.createElement('canvas'); cv.width=im.naturalWidth; cv.height=im.naturalHeight; const g=cv.getContext('2d'); g.drawImage(im,0,0); const d=g.getImageData(0,0,cv.width,cv.height).data; let x0=1e9,y0=1e9,x1=-1,y1=-1; for(let y=0;y<cv.height;y++)for(let x=0;x<cv.width;x++){ if(d[(y*cv.width+x)*4+3]>10){ if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; } } const f=Math.max((x1-x0+1)/cv.width,(y1-y0+1)/cv.height); _objFill[url]=(x1<0||!isFinite(f)||f<=0)?1:Math.max(0.8,Math.min(1.9,0.8/f)); }catch(e){ _objFill[url]=1; } try{ if(typeof scheduleBattleScene==='function') scheduleBattleScene(); }catch(e){} };   // v538 H5: repaint ผ่าน debounce (เดิม renderBattleGrid() ไร้ arg → p undefined → TypeError + full-fetch loop)
       im.onerror=()=>{ _objFill[url]=1; };
       im.src=url;
     }catch(e){ _objFill[url]=1; }
@@ -5590,8 +5596,10 @@ async function renderBattleGrid(p){
     }
   }
   // v518 P5 (BATTLE_GRID_VISUAL §P5): ม่านแสงจริงจาก server (meta.combat.light — deriveLight v292) — มืด/สลัวต้อง "เห็น" บนกระดาน ไม่ใช่แค่กลไกลับหลังฉาก
-  if(window._gridLight==='dim'||window._gridLight==='dark'){
-    const _dkL=window._gridLight==='dark', _lwL=(ISO?IVW:VW), _lhL=(ISO?IVH:VH);
+  // v538 M35: อ่าน light จาก curRound.meta.combat ตอน paint ตรงๆ (เดิม window._gridLight เขียนแค่ 1 path ใน renderRoundbar → เพื่อนที่รอเทิร์น/สลบ/หลัง submit เห็นม่านแสง stale/หาย)
+  const _lightLvl=(function(){ try{ var _cb=(typeof curRound!=='undefined'&&curRound&&curRound.meta&&curRound.meta.combat)||{}; return (_cb.light==='dim'||_cb.light==='dark')?_cb.light:null; }catch(e){ return window._gridLight; } })();
+  if(_lightLvl==='dim'||_lightLvl==='dark'){
+    const _dkL=_lightLvl==='dark', _lwL=(ISO?IVW:VW), _lhL=(ISO?IVH:VH);
     svg+=`<rect x="0" y="0" width="${_lwL}" height="${_lhL}" fill="${_dkL?'#05070f':'#0a1020'}" opacity="${_dkL?'0.5':'0.26'}" style="pointer-events:none"/>`;
     svg+=`<text x="${_lwL-8}" y="16" text-anchor="end" font-family="'VT323',monospace" font-size="13" fill="${_dkL?'#8fa3c8':'#c8d4ea'}" opacity="0.85" style="pointer-events:none">${_dkL?'🌑 มืด':'🌗 สลัว'}</text>`;
   }
@@ -6942,8 +6950,8 @@ window.cc = (function(){
     var diceList = collectDice();
     if(diceList.length === 0){
       rollResults = [];
-      await sendToBackend([]);
-      phase = 'resolved';
+      var _okS = await sendToBackend([]);
+      phase = (_okS===false) ? 'building' : 'resolved';   // v538 M18: ส่งล้ม → คงเมนู (เดิมโชว์ "SENT TO DM" แล้ว DONE ทิ้งเทิร์น)
       renderAll();
       return;
     }
@@ -6957,8 +6965,8 @@ window.cc = (function(){
       var parts = parseDice(q.dice);
       return { slot:q.slot, label:q.label, dice:q.dice, parts: parts };
     });
-    await sendToBackend(rollResults);
-    phase = 'resolved';
+    var _okR = await sendToBackend(rollResults);
+    phase = (_okR===false) ? 'building' : 'resolved';   // v538 M18: ส่งล้ม → คงเมนู
     renderAll();
   }
 
@@ -6985,17 +6993,17 @@ window.cc = (function(){
       };
       if (typeof supa==='undefined' || typeof campaign==='undefined' || !campaign) {
         if (window.console) console.warn('[cc] supa/campaign missing — preview only', structured, narrativeTagged);
-        return;
+        return false;
       }
       if (typeof curRound==='undefined' || !curRound) {
         if (typeof toast==='function') toast('ยังไม่มีรอบที่เปิดอยู่', true);
-        return;
+        return false;
       }
       var cid = (typeof myChar!=='undefined' && myChar) ? myChar.id : null;
       var uid = (typeof me!=='undefined' && me) ? me.id : null;
       if (!cid || !uid) {
         if (typeof toast==='function') toast('ยังไม่มีตัวละคร', true);
-        return;
+        return false;
       }
       // Insert action row. Best-effort: include structured_turn JSON if column exists; fall back without it.
       var rowFull = {
@@ -7012,7 +7020,7 @@ window.cc = (function(){
         var ins2 = await supa.from('actions').insert(rowMin);
         if (ins2.error) {
           if (typeof toast==='function') toast(ins2.error.message || 'Submit failed', true);
-          return;
+          return false;
         }
       }
       if (typeof toast==='function') toast('Action submitted ✓');
@@ -7023,9 +7031,11 @@ window.cc = (function(){
       try{
         if (typeof resolveRound==='function') { window._afterSubmit=true; resolveRound(false); }
       }catch(e){}
+      return true;   // v538 M18: ส่งสำเร็จ → caller ค่อยตั้ง phase='resolved'
     }catch(err){
       if (window.console) console.error('[cc] submit failed', err);
       if (typeof toast==='function') toast('Submit failed: '+((err && err.message) || err), true);
+      return false;
     } finally { submitting=false; }
   }
 
