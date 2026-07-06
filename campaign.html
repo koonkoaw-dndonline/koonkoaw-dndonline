@@ -499,6 +499,11 @@ body.ui-min #worldClock{display:none!important;}
 .sk-fold>summary::-webkit-details-marker{display:none;}
 .sk-fold>summary .sk-head{border-bottom:0;display:flex;align-items:center;gap:8px;margin:0;}
 .sk-fold[open]>summary .sk-head{border-bottom:2px solid #fff;}
+/* v531d: การ์ด FEATS พับได้ + ฟอนต์เล็กลง อ่านชิดซ้าย (feedback Koon 07-05 — รายการ feat ยาว/ตัวใหญ่เกิน) */
+.sk-feats{font-size:12.5px;line-height:1.55;}
+.sk-feats .muted{text-align:left;}
+.sk-feats label b{font-size:13px;}
+.sk-feats select{font-size:12px;}
 .sk-fold>summary .sk-arw{margin-left:auto;color:#9a9a9a;font-size:12px;transition:transform .2s;}
 .sk-fold[open]>summary .sk-arw{transform:rotate(90deg);}
 .sk-cnt{color:#9a9a9a;font-weight:700;font-size:12px;}
@@ -3934,14 +3939,17 @@ function renderFeatCard(p){
   const lvl=+(myChar&&myChar.level)||1; const cls=String(myChar&&myChar.class||'');
   const _rcV=String((mySheet||{}).race||'').trim().toLowerCase(); const _isHumanV=(_rcV==='human'||_rcV==='มนุษย์');   // v466 Versatile: Human ได้ Origin feat +1 ช่อง (ตอนสร้างตัว)
   const asiSlots=_asiSlots(cls, lvl); const originBonus=_isHumanV?1:0; const slots=asiSlots+originBonus;
-  const card=document.createElement('div'); card.className='item'; card.style.cssText='margin-bottom:10px';
-  const head='<div class="sk-head">คุณสมบัติพิเศษ <span class="en">· FEATS</span></div>';
+  const featsArr=Array.isArray((mySheet||{}).feats)?(mySheet.feats):[];
+  const used=featsArr.length;
+  /* v531d (feedback Koon 07-05): การ์ด FEATS พับได้ (มิเรอร์หมวดสกิล v182 — จำสถานะใน session · ดีฟอลต์ย่อ) + ฟอนต์เล็กลงผ่าน .sk-feats — รายการ feat ยาวกินพื้นที่ทั้งคอลัมน์/ตัวใหญ่เกิน */
+  const card=document.createElement('details'); card.className='item sk-cardgrp sk-fold sk-feats'; card.style.cssText='margin-bottom:10px';
+  const _memF=sessionStorage.getItem('skfold_feats'); card.open = _memF!=null ? _memF==='1' : false;
+  card.addEventListener('toggle',function(){ try{ sessionStorage.setItem('skfold_feats', card.open?'1':'0'); }catch(e){} });
+  const head='<summary><div class="sk-head">คุณสมบัติพิเศษ<span class="en">· FEATS</span><span class="sk-cnt">'+(slots<=0?'(🔒)':'('+used+'/'+slots+')')+'</span><span class="sk-arw">▸</span></div></summary>';
   if(slots<=0){
     card.innerHTML=head+'<div class="muted" style="font-size:.85em">🔒 ยังไม่ได้ feat — ปลดล็อกครั้งแรกที่เลเวล 4 (Ability Score Improvement)'+(/fighter|นักรบ|นักสู้/i.test(cls)?' · Fighter เพิ่ม L6':'')+(/rogue|โจร/i.test(cls)?' · Rogue เพิ่ม L10':'')+'</div>';
     p.appendChild(card); return;
   }
-  const featsArr=Array.isArray((mySheet||{}).feats)?(mySheet.feats):[];
-  const used=featsArr.length;
   const curIds=featsArr.map(_featMatch).filter(Boolean);
   const _isOriginFeat=function(id){ return ORIGIN_FEAT_IDS.indexOf(id)>=0; };   // v466 Versatile
   const generalPicked=curIds.filter(function(id){ return !_isOriginFeat(id); }).length;   // feat ทั่วไปกินเฉพาะช่อง ASI (Origin feat ใช้ช่อง Versatile/ASI ก็ได้)
