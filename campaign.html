@@ -283,6 +283,16 @@ a.link:hover{background:var(--white);color:var(--black);}
 #topbar{flex-shrink:0;}
 body.ui-min #topbar{display:none!important;}
 body.ui-min #worldClock{display:none!important;}
+/* มือถือ: แถบ clock ใน topbar (ใต้แท็บ) — โผล่พร้อมแท็บเมื่อกดลูกศรขยายเมนู · เดสก์ทอปใช้ #worldClock ลอยซ้ายแทน */
+.mobileclock{display:none;}
+@media (max-width:1023px){
+  .mobileclock:not(.hidden){display:flex;flex-wrap:wrap;gap:3px 10px;align-items:center;padding:6px 10px;background:#000;border-top:2px solid #2a2a2a;}
+  .mobileclock .mc{display:flex;align-items:center;gap:4px;white-space:nowrap;}
+  .mobileclock .mcico{font-size:14px;line-height:1;}
+  .mobileclock .mc svg{width:13px;height:13px;display:block;image-rendering:pixelated;}
+  .mobileclock .mcv{font-family:'VT323',monospace;font-size:15px;color:#fff;letter-spacing:.5px;}
+  .mobileclock .mcloc{width:100%;font-family:'VT323',monospace;font-size:14px;color:#6cc0ff;white-space:normal;line-height:1.3;}
+}
 
 /* ---------- responsive (มือถือ ~380px) ---------- */
 .hd .logo svg{width:18px;height:18px;display:block;}
@@ -948,6 +958,7 @@ body.in-battle .bs-cs-btn{display:block;}
   <button class="tab" data-tab="files" onclick="switchTab('files')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="7" y="5" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/><rect x="2" y="7" width="1" height="1"/><rect x="5" y="7" width="1" height="1"/></svg></span><span class="tlab">Files</span></button>
   <button class="tab" data-tab="chron" onclick="switchTab('chron')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="1" height="1"/><rect x="1" y="0" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="6" y="0" width="1" height="1"/><rect x="7" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="7" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="7" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="7" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="7" y="5" width="1" height="1"/></svg></span><span class="tlab">Chronicle</span></button>
 </div>
+<div id="mobileClock" class="mobileclock hidden"></div>
 </div>
 
 <!-- AUTH -->
@@ -1793,6 +1804,23 @@ function renderClock(){
     h+=`<div class="whbox"><span class="whlabel">LOCATION</span><span class="wh"><span class="whico">📍</span><b>${locParts.map(E).join(' · ')}</b></span></div>`;
   }
   el.innerHTML=h; el.classList.remove('hidden');
+  // มือถือ: แถบ clock ใน topbar (compact แถวเดียว) — แสดงทุกแท็บ เห็นพร้อมแท็บเมื่อกดลูกศรขยายเมนู
+  const mc=$('mobileClock');
+  if(mc){
+    if(!hasClock && !locParts.length){ mc.classList.add('hidden'); }
+    else {
+      let m='';
+      if(hasClock){
+        if(c.date) m+=`<span class="mc"><span class="mcico">📅</span><span class="mcv">${E(c.date)}/${E(c.month||'-')}/${E(c.year||'-')}</span></span>`;
+        if(c.time) m+=`<span class="mc"><span class="mcico">${timeIcon(c.time)}</span><span class="mcv">${E(c.time)}</span></span>`;
+        if(c.season) m+=`<span class="mc"><span class="mcico">${seasonIcon(c.season)}</span><span class="mcv">${E(c.season)}</span></span>`;
+        if(c.weather) m+=`<span class="mc"><span class="mcico">${weatherIcon(c.weather)}</span><span class="mcv">${E(c.weather)}</span></span>`;
+        if(c.moon) m+=`<span class="mc"><span class="mcico">${moonIcon(c.moon)}</span><span class="mcv">${E(c.moon)}</span></span>`;
+      }
+      if(locParts.length) m+=`<span class="mcloc">📍 ${locParts.map(E).join(' · ')}</span>`;
+      mc.innerHTML=m; mc.classList.remove('hidden');
+    }
+  }
 }
 
 // ───────── character ─────────
@@ -4434,39 +4462,100 @@ async function restSkills(kind){
   renderSkills();
 }
 
-// ───────── render: NPC (ตาราง npcs + accordion) ─────────
+// ───────── render: NPC — v542 revamp (spec NPC_MAP_DUNGEON_REVAMP_PLAN §1.2): search + ชิป filter + การ์ดแถวเดียว + rel bar เสมอ + ⚧สมอเพศ/วัย + section ☠ ─────────
+let _npcQ='', _npcF='here';   // สถานะค้นหา/filter คงอยู่ข้าม re-render
 async function renderNPCs(){
   const p=$('panel-npc'); p.innerHTML='';
   let rows=null;
-  try{ const r=await supa.from('npcs').select('*').eq('campaign_id',campaign.id).order('city'); if(!r.error) rows=(r.data||[]).filter(n=>n.discovered!==false); }catch(e){}
+  try{ const r=await supa.from('npcs').select('*').eq('campaign_id',campaign.id).order('updated_at',{ascending:false}); if(!r.error) rows=(r.data||[]).filter(n=>n.discovered!==false&&n.archived!==true); }catch(e){}   /* v546: +archived (0084) */
   if(rows===null){ p.innerHTML='<div class="muted">NPC system not enabled yet<br>Run migration.sql</div>'; return; }
   if(!rows.length){ p.innerHTML='<div class="muted">No NPCs discovered yet</div>'; return; }
   const isHost=campaign.host_id===me.id;
   // ความสัมพันธ์ส่วนตัวของผู้เล่นคนนี้ (RLS คืนเฉพาะของตัวละครตัวเอง — เพื่อนไม่เห็นของเรา)
   let myRels=[]; try{ const rr=await supa.from('relationships').select('npc_name,score,tier,romance,note').eq('campaign_id',campaign.id); if(!rr.error) myRels=rr.data||[]; }catch(e){}
-  const relOf=(nm)=>{ const k=String(nm||'').toLowerCase().trim(); return myRels.find(r=>String(r.npc_name||'').toLowerCase().trim()===k); };
-  const relColor=(sc)=>sc>=70?'#ff7eb6':sc>=20?'#9fe0a0':sc>=-19?'#9a9a9a':sc>=-44?'#e0c45f':'#e06a6a';
-  const relBadge=(r)=>{ if(!r) return ''; const c=relColor(r.score); const heart=r.romance?'❤ ':''; return ` <span class="chip" style="background:#1a1a22;color:${c};border-color:${c}" title="คะแนน ${r.score>=0?'+':''}${r.score} (เฉพาะคุณเห็น)">${heart}${escapeHtml(r.tier)}</span>`; };
-  const relDetail=(r)=>{ if(!r) return ''; const c=relColor(r.score); const pct=Math.round((Math.max(-100,Math.min(100,r.score))+100)/2); return `<div class="kv2"><b>ความสัมพันธ์<br><span class="muted" style="font-size:11px">(ส่วนตัว เฉพาะคุณ)</span></b><span>${r.romance?'❤ ':''}${escapeHtml(r.tier)} · ${r.score>=0?'+':''}${r.score}<div style="height:6px;border-radius:3px;background:#222;margin-top:4px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${c}"></div></div>${r.note?'<div class="muted" style="font-size:11px;margin-top:3px">'+escapeHtml(r.note)+'</div>':''}</span></div>`; };
-  const byCity={}; rows.forEach(n=>{ const c=n.city||'Unknown'; (byCity[c]=byCity[c]||[]).push(n); });
-  Object.keys(byCity).forEach((city,idx)=>{
-    const list=byCity[city];
-    let body='';
-    const _relRank=(r)=>{const x=String(r||'').toLowerCase(); return (x.includes('ally')||x.includes('friend')||x.includes('king'))?0 : (x.includes('enemy')||x.includes('hostile')||x.includes('rival'))?2 : 1;};
-    list.sort((a,b)=>_relRank(a.relationship)-_relRank(b.relationship) || String(a.name||'').localeCompare(String(b.name||'')));   // v459: จัดกลุ่มในเมือง — ฝ่ายเรา→เป็นกลาง→ศัตรู แล้วเรียงชื่อ (ลดรก)
-    let _lastRank=-1;
-    list.forEach(n=>{
-      const _rk=_relRank(n.relationship); if(_rk!==_lastRank){ body+=`<div class="sub" style="margin:6px 0 2px;font-size:11px;opacity:.7">${_rk===0?'— ฝ่ายเรา —':_rk===2?'— ศัตรู —':'— เป็นกลาง —'}</div>`; _lastRank=_rk; }
-      const del = isHost? `<div class="kv2"><b></b><span><button class="btn ghost sm" onclick="event.stopPropagation();deleteNPC('${n.id}')">✕ ลบ (ถ้าซ้ำ/ผิด)</button></span></div>` : '';
-      const mr=relOf(n.name);
-      const _nt=Array.isArray(n.notes)?n.notes:(n.notes?[String(n.notes)]:[]);   // v258b: npcs.notes = jsonb array (migration 0060) — รองรับ text เก่าด้วย · เดิม escapeHtml(array) โชว์ "a,b" ติดกัน
-      const _ntHtml=_nt.length?_nt.map(x=>escapeHtml(String(x))).join('<br>'):'-';
-      body+=`<div class="npc"><button class="npc-head" onclick="tick();this.parentElement.classList.toggle('open')">${escapeHtml(n.name)}${relBadge(mr)}<span class="rel">${escapeHtml(n.relationship||'-')}</span></button><div class="npc-detail">${relDetail(mr)}<div class="kv2"><b>Role</b><span>${escapeHtml(n.role||'-')}</span></div><div class="kv2"><b>Notes</b><span>${_ntHtml}</span></div>${del}</div></div>`;
-    });
-    const acc=document.createElement('div'); acc.className='acc'+(idx===0?' open':'');
-    acc.innerHTML=`<button class="acc-head" onclick="tick();this.parentElement.classList.toggle('open')">${escapeHtml(city)}<span class="cnt">${list.length}</span></button><div class="acc-body">${body}</div>`;
-    p.appendChild(acc);
-  });
+  const stN=worldState||{}; const setN=stN.settings||{};
+  const descMap=(setN.npc_desc&&typeof setN.npc_desc==='object')?setN.npc_desc:{};    // v537 A5: สมอเพศ/วัย {name_lc:{name,sex,age}} — first-set wins ฝั่ง server
+  const deadMap=(setN.dead_npcs&&typeof setN.dead_npcs==='object')?setN.dead_npcs:{}; // v537 B2: ทะเบียน NPC ตาย {name_lc:{name,at}}
+  const curTown=String((stN.location||{}).settlement||'').trim();
+  const lcN=s=>String(s||'').toLowerCase().trim();
+  const relOf=nm=>{ const k=lcN(nm); return myRels.find(r=>lcN(r.npc_name)===k); };
+  const isDead=n=>String(n.status||'')==='dead'||!!deadMap[lcN(n.name)];   /* v546: คอลัมน์ status ก่อน fallback settings.dead_npcs */
+  const descOf=n=>{ const dm=descMap[lcN(n.name)]||{}; const sx=n.sex||dm.sex, ag=n.age||dm.age; return (sx||ag)?{sex:sx,age:ag}:null; };   /* v546: คอลัมน์ sex/age ก่อน fallback settings.npc_desc */
+  const relColor=sc=>sc>=70?'#ff7eb6':sc>=20?'#9fe0a0':sc>=-19?'#9a9a9a':sc>=-44?'#e0c45f':'#e06a6a';
+  const cityLbl=c=>{const s=String(c||'').trim(); return (!s||s.toLowerCase()==='unknown')?'ไม่ระบุ':s;};   // แถวเก่า city="Unknown" ยังมีใน DB (v539 เลิกเขียนใหม่ ไม่ backfill)
+  const live=rows.filter(n=>!isDead(n)), deadRows=rows.filter(isDead);
+  const hereRows=curTown?live.filter(n=>lcN(n.city)===lcN(curTown)):[];
+  const favRows=live.filter(n=>relOf(n.name));
+  if(_npcF==='here'&&(!curTown||!hereRows.length)) _npcF='all';   // ไม่รู้เมือง/เมืองนี้ว่าง = เริ่มที่ทั้งหมด
+  // ── แถบบน: search + ชิป filter ──
+  const chipCss=on=>'padding:5px 10px;font-size:12px;border-radius:14px;'+(on?'background:#2a3040;border-color:#5B8DEF;color:#fff;':'');
+  const bar=document.createElement('div'); bar.style.cssText='display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px';
+  const inp=document.createElement('input'); inp.placeholder='🔍 ค้นชื่อ / role / เมือง'; inp.value=_npcQ;
+  inp.style.cssText='flex:1;min-width:120px;background:#151923;border:1px solid #333;border-radius:6px;color:#eee;padding:6px 8px;font-size:13px;font-family:inherit';
+  bar.appendChild(inp);
+  const chips={};
+  const mkChip=(key,label)=>{ const b=document.createElement('button'); b.type='button'; b.className='btn ghost sm'; b.textContent=label;
+    b.style.cssText=chipCss(_npcF===key);
+    b.onclick=()=>{ tick(); _npcF=key; Object.keys(chips).forEach(k2=>{chips[k2].style.cssText=chipCss(k2===key);}); draw(); };
+    chips[key]=b; bar.appendChild(b); };
+  if(curTown) mkChip('here','📍 '+curTown.slice(0,14)+' ('+hereRows.length+')');
+  mkChip('all','ทั้งหมด ('+live.length+')');
+  mkChip('fav','❤ ('+favRows.length+')');
+  if(deadRows.length) mkChip('dead','☠ ('+deadRows.length+')');
+  p.appendChild(bar);
+  const listEl=document.createElement('div'); p.appendChild(listEl);
+  inp.oninput=function(){ _npcQ=this.value; draw(); };
+  const matchQ=n=>{ const q=lcN(_npcQ); if(!q) return true;
+    return lcN(n.name).includes(q)||lcN(n.role).includes(q)||lcN(n.city).includes(q)||lcN(Array.isArray(n.notes)?n.notes.join(' '):n.notes).includes(q); };
+  // ── การ์ด NPC: แถวเดียว (ชื่อ·⚧เพศ/วัย·role + หลอดสัมพันธ์เสมอ — ไม่มีแถว = "ยังไม่สนิท" ที่ 0 กลางหลอด) ──
+  const card=n=>{
+    const r=relOf(n.name); const d=descOf(n); const deadN=isDead(n);
+    const sc=r?Math.max(-100,Math.min(100,Math.round(+r.score||0))):0;
+    const pct=Math.round((sc+100)/2); const c=r?relColor(sc):'#565b66';
+    const sa=d?[d.sex,d.age].filter(Boolean).join(' · '):'';
+    const relLbl=r?((r.romance?'❤ ':'')+String(r.tier||((sc>=0?'+':'')+sc))):'ยังไม่สนิท';
+    const nt=Array.isArray(n.notes)?n.notes:(n.notes?[String(n.notes)]:[]);   // v258b: notes = jsonb array (รองรับ text เก่า)
+    const nt3=nt.slice(-3);
+    const kv=(k2,v2)=>v2?`<div class="kv2"><b>${k2}</b><span>${escapeHtml(String(v2))}</span></div>`:'';
+    const relRow=r?`<div class="kv2"><b>ความสัมพันธ์<br><span class="muted" style="font-size:11px">(ส่วนตัว เฉพาะคุณ)</span></b><span>${r.romance?'❤ ':''}${escapeHtml(r.tier||'')} · ${sc>=0?'+':''}${sc}<div style="height:6px;border-radius:3px;background:#222;margin-top:4px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${c}"></div></div>${r.note?'<div class="muted" style="font-size:11px;margin-top:3px">'+escapeHtml(r.note)+'</div>':''}</span></div>`
+                  :`<div class="kv2"><b>ความสัมพันธ์</b><span class="muted">ยังไม่สนิท — ขยับจากการพูดคุย/ช่วยเหลือในเนื้อเรื่อง</span></div>`;
+    const notesHtml=nt.length?(nt3.map(x=>escapeHtml(String(x))).join('<br>')+(nt.length>3?`<details style="margin-top:4px"><summary style="cursor:pointer;font-size:11px;color:#8a8f98">ดูทั้งหมด (${nt.length})</summary><div style="margin-top:4px">${nt.map(x=>escapeHtml(String(x))).join('<br>')}</div></details>`:'')):'-';
+    const del=isHost?`<div class="kv2"><b></b><span><button class="btn ghost sm" onclick="event.stopPropagation();deleteNPC('${n.id}')">✕ ลบ (ถ้าซ้ำ/ผิด)</button></span></div>`:'';
+    return `<div class="npc"><button class="npc-head" onclick="tick();this.parentElement.classList.toggle('open')">`
+      +`<span${deadN?' style="text-decoration:line-through;opacity:.65"':''}>${escapeHtml(n.name)}</span>`
+      +(deadN?' <span style="font-size:11px">☠</span>':'')
+      +(sa?` <span class="muted" style="font-size:11px;font-weight:400">⚧ ${escapeHtml(sa)}</span>`:'')
+      +(n.role?` <span class="muted" style="font-size:11px;font-weight:400">· ${escapeHtml(String(n.role).slice(0,24))}</span>`:'')
+      +`<span class="rel" style="border:0;padding:0;display:flex;align-items:center;flex-shrink:0"><span style="display:inline-block;width:44px;height:6px;border-radius:3px;background:#222;margin-right:5px;overflow:hidden"><span style="display:block;height:100%;width:${pct}%;background:${c}"></span></span><span style="font-size:10.5px;color:${r?c:'#8a8f98'};letter-spacing:0">${escapeHtml(relLbl)}</span></span></button>`
+      +`<div class="npc-detail">${relRow}${kv('Role',n.role)}${kv('⚧ เพศ/วัย',sa)}${kv('เมือง',cityLbl(n.city))}${kv('เสียงพูด',n.voice)}${kv('ลักษณะเด่น',n.trait)}${kv('ต้องการ',n.want)}${kv('ปมผูกพัน',n.bond_pc)}<div class="kv2"><b>Notes</b><span>${notesHtml}</span></div>${del}</div></div>`;
+  };
+  function draw(){
+    listEl.innerHTML='';
+    let pool = _npcF==='dead'?deadRows : _npcF==='fav'?favRows : _npcF==='here'?hereRows : live;
+    pool=pool.filter(matchQ);
+    if(_npcF==='fav') pool=pool.slice().sort((a,b)=>(+((relOf(b.name)||{}).score)||0)-(+((relOf(a.name)||{}).score)||0));
+    if(!pool.length){ listEl.innerHTML='<div class="muted" style="padding:8px 2px">ไม่พบ NPC ตามเงื่อนไข</div>'; }
+    else if(_npcF==='all'){
+      // ทั้งหมด = accordion ตามเมือง (เมืองปัจจุบันขึ้นก่อน+เปิด · "ไม่ระบุ" ท้ายสุด)
+      const byCity={}; pool.forEach(n=>{const c2=cityLbl(n.city);(byCity[c2]=byCity[c2]||[]).push(n);});
+      const keys=Object.keys(byCity).sort((a,b)=>{ if(a==='ไม่ระบุ')return 1; if(b==='ไม่ระบุ')return -1;
+        if(curTown){ if(lcN(a)===lcN(curTown))return -1; if(lcN(b)===lcN(curTown))return 1; }
+        return a.localeCompare(b); });
+      keys.forEach((city,idx)=>{ const acc=document.createElement('div'); acc.className='acc'+(idx===0?' open':'');
+        acc.innerHTML=`<button class="acc-head" onclick="tick();this.parentElement.classList.toggle('open')">${escapeHtml(city)}<span class="cnt">${byCity[city].length}</span></button><div class="acc-body">${byCity[city].map(card).join('')}</div>`;
+        listEl.appendChild(acc); });
+    } else {
+      const holder=document.createElement('div'); holder.innerHTML=pool.map(card).join(''); listEl.appendChild(holder);
+    }
+    // section ☠ พับปิดท้ายรายการ (เฉพาะ view คนเป็น)
+    if(_npcF!=='dead'&&deadRows.length){
+      const dl=deadRows.filter(matchQ);
+      if(dl.length){ const acc=document.createElement('div'); acc.className='acc'; acc.style.marginTop='8px';
+        acc.innerHTML=`<button class="acc-head" onclick="tick();this.parentElement.classList.toggle('open')">☠ เสียชีวิตแล้ว<span class="cnt">${dl.length}</span></button><div class="acc-body">${dl.map(card).join('')}</div>`;
+        listEl.appendChild(acc); }
+    }
+  }
+  draw();
 }
 async function deleteNPC(id){
   if(!confirm('ลบ NPC นี้?')) return;
@@ -5737,20 +5826,18 @@ async function renderMap(){
       }
     }
   }catch(e){}
-  // ── v200: WORLD MAP — SVG อัตโนมัติจากเมืองที่ค้นพบจริง + เส้นทางที่เคยเดินทาง (settings.travel_edges) — ไม่ต้องอัปรูป ──
+  // ── v542 WORLD MAP: route diagram ตัวอักษร (แทน v200 จุดวงกลมตำแหน่ง hash) — spec NPC_MAP_DUNGEON_REVAMP_PLAN §2.1 ──
+  //   คอลัมน์ = จำนวนการเดินทางจากเมืองปัจจุบัน (BFS บน settings.travel_edges) · node = กล่องชื่อ สีตามชนิด (KCOL เดิม)
+  //   site ย่อย = บรรทัดในกล่อง (top-3 ตาม visits) · ดันเจี้ยนห้อยใต้เมืองแม่ · ไม่มี edge = คอลัมน์ท้ายจาง · >12 เมือง = คอลัมน์ 3+ ยุบเป็นแถวชื่อ
   try{
     const set=st.settings||{};
-    const plW=await supa.from('places').select('name,settlement').eq('campaign_id',campaign.id).limit(200);
+    const plW=await supa.from('places').select('name,settlement,visits').eq('campaign_id',campaign.id).limit(200);
     const plRows=plW.data||[];
     const towns={}; plRows.forEach(x=>{const k=String(x.settlement||'').trim(); if(k) towns[k]=(towns[k]||0)+1;});
-    // ── v214: สถานที่พิเศษ (ถ้ำ/หอคอย/ป้อม/วิหาร/ซาก) ขึ้นเป็นโหนดของตัวเอง + เส้นเชื่อมเข้าเมืองแม่ ──
     const SITE_RE=/ถ้ำ|cave|grotto|หอคอย|tower|spire|ป้อม|ค่าย|fort|keep|citadel|วิหาร|ศาลเจ้า|temple|shrine|ซาก|ruin|สุสาน|tomb|crypt|ดันเจ|dungeon|เหมือง|mine/i;
-    const sites={};   // name → เมืองแม่ ('' = ไม่รู้)
+    const sites={};   // สถานที่พิเศษ/ดันเจี้ยน name → เมืองแม่ ('' = ไม่รู้)
     plRows.forEach(x=>{const nm=String(x.name||'').trim(); if(nm&&SITE_RE.test(nm)&&!towns[nm]&&!(nm in sites)) sites[nm]=String(x.settlement||'').trim();});
     (ds||[]).forEach(d2=>{const nm=String(d2.name||'').trim(); if(nm&&!towns[nm]&&!(nm in sites)){const pr=plRows.find(x=>String(x.name||'').trim().toLowerCase()===nm.toLowerCase()); sites[nm]=pr?String(pr.settlement||'').trim():'';}});
-    const siteNames=Object.keys(sites).slice(0,14);
-    const names=Object.keys(towns).concat(siteNames);
-    // ประเภท → สี (กติกา: ชื่อบอกชนิดชนะ · เมืองไม่บอกชนิด = ใหญ่เมื่อรู้จัก ≥4 แห่งข้างใน)
     const kindOf=n=>{const s=String(n).toLowerCase();
       if(/ถ้ำ|cave|grotto/.test(s))return 'cave';
       if(/หอคอย|tower|spire/.test(s))return 'tower';
@@ -5762,31 +5849,88 @@ async function renderMap(){
       if(/มหานคร|นคร|เมืองหลวง|city|capital/.test(s))return 'town_l';
       return (towns[n]||0)>=4?'town_l':'town_s';};
     const KCOL={town_l:'#5B8DEF',town_s:'#9aa0a8',cave:'#9B6BD3',tower:'#E0A14C',fort:'#C75B5B',temple:'#6BC1B8',ruin:'#A0784A'};
-    if(names.length&&!inDunMap){   // v201: อยู่ในดันเจี้ยน = โชว์ DUNGEON MAP แทน
-      const W=640,H=300,PAD=50;
-      const hash=s=>{let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return (h>>>0);};
-      const pos={};
-      names.forEach(n=>{const h=hash(n); pos[n]={x:PAD+(h%1000)/1000*(W-PAD*2), y:PAD+((Math.floor(h/1000)%1000)/1000)*(H-PAD*2)};});
-      for(let it=0;it<30;it++){ let moved=false;   // ดันโหนดที่ทับกันออกจากกัน (deterministic — ตำแหน่งเดิมทุกครั้ง)
-        for(let i=0;i<names.length;i++)for(let j=i+1;j<names.length;j++){const A=pos[names[i]],B=pos[names[j]];const dx=B.x-A.x,dy=B.y-A.y;const d=Math.hypot(dx,dy)||1;
-          if(d<78){const push=(78-d)/2;A.x-=dx/d*push;A.y-=dy/d*push;B.x+=dx/d*push;B.y+=dy/d*push;moved=true;}}
-        if(!moved)break; }
-      names.forEach(n=>{const q=pos[n];q.x=Math.max(PAD,Math.min(W-PAD,q.x));q.y=Math.max(PAD,Math.min(H-PAD,q.y));});
-      const edges=Array.isArray(set.travel_edges)?set.travel_edges:[];
-      const curTown=String(loc.settlement||'').trim(); const curSite=String(loc.site||'').trim();
+    const KLBL={town_l:'เมืองใหญ่',town_s:'หมู่บ้าน/เมืองเล็ก',cave:'ถ้ำ',tower:'หอคอย',fort:'ป้อม/ค่าย',temple:'วิหาร',ruin:'ซาก/ดันเจี้ยน'};
+    // node = ทุก settlement + สถานที่พิเศษที่ 'ไม่มีเมืองแม่' (มีเมืองแม่ = บรรทัด ⛏ ในกล่องเมืองนั้น)
+    const nodeNames=Object.keys(towns).concat(Object.keys(sites).filter(n=>!(sites[n]&&towns[sites[n]])).slice(0,10));
+    if(nodeNames.length&&!inDunMap){   // v201: อยู่ในดันเจี้ยน = โชว์ DUNGEON MAP แทน
+      const lcOf={}; nodeNames.forEach(n=>{lcOf[n.toLowerCase()]=n;});
+      // เส้นทาง: dedup ด้วย lowercase-pair (v539 M21 กัน edge ใหม่ case ซ้ำแล้ว แต่แถวเก่าใน DB อาจค้าง)
+      const adj={},edgePairs=[],seenE={};
+      (Array.isArray(set.travel_edges)?set.travel_edges:[]).forEach(e=>{
+        /* v546 travel_edges v2: รับทั้ง "A⇄B" (v1) และ {a,b,days,last} (v2 — days = วันเดินทางจริง) */
+        let ea='',eb='',ed=null;
+        if(typeof e==='string'){ const pr=e.split('⇄').map(s2=>String(s2).trim()); if(pr.length!==2)return; ea=pr[0]; eb=pr[1]; }
+        else if(e&&typeof e==='object'){ ea=String(e.a||'').trim(); eb=String(e.b||'').trim(); const d2v=+e.days; if(Number.isFinite(d2v)&&d2v>0) ed=Math.floor(d2v); }
+        if(!ea||!eb)return;
+        const a=lcOf[ea.toLowerCase()],b=lcOf[eb.toLowerCase()]; if(!a||!b||a===b)return;
+        const key=[ea.toLowerCase(),eb.toLowerCase()].sort().join('⇄'); if(seenE[key])return; seenE[key]=1;
+        (adj[a]=adj[a]||[]).push(b);(adj[b]=adj[b]||[]).push(a); edgePairs.push([a,b,ed]);
+      });
+      // BFS hop จากเมืองปัจจุบัน (มิเรอร์ depth-column ของ DUNGEON MAP)
+      const curTown=String(loc.settlement||'').trim(),curSite=String(loc.site||'').trim();
+      const cur=lcOf[curTown.toLowerCase()]||lcOf[curSite.toLowerCase()]||null;
+      const hop={};
+      if(cur){hop[cur]=0; const bq=[cur]; while(bq.length){const n=bq.shift();(adj[n]||[]).forEach(m=>{if(!(m in hop)){hop[m]=hop[n]+1;bq.push(m);}});}}
+      const FAR=99;   // ไม่มี edge/ยังไปไม่ถึงจากเมืองปัจจุบัน
+      const colOf=n=>(n in hop)?Math.min(hop[n],3):FAR;
+      const colNodes={}; nodeNames.forEach(n=>{const c2=colOf(n);(colNodes[c2]=colNodes[c2]||[]).push(n);});
+      const colKeys=Object.keys(colNodes).map(Number).sort((a,b)=>a-b);
+      const collapse=nodeNames.length>12;   // spec: >12 เมือง → คอลัมน์ 3+ ยุบเป็นแถวชื่อล้วน
+      const isCollapsed=c2=>collapse&&c2>=3;
+      const hdrOf=c2=>c2===0?'ปัจจุบัน':c2===FAR?(cur?'ยังไม่เชื่อมเส้นทาง':'เมืองที่รู้จัก'):c2===3?'3+ การเดินทาง':(c2+' การเดินทาง');
+      // บรรทัดในกล่อง: (ชนิด) · site เด่น top-3 ตาม visits · ⛏ ดันเจี้ยน/ที่พิเศษใต้เมือง
+      const boxLines=n=>{
+        const out=[{t:'('+(KLBL[kindOf(n)]||'')+')',c:'#8a8f98'}];
+        if(towns[n]){
+          const subs=plRows.filter(x=>String(x.settlement||'').trim()===n&&String(x.name||'').trim()&&String(x.name||'').trim().toLowerCase()!==n.toLowerCase()&&!(String(x.name||'').trim() in sites));
+          subs.sort((a,b)=>(+b.visits||0)-(+a.visits||0));
+          subs.slice(0,3).forEach(x=>{const v=+x.visits||0; out.push({t:'· '+String(x.name).trim().slice(0,17)+(v>1?' ×'+v:''),c:'#cfd3da'});});
+          if(subs.length>3) out.push({t:'+'+(subs.length-3)+' แห่ง',c:'#8a8f98'});
+          const duns=Object.keys(sites).filter(x=>sites[x]===n);
+          duns.slice(0,2).forEach(x=>out.push({t:'⛏ '+String(x).slice(0,17),c:'#A0784A'}));
+          if(duns.length>2) out.push({t:'⛏ +'+(duns.length-2)+' แห่ง',c:'#A0784A'});
+        }
+        return out;
+      };
+      // layout: กล่องกว้าง 150 เรียงลงในคอลัมน์ · แถวยุบ = บรรทัดละ 17px
+      const BW=150,GAPX=42,LH=12;
+      const pos={}; let W=24,H=64;
+      colKeys.forEach((c2,ci)=>{
+        const x=16+ci*(BW+GAPX); let y=34;
+        colNodes[c2].sort((a,b)=>a.localeCompare(b));
+        colNodes[c2].forEach(n=>{
+          if(isCollapsed(c2)){ pos[n]={x:x,y:y,w:BW,h:14,flat:true}; y+=17; }
+          else { const nl=boxLines(n).length; const h2=24+nl*LH+6; pos[n]={x:x,y:y,w:BW,h:h2}; y+=h2+12; }
+        });
+        W=Math.max(W,x+BW+24); H=Math.max(H,y+10);
+      });
       let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;background:#10131c;border:2px solid #fff;border-radius:6px;margin-top:4px">`;
-      // เส้นทางที่เคยเดิน (เส้นประทอง) + เส้นเชื่อมสถานที่พิเศษ→เมืองแม่ (เส้นบางเทา)
-      edges.forEach(e=>{const pr=String(e).split('⇄'); if(pos[pr[0]]&&pos[pr[1]]) svg+=`<line x1="${pos[pr[0]].x.toFixed(0)}" y1="${pos[pr[0]].y.toFixed(0)}" x2="${pos[pr[1]].x.toFixed(0)}" y2="${pos[pr[1]].y.toFixed(0)}" stroke="#6b5a33" stroke-width="2" stroke-dasharray="6 4"/>`;});
-      siteNames.forEach(n=>{const par=sites[n]; if(par&&pos[par]&&pos[n]) svg+=`<line x1="${pos[n].x.toFixed(0)}" y1="${pos[n].y.toFixed(0)}" x2="${pos[par].x.toFixed(0)}" y2="${pos[par].y.toFixed(0)}" stroke="#4a5160" stroke-width="1.5"/>`;});
-      names.forEach(n=>{const q=pos[n]; const k=kindOf(n); const here=(n===curTown)||(curSite&&n===curSite);
-        const fill=here?'#FAC775':(KCOL[k]||'#9aa0a8'); const r=here?9:(k==='town_l'?8:6);
-        svg+=`<circle cx="${q.x.toFixed(0)}" cy="${q.y.toFixed(0)}" r="${r}" fill="${fill}" stroke="#000" stroke-width="1.5">${here?'<animate attributeName="r" values="8;11;8" dur="1.6s" repeatCount="indefinite"/>':''}</circle>`;
-        svg+=`<text x="${q.x.toFixed(0)}" y="${(q.y-13).toFixed(0)}" text-anchor="middle" font-size="12" fill="${here?'#FAC775':'#ddd'}" font-family="'IBM Plex Sans Thai',sans-serif">${escapeHtml(n)}</text>`;
-        if(towns[n]) svg+=`<text x="${q.x.toFixed(0)}" y="${(q.y+19).toFixed(0)}" text-anchor="middle" font-size="9" fill="#8a8f98">${towns[n]} แห่ง</text>`;});
+      colKeys.forEach((c2,ci)=>{const x=16+ci*(BW+GAPX); svg+=`<text x="${x}" y="18" font-size="11" fill="${(c2===FAR&&cur)?'#6b7078':'#8a8f98'}" font-family="'IBM Plex Sans Thai',sans-serif">${escapeHtml(hdrOf(c2))}</text>`;});
+      // เส้นทางที่เคยเดิน (เส้นประทอง orthogonal — วาดใต้กล่อง)
+      edgePairs.forEach(pr2=>{const A=pos[pr2[0]],B=pos[pr2[1]]; if(!A||!B)return;
+        const Lb=A.x<=B.x?A:B, Rb=A.x<=B.x?B:A;
+        const y1=Lb.y+Lb.h/2,y2=Rb.y+Rb.h/2;
+        if(Rb.x>Lb.x+Lb.w){const x1=Lb.x+Lb.w,x2=Rb.x,mx=Math.round((x1+x2)/2);
+          svg+=`<path d="M${x1} ${y1.toFixed(0)} L${mx} ${y1.toFixed(0)} L${mx} ${y2.toFixed(0)} L${x2} ${y2.toFixed(0)}" fill="none" stroke="#6b5a33" stroke-width="2" stroke-dasharray="6 4"/>`;
+          if(pr2[2]) svg+=`<text x="${Math.round((x1+mx)/2)}" y="${(y1-5).toFixed(0)}" text-anchor="middle" font-size="9" fill="#8a8f98" font-family="'IBM Plex Sans Thai',sans-serif">${pr2[2]} วัน</text>`;   /* v546: เวลาเดินทางจริงบนเส้น */}
+        else {const xr=Math.max(Lb.x+Lb.w,Rb.x+Rb.w)+12;
+          svg+=`<path d="M${Lb.x+Lb.w} ${y1.toFixed(0)} L${xr} ${y1.toFixed(0)} L${xr} ${y2.toFixed(0)} L${Rb.x+Rb.w} ${y2.toFixed(0)}" fill="none" stroke="#6b5a33" stroke-width="1.5" stroke-dasharray="4 4" opacity=".6"/>`;}
+      });
+      nodeNames.forEach(n=>{const q=pos[n]; if(!q)return; const k=kindOf(n),here=(n===cur);
+        const col2=here?'#FAC775':(KCOL[k]||'#9aa0a8'); const dim=(colOf(n)===FAR&&cur)?' opacity=".45"':'';
+        if(q.flat){ svg+=`<text x="${q.x}" y="${q.y+11}" font-size="11" fill="${col2}"${dim} font-family="'IBM Plex Sans Thai',sans-serif">▪ ${escapeHtml(String(n).slice(0,22))}</text>`; return; }
+        svg+=`<g${dim}><rect x="${q.x}" y="${q.y}" width="${q.w}" height="${q.h}" rx="6" fill="#151923" stroke="${col2}" stroke-width="${here?2.5:1.5}"/>`;
+        svg+=`<text x="${q.x+8}" y="${q.y+16}" font-size="12" font-weight="${here?'700':'600'}" fill="${col2}" font-family="'IBM Plex Sans Thai',sans-serif">▪ ${escapeHtml(String(n).slice(0,14))}</text>`;
+        let ly=q.y+28;
+        boxLines(n).forEach(l2=>{svg+=`<text x="${q.x+10}" y="${ly}" font-size="9.5" fill="${l2.c}" font-family="'IBM Plex Sans Thai',sans-serif">${escapeHtml(l2.t)}</text>`; ly+=LH;});
+        svg+='</g>';});
       svg+='</svg>';
       const wm=document.createElement('div'); wm.className='item';
-      const lg='<span style="color:#FAC775">●</span> ปัจจุบัน · <span style="color:#5B8DEF">●</span> เมืองใหญ่ · <span style="color:#9aa0a8">●</span> เมืองเล็ก · <span style="color:#9B6BD3">●</span> ถ้ำ · <span style="color:#E0A14C">●</span> หอคอย · <span style="color:#C75B5B">●</span> ป้อม/ค่าย · <span style="color:#6BC1B8">●</span> วิหาร · <span style="color:#A0784A">●</span> ซาก/ดันเจี้ยน';
-      wm.innerHTML='<div class="sectitle">WORLD MAP</div>'+svg+'<div class="note" style="text-align:left;padding:4px 2px;font-size:11px">'+lg+'<br>เส้นประ = เส้นทางที่เคยเดินทาง · เส้นทึบ = ที่ตั้งใกล้เมือง · สถานที่โผล่เมื่อค้นพบจริง</div>';
+      const realm=String(loc.kingdom||loc.region||'').trim();
+      wm.innerHTML='<div class="sectitle">WORLD MAP</div>'
+        +(realm?'<div class="note" style="text-align:left;padding:2px 2px 0">【 '+escapeHtml(realm)+' 】</div>':'')
+        +svg
+        +'<div class="note" style="text-align:left;padding:4px 2px;font-size:11px">คอลัมน์ = จำนวนการเดินทางจากเมืองปัจจุบัน · ในกล่อง: สถานที่เด่น (×N = แวะบ่อย) · ⛏ ดันเจี้ยน/ที่สำรวจใต้เมือง · เส้นประ = เส้นทางที่เคยเดิน · สีชื่อ = ชนิดสถานที่ · โผล่เมื่อค้นพบจริง</div>';
       p.appendChild(wm);
     }
   }catch(e){}
