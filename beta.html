@@ -2438,6 +2438,17 @@ function persOptsWidget(){
   return pw;
 }
 // v287: ผู้เล่นกด "ไปต่อ" หลังอ่านบทปิดท้ายศึก → server เพิ่ม done · ครบทุกคน (หรือ host force) → finalize → VICTORY
+async function forceLevelup(){   // v538 H5: host บังคับปิด level_up gate (คนออฟไลน์ค้าง)
+  if(!campaign||!me||campaign.host_id!==me.id) return;
+  if(!confirm('ข้ามการรอผู้เล่นที่ยังไม่เลือกสกิลเลเวลอัพ แล้วเล่นต่อ?\n(XP/เลเวลของคนที่ยังไม่กดจะไม่หาย — ระบบเลื่อนให้รอบหน้า)')) return;
+  try{
+    var sess=(await supa.auth.getSession()).data.session; var tok=sess&&sess.access_token;
+    var r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id, force_levelup:true})});
+    var j=await r.json();
+    if(j.error){ toast(j.error,true); return; }
+    toast('⚡ ข้าม level_up แล้ว — เล่นต่อได้'); try{ await loadState(); renderRoundbar(); }catch(e){}
+  }catch(e){ toast('ข้าม level_up ล้มเหลว: '+((e&&e.message)||e),true); }
+}
 async function submitVictoryAck(force){
   if(window._vaSubmitting) return;   // v418: กันกดซ้ำ/ยิงซ้อน → server finalize ซ้ำ → ป้าย VICTORY เด้ง 2 รอบ
   window._vaSubmitting=true;
@@ -2515,7 +2526,7 @@ async function renderRoundbar(){
   if(myChar && worldState&&worldState.settings&&worldState.settings.prepare_due&&Array.isArray(worldState.settings.prepare_due.ids)&&worldState.settings.prepare_due.ids.includes(myChar.id)){
     bar.innerHTML='<div class="statusline"><span class="pill wait">วันใหม่ — เตรียมเวทในแท็บ Skills ก่อน ถึงจะสั่งการต่อได้</span></div>'; return;
   }
-  if(worldState&&worldState.level_up&&worldState.level_up.active){ const dn=(worldState.level_up.done||[]).length; const tot=characters.filter(c=>!c.is_companion&&c.controller!=='left').length||1;   /* v538 H5: นับ controller!=='left' ให้ตรง server RPC (เดิมค้าง "2/3" เมื่อมีคนออกปาร์ตี้) */ bar.innerHTML='<div class="statusline"><span class="pill wait">\u2b50 เลเวลอัพ '+dn+'/'+tot+' \u2014 เลือกสกิลในแท็บ Stat ก่อน</span></div>'; return; }
+  if(worldState&&worldState.level_up&&worldState.level_up.active){ const dn=(worldState.level_up.done||[]).length; const tot=characters.filter(c=>!c.is_companion&&c.controller!=='left').length||1;   /* v538 H5: นับ controller!=='left' ให้ตรง server RPC (เดิมค้าง "2/3" เมื่อมีคนออกปาร์ตี้) */ bar.innerHTML='<div class="statusline"><span class="pill wait">\u2b50 เลเวลอัพ '+dn+'/'+tot+' \u2014 เลือกสกิลในแท็บ Stat ก่อน</span></div>'; if(campaign&&me&&campaign.host_id===me.id){ const _fb=document.createElement('button'); _fb.className='btn'; _fb.style.marginTop='6px'; _fb.textContent='⚡ ข้ามรอทุกคน (host)'; _fb.onclick=forceLevelup; var _sl=bar.querySelector('.statusline'); if(_sl) _sl.appendChild(_fb); }   /* v538 H5: host ข้ามคนออฟไลน์ */ return; }
   // ดึงข้อมูลให้ครบ "ก่อน" สร้าง DOM (await อยู่ก่อน guard เท่านั้น → ไม่เกิด append ซ้อน)
   const { data:acts } = await supa.from('actions').select('user_id, action_text, character_id').eq('round_id',curRound.id).order('submitted_at',{ascending:true});
   // total = เฉพาะสมาชิกที่ 'มีตัวละครแล้ว' (คนเพิ่ง join ที่ยังไม่สร้างตัวละครไม่นับ → รอบไม่ค้าง)
