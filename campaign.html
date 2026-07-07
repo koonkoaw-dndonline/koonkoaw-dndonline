@@ -3026,10 +3026,29 @@ function beastIconSvg(name){
 }
 function charClassKey(klass){ const c=String(klass||'').toLowerCase(); const L=['artificer','barbarian','bard','cleric','druid','fighter','monk','paladin','ranger','rogue','sorcerer','warlock','wizard']; for(const k of L){ if(c.includes(k)) return k; } return null; }
 // v499: companion ไม่มีรูปอวาตาร์ → ใช้ sprite ภาษาเดียวกับ battle scene แทน (สัตว์ = pixel sprite beastIconSvg · คน = วงสี+อักษรย่อแบบหมากในฉากรบ)
+// v551: companion (คน) → HD2D sprite ตัวคนตามอาชีพ/เพศ/เผ่า (mirror hd2dCharHref) — raster png → fallback procedural svg
+//   sex/race: อ่านจาก public_status ถ้ามี (client อ่าน sheet companion ไม่ได้ · RLS) ไม่งั้น default ชาย/มนุษย์ (เช่น Faldan=Fighter ชาย Human ตรงพอดี)
+function companionSpriteImg(c){
+  try{
+    const cls=c&&c.class; if(!cls||typeof HD2D==='undefined') return null;
+    const classKey=String(HD2D.normalizeClass(cls)).toLowerCase().replace(/[^a-z]/g,''); if(!classKey) return null;
+    const ps=(c&&c.public_status)||{};
+    const sexKey=(HD2D.normalizeSex(ps.sex||'male')==='female')?'female':'male';
+    const race=ps.race||'Human';
+    const svgUri=HD2D.spriteDataUri(HD2D.renderCharacterSvg({className:cls,sex:sexKey,race:race,facing:'E'}));
+    const style='width:100%;height:100%;object-fit:contain;image-rendering:pixelated';
+    if(window._charSprites===true && typeof SPRITE_BASE!=='undefined' && SPRITE_BASE){
+      const png=SPRITE_BASE+classKey+'_'+sexKey+'_'+_spriteRaceKey(race)+'.png';
+      return '<img src="'+png+'" style="'+style+'" data-fb="'+encodeURIComponent(svgUri)+'" onerror="this.onerror=null;this.src=decodeURIComponent(this.getAttribute(\'data-fb\'))">';
+    }
+    return '<img src="'+svgUri+'" style="'+style+'">';
+  }catch(e){ return null; }
+}
 function companionFaceSvg(c){
   const n=String(c&&c.name||''), k=String(c&&c.class||'');
   const hay=(n+' '+k).toLowerCase();
   const beastish=/wolf|หมาป่า|bear|หมี|hawk|eagle|owl|raven|falcon|นก|อินทรี|เหยี่ยว|cat|แมว|panther|tiger|lion|เสือ|สิงโต|snake|งู|spider|แมงมุม|boar|หมูป่า|horse|pony|ม้า|rat|mouse|หนู|dog|hound|mastiff|หมา|สุนัข|จิ้งจอก|fox|ape|ลิง|crocodile|จระเข้|fish|ปลา|beast|สัตว์/.test(hay);
+  if(!beastish){ const spr=companionSpriteImg(c); if(spr) return spr; }   // v551: companion คน → HD2D sprite ตัวคน (fallback วงสี+อักษรย่อด้านล่างถ้า class ไม่รู้จัก)
   let inner;
   if(beastish){ inner=beastIconSvg(hay); }
   else{
