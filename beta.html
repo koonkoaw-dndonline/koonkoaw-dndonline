@@ -3451,7 +3451,18 @@ async function _renderMeInner(){
     it4.appendChild(sc);
   }
   const save=document.createElement('button'); save.className='btn sm'; save.textContent='Save Sheet';
-  save.onclick=async()=>{ sheet.notes=$('meNotes').value; await supa.from('character_sheets').update({sheet,updated_at:new Date().toISOString()}).eq('character_id',myChar.id); _cacheSet('ttrpg_bg_'+campaign.id, sheet.notes||''); toast('Saved ✓'); };
+  // v551 fix: re-read fresh + optimistic lock ก่อนเขียน — เดิมเขียน closure sheet (snapshot ตอนเปิดแท็บ) ทับทั้งก้อน
+  //   → feat/fighting_style/subclass ที่ auto-save ในแท็บ Skills 'หลัง' เปิดแท็บ Stat ถูกทับหาย (เคส Koon 07-07: เลือก feat แล้วกด Save Sheet → feat หาย ต้องเลือกใหม่)
+  save.onclick=async()=>{
+    const _notesV=$('meNotes').value;
+    try{
+      const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle(); if(r.error) throw r.error;
+      const _fresh=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at;   // fresh = มี feat/field ล่าสุด (ไม่ใช่ closure เก่า)
+      _fresh.notes=_notesV;
+      await _saveSheet(_fresh, _prev);   // แก้เฉพาะ notes บน sheet ล่าสุด + optimistic lock (มิเรอร์จุด save อื่น)
+      _cacheSet('ttrpg_bg_'+campaign.id, _fresh.notes||''); toast('Saved ✓');
+    }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ชีทเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} } else toast('บันทึกไม่สำเร็จ ลองใหม่',true); }
+  };
   it4.appendChild(save); p.appendChild(it4);
 
   // PORTRAIT (รูปตัวละคร — เห็นได้ทุกคน) · desktop=บนซ้าย (order:-1) · mobile=ล่างสุด
