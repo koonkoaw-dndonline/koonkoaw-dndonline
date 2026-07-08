@@ -5339,6 +5339,7 @@ async function renderBattleGrid(p){
   const footY=(c,r)=>tileY(r)+TILE*SY*0.78-(isHill(c,r)?RAISE:0);
   // ── v416 ISOMETRIC projection (opt-in via window._isoGrid; build ดีฟอลต์ off จนกว่า wire ครบ) — diamond 2:1 + ฐาน 3D ──
   const ISO=(window._isoGrid===true);
+  const _ACTOR_SCALE=1.22, _SPRITE_BLUR=0.4, _DOF=true, _DOF_BRIGHT=0.9, _DOF_SAT=0.9;   // v560 readability: ขยาย token · สมูทพิกเซล 0.4px · หรี่ฉากหลังจางๆ (0.9/0.9 — รักษาความสวยฉากหลังไว้ · ปรับค่าจุดเดียว)
   const ITW=64,ITH=32,IEH=14,IWALL=30,IHTW=32,IHTH=10;   // v451: แบนราบลง ~40% (เดิม IHTH=16 = diamond 2:1 → 10 ≈ 3.2:1 มองราบกับพื้นกว่า)
   let isx=null,isy=null,IVW=VW,IVH=VH;
   if(ISO){
@@ -5500,12 +5501,13 @@ async function renderBattleGrid(p){
     const _lieDeg=_supine?-74:74;
     const op=(down&&t.kind!=='pc'&&t.kind!=='ally'&&t.kind!=='npc')?0.4:1;   // v449.1: ตัวละครล้ม = หมุนนอนตะแคงแต่ "ไม่จางสี" (ผู้ใช้ขอ) · มอน/วัตถุล้มยังจางเหมือนเดิม
     const _hd=hd2dCharHref(t); let s=`<g class="gtok"${t._deco?' style="pointer-events:none"':''} onclick="this.classList.toggle('lblon')"><title>${escapeHtml(t.label||'')}</title>`;
+    if(t.ref_char_id && typeof myChar!=='undefined' && myChar && t.ref_char_id===myChar.id){ s+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy-1).toFixed(1)}" rx="14" ry="6.5" fill="none" stroke="#FAC775" stroke-width="2" opacity="0.5" style="pointer-events:none"/>`; }   // v560: มาร์คตัวเรา = วงเหลืองจางที่เท้า
     if(t.kind==='object'&&Array.isArray(t.flags)&&t.flags.includes('hazard')){ s+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy-2).toFixed(1)}" rx="14" ry="7" fill="#ff6a2b" opacity="0.32" style="pointer-events:none"><animate attributeName="opacity" values="0.18;0.5;0.18" dur="0.9s" repeatCount="indefinite"/><animate attributeName="rx" values="12;15;12" dur="0.9s" repeatCount="indefinite"/></ellipse>`; }   /* v482 P5: hazard (ไฟ/กรดบนพื้น) = วงเรืองส้มเต้น แยกจากไฟตกแต่ง */
     if(Array.isArray(t.flags)&&t.flags.includes('trap')&&t.flags.includes('revealed')){ s+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy-2).toFixed(1)}" rx="15" ry="8" fill="#ff2d2d" opacity="0.28" style="pointer-events:none"><animate attributeName="opacity" values="0.14;0.55;0.14" dur="0.85s" repeatCount="indefinite"/><animate attributeName="rx" values="12;16;12" dur="0.85s" repeatCount="indefinite"/></ellipse>`; }   /* v486 REQ3: กับดักเปิดเผย = พื้นแดงจางกระพริบ */
     // v420: ตัดเงากลม renderer ออก (ผู้ใช้ขอ — แอสเซ็ทไม่มีฐานในตัว ยืนบน tile โดยตรง) · ขยาย sprite + anchor เท้าตามชนิด (char/obj/mon เท้าคนละแถว 0.875/0.855/0.905)
     const _DETAIL=1.3;   // v422: ขยาย sprite +30% (เห็นรายละเอียดงานศิลป์ชัดขึ้น) — ปรับค่านี้ตัวเดียว
-    const _FR={ch:0.875,ob:0.855,mo:0.905}, _SZ={ch:64*_DETAIL,mo:64*_DETAIL,ob:64*_DETAIL};   // base 64px × _DETAIL · uniform ทุก asset (≈1 ช่อง · PNG คุมสัดส่วนเอง) · มอนใหญ่ = ×tiles (_MON_TILES)
-    const _imgTok=(href,fr,px)=>{ const z=px; const _rd=down?` transform="rotate(${_lieDeg} ${fx.toFixed(1)} ${(fy-z*fr+z/2).toFixed(1)})"`:''; return `<image href="${href}" x="${(fx-z/2).toFixed(1)}" y="${(fy-z*fr).toFixed(1)}" width="${z.toFixed(1)}" height="${z.toFixed(1)}" style="image-rendering:pixelated" opacity="${op}"${_rd}/>`; };   // v449: ล้ม=หมุนรอบ 'กึ่งกลางภาพ' (นอนตะแคงอยู่กับที่ ไม่เหวี่ยงหลุดนอกช่องจนหาย)
+    const _FR={ch:0.875,ob:0.855,mo:0.905}, _SZ={ch:64*_DETAIL*_ACTOR_SCALE,mo:64*_DETAIL*_ACTOR_SCALE,ob:64*_DETAIL};   // v560: ตัวละคร/ศัตรู ×_ACTOR_SCALE (แบบ B — เด่นกว่าพื้น กระดานเท่าเดิม) · วัตถุคงเดิม · base 64px × _DETAIL
+    const _imgTok=(href,fr,px,bl)=>{ const z=px; const _rd=down?` transform="rotate(${_lieDeg} ${fx.toFixed(1)} ${(fy-z*fr+z/2).toFixed(1)})"`:''; return `<image href="${href}" x="${(fx-z/2).toFixed(1)}" y="${(fy-z*fr).toFixed(1)}" width="${z.toFixed(1)}" height="${z.toFixed(1)}" style="image-rendering:pixelated${bl?';filter:blur('+bl+'px)':''}" opacity="${op}"${_rd}/>`; };   // v449: ล้ม=หมุนรอบ 'กึ่งกลางภาพ' (นอนตะแคงอยู่กับที่ ไม่เหวี่ยงหลุดนอกช่องจนหาย)
     const _oimg=(t.kind==='object')?tokImgHref(t):null;
     const _spr=(t.kind==='object'&&!(_oimg&&_oimg.url))?spriteFn(t):null, gly=glyphFor(t);
     const _os=(t.kind==='object')?objScaleFor(t):1;   // v483 proportional
@@ -5516,8 +5518,8 @@ async function renderBattleGrid(p){
     else if(t.kind==='object'){ s+=`<rect x="${(fx-9).toFixed(1)}" y="${(fy-12).toFixed(1)}" width="18" height="16" rx="2" fill="${t.color||'#9a9a9a'}" stroke="#000" stroke-width="1.2" opacity="${op}"/>`; }
     else if(t.kind==='marker'){ s+=`<polygon points="${fx},${fy-12} ${fx+9},${fy} ${fx},${fy+8} ${fx-9},${fy}" fill="${t.color||'#b06cff'}" opacity="0.6"/>`; }
     else { const _tkimg=tokImgHref(t), _mt=(_tkimg&&_tkimg.tiles)||1, _mpx=_SZ.mo*_mt;   // revert: monster = _SZ.mo(64) × tiles (size-category) · _mt ใช้ pawn/HP ต่อ
-      if(_tkimg&&_tkimg.url){ s+=_imgTok(_tkimg.url,_FR.mo,_mpx); }
-      else if(_hd){ s+=_imgTok(_hd,_FR.ch,_SZ.ch); }
+      if(_tkimg&&_tkimg.url){ s+=_imgTok(_tkimg.url,_FR.mo,_mpx,_SPRITE_BLUR); }
+      else if(_hd){ s+=_imgTok(_hd,_FR.ch,_SZ.ch,_SPRITE_BLUR); }
       else { const pal=PAL[t.kind]||PAL.pc, ba=pal[0], da=pal[1], li=pal[2];
         const _tf=`${down?`rotate(${_lieDeg} ${fx.toFixed(1)} ${(fy-8).toFixed(1)}) `:''}${_mt>1?`translate(${fx.toFixed(1)} ${fy.toFixed(1)}) scale(${_mt}) translate(${(-fx).toFixed(1)} ${(-fy).toFixed(1)})`:''}`.trim();   // v449: ล้ม=หมุนรอบกึ่งกลาง pawn (อยู่กับที่) + มอนใหญ่=scale
         if(_tf) s+=`<g transform="${_tf}">`;
@@ -5537,7 +5539,8 @@ async function renderBattleGrid(p){
     return s+'</g>'; }
   if(ISO){
     // iso: tile + token interleave ตาม depth (c+r) — กำแพง/ช่องหน้าบัง token หลัง
-    if(window._charSprites===true){ const _bk=_biomeKey(grid.background); if(_bk&&_BG_KEYS.has(_bk)) svg+=`<image href="${_ASSET.bg+_bk+'.png'}" x="0" y="0" width="${IVW}" height="${IVH}" preserveAspectRatio="xMidYMid slice" opacity="0.55"/>`; }   // v451 backdrop biome (เด่นขึ้น รับเลย์เอาต์ฉาก 2/3)
+    let _bg='', _fg='';   // v560 DoF: bg (backdrop+พื้น+วัตถุ/decor) หรี่รวมกลุ่มเดียว · fg (ตัวละคร/ศัตรู) ไม่หรี่
+    if(window._charSprites===true){ const _bk=_biomeKey(grid.background); if(_bk&&_BG_KEYS.has(_bk)) _bg+=`<image href="${_ASSET.bg+_bk+'.png'}" x="0" y="0" width="${IVW}" height="${IVH}" preserveAspectRatio="xMidYMid slice" opacity="0.55"/>`; }   // v451 backdrop biome (เด่นขึ้น รับเลย์เอาต์ฉาก 2/3)
     // ── v451: พื้น = ตารางหมากรุก iso จาง (ตัด terrain texture ออกหมด — ไม่พึ่งรูปใน Supabase) ──
     //   ช่องปกติ = หมากรุก ~7% + เส้น grid ~22% · กำแพง = บล็อกนูน · น้ำ = overlay
     const _isoTile=(c,r)=>{ const cell=rc2cell(c,r), isW=walls.has(cell), wet=WATER.has(cell), x=isx(c,r), y=isy(c,r), eh=isW?IWALL:IEH;
@@ -5554,14 +5557,14 @@ async function renderBattleGrid(p){
     const _tk={}; toks.concat(_decoToks).forEach(t=>{ const k=t.col+'_'+t.row; (_tk[k]=_tk[k]||[]).push(t); });
     const _cl=[]; for(let _r=0;_r<rows;_r++)for(let _c=0;_c<cols;_c++) _cl.push([_c,_r]);
     _cl.sort((a,b)=>(a[0]+a[1])-(b[0]+b[1]));
-    _cl.forEach(p=>{ svg+=_isoTile(p[0],p[1]); });   // v420: pass1 = วาดพื้นทั้งหมดก่อน (กัน tile ช่องหน้าทับเท้า token → เลิกดูลอย)
-    svg+=_todTintSvg(IVW,IVH);                        // v420: tint ตามช่วงเวลาของวัน (เหนือพื้น/backdrop · ใต้ token)
+    _cl.forEach(p=>{ _bg+=_isoTile(p[0],p[1]); });   // v420 pass1 · v560 → _bg (ชั้นหรี่) · tint ย้ายไปประกอบท้าย ISO
     // v421: pass2 = token ทับบนสุด · ลำดับ (tier → depth c+r → z) — มอน/วัตถุวาดก่อน แล้วตัวละคร(pc/ally/npc)วาดทับบนสุดเสมอ
     //        → มอนตัวใหญ่ (sprite 64×tiles) ไม่บังตัวละครอื่นจนมองไม่เห็น (เห็นทั้งตัว · คร่อมได้แค่ใต้เท้า)
     const _isChar=t=>(t.kind==='pc'||t.kind==='ally'||t.kind==='npc');
     const _allTok=[]; _cl.forEach(p=>{ const g=_tk[p[0]+'_'+p[1]]; if(g) for(const _t of g) _allTok.push(_t); });
     _allTok.sort((a,b)=>((a.col+a.row)-(b.col+b.row)) || ((_isChar(a)?1:0)-(_isChar(b)?1:0)) || ((a.z||0)-(b.z||0)));   // v448: depth (col+row) ก่อน = หน้าทับหลังถูกต้อง (มอนยืนหน้า PC ไม่ถูก PC บัง) · char เป็น tiebreak เมื่อ depth เท่ากัน
-    _allTok.forEach(t=>{ svg+=drawTok(t); });
+    _allTok.forEach(t=>{ const _d=drawTok(t); if(t.kind==='pc'||t.kind==='ally'||t.kind==='npc'||t.kind==='monster') _fg+=_d; else _bg+=_d; });   // v560 DoF: ตัวละคร/ศัตรู=ชั้นหน้า · วัตถุ/decor=ชั้นหรี่
+    svg += (_DOF ? `<g style="filter:saturate(${_DOF_SAT}) brightness(${_DOF_BRIGHT})">`+_bg+`</g>` : _bg) + _todTintSvg(IVW,IVH) + _fg;   // v560: ประกอบ ชั้นหรี่ → tint → ตัวละคร
   } else {
   // tiles (checkerboard + squash = 2.5D) + กำแพง + พื้นสูง (hills) + น้ำ
   for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
