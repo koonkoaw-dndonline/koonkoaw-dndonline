@@ -5373,10 +5373,10 @@ async function renderNPCs(){
     const now=Date.now();
     if(window._bestiary&&now-window._bestiary.t<60000&&window._bestiary.cid===campaign.id) return window._bestiary;
     const [mr,cl]=await Promise.all([
-      supa.from('monsters').select('name,max_hp,ac').eq('campaign_id',campaign.id),
-      supa.from('combat_log').select('actor_name,summary').eq('campaign_id',campaign.id).eq('entry_type','attack').order('seq',{ascending:false}).limit(1500),
+      supa.from('monsters').select('name,max_hp,ac,cr').eq('campaign_id',campaign.id),
+      supa.from('combat_log').select('seq,actor_name,entry_type,summary').eq('campaign_id',campaign.id).in('entry_type',['attack','damage','death']).order('seq',{ascending:false}).limit(2500),
     ]);
-    window._bestiary={t:now,cid:campaign.id,mons:(mr.data||[]),logs:(cl.data||[])};
+    window._bestiary={t:now,cid:campaign.id,mons:(mr.data||[]),logs:(cl.data||[]).slice().reverse()};   // เรียง seq น้อย→มาก สำหรับจับคู่ attack→damage
     return window._bestiary;
   }
   function drawList(){
@@ -5417,18 +5417,37 @@ async function renderNPCs(){
     const hpTxt=hps.length?(Math.min(...hps)===Math.max(...hps)?String(hps[0]):Math.min(...hps)+'–'+Math.max(...hps)):'—';
     const acs=bz.mons.filter(m2=>lcN(stemOfM(m2.name))===stem).map(m2=>+m2.ac||0).filter(v=>v>0);
     const acTxt=acs.length?(Math.min(...acs)===Math.max(...acs)?String(acs[0]):Math.min(...acs)+'–'+Math.max(...acs)):'—';
-    // สกิลที่เคยใช้ใส่ปาร์ตี้: parse "<มอน> โจมตี <เป้า> ด้วย <ท่า>:" จาก combat_log
-    const skills=new Set();
-    bz.logs.forEach(l=>{ if(lcN(stemOfM(l.actor_name))!==stem) return;
-      const m2=String(l.summary||'').match(/โจมตี\s+.+?\s+ด้วย\s+([^:(（]+)[:(（]/); if(m2) skills.add(m2[1].trim()); });
+    // v611c: CR (จากตาราง monsters) — โชว์เป็นช่วงถ้าเคยเจอหลายระดับ
+    const crFmt=v=>{ if(v==null||v==='') return null; const n=+v; if(!Number.isFinite(n)) return String(v); return n===0.125?'1/8':n===0.25?'1/4':n===0.5?'1/2':String(n); };
+    const crs=[...new Set(bz.mons.filter(m2=>lcN(stemOfM(m2.name))===stem).map(m2=>crFmt(m2.cr)).filter(Boolean))];
+    const crTxt=crs.length?crs.join(' / '):'—';
+    // v611c: ปาร์ตี้เคยล้ม (death entries ของชนิดนี้)
+    const kills=bz.logs.filter(l=>l.entry_type==='death'&&lcN(stemOfM(l.actor_name))===stem).length;
+    // สกิล + ดาเมจแรงสุดที่เคยโดน: เดิน log ตาม seq — แถว damage ของ PC ตามหลังแถว attack ของมอนไม่เกิน 2 แถว
+    const skills=new Set(); let maxDmg=0, maxDmgSkill='';
+    for(let i=0;i<bz.logs.length;i++){ const l=bz.logs[i];
+      if(l.entry_type==='attack'&&lcN(stemOfM(l.actor_name))===stem){
+        const m2=String(l.summary||'').match(/โจมตี\s+(.+?)\s+ด้วย\s+([^:(（]+)[:(（]/);
+        if(m2){ skills.add(m2[2].trim());
+          const victim=m2[1].trim();
+          for(let j=i+1;j<=i+2&&j<bz.logs.length;j++){ const d=bz.logs[j];
+            if(d.entry_type!=='damage') continue;
+            const dm=String(d.summary||'').match(/^(.+?)\s+รับ(?:ดาเมจ)?\s*(\d+)\s*ดาเมจ/)||String(d.summary||'').match(/^(.+?)\s+รับ\s*(\d+)/);
+            if(dm&&lcN(dm[1])===lcN(victim)){ const v=+dm[2]||0; if(v>maxDmg){ maxDmg=v; maxDmgSkill=m2[2].trim(); } break; }
+          }
+        }
+      }
+    }
     const kv=(k2,v2)=>v2?`<div class="kv2"><b>${k2}</b><span>${escapeHtml(String(v2))}</span></div>`:'';
     const card=document.createElement('div'); card.className='item';
     card.innerHTML=`<div class="nm" style="letter-spacing:1px">${escapeHtml(disp.toUpperCase())}</div>`
       +`<div class="npc open" style="border:0;background:transparent;box-shadow:none"><div class="npc-detail" style="padding:2px 0 0">`
-      +kv('เคยพบ',g.rows.length+' ตัว')
+      +kv('เคยพบ',g.rows.length+' ตัว'+(kills?' · ปาร์ตี้ล้มไป '+kills+' ตัว':''))
+      +kv('CR',crTxt)
       +kv('สถานที่พบ',places.join(' · ')||'—')
       +kv('HP ที่เคยเจอ',hpTxt)
       +kv('AC ที่เคยเจอ',acTxt)
+      +(maxDmg?kv('ดาเมจแรงสุดที่เคยโดน',maxDmg+' ('+maxDmgSkill+')'):'')
       +`<div class="kv2"><b>สกิลที่เคยใช้ใส่ปาร์ตี้</b><span>${skills.size?[...skills].map(s2=>escapeHtml(s2)).join(' · '):'<span class="muted">ยังไม่เคยโจมตีสำเร็จ/ไม่มีบันทึก</span>'}</span></div>`
       +`</div></div>`;
     colDet.innerHTML=''; colDet.appendChild(card);
