@@ -1604,6 +1604,30 @@ html.skin-paper .bscene [style*="#ddd" i]{color:#ddd!important;}
 html.skin-paper .bscene [style*="#e0a14c" i]{color:#e0a14c!important;}
 html.skin-paper .bscene [style*="#6bc1b8" i]{color:#6bc1b8!important;}
 html.skin-paper .bscene [style*="#999" i]{color:#999!important;}
+/* v610f: สีที่เซ็ตผ่าน style.cssText ถูก browser serialize เป็น rgb(...) — hex selector จับไม่ได้ (เคสจริง: เบาะแสเควส #ccc → rgb(204, 204, 204)) */
+html.skin-paper [style*="rgb(127, 209, 127)"]:not([style*="background" i]){color:#217821!important;}
+html.skin-paper [style*="rgb(153, 170, 221)"]:not([style*="background" i]){color:#1f367a!important;}
+html.skin-paper [style*="rgb(255, 138, 138)"]:not([style*="background" i]){color:#861313!important;}
+html.skin-paper [style*="rgb(250, 199, 117)"]:not([style*="background" i]){color:#865a13!important;}
+html.skin-paper [style*="rgb(245, 197, 66)"]:not([style*="background" i]){color:#866713!important;}
+html.skin-paper [style*="rgb(159, 224, 160)"]:not([style*="background" i]){color:#1e7b1f!important;}
+html.skin-paper [style*="rgb(255, 255, 255)"]:not([style*="background" i]){color:#3a2e20!important;}
+html.skin-paper [style*="rgb(154, 154, 154)"]:not([style*="background" i]){color:#7c6a4f!important;}
+html.skin-paper [style*="rgb(204, 204, 204)"]:not([style*="background" i]){color:#4a3c2a!important;}
+html.skin-paper [style*="rgb(238, 238, 238)"]:not([style*="background" i]){color:#3a2e20!important;}
+html.skin-paper [style*="rgb(187, 187, 187)"]:not([style*="background" i]){color:#4a3c2a!important;}
+/* counter ฉากต่อสู้ */
+html.skin-paper .bscene [style*="rgb(127, 209, 127)"]{color:rgb(127, 209, 127)!important;}
+html.skin-paper .bscene [style*="rgb(153, 170, 221)"]{color:rgb(153, 170, 221)!important;}
+html.skin-paper .bscene [style*="rgb(255, 138, 138)"]{color:rgb(255, 138, 138)!important;}
+html.skin-paper .bscene [style*="rgb(250, 199, 117)"]{color:rgb(250, 199, 117)!important;}
+html.skin-paper .bscene [style*="rgb(245, 197, 66)"]{color:rgb(245, 197, 66)!important;}
+html.skin-paper .bscene [style*="rgb(159, 224, 160)"]{color:rgb(159, 224, 160)!important;}
+html.skin-paper .bscene [style*="rgb(255, 255, 255)"]{color:rgb(255, 255, 255)!important;}
+html.skin-paper .bscene [style*="rgb(154, 154, 154)"]{color:rgb(154, 154, 154)!important;}
+html.skin-paper .bscene [style*="rgb(204, 204, 204)"]{color:rgb(204, 204, 204)!important;}
+html.skin-paper .bscene [style*="rgb(238, 238, 238)"]{color:rgb(238, 238, 238)!important;}
+html.skin-paper .bscene [style*="rgb(187, 187, 187)"]{color:rgb(187, 187, 187)!important;}
 /* v610 (คำสั่งข้อ 4): icon มือถือ/HUD คมชัด เลิกเรนเดอร์พิกเซล */
 html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .bico svg,html.skin-paper .wh svg{image-rendering:auto;}
 @media (max-width:859px){
@@ -4317,7 +4341,7 @@ async function _renderPartyInner(){
 async function renderQuest(){
   // v87: แท็บ Quest ใช้งานจริง — เควส active พร้อม hint ที่ทยอยได้ (จาก clues ผูกชื่อเควส) + เควสที่จบแล้ว + เบาะแสอื่น
   const _hostQ=$('panel-quest'); _hostQ.innerHTML='<div class="sk-cols"></div>'; const p=_hostQ.firstElementChild;   /* v531c: multicol บน wrapper (มิเรอร์ skills) */
-  const FONT="font-family:'IBM Plex Sans Thai',sans-serif";
+  const FONT="font-family:inherit";   /* v610f: inherit — classic ได้ IBM Plex จาก body เท่าเดิม · สกิน paper cascade Trirong ได้ (เดิม inline ทับทุกสกิน) */
   let quests=[], cls=[];
   try{ const r=await supa.from('quests').select('*').eq('campaign_id',campaign.id).order('created_at',{ascending:false}); quests=r.data||[]; }catch(e){}
   try{ const r=await supa.from('clues').select('mystery,clue,created_at').eq('campaign_id',campaign.id).order('created_at',{ascending:true}).limit(120); cls=r.data||[]; }catch(e){}
@@ -4471,7 +4495,7 @@ async function renderItems(){
   SLOTS.forEach(([key,lab])=>{
     const val=eq[key];
     const row=document.createElement('div'); row.className='kv'; row.style.alignItems='center';
-    row.innerHTML=`<span class="k">${lab}</span><span class="dots"></span><span class="num" style="font-family:'IBM Plex Sans Thai',sans-serif;font-size:13px;color:#fff">${val?escapeHtml(val):'—'}</span>`;
+    row.innerHTML=`<span class="k">${lab}</span><span class="dots"></span><span class="num" style="font-family:inherit;font-size:13px;color:#fff">${val?escapeHtml(val):'—'}</span>`;   /* v610f: inherit */
     if(val){ const ub=document.createElement('button'); ub.className='btn ghost sm'; ub.style.marginLeft='8px'; ub.textContent='ถอด'; ub.onclick=()=>unequipItem(key); row.appendChild(ub); }
     eqc.appendChild(row);
   });
@@ -4497,7 +4521,7 @@ async function renderItems(){
   // v80: เพิ่มไอเท็มเอง — แก้ชีทตกหล่น (เช่นของหายตอนสร้างตัว) ใส่ชื่อแล้วกดเพิ่ม ระบบจัดช่องสวมใส่ให้เองตามชนิด
   {
     const addRow=document.createElement('div'); addRow.style.cssText='display:flex;gap:6px;margin-top:8px;align-items:center';
-    const addIn=document.createElement('input'); addIn.type='text'; addIn.placeholder='เพิ่มไอเท็มเอง เช่น Longbow (1d8 piercing)'; addIn.style.cssText="flex:1;font-family:'IBM Plex Sans Thai',sans-serif;font-size:13px;padding:4px 8px";
+    const addIn=document.createElement('input'); addIn.type='text'; addIn.placeholder='เพิ่มไอเท็มเอง เช่น Longbow (1d8 piercing)'; addIn.style.cssText="flex:1;font-family:inherit;font-size:13px;padding:4px 8px";   /* v610f: inherit */
     const addBtn=document.createElement('button'); addBtn.className='btn sm'; addBtn.textContent='เพิ่ม';
     addBtn.onclick=async()=>{
       const nm=addIn.value.trim(); if(!nm){ toast('ใส่ชื่อไอเท็มก่อน',true); return; }
@@ -5468,7 +5492,7 @@ function forceResolveConfirm(){
 // ── DM TOOLS การ์ดกลาง (host) — ใช้ทั้งแท็บ Party (withFrame=true) และเมนูย่อยในฉากต่อสู้ (false) ──
 function buildDmToolsCard(withFrame){
   // v76: ฟอนต์/ขนาดเดียวกันทุกชิ้นในการ์ด (อ่านง่าย ไม่โดดไปมา)
-  const DMF="font-family:'IBM Plex Sans Thai',sans-serif;font-size:13px";
+  const DMF="font-family:inherit;font-size:13px";   /* v610f: inherit (เหตุผลเดียวกับ FONT) */
   const tools=document.createElement('div'); tools.style.cssText=DMF;
   if(withFrame){ tools.className='item'; tools.innerHTML='<div style="'+DMF+';font-weight:700;font-size:14px;text-align:left;padding:2px 0 4px">DM TOOLS <span style="font-weight:400;font-size:12px;color:#9a9a9a">host only</span></div>'; }
   const ctl='style';
@@ -6785,7 +6809,7 @@ async function renderMap(){
     ]);
     const pls=plR.data||[], shs=shR.data||[];
     if(pls.length||shs.length){
-      const FONT="font-family:'IBM Plex Sans Thai',sans-serif";
+      const FONT="font-family:inherit";   /* v610f: inherit — classic ได้ IBM Plex จาก body เท่าเดิม · สกิน paper cascade Trirong ได้ (เดิม inline ทับทุกสกิน) */
       const wc=document.createElement('div'); wc.className='item';
       wc.innerHTML='<div style="'+FONT+';font-size:15px;font-weight:700;padding:2px 0 6px;border-bottom:1px solid #444;margin-bottom:6px;text-align:left">สมุดบันทึกโลก <span style="font-weight:400;font-size:12px;color:#9a9a9a">สถานที่และร้านค้าที่เคยพบ</span></div>';
       const towns={};
