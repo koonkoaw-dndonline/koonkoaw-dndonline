@@ -532,11 +532,12 @@ body.ui-min #worldClock{display:none!important;}
 .acc.open > .acc-head::before{content:"\25BC";}
 .acc-body{display:none;padding:9px 10px 11px;flex-direction:column;gap:9px;}
 .acc.open > .acc-body{display:flex;}
-.npc{border:2px solid #fff;border-radius:6px;overflow:hidden;}
-.npc-head{width:100%;text-align:left;background:#000;color:#fff;border:0;padding:9px 11px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;}
-.npc-head::before{content:"\25B8";}
-.npc-head .rel{margin-left:auto;font-size:10px;border:2px solid #fff;padding:2px 6px;border-radius:3px;letter-spacing:.5px;color:#9a9a9a;}
+.npc{border:0;border-bottom:1px solid #23262e;border-radius:0;overflow:hidden;}   /* v609ui: ตัดกรอบการ์ด → แถว compact คั่นเส้นบาง (คำสั่ง Koon 07-12) */
+.npc:last-child{border-bottom:0;}
+.npc-head{width:100%;text-align:left;background:transparent;color:#fff;border:0;padding:7px 6px;display:flex;align-items:center;gap:7px;font-size:13px;font-weight:500;}
+.npc-head::before{content:"\25B8";color:#565b66;font-size:11px;}
 .npc.open .npc-head::before{content:"\25BE";}
+.npc.open{background:#12151c;}
 .npc-detail{display:none;padding:2px 12px 11px;font-size:14px;color:#cfcfcf;line-height:1.7;}
 .npc.open .npc-detail{display:block;}
 .npc-detail .kv2{display:flex;gap:8px;margin:2px 0;}
@@ -4525,7 +4526,15 @@ async function renderNPCs(){
   const descOf=n=>{ const dm=descMap[lcN(n.name)]||{}; const sx=n.sex||dm.sex, ag=n.age||dm.age; return (sx||ag)?{sex:sx,age:ag}:null; };   /* v546: คอลัมน์ sex/age ก่อน fallback settings.npc_desc */
   const relColor=sc=>sc>=70?'#ff7eb6':sc>=20?'#9fe0a0':sc>=-19?'#9a9a9a':sc>=-44?'#e0c45f':'#e06a6a';
   const cityLbl=c=>{const s=String(c||'').trim(); return (!s||s.toLowerCase()==='unknown')?'ไม่ระบุ':s;};   // แถวเก่า city="Unknown" ยังมีใน DB (v539 เลิกเขียนใหม่ ไม่ backfill)
-  const live=rows.filter(n=>!isDead(n)), deadRows=rows.filter(isDead);
+  // v609ui: แยกมอนสเตอร์จากศึกออกจากรายชื่อหลัก (คำสั่ง Koon 07-12 — หน้ารกเพราะ Wolf A/B/Acolyte C ฯลฯ ปนกับ NPC จริง)
+  //   เกณฑ์: rel=enemy + (ป้ายศึกท้ายชื่อ "X A"/"X 2" หรือชื่อสัตว์/มอนล้วน) · มี voice/trait/want/bond = NPC เนื้อเรื่อง ไม่ตัด (เช่น Shadowy Figure)
+  const MON_NAME_RE=/^(dire |giant |swarm of |young )?(wolf|wolves|boar|owlbear|panther|scorpion|rat|bat|spider|snake|bear|lion|tiger|hyena|worg|stirge|drake|wyvern|troll|ogre|goblin|orc|gnoll|hobgoblin|kobold|zombie|skeleton|ghoul|ghast|slime|ooze|harpy|mimic|golem|elemental|imp|quasit)\b/i;
+  const monLike=n=>{ if(lcN(n.relationship)!=='enemy') return false;
+    if(n.voice||n.trait||n.want||n.bond_pc) return false;
+    const nm=String(n.name||'').trim();
+    return /\s([A-H]|\d{1,2})$/.test(nm)||MON_NAME_RE.test(nm); };
+  const monRows=rows.filter(monLike), npcRows=rows.filter(n=>!monLike(n));
+  const live=npcRows.filter(n=>!isDead(n)), deadRows=npcRows.filter(isDead);
   const hereRows=curTown?live.filter(n=>lcN(n.city)===lcN(curTown)):[];
   const favRows=live.filter(n=>relOf(n.name));
   if(_npcF==='here'&&(!curTown||!hereRows.length)) _npcF='all';   // ไม่รู้เมือง/เมืองนี้ว่าง = เริ่มที่ทั้งหมด
@@ -4544,6 +4553,7 @@ async function renderNPCs(){
   mkChip('all','ทั้งหมด ('+live.length+')');
   mkChip('fav','❤ ('+favRows.length+')');
   if(deadRows.length) mkChip('dead','☠ ('+deadRows.length+')');
+  if(monRows.length) mkChip('mon','👹 ('+monRows.length+')');   // v609ui: มอนจากศึกแยกไว้ต่างหาก ไม่ปนรายชื่อหลัก
   p.appendChild(bar);
   const listEl=document.createElement('div'); p.appendChild(listEl);
   inp.oninput=function(){ _npcQ=this.value; draw(); };
@@ -4555,7 +4565,8 @@ async function renderNPCs(){
     const sc=r?Math.max(-100,Math.min(100,Math.round(+r.score||0))):0;
     const pct=Math.round((sc+100)/2); const c=r?relColor(sc):'#565b66';
     const sa=d?[d.sex,d.age].filter(Boolean).join(' · '):'';
-    const relLbl=r?((r.romance?'❤ ':'')+String(r.tier||((sc>=0?'+':'')+sc))):'ยังไม่สนิท';
+    // v609ui: ♂/♀ สีถูกต้องจากข้อมูลจริง (เดิม ⚧ นำหน้าทุกคน = อ่านมั่ว) · ไม่รู้เพศ = ไม่แสดง
+    const sexIcon=d&&d.sex?(/หญิง|female/i.test(String(d.sex))?'<span style="color:#ff9ecf;font-size:12px">♀</span>':/ชาย|male/i.test(String(d.sex))?'<span style="color:#7fb2ff;font-size:12px">♂</span>':''):'';
     const nt=Array.isArray(n.notes)?n.notes:(n.notes?[String(n.notes)]:[]);   // v258b: notes = jsonb array (รองรับ text เก่า)
     const nt3=nt.slice(-3);
     const kv=(k2,v2)=>v2?`<div class="kv2"><b>${k2}</b><span>${escapeHtml(String(v2))}</span></div>`:'';
@@ -4563,17 +4574,20 @@ async function renderNPCs(){
                   :`<div class="kv2"><b>ความสัมพันธ์</b><span class="muted">ยังไม่สนิท — ขยับจากการพูดคุย/ช่วยเหลือในเนื้อเรื่อง</span></div>`;
     const notesHtml=nt.length?(nt3.map(x=>escapeHtml(String(x))).join('<br>')+(nt.length>3?`<details style="margin-top:4px"><summary style="cursor:pointer;font-size:11px;color:#8a8f98">ดูทั้งหมด (${nt.length})</summary><div style="margin-top:4px">${nt.map(x=>escapeHtml(String(x))).join('<br>')}</div></details>`:'')):'-';
     const del=isHost?`<div class="kv2"><b></b><span><button class="btn ghost sm" onclick="event.stopPropagation();deleteNPC('${n.id}')">✕ ลบ (ถ้าซ้ำ/ผิด)</button></span></div>`:'';
+    // v609ui: แถว compact — สีความสัมพันธ์ลงที่ตัวอักษรชื่อโดยตรง (คำสั่ง Koon) · ♂/♀ · role — เลขจริงยังอยู่ในรายละเอียดตอนกาง
+    const nameC=r?((sc>=-19&&sc<20)?'#c8cdd6':c):'#e8e8e8';   // โทนกลางสว่างขึ้นเพื่ออ่านชื่อได้ · ยังไม่มีสัมพันธ์ = สีปกติ
     return `<div class="npc"><button class="npc-head" onclick="tick();this.parentElement.classList.toggle('open')">`
-      +`<span${deadN?' style="text-decoration:line-through;opacity:.65"':''}>${escapeHtml(n.name)}</span>`
+      +sexIcon
+      +`<span style="color:${nameC}${deadN?';text-decoration:line-through;opacity:.65':''}" title="${r?('ความสัมพันธ์ '+(sc>=0?'+':'')+sc):'ยังไม่สนิท'}">${escapeHtml(n.name)}</span>`
       +(deadN?' <span style="font-size:11px">☠</span>':'')
-      +(sa?` <span class="muted" style="font-size:11px;font-weight:400">⚧ ${escapeHtml(sa)}</span>`:'')
+      +(r&&r.romance?' <span style="font-size:11px">❤</span>':'')
       +(n.role?` <span class="muted" style="font-size:11px;font-weight:400">· ${escapeHtml(String(n.role).slice(0,24))}</span>`:'')
-      +`<span class="rel" style="border:0;padding:0;display:flex;align-items:center;flex-shrink:0"><span style="display:inline-block;width:44px;height:6px;border-radius:3px;background:#222;margin-right:5px;overflow:hidden"><span style="display:block;height:100%;width:${pct}%;background:${c}"></span></span><span style="font-size:10.5px;color:${r?c:'#8a8f98'};letter-spacing:0">${escapeHtml(relLbl)}</span></span></button>`
-      +`<div class="npc-detail">${relRow}${kv('Role',n.role)}${kv('⚧ เพศ/วัย',sa)}${kv('เมือง',cityLbl(n.city))}${kv('เสียงพูด',n.voice)}${kv('ลักษณะเด่น',n.trait)}${kv('ต้องการ',n.want)}${kv('ปมผูกพัน',n.bond_pc)}<div class="kv2"><b>Notes</b><span>${notesHtml}</span></div>${del}</div></div>`;
+      +`</button>`
+      +`<div class="npc-detail">${relRow}${kv('Role',n.role)}${kv('เพศ/วัย',sa)}${kv('เมือง',cityLbl(n.city))}${kv('เสียงพูด',n.voice)}${kv('ลักษณะเด่น',n.trait)}${kv('ต้องการ',n.want)}${kv('ปมผูกพัน',n.bond_pc)}<div class="kv2"><b>Notes</b><span>${notesHtml}</span></div>${del}</div></div>`;
   };
   function draw(){
     listEl.innerHTML='';
-    let pool = _npcF==='dead'?deadRows : _npcF==='fav'?favRows : _npcF==='here'?hereRows : live;
+    let pool = _npcF==='dead'?deadRows : _npcF==='fav'?favRows : _npcF==='here'?hereRows : _npcF==='mon'?monRows : live;   // v609ui: +mon view
     pool=pool.filter(matchQ);
     if(_npcF==='fav') pool=pool.slice().sort((a,b)=>(+((relOf(b.name)||{}).score)||0)-(+((relOf(a.name)||{}).score)||0));
     if(!pool.length){ listEl.innerHTML='<div class="muted" style="padding:8px 2px">ไม่พบ NPC ตามเงื่อนไข</div>'; }
