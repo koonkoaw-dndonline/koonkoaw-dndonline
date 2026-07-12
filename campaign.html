@@ -1781,34 +1781,104 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
   </div>
 </div>
 
-<!-- LOBBY -->
+<!-- LOBBY (v617 PLAY MODES: แยก HOST/JOIN → โหมดการเล่น 3 แบบ → สร้างโลก+แนวเนื้อเรื่อง 3 แบบ — docs/PLAY_MODES_PLAN.md §2) -->
 <div class="center hidden" id="lobbyScreen">
-  <div class="card" id="createCard">
-    <h2>New Campaign</h2>
-    <p class="sub">You'll be the host (DM) of this world — up to 4 players.</p>
-    <label class="fld">Campaign name<input type="text" id="newName" placeholder="e.g. Legend of Eldraria"/></label>
-    <label class="fld">Rules / tone (optional)<textarea id="newRules" placeholder="พิมพ์กติกา/โทนของโลก เช่น &quot;high fantasy, ความรุนแรงต่ำ, เน้นไขปริศนามากกว่าบู๊&quot; — หรือปล่อยว่างให้ DM ใช้กลไกมาตรฐาน (ลอร์เฉพาะโลกใส่ทีหลังด้วยเครื่องมือ ingest)"></textarea></label>
-    <div class="srow2" style="gap:8px">
-      <label class="fld">โทนเรื่อง (Tone)<input type="text" id="newTone" placeholder="เช่น heroic, dark, mystery, comedic"/></label>
+  <!-- จอ 1: เลือกบทบาท -->
+  <div id="roleScreen">
+    <div class="card" id="createCard" onclick="lobbyGo('hostModeScreen')" style="cursor:pointer;text-align:left">
+      <h2>🎩 HOST — สร้างโลกใหม่</h2>
+      <p class="sub">คุณเป็นผู้คุมเกม (DM) ของโลกนี้ — เลือกรูปแบบการเล่น สร้างโลก แล้วชวนเพื่อนได้สูงสุด 4 คน</p>
+      <p class="note" style="font-weight:600">สร้างโลก →</p>
     </div>
-    <!-- (ตัดช่องอัปไฟล์กฎ/อ้างอิงออก — กลไก DM อยู่ในโค้ดกลางแล้ว; ลอร์เฉพาะโลกใช้เครื่องมือ ingest แทน เพื่อไม่ให้ทุกรอบเสีย token/หน่วงเวลา) -->
-    <label class="fld">🎵 เพลงประกอบ (optional — ไม่เติมตอนนี้ก็ได้ เติมทีหลังในแท็บ Files)
-      <input type="file" id="musicFiles" multiple accept="audio/*" onchange="onMusicFiles(this.files)"/>
-    </label>
-    <div class="srow2" style="align-items:center;gap:8px">
-      <select id="musicMood" onchange="onMusicFiles(document.getElementById('musicFiles').files)" style="background:#000;color:#fff;border:2px solid #fff;font-family:inherit;font-size:15px;padding:4px 6px">
-        <option value="forest">forest (ป่า/เดินทาง)</option><option value="town">town (เมือง)</option><option value="village">village (หมู่บ้าน)</option><option value="capital">capital (เมืองหลวง)</option><option value="battle">battle (ต่อสู้)</option><option value="boss">boss (บอส)</option><option value="tavern">tavern (โรงเตี๊ยม)</option><option value="dungeon">dungeon (ดันเจี้ยน)</option><option value="rest">rest (พักแรม)</option>
-      </select>
-      <span class="note" id="musicFilesInfo">อารมณ์ของเพลงชุดนี้ (เปลี่ยน/เพิ่มทีหลังได้)</span>
+    <div class="divider">OR</div>
+    <div class="card" onclick="lobbyGo('joinScreen')" style="cursor:pointer;text-align:left">
+      <h2>🎲 JOIN — เข้าร่วมโลกเพื่อน</h2>
+      <p class="sub">ขอรหัสเชิญ 6 ตัวอักษรจาก Host แล้วสร้างตัวละครเข้าไปผจญภัยด้วยกัน</p>
+      <p class="note" style="font-weight:600">ใส่รหัสเชิญ →</p>
     </div>
-    <button class="btn" id="createBtn" onclick="createCampaign()">Create Campaign</button>
   </div>
-  <div class="divider">OR</div>
-  <div class="card">
-    <h2>Join with Code</h2>
-    <p class="sub">Ask the host for the 6-character invite code.</p>
-    <label class="fld">Invite code<input type="text" id="joinCode" placeholder="e.g. EMM8YM" maxlength="6" style="text-transform:uppercase;font-family:'VT323',monospace;font-size:22px;letter-spacing:4px;"/></label>
-    <button class="btn ghost" id="joinBtn" onclick="joinCampaign()">Join</button>
+  <!-- จอ 2: JOIN (เหมือนเดิมทุกอย่าง แค่แยกจอ) -->
+  <div id="joinScreen" class="hidden">
+    <div class="card">
+      <button type="button" class="btn ghost sm" onclick="lobbyGo('roleScreen')" style="margin-bottom:8px">← กลับ</button>
+      <h2>Join with Code</h2>
+      <p class="sub">Ask the host for the 6-character invite code.</p>
+      <label class="fld">Invite code<input type="text" id="joinCode" placeholder="e.g. EMM8YM" maxlength="6" style="text-transform:uppercase;font-family:'VT323',monospace;font-size:22px;letter-spacing:4px;"/></label>
+      <button class="btn ghost" id="joinBtn" onclick="joinCampaign()">Join</button>
+    </div>
+  </div>
+  <!-- จอ 3: HOST เลือกโหมดการเล่น -->
+  <div id="hostModeScreen" class="hidden" style="max-width:560px">
+    <button type="button" class="btn ghost sm" onclick="lobbyGo('roleScreen')" style="margin-bottom:8px">← กลับ</button>
+    <h2 style="margin:4px 0">เลือกรูปแบบการเล่น</h2>
+    <p class="sub">โหมดกำหนดจังหวะของเรื่องหลังสร้างโลก — เปลี่ยนวิธีที่ระบบเดินเรื่อง ไม่ใช่แค่ป้ายชื่อ</p>
+    <div class="card modepick" data-mode="open" onclick="pickMode(this,'open')" style="cursor:pointer;text-align:left;margin-bottom:10px;outline:2px solid currentColor">
+      <h2 style="font-size:17px">🌍 OPEN WORLD <span class="note" style="display:inline;font-weight:400">— โหมดเดิม · อิสระเต็มรูปแบบ</span></h2>
+      <p class="sub" style="margin:4px 0 0">โลกเปิดที่เดินเรื่องด้วยตัวเอง — กระดานเควส องก์เรื่อง มหากาพย์ค่อยๆ เผยตัว จะ slowlife หรือไล่ล่าปมโลกก็ได้ตามใจ</p>
+    </div>
+    <div class="card modepick" data-mode="session" onclick="pickMode(this,'session')" style="cursor:pointer;text-align:left;margin-bottom:10px">
+      <h2 style="font-size:17px">📖 SESSION <span class="note" style="display:inline;font-weight:400">— กึ่งกำกับ · จบเป็นตอน ในโลกต่อเนื่อง</span></h2>
+      <p class="sub" style="margin:4px 0 0">เควสใหญ่เป็นแกนของแต่ละตอน: หาเบาะแสในเมืองอิสระ → ออกผจญภัย (มีอุปสรรคสุ่ม) → ศึกปิดตอน → รางวัล + บทปิดฉาก · กลับมาเล่นใหม่ = ตอนถัดไปในโลกเดิม</p>
+    </div>
+    <div class="card modepick" data-mode="oneshot" onclick="pickMode(this,'oneshot')" style="cursor:pointer;text-align:left;margin-bottom:10px">
+      <h2 style="font-size:17px">⚡ ONE SHOT <span class="note" style="display:inline;font-weight:400">— กำกับเต็มรูปแบบ · จบในตัว</span></h2>
+      <p class="sub" style="margin:4px 0 0">เรื่องเดียวจบในรอบเดียว เริ่มที่เลเวลสูง เดินตามรางสู่ไคลแมกซ์ — ไม่เชื่อมกับโลกที่เคยมี จบแล้วปิดถาวร (อ่านย้อนได้)</p>
+    </div>
+    <button class="btn" onclick="modeNext()" style="margin-top:4px">ถัดไป: สร้างโลก →</button>
+  </div>
+  <!-- จอ 4: HOST สร้างโลก (open/session) — ตัดเพลงออก (ไปลงทีหลังแท็บ Files) + เพิ่มแนวเนื้อเรื่อง -->
+  <div id="hostCreateScreen" class="hidden">
+    <div class="card">
+      <button type="button" class="btn ghost sm" onclick="lobbyGo('hostModeScreen')" style="margin-bottom:8px">← กลับไปเลือกโหมด</button>
+      <h2>New Campaign <span class="note" id="createModeChip" style="display:inline">🌍 OPEN WORLD</span></h2>
+      <p class="sub">You'll be the host (DM) of this world — up to 4 players.</p>
+      <label class="fld">Campaign name<input type="text" id="newName" placeholder="e.g. Legend of Eldraria"/></label>
+      <div class="fld" style="margin-bottom:4px">แนวเนื้อเรื่อง (Story Style) — ระบบใช้ถ่วงน้ำหนักการสุ่มเควส/การผจญภัยทั้งโลก</div>
+      <div class="card stylepick" data-style="journey" onclick="pickStyle(this,'journey','hostCreateScreen')" style="cursor:pointer;text-align:left;padding:8px 12px;margin:4px 0;outline:2px solid currentColor">
+        <b>🧭 EPIC JOURNEY</b> <span class="note" style="display:inline">— การเดินทางอิสระตามปกติ ปริศนา+การผจญภัยหลายรูปแบบสุ่มคละกัน (ค่าเริ่มต้น)</span>
+      </div>
+      <div class="card stylepick" data-style="mystery" onclick="pickStyle(this,'mystery','hostCreateScreen')" style="cursor:pointer;text-align:left;padding:8px 12px;margin:4px 0">
+        <b>🕯 MYSTERY</b> <span class="note" style="display:inline">— เน้นแก้ปริศนา ช่วยเหลือชาวบ้าน เดินเรื่องในเมืองเป็นหลัก · คอมแบต/ดันเจี้ยนเป็นรอง</span>
+      </div>
+      <div class="card stylepick" data-style="dungeon" onclick="pickStyle(this,'dungeon','hostCreateScreen')" style="cursor:pointer;text-align:left;padding:8px 12px;margin:4px 0">
+        <b>⛏ DUNGEON CRAWLER</b> <span class="note" style="display:inline">— ไล่ลงดันเจี้ยนปริศนาไปเรื่อยๆ พัซเซิล+คอมแบตเข้มข้นเป็นแกน</span>
+      </div>
+      <label class="fld">Rules / tone (optional)<textarea id="newRules" placeholder="พิมพ์กติกา/โทนของโลก เช่น &quot;high fantasy, ความรุนแรงต่ำ, เน้นไขปริศนามากกว่าบู๊&quot; — หรือปล่อยว่างให้ DM ใช้กลไกมาตรฐาน (ลอร์เฉพาะโลกใส่ทีหลังด้วยเครื่องมือ ingest)"></textarea></label>
+      <div class="srow2" style="gap:8px">
+        <label class="fld">โทนเรื่อง (Tone)<input type="text" id="newTone" placeholder="เช่น heroic, dark, mystery, comedic"/></label>
+      </div>
+      <!-- (ตัดช่องอัปไฟล์กฎ/อ้างอิงออก — กลไก DM อยู่ในโค้ดกลางแล้ว; ลอร์เฉพาะโลกใช้เครื่องมือ ingest แทน) -->
+      <p class="note">🎵 เพลงประกอบ — ตัดออกจากหน้านี้แล้ว ไปเพิ่มทีหลังได้ที่แท็บ <b>Files</b> ในเกม (อัปโหลด + เลือกอารมณ์เพลง + ลบ ครบทุกอย่าง)</p>
+      <button class="btn" id="createBtn" onclick="createCampaign()">Create Campaign</button>
+    </div>
+  </div>
+  <!-- จอ 4b: ONE SHOT ฟอร์มย่อ -->
+  <div id="hostOneshotScreen" class="hidden">
+    <div class="card">
+      <button type="button" class="btn ghost sm" onclick="lobbyGo('hostModeScreen')" style="margin-bottom:8px">← กลับไปเลือกโหมด</button>
+      <h2>⚡ ONE SHOT — ตั้งโจทย์เรื่องเดียวจบ</h2>
+      <p class="sub">ฟอร์มย่อ — โลกใบนี้เกิดมาเพื่อเรื่องนี้เรื่องเดียว จบแล้วปิดถาวร (อ่านย้อนได้ เล่นต่อไม่ได้)</p>
+      <label class="fld">ชื่อเรื่อง<input type="text" id="osName" placeholder="เช่น คืนสังหารที่คฤหาสน์เรเวนมัวร์"/></label>
+      <div class="fld" style="margin-bottom:4px">แนวเนื้อเรื่อง — คุมโครงทั้งเรื่อง</div>
+      <div class="card stylepick" data-style="journey" onclick="pickStyle(this,'journey','hostOneshotScreen')" style="cursor:pointer;text-align:left;padding:8px 12px;margin:4px 0;outline:2px solid currentColor">
+        <b>🧭 EPIC JOURNEY</b> <span class="note" style="display:inline">— ภารกิจผจญภัยเข้มข้นเรื่องเดียว เดินทาง→ปะทะ→ไคลแมกซ์</span>
+      </div>
+      <div class="card stylepick" data-style="mystery" onclick="pickStyle(this,'mystery','hostOneshotScreen')" style="cursor:pointer;text-align:left;padding:8px 12px;margin:4px 0">
+        <b>🕯 MYSTERY</b> <span class="note" style="display:inline">— คดีเดียวไขให้จบ</span>
+      </div>
+      <div class="card stylepick" data-style="dungeon" onclick="pickStyle(this,'dungeon','hostOneshotScreen')" style="cursor:pointer;text-align:left;padding:8px 12px;margin:4px 0">
+        <b>⛏ DUNGEON CRAWLER</b> <span class="note" style="display:inline">— ดันเจี้ยนเดียว ดำดิ่งถึงก้น โค่นสิ่งที่เฝ้าอยู่</span>
+      </div>
+      <label class="fld">โจทย์ของเรื่อง (สั้นๆ พอ — DM ขยายเอง)<textarea id="osPremise" style="height:70px" placeholder="เช่น &quot;ขุนนางถูกฆ่ากลางงานเลี้ยง ประตูปิดตาย ฆาตกรอยู่ในหมู่แขก&quot;"></textarea></label>
+      <div class="fld" style="margin-bottom:4px">เลเวลเริ่มต้นของปาร์ตี้ — ทุกคนถูกดันขึ้นถึงเลเวลนี้หลังสร้างตัวละคร (เลือก feature เองทีละขั้น)</div>
+      <div class="srow3" style="gap:8px">
+        <div class="card lvlpick" data-lv="3" onclick="pickLevel(this,3)" style="cursor:pointer;text-align:center;padding:8px 4px"><b>เลเวล 3</b><div class="note">เหมาะกับมือใหม่</div></div>
+        <div class="card lvlpick" data-lv="5" onclick="pickLevel(this,5)" style="cursor:pointer;text-align:center;padding:8px 4px;outline:2px solid currentColor"><b>เลเวล 5</b><div class="note">ช่วงสนุกสุดของ D&D</div></div>
+        <div class="card lvlpick" data-lv="8" onclick="pickLevel(this,8)" style="cursor:pointer;text-align:center;padding:8px 4px"><b>เลเวล 8</b><div class="note">สายบู๊จัดเต็ม</div></div>
+      </div>
+      <p class="note" style="margin-top:8px">ตัดออกจากฟอร์มย่อ: 🎵 เพลง · โทนเรื่องแยกช่อง (รวมในโจทย์ได้เลย) · ลอร์ ingest</p>
+      <button class="btn" id="createOsBtn" onclick="createCampaign()">เริ่มเรื่อง ⚡</button>
+    </div>
   </div>
 </div>
 
@@ -2135,9 +2205,11 @@ async function loadMyCampaign(){
   const { data: mem } = await supa.from('campaign_members')
     .select('campaign_id, role, is_active, campaigns(*)')
     .eq('user_id', me.id).eq('is_active', true);
-  const active = (mem||[]).map(m=>m.campaigns).filter(c=>c && c.status==='active');
-  if(!active.length){ show('lobbyScreen'); return; }
-  campaign = active[0];
+  const _allC = (mem||[]).map(m=>m.campaigns).filter(Boolean);
+  const active = _allC.filter(c=>c.status==='active');
+  const _endedC = _allC.filter(c=>c.status==='ended');   // v617 ONE SHOT soft-end: โลกจบถาวรยังเข้าไปอ่านย้อนได้ (read-only — resolver ปฏิเสธทุก action)
+  if(!active.length && !_endedC.length){ show('lobbyScreen'); return; }
+  campaign = active[0] || _endedC[0];
   pruneOtherCampaignCache(campaign.id);   // v300: ล้าง cache แคมเปญอื่น (กัน localStorage โตจนเต็ม = หลุด login)
   await enterCampaign();
 }
@@ -2174,18 +2246,37 @@ function onMusicFiles(files){
   const mood=($('musicMood')&&$('musicMood').value)||'explore';
   info.textContent = (files&&files.length)? `เลือก ${files.length} เพลง (mood: ${mood}) — จะอัปตอนสร้างโลก` : 'อารมณ์ของเพลงชุดนี้ (เปลี่ยน/เพิ่มทีหลังได้)';
 }
+// ── v617 PLAY MODES: lobby flow state + สลับจอย่อย (roleScreen → join / hostMode → hostCreate / hostOneshot) ──
+let pendingMode='open', pendingStyle='journey', pendingLevel=5;
+function lobbyGo(id){
+  ['roleScreen','joinScreen','hostModeScreen','hostCreateScreen','hostOneshotScreen'].forEach(s=>{ const el=$(s); if(el) el.classList.toggle('hidden', s!==id); });
+}
+function pickMode(el,m){ pendingMode=m; document.querySelectorAll('#hostModeScreen .modepick').forEach(x=>x.style.outline=''); el.style.outline='2px solid currentColor'; }
+function modeNext(){
+  const chip=$('createModeChip'); if(chip) chip.textContent=(pendingMode==='session'?'📖 SESSION':'🌍 OPEN WORLD');
+  lobbyGo(pendingMode==='oneshot'?'hostOneshotScreen':'hostCreateScreen');
+}
+function pickStyle(el,s,scope){ pendingStyle=s; document.querySelectorAll('#'+scope+' .stylepick').forEach(x=>x.style.outline=''); el.style.outline='2px solid currentColor'; }
+function pickLevel(el,n){ pendingLevel=n; document.querySelectorAll('#hostOneshotScreen .lvlpick').forEach(x=>x.style.outline=''); el.style.outline='2px solid currentColor'; }
 async function createCampaign(){
   if(!OWNER_EMAILS.includes((me.email||'').toLowerCase())&&!(BETA&&betaCode())){ toast('ช่วงทดสอบ: เฉพาะเจ้าของระบบเท่านั้นที่สร้างโลกได้',true); return; }   // v210: เบต้า+รหัส = สร้างได้ (server เช็ครหัสซ้ำใน migration 0056)
-  const name=$('newName').value.trim(); if(!name){toast('Name your campaign first',true);return;}
-  $('createBtn').disabled=true;
+  const _oneshot=pendingMode==='oneshot';   // v617: ONE SHOT ใช้ฟอร์มย่อ (osName/osPremise + เลเวลเริ่ม 3/5/8)
+  const name=(_oneshot?$('osName'):$('newName')).value.trim(); if(!name){toast(_oneshot?'ตั้งชื่อเรื่องก่อน':'Name your campaign first',true);return;}
+  $('createBtn').disabled=true; if($('createOsBtn')) $('createOsBtn').disabled=true;
   try{
-    const manual=$('newRules').value.trim();
+    const manual=(_oneshot?$('osPremise'):$('newRules')).value.trim();
     const combined=[rulesFromFiles, manual].filter(Boolean).join('\n\n').trim();
     const { data, error } = await supa.rpc('create_campaign', BETA&&betaCode() ? { p_name:name, p_rules:combined, p_beta_code:betaCode() } : { p_name:name, p_rules:combined });
     if(error) throw error;
     campaign = Array.isArray(data)?data[0]:data;
-    const _tone=(($('newTone')||{}).value||'').trim();   // v296: ถอด pace ออก — บลูพรินท์คุมจังหวะ
-    if(_tone){ try{ await supa.from('campaigns').update({tone:_tone||null}).eq('id',campaign.id); campaign.tone=_tone; }catch(e){} }
+    const _tone=_oneshot?'':((($('newTone')||{}).value||'').trim());   // v296: ถอด pace ออก — บลูพรินท์คุมจังหวะ
+    // v617: เขียนโหมด/แนวเนื้อเรื่อง/เลเวลเริ่ม (คอลัมน์ campaigns · migration 0086 — pattern เดียวกับ tone: host เขียนตรงผ่าน RLS)
+    try{
+      const _patch={ play_mode:pendingMode, story_style:pendingStyle, start_level:(_oneshot?pendingLevel:1) };
+      if(_tone) _patch.tone=_tone;
+      await supa.from('campaigns').update(_patch).eq('id',campaign.id);
+      Object.assign(campaign,_patch);
+    }catch(e){}
     // จัดทำดัชนีกฎเข้า RAG (แยกหมวดตามชื่อไฟล์) → DM ดึงเฉพาะที่จำเป็นต่อโหมดฉาก ประหยัด token
     const rf=$('rulesFiles');
     if(rf && rf.files && rf.files.length){
@@ -2200,22 +2291,7 @@ async function createCampaign(){
         }catch(e){}
       }
     }
-    // อัปเพลงประกอบ (ถ้าเลือก) — ไม่บล็อกการสร้างโลกถ้าพลาด
-    const mf=$('musicFiles'); const mood=($('musicMood')&&$('musicMood').value)||'explore';
-    if(mf && mf.files && mf.files.length){
-      $('createBtn').textContent='กำลังอัปเพลง…';
-      let okc=0;
-      for(const file of mf.files){
-        try{
-          if(file.size>15000000) continue;
-          const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_'); const path=campaign.id+'/'+Date.now()+'_'+safe;
-          const up=await supa.storage.from('audio').upload(path,file,{upsert:false}); if(up.error) throw up.error;
-          const ins=await supa.from('music_tracks').insert({campaign_id:campaign.id,mood,name:file.name,storage_path:path,created_by:me.id}); if(ins.error) throw ins.error;
-          okc++;
-        }catch(e){}
-      }
-      if(okc) toast(`อัปเพลง ${okc} เพลงแล้ว ✓`);
-    }
+    // (v617: ตัดการอัปเพลงตอนสร้างโลกออก — คำตัดสิน Koon §0.2 · ระบบเพลงครบอยู่แล้วในแท็บ Files: filesMusicCard เพิ่ม/mood/ลบ)
     // ── v210 BETA wizard: ฝังลอร์ Forgotten Realms อัตโนมัติ (มาร์ค beta_world — ล็อกจนกว่ามี key) → ขอ Gemini key ของ host ──
     if(BETA&&betaCode()){
       const tokB=(await supa.auth.getSession()).data.session?.access_token;
@@ -2247,7 +2323,7 @@ async function createCampaign(){
       else toast('ยังไม่มีรหัสเบต้า — สร้างโลกไม่ได้จนกว่าจะใส่รหัสถูก',true);
     } else toast(e.message||'Create failed',true);
   }
-  finally{ $('createBtn').disabled=false; $('createBtn').textContent='Create Campaign'; }
+  finally{ $('createBtn').disabled=false; $('createBtn').textContent='Create Campaign'; if($('createOsBtn')){ $('createOsBtn').disabled=false; $('createOsBtn').textContent='เริ่มเรื่อง ⚡'; } }
 }
 async function joinCampaign(){
   const code=$('joinCode').value.trim().toUpperCase(); if(!code){toast('Enter the invite code',true);return;}
@@ -2280,6 +2356,11 @@ async function enterCampaign(){
   if(campaign.host_id===me.id){ endBtn.textContent='✕ End World'; endBtn.onclick=endCampaign; }
   else { endBtn.textContent='Leave'; endBtn.onclick=leaveCampaign; }
   endBtn.classList.remove('hidden');
+  // v617 ONE SHOT: ไม่ใช้ Chronicle เลย (คำตัดสิน Koon §0.8) — ซ่อนแท็บทั้งแท็บ · ป้ายชื่อโลกบอกโหมด/สถานะจบ
+  try{
+    if(campaign.play_mode==='oneshot'){ const ct=document.querySelector('.tab[data-tab="chron"]'); if(ct) ct.classList.add('hidden'); }
+    if(campaign.status==='ended') $('hdTitle').textContent='⚡ '+campaign.name+' (จบแล้ว)';
+  }catch(e){}
   $('hdMusic').classList.remove('hidden');
   // v228: เปิดตัวควบคุมเพลง — slider เสียง (default 50%) + dropdown เลือกหมวดเอง (จำค่าใน localStorage)
   try{ const vs=$('hdMusicVol'); if(vs){ vs.classList.remove('hidden'); vs.value=String(Math.round(musicVol*100)); } const ms=$('hdMusicSel'); if(ms){ ms.classList.remove('hidden'); ms.value=musicOverride; } }catch(e){}
@@ -3328,10 +3409,30 @@ async function submitVictoryAck(force){
   }catch(e){ toast('ส่งไม่สำเร็จ ลองใหม่',true); }
   finally{ window._vaSubmitting=false; }
 }
+// ── v617 SESSION: host เริ่มตอนถัดไป (จาก interlude) — มิเรอร์ submitVictoryAck ──
+async function submitSessionNext(){
+  if(window._snSubmitting) return;
+  window._snSubmitting=true;
+  try{
+    var sessS=(await supa.auth.getSession()).data.session; var tokS=sessS&&sessS.access_token;
+    var rS=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tokS},body:JSON.stringify({campaign_id:campaign.id, session_next:true})});
+    var jS=await rS.json();
+    if(jS.error){ toast(jS.error,true); return; }
+    toast('📖 เริ่มตอนที่ '+(jS.session_no||'')+' แล้ว — DM จะเปิดฉากพร้อม recap ในรอบถัดไป');
+    try{ await loadState(); }catch(e){}
+    try{ await renderRoundbar(); }catch(e){}
+  }catch(e){ toast('เริ่มตอนใหม่ไม่สำเร็จ ลองใหม่',true); }
+  finally{ window._snSubmitting=false; }
+}
 async function renderRoundbar(){
   const myseq=++roundbarSeq;            // กัน render ซ้อน (ต้นเหตุกล่องตอบซ้ำ)
   const bar=$('roundbar');
   const isHost = campaign.host_id===me.id;
+  // v617 ONE SHOT soft-end: โลกจบถาวร — แบนเนอร์ read-only แทนช่องสั่งการทั้งหมด (resolver ปฏิเสธทุก action อยู่แล้ว)
+  if(campaign.status==='ended'){
+    bar.innerHTML='<div class="note" style="text-align:left;padding:9px 8px;line-height:1.6;border:1px solid rgba(250,199,117,0.5);border-radius:8px;background:rgba(250,199,117,0.06)">⚡ <b>เรื่องนี้จบบริบูรณ์แล้ว</b><br><span class="muted">โลกนี้ปิดถาวร — เลื่อนอ่านเนื้อเรื่องทั้งหมดย้อนหลังได้'+(isHost?' · ปุ่ม "✕ End World" มุมบนใช้ลบโลกถาวรเมื่อไม่ต้องการเก็บแล้ว':'')+'</span></div>';
+    return;
+  }
   // STAGE 1: ยังไม่มีปูมหลังโลก → host เริ่ม intro
   if(!narrative.length){
     bar.innerHTML='';
@@ -3416,6 +3517,22 @@ async function renderRoundbar(){
   let html=`<div class="cstat"><span class="cs">Round ${curRound.round_number}</span><span class="cs ${submitted>=total?'done':'wait'}">Submitted ${submitted}/${total}</span>${_rng}</div>`;
   list.forEach(a=>{ html+=`<div class="actionlog"><b>${escapeHtml(nameFor(a))}</b> ${escapeHtml(a.action_text)}</div>`; });
   bar.innerHTML=html;   // สร้างทีเดียว (synchronous ต่อจากนี้ ไม่มี await)
+  // ── v617 SESSION: การ์ดพักระหว่างตอน — ไม่บล็อกการเล่น (slowlife/เควสค้างได้) · ปุ่มเริ่มตอนถัดไปเห็นเฉพาะ host ──
+  try{
+    const _sa=(worldState&&worldState.settings&&worldState.settings.session_arc)||null;
+    if(campaign.play_mode==='session' && _sa && _sa.status==='interlude'){
+      const sw=document.createElement('div'); sw.className='note';
+      sw.style.cssText='text-align:left;padding:9px 8px;line-height:1.6;border:1px solid rgba(153,170,221,0.5);border-radius:8px;background:rgba(153,170,221,0.06);margin:6px 0';
+      sw.innerHTML='📖 <b>ตอนที่ '+(Math.floor(+_sa.no)||1)+' จบบริบูรณ์</b>'+(_sa.closed_quest?(' — <span class="muted">'+escapeHtml(String(_sa.closed_quest))+'</span>'):'')+'<br><span class="muted">ช่วงพักระหว่างตอน: เดินเล่นในเมือง ค้าขาย พักผ่อน หรือเก็บเควสค้างได้อิสระ · เควสใหม่จะเปิดเมื่อเริ่มตอนถัดไป</span>';
+      if(isHost){
+        const nb=document.createElement('button'); nb.className='btn'; nb.style.cssText='display:block;margin-top:8px';
+        nb.textContent='▶ เริ่มตอนที่ '+((Math.floor(+_sa.no)||1)+1);
+        nb.onclick=submitSessionNext;
+        sw.appendChild(nb);
+      }
+      bar.appendChild(sw);
+    }
+  }catch(e){}
   // ── v89: server ถามใช้บัฟ (ทอยพลาด) + ปุ่มทอยเซฟเอง — โผล่ทุกโหมดผ่าน realtime campaign_state ──
   try{
     const _set=(worldState&&worldState.settings)||{};
@@ -3939,6 +4056,10 @@ async function renderLevelUpPanel(p){
   await loadCatalogs();
   const lvl=lu.level||(myChar.level||1);
   card.innerHTML='<div class="sectitle" style="color:#f5c542">\u2b50 LEVEL UP \u2192 Lv '+lvl+'</div><div class="note" style="text-align:left">HP เพิ่มเต็มหลอดให้แล้ว \u00b7 เลือกสกิล/เวทใหม่ของเลเวลนี้ แล้วกดยืนยัน \u2014 รอครบทุกคน DM ถึงเล่าต่อ ('+done.length+'/'+total+' พร้อม)</div>';
+  // v617 ONE SHOT: chain ไล่เลเวลสู่ start_level — ป้ายบอกขั้นให้ผู้เล่นรู้ว่ามีอีกกี่รอบ
+  if(campaign.play_mode==='oneshot'&&(+campaign.start_level||1)>1&&lvl<=(+campaign.start_level||1)){
+    card.innerHTML+='<div class="note" style="text-align:left">⚡ ONE SHOT — ปรับตัวละครขึ้นสู่เลเวลเริ่มต้น '+campaign.start_level+' (ขั้น '+Math.max(1,lvl-1)+'/'+(campaign.start_level-1)+' · เลือกครบแล้วระบบพาขึ้นขั้นถัดไปเอง)</div>';
+  }
   // v180: กติกาจาก server (rules_info) เป็นหลัก · mirror ฝั่งเว็บ = fallback · ASI: +2 ค่าเดียว/+1 สองค่า · fighter +L6,14 · rogue +L10
   const ri=await fetchRulesInfo(true);
   const ckA=charClassKey(myChar.class);
@@ -5717,6 +5838,24 @@ function buildDmToolsCard(withFrame){
     sBtn.disabled=false;
   };
   r3s.appendChild(sLbl); r3s.appendChild(sSel); r3s.appendChild(sBtn); tools.appendChild(r3s);
+  // v617 PLAY MODES: สลับโหมดการเล่นกลางแคมเปญ — open ⇄ session เท่านั้น (oneshot ถาวร — ไม่มีในตัวเลือก · server gate อีกชั้น)
+  if(campaign.play_mode!=='oneshot'){
+    const rPm=document.createElement('div'); rPm.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px';
+    const pmLbl=document.createElement('span'); pmLbl.style.cssText=DMF+';color:#9a9a9a'; pmLbl.textContent='โหมดการเล่น:';
+    const pmSel=styleCtl(document.createElement('select'));
+    [['open','🌍 OPEN WORLD — อิสระเต็มรูปแบบ'],['session','📖 SESSION — จบเป็นตอน ในโลกต่อเนื่อง']].forEach(([v,t])=>{ const o=document.createElement('option'); o.value=v; o.textContent=t; pmSel.appendChild(o); });
+    pmSel.value=(campaign.play_mode==='session')?'session':'open';
+    const pmBtn=styleCtl(document.createElement('button')); pmBtn.className='btn sm'; pmBtn.textContent='ตั้งโหมด';
+    pmBtn.onclick=async()=>{
+      pmBtn.disabled=true;
+      try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
+        const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,set_play_mode:pmSel.value})});
+        const j=await r.json(); if(j.error) toast(j.error,true); else { campaign.play_mode=j.play_mode; toast('โหมดการเล่น → '+(j.play_mode==='session'?'📖 SESSION':'🌍 OPEN WORLD')+' ✓ (มีผลรอบถัดไป)'); }
+      }catch(e){ toast('ไม่สำเร็จ',true); }
+      pmBtn.disabled=false;
+    };
+    rPm.appendChild(pmLbl); rPm.appendChild(pmSel); rPm.appendChild(pmBtn); tools.appendChild(rPm);
+  }
   // v73: โครงเรื่อง session — host วางเป้าหมาย+climax (ความลับของผู้กำกับ DM จะพาเรื่องไปแบบเนียน)
   const r4=document.createElement('div'); r4.style.cssText='margin-top:8px';
   const plLbl=document.createElement('div'); plLbl.style.cssText=DMF+';color:#9a9a9a;text-align:left'; plLbl.textContent='โครงเรื่อง session (ลับ — ผู้เล่นไม่เห็น):'; r4.appendChild(plLbl);
