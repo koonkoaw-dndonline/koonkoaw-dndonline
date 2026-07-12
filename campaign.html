@@ -926,6 +926,34 @@ body.in-battle .bs-cs-btn{display:block;}
   .bs-init{max-height:none;}
 }
 
+/* ── v611: NPC master-detail 5 คอลัมน์ (คำสั่ง Koon 07-12) — เมือง → รายชื่อ → รายละเอียด · ไม่มีเส้นแบ่ง ── */
+.panel[data-tab="npc"].active{display:block!important;}
+.npc5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;align-items:start;}
+.npc5-cities{grid-column:1;display:flex;flex-direction:column;gap:8px;}
+.npc5-list{grid-column:2;display:flex;flex-direction:column;min-width:0;}
+.npc5-detail{grid-column:3 / -1;min-width:0;}
+.citybox{display:block;width:100%;padding:11px 8px;text-align:center;border:2px solid var(--white);border-radius:4px;background:var(--black);color:var(--white);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;}
+.citybox .cnt2{display:block;font-size:11px;font-weight:400;color:var(--gray);margin-top:2px;}
+.citybox.on{background:var(--white);color:var(--black);}
+.citybox.on .cnt2{color:var(--gray-dim);}
+.npc5-row{display:flex;align-items:center;gap:7px;width:100%;padding:8px;border:0;background:transparent;color:var(--white);font-size:13.5px;text-align:left;cursor:pointer;border-radius:4px;font-family:inherit;}
+.npc5-row:hover{background:rgba(128,128,128,.14);}
+.npc5-row.on{background:rgba(128,128,128,.26);}
+@media (max-width:899px){
+  .npc5{display:flex;flex-direction:column;}
+  .npc5-cities{flex-direction:row;flex-wrap:wrap;}
+  .citybox{width:auto;flex:1 1 45%;}
+}
+html.skin-paper .citybox{background:#f6edd9;border:1px solid #b49a6a;color:#3a2e20;box-shadow:0 2px 6px rgba(74,56,28,.15);}
+html.skin-paper .citybox .cnt2{color:#93805f;}
+html.skin-paper .citybox.on{background:#7a1f1f;color:#f6edd9;border-color:#5e1717;}
+html.skin-paper .citybox.on .cnt2{color:#e0c9a8;}
+html.skin-paper .npc5-row{color:#3a2e20;}
+html.skin-paper .npc5-row:hover{background:#efe4ca;}
+html.skin-paper .npc5-row.on{background:#e9dcbc;}
+/* v611: ป้ายชื่อใน SVG แผนที่ (WORLD MAP / QUEST ROUTE) ยัด font เป็น attribute — CSS ชนะ presentation attribute */
+html.skin-paper #panel-map svg text{font-family:'Trirong',Georgia,serif;}
+
 /* ════════════════════════════════════════════════════════════════════
    v610 SKIN "กระดาษนิยาย" (paper) — คำสั่ง Koon 07-12: ธีมหนังสือ+ฟอนต์ยุคกลาง
    สลับได้ด้วยปุ่ม 📜 ใน header (localStorage ui_skin · default=paper · classic=พิกเซลเดิม)
@@ -5269,7 +5297,7 @@ async function restSkills(kind){
 }
 
 // ───────── render: NPC — v542 revamp (spec NPC_MAP_DUNGEON_REVAMP_PLAN §1.2): search + ชิป filter + การ์ดแถวเดียว + rel bar เสมอ + ⚧สมอเพศ/วัย + section ☠ ─────────
-let _npcQ='', _npcF='here';   // สถานะค้นหา/filter คงอยู่ข้าม re-render
+let _npcQ='', _npcCity=null, _npcSel=null;   // v611: สถานะค้นหา/เมืองที่เลือก/NPC ที่เลือก คงอยู่ข้าม re-render
 async function renderNPCs(){
   const p=$('panel-npc'); p.innerHTML='';
   let rows=null;
@@ -5300,81 +5328,77 @@ async function renderNPCs(){
   const live=npcRows.filter(n=>!isDead(n)), deadRows=npcRows.filter(isDead);
   const hereRows=curTown?live.filter(n=>lcN(n.city)===lcN(curTown)):[];
   const favRows=live.filter(n=>relOf(n.name));
-  if(_npcF==='here'&&(!curTown||!hereRows.length)) _npcF='all';   // ไม่รู้เมือง/เมืองนี้ว่าง = เริ่มที่ทั้งหมด
-  // ── แถบบน: search + ชิป filter ──
-  const chipCss=on=>'padding:5px 10px;font-size:12px;border-radius:14px;'+(on?'background:#2a3040;border-color:#5B8DEF;color:#fff;':'');
-  const bar=document.createElement('div'); bar.style.cssText='display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px';
-  const inp=document.createElement('input'); inp.placeholder='🔍 ค้นชื่อ / role / เมือง'; inp.value=_npcQ;
-  inp.style.cssText='flex:1;min-width:120px;background:#151923;border:1px solid #333;border-radius:6px;color:#eee;padding:6px 8px;font-size:13px;font-family:inherit';
-  bar.appendChild(inp);
-  const chips={};
-  const mkChip=(key,label)=>{ const b=document.createElement('button'); b.type='button'; b.className='btn ghost sm'; b.textContent=label;
-    b.style.cssText=chipCss(_npcF===key);
-    b.onclick=()=>{ tick(); _npcF=key; Object.keys(chips).forEach(k2=>{chips[k2].style.cssText=chipCss(k2===key);}); draw(); };
-    chips[key]=b; bar.appendChild(b); };
-  if(curTown) mkChip('here','📍 '+curTown.slice(0,14)+' ('+hereRows.length+')');
-  mkChip('all','ทั้งหมด ('+live.length+')');
-  mkChip('fav','❤ ('+favRows.length+')');
-  if(deadRows.length) mkChip('dead','☠ ('+deadRows.length+')');
-  if(monRows.length) mkChip('mon','👹 ('+monRows.length+')');   // v609ui: มอนจากศึกแยกไว้ต่างหาก ไม่ปนรายชื่อหลัก
-  p.appendChild(bar);
-  const listEl=document.createElement('div'); p.appendChild(listEl);
-  inp.oninput=function(){ _npcQ=this.value; draw(); };
+  // ── v611 (คำสั่ง Koon 07-12): master-detail 5 คอลัมน์ ไม่มีเส้นแบ่ง — เมือง (col1 กล่องสี่เหลี่ยม) → กดแล้วรายชื่อ (col2 list) → กดชื่อแล้วรายละเอียด (col3-5) ──
   const matchQ=n=>{ const q=lcN(_npcQ); if(!q) return true;
     return lcN(n.name).includes(q)||lcN(n.role).includes(q)||lcN(n.city).includes(q)||lcN(Array.isArray(n.notes)?n.notes.join(' '):n.notes).includes(q); };
-  // ── การ์ด NPC: แถวเดียว (ชื่อ·⚧เพศ/วัย·role + หลอดสัมพันธ์เสมอ — ไม่มีแถว = "ยังไม่สนิท" ที่ 0 กลางหลอด) ──
-  const card=n=>{
+  const sexIconOf=n=>{ const d=descOf(n); return d&&d.sex?(/หญิง|female/i.test(String(d.sex))?'<span style="color:var(--sex-f);font-size:12px">♀</span>':/ชาย|male/i.test(String(d.sex))?'<span style="color:var(--sex-m);font-size:12px">♂</span>':''):''; };
+  const nameColorOf=n=>{ const r=relOf(n.name); if(!r) return 'inherit'; const sc=Math.max(-100,Math.min(100,Math.round(+r.score||0))); return (sc>=-19&&sc<20)?'inherit':relColor(sc); };
+  // กลุ่ม col1: เมืองปัจจุบันก่อน → เมืองอื่น ก-ฮ → ไม่ระบุ → ❤ / ☠ / 👹
+  const byCity={}; live.forEach(n=>{const c2=cityLbl(n.city);(byCity[c2]=byCity[c2]||[]).push(n);});
+  const cityKeys=Object.keys(byCity).sort((a,b)=>{ if(a==='ไม่ระบุ')return 1; if(b==='ไม่ระบุ')return -1;
+    if(curTown){ if(lcN(a)===lcN(curTown))return -1; if(lcN(b)===lcN(curTown))return 1; }
+    return a.localeCompare(b); });
+  const groups=cityKeys.map(c2=>({key:'city:'+lcN(c2), label:(curTown&&lcN(c2)===lcN(curTown)?'📍 ':'')+c2, rows:byCity[c2]}));
+  if(favRows.length) groups.push({key:'fav', label:'❤ คนสนิท', rows:favRows.slice().sort((a,b)=>(+((relOf(b.name)||{}).score)||0)-(+((relOf(a.name)||{}).score)||0))});
+  if(deadRows.length) groups.push({key:'dead', label:'☠ เสียชีวิต', rows:deadRows});
+  if(monRows.length) groups.push({key:'mon', label:'👹 มอนสเตอร์', rows:monRows});
+  if(!groups.length){ p.innerHTML='<div class="muted">No NPCs discovered yet</div>'; return; }
+  if(!groups.some(g=>g.key===_npcCity)) _npcCity=groups[0].key;
+  // แถบค้นหา (ค้นข้ามทุกเมือง)
+  const bar=document.createElement('div'); bar.style.cssText='display:flex;gap:6px;align-items:center;margin-bottom:10px';
+  const inp=document.createElement('input'); inp.placeholder='🔍 ค้นชื่อ / role / เมือง (ค้นข้ามทุกเมือง)'; inp.value=_npcQ;
+  inp.style.cssText='flex:1;min-width:120px;border-radius:6px;padding:6px 10px;font-size:13px;font-family:inherit';
+  bar.appendChild(inp); p.appendChild(bar);
+  inp.oninput=function(){ _npcQ=this.value; drawList(); };
+  const grid=document.createElement('div'); grid.className='npc5'; p.appendChild(grid);
+  const colCity=document.createElement('div'); colCity.className='npc5-cities';
+  const colList=document.createElement('div'); colList.className='npc5-list';
+  const colDet=document.createElement('div'); colDet.className='npc5-detail';
+  grid.appendChild(colCity); grid.appendChild(colList); grid.appendChild(colDet);
+  const curRows=()=>{ if(lcN(_npcQ)) return npcRows.concat(monRows).filter(matchQ); const g=groups.find(g2=>g2.key===_npcCity); return g?g.rows:[]; };
+  function drawCities(){
+    colCity.innerHTML='';
+    groups.forEach(g=>{ const b=document.createElement('button'); b.type='button'; b.className='citybox'+(g.key===_npcCity?' on':'');
+      b.innerHTML=escapeHtml(g.label)+'<span class="cnt2">'+g.rows.length+'</span>';
+      b.onclick=()=>{ tick(); _npcCity=g.key; _npcSel=null; _npcQ=''; inp.value=''; drawCities(); drawList(); drawDetail(); };
+      colCity.appendChild(b); });
+  }
+  function drawList(){
+    colList.innerHTML='';
+    const pool=curRows();
+    if(!pool.length){ colList.innerHTML='<div class="muted" style="padding:8px 4px;font-size:13px">ไม่พบ NPC</div>'; drawDetail(); return; }
+    pool.forEach(n=>{ const r=relOf(n.name); const deadN=isDead(n);
+      const b=document.createElement('button'); b.type='button'; b.className='npc5-row'+(n.id===_npcSel?' on':'');
+      b.innerHTML=sexIconOf(n)
+        +'<span style="color:'+nameColorOf(n)+(deadN?';text-decoration:line-through;opacity:.65':'')+'">'+escapeHtml(n.name)+'</span>'
+        +(deadN?' <span style="font-size:11px">☠</span>':'')
+        +((r&&r.romance)?' <span style="font-size:11px">❤</span>':'');
+      b.onclick=()=>{ tick(); _npcSel=n.id; drawList(); drawDetail(); };
+      colList.appendChild(b); });
+    if(!pool.some(n=>n.id===_npcSel)) { _npcSel=null; }
+    drawDetail();
+  }
+  function drawDetail(){
+    colDet.innerHTML='';
+    const n=curRows().find(x=>x.id===_npcSel);
+    if(!n){ colDet.innerHTML='<div class="muted" style="padding:10px 4px;font-size:13px">เลือกชื่อจากรายการเพื่อดูรายละเอียด</div>'; return; }
     const r=relOf(n.name); const d=descOf(n); const deadN=isDead(n);
     const sc=r?Math.max(-100,Math.min(100,Math.round(+r.score||0))):0;
     const pct=Math.round((sc+100)/2); const c=r?relColor(sc):'#565b66';
     const sa=d?[d.sex,d.age].filter(Boolean).join(' · '):'';
-    // v609ui: ♂/♀ สีถูกต้องจากข้อมูลจริง (เดิม ⚧ นำหน้าทุกคน = อ่านมั่ว) · ไม่รู้เพศ = ไม่แสดง
-    const sexIcon=d&&d.sex?(/หญิง|female/i.test(String(d.sex))?'<span style="color:#ff9ecf;font-size:12px">♀</span>':/ชาย|male/i.test(String(d.sex))?'<span style="color:#7fb2ff;font-size:12px">♂</span>':''):'';
-    const nt=Array.isArray(n.notes)?n.notes:(n.notes?[String(n.notes)]:[]);   // v258b: notes = jsonb array (รองรับ text เก่า)
+    const nt=Array.isArray(n.notes)?n.notes:(n.notes?[String(n.notes)]:[]);
     const nt3=nt.slice(-3);
     const kv=(k2,v2)=>v2?`<div class="kv2"><b>${k2}</b><span>${escapeHtml(String(v2))}</span></div>`:'';
-    const relRow=r?`<div class="kv2"><b>ความสัมพันธ์<br><span class="muted" style="font-size:11px">(ส่วนตัว เฉพาะคุณ)</span></b><span>${r.romance?'❤ ':''}${escapeHtml(r.tier||'')} · ${sc>=0?'+':''}${sc}<div style="height:6px;border-radius:3px;background:#222;margin-top:4px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${c}"></div></div>${r.note?'<div class="muted" style="font-size:11px;margin-top:3px">'+escapeHtml(r.note)+'</div>':''}</span></div>`
+    const relRow=r?`<div class="kv2"><b>ความสัมพันธ์<br><span class="muted" style="font-size:11px">(ส่วนตัว เฉพาะคุณ)</span></b><span>${r.romance?'❤ ':''}${escapeHtml(r.tier||'')} · ${sc>=0?'+':''}${sc}<div style="height:6px;border-radius:3px;background:rgba(128,128,128,.25);margin-top:4px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${c}"></div></div>${r.note?'<div class="muted" style="font-size:11px;margin-top:3px">'+escapeHtml(r.note)+'</div>':''}</span></div>`
                   :`<div class="kv2"><b>ความสัมพันธ์</b><span class="muted">ยังไม่สนิท — ขยับจากการพูดคุย/ช่วยเหลือในเนื้อเรื่อง</span></div>`;
-    const notesHtml=nt.length?(nt3.map(x=>escapeHtml(String(x))).join('<br>')+(nt.length>3?`<details style="margin-top:4px"><summary style="cursor:pointer;font-size:11px;color:#8a8f98">ดูทั้งหมด (${nt.length})</summary><div style="margin-top:4px">${nt.map(x=>escapeHtml(String(x))).join('<br>')}</div></details>`:'')):'-';
-    const del=isHost?`<div class="kv2"><b></b><span><button class="btn ghost sm" onclick="event.stopPropagation();deleteNPC('${n.id}')">✕ ลบ (ถ้าซ้ำ/ผิด)</button></span></div>`:'';
-    // v609ui: แถว compact — สีความสัมพันธ์ลงที่ตัวอักษรชื่อโดยตรง (คำสั่ง Koon) · ♂/♀ · role — เลขจริงยังอยู่ในรายละเอียดตอนกาง
-    const nameC=r?((sc>=-19&&sc<20)?'#c8cdd6':c):'#e8e8e8';   // โทนกลางสว่างขึ้นเพื่ออ่านชื่อได้ · ยังไม่มีสัมพันธ์ = สีปกติ
-    return `<div class="npc"><button class="npc-head" onclick="tick();this.parentElement.classList.toggle('open')">`
-      +sexIcon
-      +`<span style="color:${nameC}${deadN?';text-decoration:line-through;opacity:.65':''}" title="${r?('ความสัมพันธ์ '+(sc>=0?'+':'')+sc):'ยังไม่สนิท'}">${escapeHtml(n.name)}</span>`
-      +(deadN?' <span style="font-size:11px">☠</span>':'')
-      +(r&&r.romance?' <span style="font-size:11px">❤</span>':'')
-      +(n.role?` <span class="muted" style="font-size:11px;font-weight:400">· ${escapeHtml(String(n.role).slice(0,24))}</span>`:'')
-      +`</button>`
-      +`<div class="npc-detail">${relRow}${kv('Role',n.role)}${kv('เพศ/วัย',sa)}${kv('เมือง',cityLbl(n.city))}${kv('เสียงพูด',n.voice)}${kv('ลักษณะเด่น',n.trait)}${kv('ต้องการ',n.want)}${kv('ปมผูกพัน',n.bond_pc)}<div class="kv2"><b>Notes</b><span>${notesHtml}</span></div>${del}</div></div>`;
-  };
-  function draw(){
-    listEl.innerHTML='';
-    let pool = _npcF==='dead'?deadRows : _npcF==='fav'?favRows : _npcF==='here'?hereRows : _npcF==='mon'?monRows : live;   // v609ui: +mon view
-    pool=pool.filter(matchQ);
-    if(_npcF==='fav') pool=pool.slice().sort((a,b)=>(+((relOf(b.name)||{}).score)||0)-(+((relOf(a.name)||{}).score)||0));
-    if(!pool.length){ listEl.innerHTML='<div class="muted" style="padding:8px 2px">ไม่พบ NPC ตามเงื่อนไข</div>'; }
-    else if(_npcF==='all'){
-      // ทั้งหมด = accordion ตามเมือง (เมืองปัจจุบันขึ้นก่อน+เปิด · "ไม่ระบุ" ท้ายสุด)
-      const byCity={}; pool.forEach(n=>{const c2=cityLbl(n.city);(byCity[c2]=byCity[c2]||[]).push(n);});
-      const keys=Object.keys(byCity).sort((a,b)=>{ if(a==='ไม่ระบุ')return 1; if(b==='ไม่ระบุ')return -1;
-        if(curTown){ if(lcN(a)===lcN(curTown))return -1; if(lcN(b)===lcN(curTown))return 1; }
-        return a.localeCompare(b); });
-      keys.forEach((city,idx)=>{ const acc=document.createElement('div'); acc.className='acc'+(idx===0?' open':'');
-        acc.innerHTML=`<button class="acc-head" onclick="tick();this.parentElement.classList.toggle('open')">${escapeHtml(city)}<span class="cnt">${byCity[city].length}</span></button><div class="acc-body">${byCity[city].map(card).join('')}</div>`;
-        listEl.appendChild(acc); });
-    } else {
-      const holder=document.createElement('div'); holder.innerHTML=pool.map(card).join(''); listEl.appendChild(holder);
-    }
-    // section ☠ พับปิดท้ายรายการ (เฉพาะ view คนเป็น)
-    if(_npcF!=='dead'&&deadRows.length){
-      const dl=deadRows.filter(matchQ);
-      if(dl.length){ const acc=document.createElement('div'); acc.className='acc'; acc.style.marginTop='8px';
-        acc.innerHTML=`<button class="acc-head" onclick="tick();this.parentElement.classList.toggle('open')">☠ เสียชีวิตแล้ว<span class="cnt">${dl.length}</span></button><div class="acc-body">${dl.map(card).join('')}</div>`;
-        listEl.appendChild(acc); }
-    }
+    const notesHtml=nt.length?(nt3.map(x=>escapeHtml(String(x))).join('<br>')+(nt.length>3?`<details style="margin-top:4px"><summary style="cursor:pointer;font-size:11px">ดูทั้งหมด (${nt.length})</summary><div style="margin-top:4px">${nt.map(x=>escapeHtml(String(x))).join('<br>')}</div></details>`:'')):'-';
+    const del=isHost?`<div class="kv2"><b></b><span><button class="btn ghost sm" onclick="deleteNPC('${n.id}')">✕ ลบ (ถ้าซ้ำ/ผิด)</button></span></div>`:'';
+    const card=document.createElement('div'); card.className='item';
+    card.innerHTML=`<div class="nm" style="display:flex;align-items:center;gap:8px">${sexIconOf(n)}<span${deadN?' style="text-decoration:line-through;opacity:.65"':''}>${escapeHtml(n.name)}</span>${deadN?'<span style="font-size:12px">☠</span>':''}${(r&&r.romance)?'<span style="font-size:12px">❤</span>':''}</div>`
+      +`<div class="npc open" style="border:0;background:transparent;box-shadow:none"><div class="npc-detail" style="padding:2px 0 0">${relRow}${kv('Role',n.role)}${kv('เพศ/วัย',sa)}${kv('เมือง',cityLbl(n.city))}${kv('เสียงพูด',n.voice)}${kv('ลักษณะเด่น',n.trait)}${kv('ต้องการ',n.want)}${kv('ปมผูกพัน',n.bond_pc)}<div class="kv2"><b>Notes</b><span>${notesHtml}</span></div>${del}</div></div>`;
+    colDet.appendChild(card);
   }
-  draw();
+  drawCities(); drawList();
 }
 async function deleteNPC(id){
   if(!confirm('ลบ NPC นี้?')) return;
