@@ -1012,6 +1012,53 @@ html.skin-paper .hl-npc{color:#8a5a10;}
 html.skin-paper .hl-item{color:#2f6b2f;}
 html.skin-paper .hl-pc{color:#235e8a;}
 html.skin-paper .hl-monster{color:#9c2f2f;}
+/* ── v610b (คำสั่ง Koon 07-12): กวาดตัวอักษรสีขาว/เทาอ่อน hardcode ทั้งระบบ → โทนหมึกน้ำตาล ──
+   สแกนจาก stylesheet จริง 73 rules · ยกเว้นโซนฉากต่อสู้ .bscene/.cc-* ที่พื้นยังมืด (มี counter-rules คืนค่าด้านล่าง) */
+html.skin-paper #uiToggle,html.skin-paper #scrollLatest,html.skin-paper .lvbadge,html.skin-paper .coin .v,
+html.skin-paper .barlabel .num,html.skin-paper .chip,html.skin-paper .fx,html.skin-paper .sk-head,
+html.skin-paper .sk-line,html.skin-paper .sk-line .sk-bdg,html.skin-paper .acc > .acc-head,html.skin-paper .npc-head,
+html.skin-paper .npc-detail .kv2 b,html.skin-paper .mon .abil b,html.skin-paper .upload:hover,html.skin-paper .upload .t1,
+html.skin-paper .fileitem .nm2,html.skin-paper .pbrow .pblab,html.skin-paper .pbrow .pbval,html.skin-paper .pbbtn,
+html.skin-paper .bblab,html.skin-paper .bonsel,html.skin-paper .cbtag,html.skin-paper .cstat .cs,
+html.skin-paper .copt button,html.skin-paper .coin.s .ico,html.skin-paper .mobileclock .mcv{color:#3a2e20;}
+html.skin-paper .capframe figcaption,html.skin-paper .chron-meta,html.skin-paper .coin.c .ico,html.skin-paper .coin .lab,
+html.skin-paper .barlabel,html.skin-paper .fx .dur,html.skin-paper .pips .cnt,html.skin-paper .skill .desc,
+html.skin-paper #panel-skills .sk-intro,html.skin-paper .sk-head .en,html.skin-paper .sk-line .sk-use,
+html.skin-paper .sk-line .sk-arw,html.skin-paper .sk-fold>summary .sk-arw,html.skin-paper .sk-cnt,
+html.skin-paper .sk-prep .note,html.skin-paper .acc > .acc-head .cnt,html.skin-paper .mon .meta,
+html.skin-paper .mon.unknown .nm,html.skin-paper .mon.unknown .meta,html.skin-paper .mon.unknown .abil,
+html.skin-paper .upload,html.skin-paper .fileitem .tag,html.skin-paper .fileitem .sz,html.skin-paper .pbrow .pbmod,
+html.skin-paper .dicelbl,html.skin-paper .cbrange,html.skin-paper .econlbl,html.skin-paper .econleg,
+html.skin-paper .albumcap,html.skin-paper .chatname,html.skin-paper .skbtn,html.skin-paper .copt-h{color:#7c6a4f;}
+html.skin-paper .sk-desc,html.skin-paper .npc-detail,html.skin-paper .mon .abil{color:#4a3c2a;}
+html.skin-paper .mobileclock .mcloc{color:#1f5e8a;}
+/* inline styles จาก JS (style="color:#fff" ฯลฯ): override เฉพาะ element ที่ 'ไม่มีพื้นหลังของตัวเอง'
+   (ตั้ง bg เอง = เกาะสีคู่ของมันเดิม อ่านออกอยู่แล้ว เช่น chip น้ำเงินเข้ม) */
+html.skin-paper [style*="color:#fff"]:not([style*="background"]),html.skin-paper [style*="color: #fff"]:not([style*="background"]){color:#3a2e20!important;}
+html.skin-paper [style*="color:#eee"]:not([style*="background"]),html.skin-paper [style*="color:#ddd"]:not([style*="background"]),
+html.skin-paper [style*="color:#cfcfcf"]:not([style*="background"]),html.skin-paper [style*="color:#e8e8e8"]:not([style*="background"]),
+html.skin-paper [style*="color:#c8cdd6"]:not([style*="background"]){color:#4a3c2a!important;}
+html.skin-paper [style*="color:#9a9a9a"]:not([style*="background"]),html.skin-paper [style*="color:#8a8f98"]:not([style*="background"]){color:#7c6a4f!important;}
+html.skin-paper [style*="color:#6cc0ff"]:not([style*="background"]){color:#1f5e8a!important;}
+html.skin-paper [style*="color:#9ad8ff"]:not([style*="background"]),html.skin-paper [style*="color:#9ad"]:not([style*="background"]){color:#235e8a!important;}
+html.skin-paper [style*="color:#9fe0a0"]:not([style*="background"]),html.skin-paper [style*="color:#8ee88e"]:not([style*="background"]){color:#2f6b2f!important;}
+html.skin-paper [style*="color:#f5c542"]:not([style*="background"]),html.skin-paper [style*="color:#ffcf5a"]:not([style*="background"]){color:#8a5a10!important;}
+html.skin-paper [style*="color:#ff7eb6"]:not([style*="background"]),html.skin-paper [style*="color:#ff9ecf"]:not([style*="background"]){color:#a83a6b!important;}
+html.skin-paper [style*="color:#e06a6a"]:not([style*="background"]),html.skin-paper [style*="color:#ff7b7b"]:not([style*="background"]){color:#9c2f2f!important;}
+/* counter-rules: ฉากต่อสู้ (.bscene) พื้นยังมืด — คืนโทนสว่างเดิมทั้ง class และ inline */
+html.skin-paper .bscene .chip,html.skin-paper .bscene .whlabel,html.skin-paper .bscene .wh b,html.skin-paper .bscene .fx,
+html.skin-paper .bscene .lvbadge,html.skin-paper .bscene .barlabel .num{color:#fff;}
+html.skin-paper .bscene .wh,html.skin-paper .bscene .whtxt,html.skin-paper .bscene .fx .dur,html.skin-paper .bscene .barlabel{color:#9a9a9a;}
+html.skin-paper .bscene [style*="color:#fff"]{color:#fff!important;}
+html.skin-paper .bscene [style*="color:#eee"]{color:#eee!important;}
+html.skin-paper .bscene [style*="color:#cfcfcf"]{color:#cfcfcf!important;}
+html.skin-paper .bscene [style*="color:#9a9a9a"]{color:#9a9a9a!important;}
+html.skin-paper .bscene [style*="color:#6cc0ff"]{color:#6cc0ff!important;}
+html.skin-paper .bscene [style*="color:#9ad8ff"]{color:#9ad8ff!important;}
+html.skin-paper .bscene [style*="color:#9fe0a0"]{color:#9fe0a0!important;}
+html.skin-paper .bscene [style*="color:#f5c542"]{color:#f5c542!important;}
+html.skin-paper .bscene [style*="color:#ff7b7b"]{color:#ff7b7b!important;}
+html.skin-paper .bscene [style*="color:#ff7eb6"]{color:#ff7eb6!important;}
 /* v610 (คำสั่งข้อ 4): icon มือถือ/HUD คมชัด เลิกเรนเดอร์พิกเซล */
 html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .bico svg,html.skin-paper .wh svg{image-rendering:auto;}
 @media (max-width:859px){
