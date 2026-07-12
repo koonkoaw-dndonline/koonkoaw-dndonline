@@ -82,6 +82,7 @@ input,textarea,select{font-family:inherit;}
 }
 /* กลุ่มปุ่ม music/end/logout — อยู่ติดกันบรรทัดเดียวเสมอ */
 .hd-actions{display:flex;align-items:center;gap:6px;margin-left:auto;flex-shrink:0;flex-wrap:nowrap;}
+.hd-actions .btn{white-space:nowrap;}   /* v612: ปุ่ม header ไม่ตัดบรรทัด — ขนาดตัวอักษรเท่ากันทุกปุ่ม (คำสั่ง Koon 07-12) */
 @media (max-width:560px){
   .hd-actions{width:100%;justify-content:flex-end;margin-left:0;}
   .hd-actions .btn{font-size:12px;padding:5px 7px;letter-spacing:0;}
@@ -830,6 +831,11 @@ body.role-player .dm-only{display:none!important;}
 /* ── BATTLE COMMAND ย่อ (desktop ฉากรบ): ปุ่ม pixel font · กดแล้วหน้าต่างคำสั่งเด้งเยื้องซ้าย ── */
 .bc-toggle{display:block;width:100%;text-align:center;background:#141414;color:#FAC775;border:1px solid #FAC775;border-radius:8px;padding:10px 12px;font-family:'Press Start 2P',monospace;font-size:11px;letter-spacing:1px;cursor:pointer;margin:6px 0;}
 .bc-toggle:hover{background:#241d0e;}
+/* v612: DM TOOLS toggle (แท็บ Party + ฉากรบ) — classic คงพิกเซลเดิม · paper override ด้านล่าง */
+.dm-tg{width:100%;background:none;border:none;cursor:pointer;text-align:left;font-family:'Press Start 2P',monospace;font-size:9px;letter-spacing:1px;color:#FAC775;padding:4px 2px;}
+#bsDmTg{padding:6px 2px 4px;margin-top:6px;}
+/* v612: ฉากรบไม่ต้องมีกล่อง BONDS (คำสั่ง Koon 07-12 — โคลนมากับ worldClock ใน HUD) */
+.bscene #relTopBox{display:none!important;}
 .cc-frame.cc-hide{display:none!important;}
 /* ── C: ปุ่ม 📜 เปิดชีทตัวละคร (สกิล/สเตตัส/ของ) จากฉากรบ + overlay อ่านอย่างเดียว ── */
 .bs-cs-btn{position:fixed;top:16px;left:20px;z-index:4150;background:#1c1c1c;color:#FAC775;border:1px solid #FAC775;border-radius:8px;padding:7px 12px;font-family:'IBM Plex Sans Thai',sans-serif;font-size:13px;font-weight:700;cursor:pointer;display:none;box-shadow:0 2px 10px rgba(0,0,0,.5);}
@@ -859,6 +865,7 @@ body.in-battle .bs-cs-btn{display:block;}
 .bs-chat-in textarea{flex:1;background:#000;border:2px solid #fff;border-radius:6px;color:#fff;font-family:'IBM Plex Sans Thai',sans-serif;font-size:13px;padding:6px 8px;resize:none;box-sizing:border-box;}
 .bs-chat-in button{background:#000;border:2px solid #fff;border-radius:6px;color:#fff;font-family:'IBM Plex Sans Thai',sans-serif;font-size:13px;padding:0 12px;cursor:pointer;flex:0 0 auto;}
 .bs-chat-in button:hover{background:#fff;color:#000;}
+.bs-chat-clear{background:none;border:1px solid #555;border-radius:6px;color:#aaa;font-family:'IBM Plex Sans Thai',sans-serif;font-size:11px;padding:2px 8px;cursor:pointer;}   /* v612: ย้ายจาก inline — ให้ paper override ได้ */
 /* battle command: เล็กลง + root พิกเซล / ด้านในอ่านง่าย */
 #battleScene .cc-frame{font-size:12.5px;padding:8px 10px;}
 #battleScene .cc-item{font-size:13px;padding-top:9px;padding-bottom:9px;}
@@ -987,6 +994,7 @@ html.skin-paper .meta-inline,html.skin-paper .kv .k,html.skin-paper .econleg,htm
 }
 /* ขนาด: องค์ประกอบที่เคยขยายชดเชย VT323 (ฟอนต์พิกเซลตัวเล็ก) — ปรับกลับสเกลปกติ */
 html.skin-paper .btn{font-size:15px;}
+html.skin-paper .hd-actions .btn{font-size:13px;}   /* v612: ปุ่มแถว header ขนาดเดียวกันทั้งชุด Music/Paper/Ingest/End/Logout */
 html.skin-paper .tab .tlab{font-size:13.5px;}
 html.skin-paper label.fld{font-size:14px;}
 html.skin-paper input[type=text],html.skin-paper input[type=email],html.skin-paper input[type=password],
@@ -1073,20 +1081,52 @@ html.skin-paper [style*="color:#9fe0a0"]:not([style*="background"]),html.skin-pa
 html.skin-paper [style*="color:#f5c542"]:not([style*="background"]),html.skin-paper [style*="color:#ffcf5a"]:not([style*="background"]){color:#8a5a10!important;}
 html.skin-paper [style*="color:#ff7eb6"]:not([style*="background"]),html.skin-paper [style*="color:#ff9ecf"]:not([style*="background"]){color:#a83a6b!important;}
 html.skin-paper [style*="color:#e06a6a"]:not([style*="background"]),html.skin-paper [style*="color:#ff7b7b"]:not([style*="background"]){color:#9c2f2f!important;}
-/* counter-rules: ฉากต่อสู้ (.bscene) พื้นยังมืด — คืนโทนสว่างเดิมทั้ง class และ inline */
-html.skin-paper .bscene .chip,html.skin-paper .bscene .whlabel,html.skin-paper .bscene .wh b,html.skin-paper .bscene .fx,
-html.skin-paper .bscene .lvbadge,html.skin-paper .bscene .barlabel .num{color:#fff;}
-html.skin-paper .bscene .wh,html.skin-paper .bscene .whtxt,html.skin-paper .bscene .fx .dur,html.skin-paper .bscene .barlabel{color:#9a9a9a;}
-html.skin-paper .bscene [style*="color:#fff"]{color:#fff!important;}
-html.skin-paper .bscene [style*="color:#eee"]{color:#eee!important;}
-html.skin-paper .bscene [style*="color:#cfcfcf"]{color:#cfcfcf!important;}
-html.skin-paper .bscene [style*="color:#9a9a9a"]{color:#9a9a9a!important;}
-html.skin-paper .bscene [style*="color:#6cc0ff"]{color:#6cc0ff!important;}
-html.skin-paper .bscene [style*="color:#9ad8ff"]{color:#9ad8ff!important;}
-html.skin-paper .bscene [style*="color:#9fe0a0"]{color:#9fe0a0!important;}
-html.skin-paper .bscene [style*="color:#f5c542"]{color:#f5c542!important;}
-html.skin-paper .bscene [style*="color:#ff7b7b"]{color:#ff7b7b!important;}
-html.skin-paper .bscene [style*="color:#ff7eb6"]{color:#ff7eb6!important;}
+/* counter-rules (v612 rescope): เดิมคืนโทนสว่างทั้ง .bscene → ตอนนี้ฉากรบเป็นกระดาษแล้ว (คำสั่ง Koon 07-12)
+   เหลือ counter เฉพาะ 'บอร์ดสนามรบ' #bsBoard ที่พื้นเป็นภาพมืด — token/ป้ายบนบอร์ดยังต้องสีสว่าง */
+html.skin-paper #bsBoard [style*="color:#fff"]{color:#fff!important;}
+html.skin-paper #bsBoard [style*="color:#eee"]{color:#eee!important;}
+html.skin-paper #bsBoard [style*="color:#cfcfcf"]{color:#cfcfcf!important;}
+html.skin-paper #bsBoard [style*="color:#9a9a9a"]{color:#9a9a9a!important;}
+html.skin-paper #bsBoard [style*="color:#6cc0ff"]{color:#6cc0ff!important;}
+html.skin-paper #bsBoard [style*="color:#9ad8ff"]{color:#9ad8ff!important;}
+html.skin-paper #bsBoard [style*="color:#9fe0a0"]{color:#9fe0a0!important;}
+html.skin-paper #bsBoard [style*="color:#f5c542"]{color:#f5c542!important;}
+html.skin-paper #bsBoard [style*="color:#ff7b7b"]{color:#ff7b7b!important;}
+html.skin-paper #bsBoard [style*="color:#ff7eb6"]{color:#ff7eb6!important;}
+/* v612: สีชื่อฝ่ายในแถบ initiative (inline จาก JS) — จับคู่โทนหมึกบนกระดาษ */
+html.skin-paper [style*="color:#5cc8ff"]:not([style*="background"]){color:#235e8a!important;}
+html.skin-paper [style*="color:#ff6b6b"]:not([style*="background"]){color:#9c2f2f!important;}
+/* ── v612: ฉากต่อสู้สกินกระดาษ (คำสั่ง Koon 07-12) — แผงรอบสนามเป็นกระดาษ ตัวหนังสือหมึก อ่านชัด · บอร์ด/token คงศิลป์เดิม ── */
+html.skin-paper .bscene{background:#efe6d2;}
+html.skin-paper .bs-init,html.skin-paper .bs-log,html.skin-paper .bs-narr,html.skin-paper .bs-chat{background:#f7f0e0;border:1px solid #b9a77f;}
+html.skin-paper .bs-panelttl{font-family:'Cinzel','Trirong',serif;-webkit-font-smoothing:antialiased;font-size:12px;letter-spacing:2px;font-weight:700;color:#7a1f1f;border-bottom:1px solid #d6c49c;}
+html.skin-paper .bs-log-list{color:#3a2e20;font-family:'Trirong',Georgia,serif;font-size:13.5px;}
+html.skin-paper .bs-initrow,html.skin-paper .bs-chat-list{font-family:'Trirong',Georgia,serif;}
+html.skin-paper .bs-ini{color:#7c6a4f;}
+html.skin-paper .bs-chat-msg{color:#4a3c2a;}
+html.skin-paper .bs-chat-msg b{color:#235e8a;}
+html.skin-paper .bs-chat-in textarea,html.skin-paper .bs-chat-in button{background:#fbf6ea;border:1px solid #b9a77f;color:#3a2e20;font-family:'Trirong',Georgia,serif;}
+html.skin-paper .bs-chat-in button:hover{background:#e6d8b9;color:#1c1611;}
+html.skin-paper .bs-chat-clear{border-color:#b9a77f;color:#7c6a4f;font-family:'Trirong',Georgia,serif;}
+html.skin-paper .dm-tg{font-family:'Cinzel','Trirong',serif;-webkit-font-smoothing:antialiased;font-size:11.5px;letter-spacing:2px;font-weight:700;color:#7a1f1f;}
+/* BATTLE COMMAND / cc-overlay ในสกินกระดาษ */
+html.skin-paper .cc-frame{background:#fbf6ea;border:1px solid #b9a77f;color:#3a2e20;font-family:'Trirong',Georgia,serif;}
+html.skin-paper .cc-item{color:#3a2e20;}
+html.skin-paper .cc-item:hover,html.skin-paper .cc-item:active{background:#e6d8b9;color:#1c1611;}
+html.skin-paper .cc-item:hover::before,html.skin-paper .cc-item:active::before{color:#1c1611;}
+html.skin-paper .cc-item.cc-dim:hover{background:transparent;color:#3a2e20;}
+html.skin-paper .cc-item.cc-locked::before{color:#3a2e20;}
+html.skin-paper .cc-item .cc-meta{color:#7c6a4f;}
+html.skin-paper .cc-item.cc-locked .cc-meta{color:#7c6a4f;}
+html.skin-paper .cc-crumb{color:#7c6a4f;}
+html.skin-paper .cc-crumb a{color:#3a2e20;}
+html.skin-paper .cc-crumb a:hover{background:#e6d8b9;color:#1c1611;}
+html.skin-paper .cc-close{color:#3a2e20;}
+html.skin-paper .cc-item.cc-root{font-family:'Cinzel','Trirong',serif;font-size:12px;}
+html.skin-paper .cc-item .cc-tag{border-color:#7c6a4f;color:#7c6a4f;}
+/* แถบเมนูมือถือของฉากรบ */
+html.skin-paper .bs-mobbar{background:#efe6d2;border-top:1px solid #b9a77f;}
+html.skin-paper .bs-mobbar button{background:#efe6d2;color:#3a2e20;border-right:1px solid #d6c49c;font-family:'Trirong',Georgia,serif;}
 /* ── v610c (คำสั่ง Koon): เกาะพื้นเข้ม hardcode จับคู่ตัวอักษรหมึกใหม่แล้วอ่านไม่ออก → ทาพื้นเป็นกระดาษทั้งคลาส ──
    เคสตัวอย่าง: #scrollLatest (ลูกศรเลื่อนลงมือถือ rgba ดำ) · .copt button ("🎲 DM กำลังคิดตัวเลือก…" พื้น #000)
    สแกน stylesheet หา background เข้ม hardcode นอกโซน .bscene ครบชุด */
@@ -4345,7 +4385,7 @@ async function _renderPartyInner(){
   if(campaign.host_id===me.id){
     const dmCard=document.createElement('div'); dmCard.className='item';
     const dmTg=document.createElement('button'); dmTg.type='button';
-    dmTg.style.cssText="width:100%;background:none;border:none;cursor:pointer;text-align:left;font-family:'Press Start 2P',monospace;font-size:9px;letter-spacing:1px;color:#FAC775;padding:4px 2px";
+    dmTg.className='dm-tg';   // v612: ย้ายสไตล์เข้า CSS ต่อสกิน — classic คงพิกเซลเดิม · paper ใช้โทนหัวข้อเดียวกับ sectitle
     const dmBody=document.createElement('div'); dmBody.style.display='none';
     const dmSet=(on)=>{ window._dmToolsOpen=on; dmBody.style.display=on?'block':'none'; dmTg.textContent='🎛 DM TOOLS '+(on?'▾':'▸'); if(on&&!dmBody.children.length){ try{ dmBody.appendChild(buildDmToolsCard(false)); }catch(e){} } };
     dmTg.onclick=()=>dmSet(dmBody.style.display==='none');
@@ -5703,7 +5743,7 @@ function ensureBattleScene(){
         '<div class="bs-col bs-left">'+
           '<div class="bs-hud bs-box" id="bsHud"></div>'+
           '<div class="bs-init bs-box" id="bsInitBox"><div class="bs-panelttl">\u2694 INITIATIVE</div><div class="bs-init-list" id="bsInit"></div></div>'+
-          '<div class="bs-chat bs-box" id="bsChatBox"><div class="bs-panelttl" style="display:flex;justify-content:space-between;align-items:center"><span>LIVE CHAT \u00b7 \u0e42\u0e23\u0e25\u0e40\u0e1e\u0e25\u0e22\u0e4c</span><button type="button" onclick="clearChatLocal()" style="background:none;border:1px solid #555;border-radius:6px;color:#aaa;font-family:\'IBM Plex Sans Thai\',sans-serif;font-size:11px;padding:2px 8px;cursor:pointer">\ud83e\uddf9 \u0e25\u0e49\u0e32\u0e07</button></div><div class="bs-chat-list" id="bsChat"></div><div class="bs-chat-in"><textarea id="bsChatInput" rows="2" placeholder="\u0e04\u0e33\u0e1e\u0e39\u0e14/\u0e42\u0e23\u0e25\u0e40\u0e1e\u0e25\u0e22\u0e4c (\u0e17\u0e38\u0e01\u0e04\u0e19\u0e40\u0e2b\u0e47\u0e19)\u2026"></textarea><button type="button" id="bsChatSend">\u0e2a\u0e48\u0e07</button></div></div>'+
+          '<div class="bs-chat bs-box" id="bsChatBox"><div class="bs-panelttl" style="display:flex;justify-content:space-between;align-items:center"><span>LIVE CHAT \u00b7 \u0e42\u0e23\u0e25\u0e40\u0e1e\u0e25\u0e22\u0e4c</span><button type="button" class="bs-chat-clear" onclick="clearChatLocal()">\ud83e\uddf9 \u0e25\u0e49\u0e32\u0e07</button></div><div class="bs-chat-list" id="bsChat"></div><div class="bs-chat-in"><textarea id="bsChatInput" rows="2" placeholder="\u0e04\u0e33\u0e1e\u0e39\u0e14/\u0e42\u0e23\u0e25\u0e40\u0e1e\u0e25\u0e22\u0e4c (\u0e17\u0e38\u0e01\u0e04\u0e19\u0e40\u0e2b\u0e47\u0e19)\u2026"></textarea><button type="button" id="bsChatSend">\u0e2a\u0e48\u0e07</button></div></div>'+
         '</div>'+
         '<div class="bs-col bs-center">'+
           '<div class="bs-board bs-box" id="bsBoard"></div>'+
@@ -5846,8 +5886,7 @@ async function renderBattleScene(){
     try{
       var hud4=document.getElementById('bsHud');
       if(hud4 && campaign.host_id===me.id && !document.getElementById('bsDmTg')){
-        var dtg=document.createElement('button'); dtg.type='button'; dtg.id='bsDmTg';
-        dtg.style.cssText="width:100%;background:none;border:none;cursor:pointer;text-align:left;font-family:'Press Start 2P',monospace;font-size:8px;letter-spacing:1px;color:#FAC775;padding:6px 2px 4px;margin-top:6px";   // v453: ตัดเส้นขวางเหนือ DM TOOLS
+        var dtg=document.createElement('button'); dtg.type='button'; dtg.id='bsDmTg'; dtg.className='dm-tg';   // v453: ตัดเส้นขวางเหนือ DM TOOLS · v612: สไตล์ย้ายเข้า CSS ต่อสกิน
         dtg.textContent='🎛 DM TOOLS ▸';
         var dbody=document.createElement('div'); dbody.id='bsDmBody'; dbody.style.display='none';
         dtg.onclick=function(){ var on=dbody.style.display==='none'; dbody.style.display=on?'block':'none'; dtg.textContent='🎛 DM TOOLS '+(on?'▾':'▸'); if(on){ dbody.innerHTML=''; try{ dbody.appendChild(buildDmToolsCard(false)); }catch(e){} } };
