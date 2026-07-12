@@ -1059,6 +1059,23 @@ html.skin-paper .bscene [style*="color:#9fe0a0"]{color:#9fe0a0!important;}
 html.skin-paper .bscene [style*="color:#f5c542"]{color:#f5c542!important;}
 html.skin-paper .bscene [style*="color:#ff7b7b"]{color:#ff7b7b!important;}
 html.skin-paper .bscene [style*="color:#ff7eb6"]{color:#ff7eb6!important;}
+/* ── v610c (คำสั่ง Koon): เกาะพื้นเข้ม hardcode จับคู่ตัวอักษรหมึกใหม่แล้วอ่านไม่ออก → ทาพื้นเป็นกระดาษทั้งคลาส ──
+   เคสตัวอย่าง: #scrollLatest (ลูกศรเลื่อนลงมือถือ rgba ดำ) · .copt button ("🎲 DM กำลังคิดตัวเลือก…" พื้น #000)
+   สแกน stylesheet หา background เข้ม hardcode นอกโซน .bscene ครบชุด */
+html.skin-paper #uiToggle,html.skin-paper #scrollLatest{background:#f6edd9;border-color:#8a6d1f;color:#5a4630;box-shadow:0 2px 8px rgba(74,56,28,.35);}
+html.skin-paper #uiToggle:hover,html.skin-paper #scrollLatest:hover{background:#7a1f1f;color:#f6edd9;}
+html.skin-paper .mobileclock:not(.hidden){background:#efe4ca;border-color:#c9b083;}
+html.skin-paper .copt button,html.skin-paper .cstat .cs,html.skin-paper .acc > .acc-head,html.skin-paper .chip,
+html.skin-paper .skbtn,html.skin-paper .pbrow,html.skin-paper .pbbtn,html.skin-paper .bonusrow,html.skin-paper .bonsel,
+html.skin-paper .filedd,html.skin-paper #panel-skills .sk-prep,html.skin-paper .bc-toggle,html.skin-paper .wcard,
+html.skin-paper .capframe,html.skin-paper .mapbox{background:#efe4ca;border-color:#b49a6a;}
+html.skin-paper .copt button:hover,html.skin-paper .bc-toggle:hover{background:#e6d8b9;color:#3a2e20;}
+html.skin-paper .skbtn.on{background:#7a1f1f;color:#f6edd9;}
+html.skin-paper .bar{background:#d8c7a2;}
+html.skin-paper .pip.spent{background:#b49a6a;}
+html.skin-paper .econ.used{background:#e0d2b0;}
+html.skin-paper .coin.s .ico,html.skin-paper .coin.c .ico{background:transparent;}
+html.skin-paper .panel[data-tab="story"].active #narrFeed::-webkit-scrollbar-thumb{background:#c9b083;}
 /* v610 (คำสั่งข้อ 4): icon มือถือ/HUD คมชัด เลิกเรนเดอร์พิกเซล */
 html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .bico svg,html.skin-paper .wh svg{image-rendering:auto;}
 @media (max-width:859px){
