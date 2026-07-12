@@ -5338,10 +5338,13 @@ async function renderNPCs(){
   const cityKeys=Object.keys(byCity).sort((a,b)=>{ if(a==='ไม่ระบุ')return 1; if(b==='ไม่ระบุ')return -1;
     if(curTown){ if(lcN(a)===lcN(curTown))return -1; if(lcN(b)===lcN(curTown))return 1; }
     return a.localeCompare(b); });
-  const groups=cityKeys.map(c2=>({key:'city:'+lcN(c2), label:(curTown&&lcN(c2)===lcN(curTown)?'📍 ':'')+c2, rows:byCity[c2]}));
-  if(favRows.length) groups.push({key:'fav', label:'❤ คนสนิท', rows:favRows.slice().sort((a,b)=>(+((relOf(b.name)||{}).score)||0)-(+((relOf(a.name)||{}).score)||0))});
-  if(deadRows.length) groups.push({key:'dead', label:'☠ เสียชีวิต', rows:deadRows});
-  if(monRows.length) groups.push({key:'mon', label:'👹 มอนสเตอร์', rows:monRows});
+  // v611b (คำสั่ง Koon): ไม่มี icon หน้าหัวข้อ · กลุ่มมอนสเตอร์ = สารานุกรม (bestiary) รวมร่างตามชนิด
+  const stemOfM=nm=>String(nm||'').trim().replace(/\s+([A-H]|\d{1,2})$/,'').trim();
+  const monStems=[...new Set(monRows.map(n=>lcN(stemOfM(n.name))))].map(st=>({stem:st, rows:monRows.filter(n=>lcN(stemOfM(n.name))===st)}));
+  const groups=cityKeys.map(c2=>({key:'city:'+lcN(c2), label:c2, rows:byCity[c2]}));
+  if(favRows.length) groups.push({key:'fav', label:'คนสนิท', rows:favRows.slice().sort((a,b)=>(+((relOf(b.name)||{}).score)||0)-(+((relOf(a.name)||{}).score)||0))});
+  if(deadRows.length) groups.push({key:'dead', label:'เสียชีวิต', rows:deadRows});
+  if(monRows.length) groups.push({key:'mon', label:'สารานุกรมมอนสเตอร์', rows:monRows, kind:'mon'});
   if(!groups.length){ p.innerHTML='<div class="muted">No NPCs discovered yet</div>'; return; }
   if(!groups.some(g=>g.key===_npcCity)) _npcCity=groups[0].key;
   // แถบค้นหา (ค้นข้ามทุกเมือง)
@@ -5359,12 +5362,35 @@ async function renderNPCs(){
   function drawCities(){
     colCity.innerHTML='';
     groups.forEach(g=>{ const b=document.createElement('button'); b.type='button'; b.className='citybox'+(g.key===_npcCity?' on':'');
-      b.innerHTML=escapeHtml(g.label)+'<span class="cnt2">'+g.rows.length+'</span>';
+      const cnt=g.kind==='mon'?monStems.length:g.rows.length;
+      b.innerHTML=escapeHtml(g.label)+'<span class="cnt2">'+cnt+'</span>';
       b.onclick=()=>{ tick(); _npcCity=g.key; _npcSel=null; _npcQ=''; inp.value=''; drawCities(); drawList(); drawDetail(); };
       colCity.appendChild(b); });
   }
+  const isMonGroup=()=>!lcN(_npcQ)&&(groups.find(g2=>g2.key===_npcCity)||{}).kind==='mon';
+  // ── v611b bestiary: HP ที่เคยเจอจากตาราง monsters + สกิลที่เคยใช้ใส่ปาร์ตี้จาก combat_log (cache 60s) ──
+  async function loadBestiary(){
+    const now=Date.now();
+    if(window._bestiary&&now-window._bestiary.t<60000&&window._bestiary.cid===campaign.id) return window._bestiary;
+    const [mr,cl]=await Promise.all([
+      supa.from('monsters').select('name,max_hp,ac').eq('campaign_id',campaign.id),
+      supa.from('combat_log').select('actor_name,summary').eq('campaign_id',campaign.id).eq('entry_type','attack').order('seq',{ascending:false}).limit(1500),
+    ]);
+    window._bestiary={t:now,cid:campaign.id,mons:(mr.data||[]),logs:(cl.data||[])};
+    return window._bestiary;
+  }
   function drawList(){
     colList.innerHTML='';
+    if(isMonGroup()){
+      // bestiary: list ชื่อชนิด (ตัวใหญ่) — ไม่แยก A/B/C
+      monStems.forEach(g=>{ const key='mon:'+g.stem;
+        const b=document.createElement('button'); b.type='button'; b.className='npc5-row'+(key===_npcSel?' on':'');
+        b.innerHTML='<span style="letter-spacing:.5px">'+escapeHtml(stemOfM(g.rows[0].name).toUpperCase())+'</span>'
+          +(g.rows.length>1?' <span class="muted" style="font-size:11px">×'+g.rows.length+'</span>':'');
+        b.onclick=()=>{ tick(); _npcSel=key; drawList(); drawDetail(); };
+        colList.appendChild(b); });
+      drawDetail(); return;
+    }
     const pool=curRows();
     if(!pool.length){ colList.innerHTML='<div class="muted" style="padding:8px 4px;font-size:13px">ไม่พบ NPC</div>'; drawDetail(); return; }
     pool.forEach(n=>{ const r=relOf(n.name); const deadN=isDead(n);
@@ -5378,8 +5404,38 @@ async function renderNPCs(){
     if(!pool.some(n=>n.id===_npcSel)) { _npcSel=null; }
     drawDetail();
   }
+  async function drawMonDetail(stem){
+    colDet.innerHTML='<div class="muted" style="padding:10px 4px;font-size:13px">กำลังรวบรวมบันทึก…</div>';
+    const g=monStems.find(x=>x.stem===stem); if(!g){ colDet.innerHTML=''; return; }
+    const bz=await loadBestiary();
+    if(_npcSel!=='mon:'+stem) return;   // ผู้ใช้เปลี่ยนตัวเลือกระหว่างโหลด
+    const disp=stemOfM(g.rows[0].name);
+    // สถานที่พบ: distinct จากแถว npcs ของชนิดนี้
+    const places=[...new Set(g.rows.map(n=>cityLbl(n.city)))].filter(Boolean);
+    // HP ที่เคยเจอ: min–max จากตาราง monsters (ทุกตัวที่เคย spawn ชนิดนี้)
+    const hps=bz.mons.filter(m2=>lcN(stemOfM(m2.name))===stem).map(m2=>+m2.max_hp||0).filter(v=>v>0);
+    const hpTxt=hps.length?(Math.min(...hps)===Math.max(...hps)?String(hps[0]):Math.min(...hps)+'–'+Math.max(...hps)):'—';
+    const acs=bz.mons.filter(m2=>lcN(stemOfM(m2.name))===stem).map(m2=>+m2.ac||0).filter(v=>v>0);
+    const acTxt=acs.length?(Math.min(...acs)===Math.max(...acs)?String(acs[0]):Math.min(...acs)+'–'+Math.max(...acs)):'—';
+    // สกิลที่เคยใช้ใส่ปาร์ตี้: parse "<มอน> โจมตี <เป้า> ด้วย <ท่า>:" จาก combat_log
+    const skills=new Set();
+    bz.logs.forEach(l=>{ if(lcN(stemOfM(l.actor_name))!==stem) return;
+      const m2=String(l.summary||'').match(/โจมตี\s+.+?\s+ด้วย\s+([^:(（]+)[:(（]/); if(m2) skills.add(m2[1].trim()); });
+    const kv=(k2,v2)=>v2?`<div class="kv2"><b>${k2}</b><span>${escapeHtml(String(v2))}</span></div>`:'';
+    const card=document.createElement('div'); card.className='item';
+    card.innerHTML=`<div class="nm" style="letter-spacing:1px">${escapeHtml(disp.toUpperCase())}</div>`
+      +`<div class="npc open" style="border:0;background:transparent;box-shadow:none"><div class="npc-detail" style="padding:2px 0 0">`
+      +kv('เคยพบ',g.rows.length+' ตัว')
+      +kv('สถานที่พบ',places.join(' · ')||'—')
+      +kv('HP ที่เคยเจอ',hpTxt)
+      +kv('AC ที่เคยเจอ',acTxt)
+      +`<div class="kv2"><b>สกิลที่เคยใช้ใส่ปาร์ตี้</b><span>${skills.size?[...skills].map(s2=>escapeHtml(s2)).join(' · '):'<span class="muted">ยังไม่เคยโจมตีสำเร็จ/ไม่มีบันทึก</span>'}</span></div>`
+      +`</div></div>`;
+    colDet.innerHTML=''; colDet.appendChild(card);
+  }
   function drawDetail(){
     colDet.innerHTML='';
+    if(String(_npcSel||'').startsWith('mon:')){ drawMonDetail(String(_npcSel).slice(4)); return; }
     const n=curRows().find(x=>x.id===_npcSel);
     if(!n){ colDet.innerHTML='<div class="muted" style="padding:10px 4px;font-size:13px">เลือกชื่อจากรายการเพื่อดูรายละเอียด</div>'; return; }
     const r=relOf(n.name); const d=descOf(n); const deadN=isDead(n);
