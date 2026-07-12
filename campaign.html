@@ -13,7 +13,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;600;700&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;600;700&family=Press+Start+2P&family=VT323&family=Trirong:wght@400;500;600;700&family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
+<script>/* v610 skin: ตั้งคลาสก่อน CSS paint กันจอกะพริบ — default = paper (กระดาษนิยาย) · classic = ธีมพิกเซลเดิม */
+try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentElement.classList.add('skin-paper'); }catch(e){}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ============================================================
@@ -923,6 +925,115 @@ body.in-battle .bs-cs-btn{display:block;}
   .bs-chat{min-height:150px;max-height:45vh;}
   .bs-init{max-height:none;}
 }
+
+/* ════════════════════════════════════════════════════════════════════
+   v610 SKIN "กระดาษนิยาย" (paper) — คำสั่ง Koon 07-12: ธีมหนังสือ+ฟอนต์ยุคกลาง
+   สลับได้ด้วยปุ่ม 📜 ใน header (localStorage ui_skin · default=paper · classic=พิกเซลเดิม)
+   หลักการ: layout เดิมทุกอย่าง — override เฉพาะสี/ฟอนต์/เส้นขอบผ่านคลาส html.skin-paper
+   ════════════════════════════════════════════════════════════════════ */
+/* จานสีความสัมพันธ์/เพศ (ใช้ใน JS ผ่าน var() — classic กำหนดที่ body · paper override) */
+body{--rel-hi:#ff7eb6;--rel-good:#9fe0a0;--rel-neu:#c8cdd6;--rel-wary:#e0c45f;--rel-bad:#e06a6a;--sex-m:#7fb2ff;--sex-f:#ff9ecf;}
+html.skin-paper{color-scheme:light;}
+html.skin-paper body{
+  --black:#f3ead6; --ink:#eadfc4; --white:#3a2e20; --gray:#6b5a44; --gray-dim:#93805f; --px:1px;
+  --rel-hi:#a83a6b;--rel-good:#3d7a44;--rel-neu:#5f5340;--rel-wary:#9a6b1d;--rel-bad:#9c2f2f;--sex-m:#3a5f9e;--sex-f:#b4487e;
+  font-family:'Trirong',Georgia,serif;
+  color:#3a2e20;
+  background:radial-gradient(1200px 600px at 50% -100px,#f8f0dd,transparent 70%),radial-gradient(900px 500px at 100% 100%,#e6d8b9,transparent 60%),#f1e7d0;
+}
+/* ฟอนต์: หัวเรื่อง/HUD อังกฤษ = Cinzel (โรมันยุคกลาง · ไทย fallback Trirong) — แทน VT323/Press Start ทั้งชุด */
+html.skin-paper .sectitle,html.skin-paper .card h2,html.skin-paper .hd .ttl,html.skin-paper .item .nm,html.skin-paper .tab .tlab,
+html.skin-paper .pill,html.skin-paper .statusline,html.skin-paper .wh,html.skin-paper .whlabel,html.skin-paper .wh b,
+html.skin-paper .num,html.skin-paper .kv .num,html.skin-paper .lvbadge,html.skin-paper .barlabel,html.skin-paper .cbtag,
+html.skin-paper .chip,html.skin-paper .code,html.skin-paper .hd .code,html.skin-paper .whtxt,html.skin-paper .chron-meta,
+html.skin-paper .skbtn,html.skin-paper .coin .v,html.skin-paper .cletter,html.skin-paper .chip .t,html.skin-paper .fx .dur,
+html.skin-paper .skill .rech,html.skin-paper .mobileclock .mcv,html.skin-paper .mobileclock .mcloc{
+  font-family:'Cinzel','Trirong',serif;-webkit-font-smoothing:antialiased;letter-spacing:.4px;
+}
+/* เนื้อความทุกส่วน ไทย+อังกฤษ = Trirong (serif หนังสือ ตระกูลเดียวทั้งระบบ) */
+html.skin-paper body,html.skin-paper button,html.skin-paper input,html.skin-paper textarea,html.skin-paper select,
+html.skin-paper .narr,html.skin-paper .chron-text,html.skin-paper .actionlog,html.skin-paper .item .sub,html.skin-paper .card p.sub,
+html.skin-paper .npc-detail,html.skin-paper .muted,html.skin-paper .note,html.skin-paper .sub,html.skin-paper .meta,
+html.skin-paper .meta-inline,html.skin-paper .kv .k,html.skin-paper .econleg,html.skin-paper .dicelbl{
+  font-family:'Trirong',Georgia,serif;
+}
+/* ขนาด: องค์ประกอบที่เคยขยายชดเชย VT323 (ฟอนต์พิกเซลตัวเล็ก) — ปรับกลับสเกลปกติ */
+html.skin-paper .btn{font-size:15px;}
+html.skin-paper .tab .tlab{font-size:13.5px;}
+html.skin-paper label.fld{font-size:14px;}
+html.skin-paper input[type=text],html.skin-paper input[type=email],html.skin-paper input[type=password],
+html.skin-paper input[type=number],html.skin-paper textarea,html.skin-paper select{font-size:15px;}
+html.skin-paper .card h2{font-size:19px;}
+html.skin-paper .pill{font-size:13px;}
+html.skin-paper .sectitle{font-size:11.5px;letter-spacing:2px;}
+html.skin-paper .kv .num{font-size:14.5px;}
+html.skin-paper .hd .code{font-size:13px;}
+html.skin-paper .wh b{font-size:13px;}
+html.skin-paper .whlabel{font-size:10px;letter-spacing:2px;}
+html.skin-paper .whtxt{font-size:9px;}
+html.skin-paper .lvbadge{font-size:14px;}
+html.skin-paper .coin .v{font-size:15px;}
+html.skin-paper .cletter{font-size:16px;}
+html.skin-paper .barlabel .num{font-size:13px;}
+html.skin-paper .chip .t{font-size:12px;}
+html.skin-paper .fx .dur{font-size:12px;}
+html.skin-paper .skill .rech{font-size:9px;}
+html.skin-paper .chron-meta{font-size:10px;}
+html.skin-paper .mobileclock .mcv{font-size:12px;color:#3a2e20;}
+html.skin-paper .mobileclock .mcloc{font-size:12px;color:#7a1f1f;}
+/* พื้นผิว: การ์ด/กล่อง = กระดาษ ขอบน้ำตาลบาง เงานุ่ม (แทนขอบขาวหนา) */
+html.skin-paper .card,html.skin-paper .item,html.skin-paper .whbox,html.skin-paper .acc,html.skin-paper .mon{
+  background:#f6edd9;border-color:#c9b083;box-shadow:0 2px 8px rgba(74,56,28,.15);
+}
+html.skin-paper .card{animation:none;}
+html.skin-paper .item{animation:none;}
+html.skin-paper .item .nm{border-bottom-color:#d6c49c;}
+html.skin-paper .card h2{color:#7a1f1f;}
+html.skin-paper .card h2::before{color:#8a6d1f;}
+html.skin-paper .sectitle{color:#7a1f1f;background:transparent;border-bottom:1px solid #d6c49c;}
+html.skin-paper .hd .ttl{text-shadow:none;color:#7a1f1f;font-weight:700;letter-spacing:1px;}
+html.skin-paper .hd .logo{filter:none;image-rendering:auto;background:#f6edd9;}
+html.skin-paper input,html.skin-paper textarea,html.skin-paper select{background:#faf4e4!important;color:#3a2e20!important;border-color:#b49a6a!important;}
+html.skin-paper .tab.active{background:#f8f0dd;color:#7a1f1f;box-shadow:inset 0 -3px 0 #7a1f1f;}
+html.skin-paper .tab{border-right-color:#d8c7a2;}
+html.skin-paper .narr{font-size:16px;line-height:1.95;}
+html.skin-paper .npc{border:0;border-bottom:1px solid #d8c7a2;box-shadow:none;background:transparent;}
+html.skin-paper .npc.open{background:#efe4ca;}
+html.skin-paper .skbtn{border-width:1px;font-size:12.5px;}
+html.skin-paper .cc-overlay{background:rgba(58,46,32,.6);}
+/* กล่อง WORLD/LOCATION: สีตัวอักษร hardcode ขาว/เทา → หมึกบนกระดาษ */
+html.skin-paper .whlabel{color:#8a6d1f;}
+html.skin-paper .wh{color:#6b5a44;}
+html.skin-paper .wh b{color:#3a2e20;}
+html.skin-paper .whtxt{color:#93805f;}
+/* สีเน้นคำสำคัญในบท: จานสว่าง (พื้นดำ) → จานหมึก (พื้นกระดาษ) */
+html.skin-paper .hl-place{color:#1f5e8a;}
+html.skin-paper .hl-npc{color:#8a5a10;}
+html.skin-paper .hl-item{color:#2f6b2f;}
+html.skin-paper .hl-pc{color:#235e8a;}
+html.skin-paper .hl-monster{color:#9c2f2f;}
+/* v610 (คำสั่งข้อ 4): icon มือถือ/HUD คมชัด เลิกเรนเดอร์พิกเซล */
+html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .bico svg,html.skin-paper .wh svg{image-rendering:auto;}
+@media (max-width:859px){
+  /* แท็บมือถือ: emoji ชัดๆ แทน pixel-art SVG (เฉพาะสกิน paper) */
+  html.skin-paper .tab .tico svg{display:none;}
+  html.skin-paper .tab .tico::before{font-size:19px;line-height:1;display:block;}
+  html.skin-paper .tab[data-tab="story"] .tico::before{content:"📖";}
+  html.skin-paper .tab[data-tab="me"] .tico::before{content:"🛡️";}
+  html.skin-paper .tab[data-tab="items"] .tico::before{content:"🎒";}
+  html.skin-paper .tab[data-tab="skills"] .tico::before{content:"✨";}
+  html.skin-paper .tab[data-tab="party"] .tico::before{content:"👥";}
+  html.skin-paper .tab[data-tab="npc"] .tico::before{content:"🎭";}
+  html.skin-paper .tab[data-tab="mon"] .tico::before{content:"⚔️";}
+  html.skin-paper .tab[data-tab="map"] .tico::before{content:"🗺️";}
+  html.skin-paper .tab[data-tab="quest"] .tico::before{content:"📜";}
+  html.skin-paper .tab[data-tab="files"] .tico::before{content:"📁";}
+  html.skin-paper .tab[data-tab="chron"] .tico::before{content:"📚";}
+}
+/* v610 (คำสั่งข้อ 3): หน้า Party — กรอบสมาชิกแยกชัด ไม่ชนกัน (ทุกสกิน) */
+.partygrid>div{display:flex;flex-direction:column;gap:12px;}
+/* v610 (คำสั่งข้อ 5): กล่องคนสนิท top-5 ใต้ LOCATION — เดสก์ทอปเท่านั้น มือถือตัดออก */
+@media (max-width:1023px){ #relTopBox{display:none!important;} }
 </style>
 </head>
 <body>
@@ -939,6 +1050,7 @@ body.in-battle .bs-cs-btn{display:block;}
   <div class="dot" id="hdDot"></div>
   <div class="hd-actions">
     <button class="btn ghost sm hidden" id="hdMusic" onclick="toggleMusic()" title="Toggle background music">&#9834; Music: off</button>
+    <button class="btn ghost sm" id="hdSkin" onclick="toggleSkin()" title="สลับสกิน: กระดาษนิยาย / คลาสสิก (พิกเซล)">&#128220; Paper</button>
     <select class="hidden" id="hdMusicSel" onchange="setMusicMood(this.value)" title="เลือกหมวดเพลง (Auto = เปลี่ยนตามฉาก)" style="font-size:11px;background:#11141c;color:#cfd6e6;border:1px solid #333;border-radius:6px;padding:2px 4px;max-width:104px"><option value="">&#127925; Auto</option><option value="battle">ต่อสู้</option><option value="boss">บอส</option><option value="capital">เมืองหลวง</option><option value="dungeon">ดันเจี้ยน</option><option value="forest">ป่า/เดินทาง</option><option value="rest">พักแรม</option><option value="tavern">โรงเตี๊ยม</option><option value="town">เมือง</option><option value="village">หมู่บ้าน</option></select>
     <input class="hidden" id="hdMusicVol" type="range" min="0" max="100" value="50" oninput="setMusicVol(this.value)" title="ระดับเสียงดนตรี (ค่าเริ่มต้น 50%)" style="width:64px;accent-color:#f5b942;vertical-align:middle">
     <button class="btn ghost sm hidden" id="hdToken" title="ก๊อป session token (host) สำหรับเครื่องมือ ingest ลอร์ — token สดทุกครั้งที่กด">&#128273; Ingest token</button>
@@ -1653,6 +1765,10 @@ function toggleMusic(){
   updateMusicBtn();
 }
 function updateMusicBtn(){ const b=$('hdMusic'); if(b) b.innerHTML = musicOn? '&#9834; Music: on' : '&#9834; Music: off'; }
+// ── v610 skin switch: paper (กระดาษนิยาย · default) ↔ classic (พิกเซลเดิม) — สลับสด ไม่ reload · จำใน localStorage ──
+function toggleSkin(){ try{ const nx=(localStorage.getItem('ui_skin')||'paper')==='paper'?'classic':'paper'; localStorage.setItem('ui_skin',nx); document.documentElement.classList.toggle('skin-paper',nx==='paper'); }catch(e){} updateSkinBtn(); }
+function updateSkinBtn(){ const b=$('hdSkin'); if(b) b.innerHTML = document.documentElement.classList.contains('skin-paper')? '&#128220; Paper' : '&#127769; Classic'; }
+try{ updateSkinBtn(); }catch(e){}
 // v231 Bard Performance: เพลงการแสดงของบาร์ดทับ scene_mood ทั้งปาร์ตี้ (state ใน settings.performance) · auto-stop ตอนเข้าศึก
 function _perfState(){ try{ return (worldState&&worldState.settings&&worldState.settings.performance)||null; }catch(e){ return null; } }
 function _inCombatNow(){ try{ return !!window._combatActive || /battle|boss/i.test(String((worldState&&worldState.scene_mood)||'')); }catch(e){ return false; } }
@@ -1804,7 +1920,9 @@ function renderClock(){
   if(locParts.length){
     h+=`<div class="whbox"><span class="whlabel">LOCATION</span><span class="wh"><span class="whico">📍</span><b>${locParts.map(E).join(' · ')}</b></span></div>`;
   }
+  h+='<div class="whbox" id="relTopBox" style="display:none"></div>';   // v610: คนสนิท top-5 ใต้ LOCATION (เดสก์ทอปเท่านั้น — มือถือซ่อนด้วย CSS)
   el.innerHTML=h; el.classList.remove('hidden');
+  fillRelTop();
   // มือถือ: แถบ clock ใน topbar (compact แถวเดียว) — แสดงทุกแท็บ เห็นพร้อมแท็บเมื่อกดลูกศรขยายเมนู
   const mc=$('mobileClock');
   if(mc){
@@ -1822,6 +1940,35 @@ function renderClock(){
       mc.innerHTML=m; mc.classList.remove('hidden');
     }
   }
+}
+
+// ── v610: คนสนิท top-5 ใต้ LOCATION (ความสัมพันธ์ส่วนตัวของผู้เล่นคนนี้ — RLS คืนเฉพาะของตัวเอง) ──
+//   สีชื่อ = ระดับความสัมพันธ์ (จานสีผ่าน CSS var ต่างกันตามสกิน) · cache 60s กัน query ถี่ · มือถือซ่อนด้วย CSS (#relTopBox)
+async function fillRelTop(){
+  try{
+    const el=$('relTopBox'); if(!el||!campaign) return;
+    const now=Date.now();
+    if(!window._relTopCache||now-window._relTopCache.t>60000||window._relTopCache.cid!==campaign.id){
+      const [rr,nn]=await Promise.all([
+        supa.from('relationships').select('npc_name,score,romance').eq('campaign_id',campaign.id),
+        supa.from('npcs').select('name,sex').eq('campaign_id',campaign.id),
+      ]);
+      window._relTopCache={t:now,cid:campaign.id,rels:(rr.data||[]),npcs:(nn.data||[])};
+    }
+    const {rels,npcs}=window._relTopCache;
+    const lc=s=>String(s||'').toLowerCase().trim();
+    const top=rels.slice().sort((a,b)=>(+b.score||0)-(+a.score||0)).slice(0,5).filter(r=>Math.round(+r.score||0)>0||r.romance);
+    if(!top.length){ el.style.display='none'; return; }
+    let h='<span class="whlabel">BONDS</span>';
+    top.forEach(r=>{
+      const sc=Math.round(+r.score||0);
+      const np=npcs.find(n=>lc(n.name)===lc(r.npc_name))||{};
+      const sx=/หญิง|female/i.test(String(np.sex||''))?'<span style="color:var(--sex-f)">♀</span>':(/ชาย|male/i.test(String(np.sex||''))?'<span style="color:var(--sex-m)">♂</span>':'');
+      const col=sc>=70?'var(--rel-hi)':sc>=20?'var(--rel-good)':sc>=-19?'var(--rel-neu)':sc>=-44?'var(--rel-wary)':'var(--rel-bad)';
+      h+=`<span class="wh" title="ความสัมพันธ์ ${sc>=0?'+':''}${sc}">${sx}<b style="color:${col}">${escapeHtml(r.npc_name)}</b>${r.romance?'<span style="font-size:11px">❤</span>':''}</span>`;
+    });
+    el.innerHTML=h; el.style.display='';
+  }catch(e){}
 }
 
 // ───────── character ─────────
