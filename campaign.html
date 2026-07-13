@@ -1821,18 +1821,17 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
   <div id="hostModeScreen" class="hidden" style="max-width:560px">
     <button type="button" class="btn ghost sm" onclick="lobbyGo('roleScreen')" style="margin-bottom:8px">← กลับ</button>
     <h2 style="margin:4px 0">เลือกรูปแบบการเล่น</h2>
-    <p class="sub">โหมดกำหนดจังหวะของเรื่องหลังสร้างโลก — เปลี่ยนวิธีที่ระบบเดินเรื่อง ไม่ใช่แค่ป้ายชื่อ</p>
     <div class="card modepick" data-mode="open" onclick="pickMode(this,'open')" style="cursor:pointer;text-align:left;margin-bottom:10px;outline:2px solid currentColor">
-      <h2 style="font-size:17px">🌍 OPEN WORLD <span class="note" style="display:inline;font-weight:400">— โหมดเดิม · อิสระเต็มรูปแบบ</span></h2>
-      <p class="sub" style="margin:4px 0 0">โลกเปิดที่เดินเรื่องด้วยตัวเอง — กระดานเควส องก์เรื่อง มหากาพย์ค่อยๆ เผยตัว จะ slowlife หรือไล่ล่าปมโลกก็ได้ตามใจ</p>
+      <h2 style="font-size:17px">OPEN WORLD <span class="note" style="display:inline;font-weight:400">— เล่นอิสระ ไม่มีกำหนดจบ</span></h2>
+      <p class="sub" style="margin:4px 0 0">อยากทำอะไรก็ได้ตามใจ — รับงานจากกระดานประกาศ ออกสำรวจโลก หรือใช้ชีวิตสบายๆ ในเมือง เรื่องราวใหญ่จะค่อยๆ เผยตัวตามทางที่เราเลือกเอง เหมาะกับการเล่นต่อเนื่องยาวๆ</p>
     </div>
     <div class="card modepick" data-mode="session" onclick="pickMode(this,'session')" style="cursor:pointer;text-align:left;margin-bottom:10px">
-      <h2 style="font-size:17px">📖 SESSION <span class="note" style="display:inline;font-weight:400">— กึ่งกำกับ · จบเป็นตอน ในโลกต่อเนื่อง</span></h2>
-      <p class="sub" style="margin:4px 0 0">เควสใหญ่เป็นแกนของแต่ละตอน: หาเบาะแสในเมืองอิสระ → ออกผจญภัย (มีอุปสรรคสุ่ม) → ศึกปิดตอน → รางวัล + บทปิดฉาก · กลับมาเล่นใหม่ = ตอนถัดไปในโลกเดิม</p>
+      <h2 style="font-size:17px">SESSION <span class="note" style="display:inline;font-weight:400">— เล่นจบเป็นตอนๆ ในโลกใบเดิม</span></h2>
+      <p class="sub" style="margin:4px 0 0">แต่ละตอนมีภารกิจใหญ่หนึ่งเรื่องให้ทำตั้งแต่ต้นจนจบ — สืบเรื่องราว ออกเดินทาง ผ่านศึกใหญ่ แล้วรับรางวัลปิดตอน กลับมาเล่นครั้งหน้าก็เริ่มตอนใหม่ต่อจากเรื่องเดิม เหมาะกับการนัดเล่นเป็นครั้งๆ</p>
     </div>
     <div class="card modepick" data-mode="oneshot" onclick="pickMode(this,'oneshot')" style="cursor:pointer;text-align:left;margin-bottom:10px">
-      <h2 style="font-size:17px">⚡ ONE SHOT <span class="note" style="display:inline;font-weight:400">— กำกับเต็มรูปแบบ · จบในตัว</span></h2>
-      <p class="sub" style="margin:4px 0 0">เรื่องเดียวจบในรอบเดียว เริ่มที่เลเวลสูง เดินตามรางสู่ไคลแมกซ์ — ไม่เชื่อมกับโลกที่เคยมี จบแล้วปิดถาวร (อ่านย้อนได้)</p>
+      <h2 style="font-size:17px">ONE SHOT <span class="note" style="display:inline;font-weight:400">— เรื่องสั้น จบในรอบเดียว</span></h2>
+      <p class="sub" style="margin:4px 0 0">เริ่มด้วยตัวละครฝีมือระดับสูงและภารกิจที่ชัดเจนตั้งแต่ต้น เดินเรื่องเข้มข้นรวดเดียวถึงบทสรุป จบแล้วโลกปิดถาวร (ยังเปิดอ่านย้อนหลังได้) เหมาะกับลองเล่นครั้งแรก หรืออยากเล่นให้จบในคืนเดียว</p>
     </div>
     <button class="btn" onclick="modeNext()" style="margin-top:4px">ถัดไป: สร้างโลก →</button>
   </div>
@@ -1840,7 +1839,7 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
   <div id="hostCreateScreen" class="hidden">
     <div class="card">
       <button type="button" class="btn ghost sm" onclick="lobbyGo('hostModeScreen')" style="margin-bottom:8px">← กลับไปเลือกโหมด</button>
-      <h2>New Campaign <span class="note" id="createModeChip" style="display:inline">🌍 OPEN WORLD</span></h2>
+      <h2>New Campaign <span class="note" id="createModeChip" style="display:inline">OPEN WORLD</span></h2>
       <p class="sub">You'll be the host (DM) of this world — up to 4 players.</p>
       <label class="fld">Campaign name<input type="text" id="newName" placeholder="e.g. Legend of Eldraria"/></label>
       <div class="fld" style="margin-bottom:4px">แนวเนื้อเรื่อง (Story Style) — ระบบใช้ถ่วงน้ำหนักการสุ่มเควส/การผจญภัยทั้งโลก</div>
@@ -1866,7 +1865,7 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
   <div id="hostOneshotScreen" class="hidden">
     <div class="card">
       <button type="button" class="btn ghost sm" onclick="lobbyGo('hostModeScreen')" style="margin-bottom:8px">← กลับไปเลือกโหมด</button>
-      <h2>⚡ ONE SHOT — ตั้งโจทย์เรื่องเดียวจบ</h2>
+      <h2>ONE SHOT — ตั้งโจทย์เรื่องเดียวจบ</h2>
       <p class="sub">ฟอร์มย่อ — โลกใบนี้เกิดมาเพื่อเรื่องนี้เรื่องเดียว จบแล้วปิดถาวร (อ่านย้อนได้ เล่นต่อไม่ได้)</p>
       <label class="fld">ชื่อเรื่อง<input type="text" id="osName" placeholder="เช่น คืนสังหารที่คฤหาสน์เรเวนมัวร์"/></label>
       <div class="fld" style="margin-bottom:4px">แนวเนื้อเรื่อง — คุมโครงทั้งเรื่อง</div>
@@ -1928,7 +1927,7 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
     <div class="sectitle" style="margin-top:6px">STARTING EQUIPMENT (ชุดเริ่มต้น)</div>
     <div id="pkgWrap" class="note">เลือกอาชีพก่อน เพื่อดูชุดเริ่มต้นตามคลาส</div>
     <div class="sectitle" style="margin-top:4px">ABILITY SCORES · POINT BUY</div>
-    <div id="pbInfo" class="note" style="text-align:center;font-family:'VT323',monospace;font-size:18px;color:#fff;margin:2px 0"></div>
+    <div id="pbInfo" class="note" style="text-align:center;margin:2px 0;font-size:13px"></div>
     <div id="pbWrap" class="pbgrid"></div>
     <div class="srow2" style="margin-top:4px">
       <button type="button" class="btn ghost sm" onclick="pbStandard()">Standard Array</button>
@@ -1938,7 +1937,7 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
     <div class="sectitle" style="margin-top:8px">RACIAL / BACKGROUND BONUS</div>
     <div class="note" style="margin:0 0 4px">เลือกโบนัสเผ่า/พื้นเพ (2024 RAW): +2 และ +1 คนละค่า หรือ +1/+1/+1 สามค่า → สูงสุด 17</div>
     <div id="bonusWrap"></div>
-    <div id="finalScores" class="note" style="text-align:center;font-family:'VT323',monospace;font-size:18px;margin:4px 0"></div>
+    <div id="finalScores" class="note" style="text-align:center;margin:4px 0;font-size:14px"></div>
     <div class="srow2">
       <label class="fld">Max HP (auto ตามกฎ)<input type="number" id="cHp" readonly style="color:#9a9a9a"/></label>
       <label class="fld">Starting weapon<select id="cWeapon" onchange="onWeaponChange()"><option value="">— เลือกอาวุธ —</option><option>Dagger (1d4 piercing)</option><option>Club (1d4 bludgeoning)</option><option>Quarterstaff (1d6 bludgeoning)</option><option>Spear (1d6 piercing)</option><option>Handaxe (1d6 slashing)</option><option>Mace (1d6 bludgeoning)</option><option>Shortsword (1d6 piercing)</option><option>Rapier (1d8 piercing)</option><option>Longsword (1d8 slashing)</option><option>Warhammer (1d8 bludgeoning)</option><option>Battleaxe (1d8 slashing)</option><option>Shortbow (1d6 piercing)</option><option>Longbow (1d8 piercing)</option><option>Light Crossbow (1d8 piercing)</option><option>Greatsword (2d6 slashing)</option><option>Greataxe (1d12 slashing)</option><option value="__custom">อื่นๆ (พิมพ์เอง)</option></select></label>
@@ -2263,7 +2262,7 @@ function lobbyGo(id){
 }
 function pickMode(el,m){ pendingMode=m; document.querySelectorAll('#hostModeScreen .modepick').forEach(x=>x.style.outline=''); el.style.outline='2px solid currentColor'; }
 function modeNext(){
-  const chip=$('createModeChip'); if(chip) chip.textContent=(pendingMode==='session'?'📖 SESSION':'🌍 OPEN WORLD');
+  const chip=$('createModeChip'); if(chip) chip.textContent=(pendingMode==='session'?'SESSION':'OPEN WORLD');
   lobbyGo(pendingMode==='oneshot'?'hostOneshotScreen':'hostCreateScreen');
 }
 function pickStyle(el,s,scope){ pendingStyle=s; document.querySelectorAll('#'+scope+' .stylepick').forEach(x=>x.style.outline=''); el.style.outline='2px solid currentColor'; }
