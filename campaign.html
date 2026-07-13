@@ -5924,7 +5924,8 @@ function relocateForBattle(on){
     _bsRelocated=false;
   }
 }
-function scheduleBattleScene(){ clearTimeout(_bsRenderT); _bsRenderT=setTimeout(function(){ syncBattleScene(); }, 300); }   // รวบจังหวะ event ถี่ๆ ให้เป็น render เดียว (ลดกระตุก) — ข้อ 3 (06-08): 550→300ms ลดหน่วงภาพ
+// v618 B6: adaptive debounce — resolve หนึ่งรอบ server เขียน 6 ตาราง = realtime storm → render ถี่ · render ช้า (>400ms รวม query) = ถอยหลังตามจริง (สูงสุด 2s) กัน render ต่อคิวอิ่มตัว main thread (เคสจอค้าง ~10 นาที playtest 07-13 · เร็วปกติ = 300ms เดิม)
+function scheduleBattleScene(){ clearTimeout(_bsRenderT); var _d=300; try{ var _dur=window._bsLastDur||0, _since=Date.now()-(window._bsLastEnd||0); if(_dur>400) _d=Math.min(2000, Math.max(_d, Math.round(_dur*1.5), 900-_since)); }catch(e){} _bsRenderT=setTimeout(async function(){ var _t0=Date.now(); try{ await syncBattleScene(); } finally { window._bsLastEnd=Date.now(); window._bsLastDur=window._bsLastEnd-_t0; } }, _d); }   // รวบจังหวะ event ถี่ๆ ให้เป็น render เดียว (ลดกระตุก) — ข้อ 3 (06-08): 550→300ms ลดหน่วงภาพ
 async function syncBattleScene(){
   if(typeof campaign==='undefined' || !campaign) return;
   // (06-11) ยิงพร้อมกัน (เดิม serial 2 รอบ) — เช็คนี้รันทุก 8 วิใน battle scene
@@ -7640,6 +7641,8 @@ function ensureRtAlive(){
 }
 function startRtFallback(){
   if(_rtPoll) return;
+  // v618 B6 freeze detector: heartbeat 1s — main thread ถูกบล็อกเกิน 4s = เก็บหลักฐานลง localStorage._freezeLog (ring 20 แถว) + console.warn (จอค้าง playtest 07-13 ยัง reproduce ไม่ได้ — ครั้งหน้าเปิด DevTools/localStorage ดู เวลา·ความยาว·อยู่ฉากรบไหม·render ล่าสุดกี่ ms) · แท็บพับ/เครื่องหลับ = รีเซ็ตฐาน ไม่นับ
+  (function(){ var _hb=Date.now(); document.addEventListener('visibilitychange',function(){ _hb=Date.now(); }); setInterval(function(){ var now=Date.now(), gap=now-_hb; _hb=now; if(document.hidden) return; if(gap>4000 && gap<120000){ try{ var lg=JSON.parse(localStorage.getItem('_freezeLog')||'[]'); lg.push({t:new Date().toISOString(), blockedMs:gap, battle:!!window._bsShown, lastRenderMs:window._bsLastDur||0}); localStorage.setItem('_freezeLog', JSON.stringify(lg.slice(-20))); console.warn('[freezeDetect] main thread ถูกบล็อก ~'+gap+'ms (battle='+(!!window._bsShown)+')'); }catch(e){} } }, 1000); })();
   // โพลทุก 8 วิ: ถ้าไม่ได้ event จาก realtime เกิน 7 วิ ให้ดึงสถานะมาเอง (กัน socket ตายเงียบบนมือถือ)
   _rtPoll=setInterval(()=>{ if(document.hidden) return; if(Date.now()-rtLastSyncTs>7000) resyncAll(false); }, 8000);
   document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ ensureRtAlive(); resyncAll(true); } });
