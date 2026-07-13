@@ -3507,13 +3507,13 @@ async function renderRoundbar(){
   const typingNow=_aidNow==='actInput'||_aidNow==='petActInput';   // v538 M19: ครอบ petActInput ด้วย (เดิมเฉพาะ actInput → คำสั่ง pet หายตอน realtime rebuild)
   if(typingNow && rbKey===_lastRoundbarKey){
     const sl=bar.querySelector('.statusline');
-    const _cbq=(curRound.meta||{}).combat||{}; const _incq=_cbq.active||!!window._combatActive; const _rngq=_incq?`<span class="cs">${escapeHtml(_cbq.range||'COMBAT')}</span>`:'';
+    const _cbq=(curRound.meta||{}).combat||{}; const _incq=_cbq.active||!!window._combatActive; const _rngq=_incq?`<span class="cs">${escapeHtml((typeof _cbq.range==='string'&&_cbq.range)?_cbq.range:'COMBAT')}</span>`:'';   /* v621 B7: range อาจเป็น object จาก meta เก่า → "[object Object]" */
     if(sl) sl.innerHTML=`<div class="cstat"><span class="cs">Round ${curRound.round_number}</span><span class="cs ${submitted>=total?'done':'wait'}">Submitted ${submitted}/${total}</span>${_rngq}</div>`;
     return;
   }
   _lastRoundbarKey=rbKey;
   const keepAct=(document.getElementById('actInput')||{}).value||'';   // กันข้อความที่พิมพ์ค้างหายตอน re-render (placeholder/realtime)
-  const _cbS=(curRound.meta||{}).combat||{}; const _incS=_cbS.active||!!window._combatActive; const _rng=_incS?`<span class="cs">${escapeHtml(_cbS.range||'COMBAT')}</span>`:'';
+  const _cbS=(curRound.meta||{}).combat||{}; const _incS=_cbS.active||!!window._combatActive; const _rng=_incS?`<span class="cs">${escapeHtml((typeof _cbS.range==='string'&&_cbS.range)?_cbS.range:'COMBAT')}</span>`:'';   /* v621 B7: range อาจเป็น object จาก meta เก่า → "[object Object]" */
   let html=`<div class="cstat"><span class="cs">Round ${curRound.round_number}</span><span class="cs ${submitted>=total?'done':'wait'}">Submitted ${submitted}/${total}</span>${_rng}</div>`;
   list.forEach(a=>{ html+=`<div class="actionlog"><b>${escapeHtml(nameFor(a))}</b> ${escapeHtml(a.action_text)}</div>`; });
   bar.innerHTML=html;   // สร้างทีเดียว (synchronous ต่อจากนี้ ไม่มี await)
@@ -4053,6 +4053,7 @@ async function renderLevelUpPanel(p){
     card.innerHTML='<div class="sectitle" style="color:#f5c542">\u2b50 LEVEL UP</div><div class="note">เลือกเสร็จแล้ว \u2014 รอเพื่อน '+done.length+'/'+total+' คน</div>';
     p.appendChild(card); return;
   }
+  p.appendChild(card);   /* v621 B16: ต่อ DOM ก่อนประกอบ — เดิม append บรรทัดสุดท้าย throw ระหว่างทาง = ทั้ง card รวมปุ่มยืนยันหายเงียบ ผู้เล่นติด gate ถาวร */
   await loadCatalogs();
   const lvl=lu.level||(myChar.level||1);
   card.innerHTML='<div class="sectitle" style="color:#f5c542">\u2b50 LEVEL UP \u2192 Lv '+lvl+'</div><div class="note" style="text-align:left">HP เพิ่มเต็มหลอดให้แล้ว \u00b7 เลือกสกิล/เวทใหม่ของเลเวลนี้ แล้วกดยืนยัน \u2014 รอครบทุกคน DM ถึงเล่าต่อ ('+done.length+'/'+total+' พร้อม)</div>';
@@ -4306,7 +4307,7 @@ async function _renderMeInner(){
   /* ใช้ mySheet ที่ refreshAll/realtime โหลดไว้แล้ว — ไม่ refetch ทุกครั้งที่ render (ลด round-trip) */
   const sheet=mySheet||{};
   const ab=sheet.abilities||{}, cb=sheet.combat||{}, w=sheet.wallet||{}, ex=sheet.exp||{};
-  if(worldState&&worldState.level_up&&worldState.level_up.active){ try{ await renderLevelUpPanel(p); }catch(e){} }
+  if(worldState&&worldState.level_up&&worldState.level_up.active){ try{ await renderLevelUpPanel(p); }catch(e){ console.error('renderLevelUpPanel:',e); try{ const _luErr=document.createElement('div'); _luErr.className='item'; _luErr.style.cssText='border:2px solid #f5c542'; _luErr.innerHTML='<div class="sectitle" style="color:#f5c542">⭐ LEVEL UP</div><div class="note">แผงเลือกโหลดไม่สำเร็จ — รีเฟรชหน้า หรือให้ host กด "ข้ามรอทุกคน"</div>'; p.appendChild(_luErr); }catch(e2){} } }   /* v621 B16: เลิก catch เงียบ — throw = picker หายทั้ง card ผู้เล่นติด gate โดยไม่รู้สาเหตุ */
   // v181: การ์ดเตรียมเวทประจำวันย้ายไปแท็บ Skills (renderSkills) ตามคำขอ — แท็บ Me เหลือเลเวลอัพอย่างเดียว
   if(sheet.wildshape&&sheet.wildshape.active){ try{ renderWildShapeCard(p, sheet.wildshape); }catch(e){} }
   const esc=v=>escapeHtml(String(v)); const dash='—';
