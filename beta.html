@@ -995,6 +995,16 @@ html.skin-paper .meta-inline,html.skin-paper .kv .k,html.skin-paper .econleg,htm
 /* ขนาด: องค์ประกอบที่เคยขยายชดเชย VT323 (ฟอนต์พิกเซลตัวเล็ก) — ปรับกลับสเกลปกติ */
 html.skin-paper .btn{font-size:15px;}
 html.skin-paper .hd-actions .btn{font-size:13px;}   /* v612: ปุ่มแถว header ขนาดเดียวกันทั้งชุด Music/Paper/Ingest/End/Logout */
+html.skin-paper .btn.sm{font-size:11px;font-weight:400;letter-spacing:.3px;padding:5px 9px;}   /* v622 (คำสั่ง Koon 07-13): ปุ่มจิ๋วกรอบเส้นประ (ล้างแชท/ถอด/สวมใส่/ใช้/มือรอง) — เดิมโดน html.skin-paper .btn (15px·bold) ชนะ specificity ของ .btn.sm (11.5px) → ใหญ่/หนาเกินสัดส่วน UI */
+/* v622 (Koon เลือกแบบ A จาก docs/mockups/battle_frame_v622.html · "ขอบขาวให้เล็กหน่อย"): กรอบรูปขาว photo-mat รอบ battle grid เฉพาะสกิน paper
+   จับ svg กริดด้วย attribute selector จาก inline style เฉพาะตัวของ renderBattleGrid (background:#0d1018) — ครอบทุกที่ที่กริด render (ฉากรบ #bsBoard + แท็บ Combat) · classic ไม่โดน */
+html.skin-paper svg[style*="#0d1018" i]{
+  box-sizing:border-box;
+  border:9px solid #fbf6e9 !important;
+  border-radius:2px !important;
+  outline:1px solid #b49a6a;outline-offset:-9px;   /* เส้นทองชั้นในตรงรอยต่อ mat↔ภาพ */
+  box-shadow:0 1px 2px rgba(58,46,32,.18),0 6px 16px rgba(58,46,32,.22);
+}
 html.skin-paper .tab .tlab{font-size:13.5px;}
 html.skin-paper label.fld{font-size:14px;}
 html.skin-paper input[type=text],html.skin-paper input[type=email],html.skin-paper input[type=password],
