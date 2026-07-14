@@ -6869,6 +6869,63 @@ async function renderBattleGrid(p){
 }
 
 // ───────── render: map (campaign_state) ─────────
+// ── v627ui: HTML ผังดันเจี้ยน (ห้อง discovered + เงา "?" ทางออกที่เคยเห็น · หมุดบนรูปจริงถ้ามี pins) ──
+//   แยกจาก renderMap เพื่อใช้ซ้ำ 2 ที่: DUNGEON MAP (ดันเจี้ยนปัจจุบัน) + รายการ DUNGEONS (กดดูผังที่เคยผ่านย้อนหลัง)
+function dunMapHtml(dHit, st){
+  try{
+    const g=dHit&&dHit.data&&dHit.data.graph;
+    if(!g||!Array.isArray(g.rooms)||!g.rooms.length) return null;
+    const _dpRoot=((st.settings||{}).dungeon_progress)||{}; const _byDD=_dpRoot.byDungeon&&_dpRoot.byDungeon[dHit.id]&&_dpRoot.byDungeon[dHit.id].rooms; const dprogD=(_byDD&&typeof _byDD==='object')?_byDD:(_dpRoot.rooms||{});   // M9 (v414): rooms ของดันเจี้ยนนี้ (byDungeon[id] · fallback legacy flat)
+    const progOf=nm=>{const l=String(nm).toLowerCase(); for(const k in dprogD){ if(String(k).toLowerCase()===l) return dprogD[k]||{}; } return null;};
+    const discD=r=>{const pr=progOf(r.name); return !!(pr&&(pr.discovered||pr.cleared||pr.looted));};
+    const curRoomL=String(st.current_room||'').toLowerCase();
+    const byId={}; g.rooms.forEach(r=>byId[r.id]=r);
+    const drawn={};
+    g.rooms.forEach(r=>{ if(discD(r)||String(r.name).toLowerCase()===curRoomL) drawn[r.id]='full'; });
+    g.rooms.forEach(r=>{ if(drawn[r.id]==='full') (r.exits||[]).forEach(e=>{const t=byId[e]; if(t&&!drawn[t.id]&&!t.hidden) drawn[t.id]='ghost';}); });
+    const ids=Object.keys(drawn);
+    if(!ids.length) return null;
+    const pins=(dHit.data&&dHit.data.pins)||{};
+    const havePins=dHit.map_path&&ids.some(id=>pins[id]&&Number.isFinite(+pins[id].x));
+    if(havePins){
+      // ── v253 §9: ปักหมุดห้องบนรูปแผนที่จริง — ตำแหน่งปาร์ตี้ = หมุดเรืองแสง · กฎเผยห้องเดียวกับกราฟ ──
+      let ph='<div style="position:relative;width:100%;border:2px solid #fff;border-radius:6px;overflow:hidden;margin-top:4px">';
+      ph+='<img src="'+PUBLIC_URL+'maps/'+dHit.map_path+'" style="width:100%;display:block">';
+      ids.forEach(id=>{const pin=pins[id]; if(!pin||!Number.isFinite(+pin.x)) return;
+        const r=byId[id],full=drawn[id]==='full',hereR=String(r.name).toLowerCase()===curRoomL,pr=progOf(r.name)||{};
+        const col=hereR?'#FAC775':(pr.cleared||pr.looted)?'#97C459':(full?'#fff':'#888');
+        const ic=(r.kind==='boss'?'☠':'')+(r.hidden?'🗝':'')+(pr.cleared?'⚔️':'')+(pr.looted?'💰':'');
+        const lbl=full?escapeHtml(String(r.name).slice(0,18)):'?'; const sz=hereR?16:11;
+        ph+='<div style="position:absolute;left:'+Math.max(0,Math.min(100,+pin.x))+'%;top:'+Math.max(0,Math.min(100,+pin.y))+'%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">'
+          +'<div style="width:'+sz+'px;height:'+sz+'px;border-radius:50%;background:'+col+';border:2px solid #000;margin:0 auto'+(hereR?';box-shadow:0 0 9px 2px #FAC775':'')+'"></div>'
+          +'<div style="font-size:10px;color:'+(hereR?'#FAC775':'#fff')+';text-shadow:0 0 3px #000,0 0 4px #000;white-space:nowrap;margin-top:1px;font-weight:600">'+lbl+(ic?' '+ic:'')+'</div></div>';
+      });
+      ph+='</div>';
+      return '<div class="note" style="text-align:left;padding:2px 2px 0">'+escapeHtml(dHit.name)+' 🗺</div>'+ph+'<div class="note" style="text-align:left;padding:4px 2px;font-size:11px">🟡 ห้องปัจจุบัน · 🟢 เคลียร์/เก็บแล้ว · ? = เห็นทางแต่ยังไม่สำรวจ · 🗝 ห้องลับ · ☠ ห้องลึกสุด</div>';
+    }
+    const cols={}; ids.forEach(id=>{const d2=Math.max(0,Math.floor(+byId[id].depth||0)); (cols[d2]=cols[d2]||[]).push(id);});
+    const depths=Object.keys(cols).map(Number).sort((a,b)=>a-b);
+    const maxRow=Math.max.apply(null,depths.map(d2=>cols[d2].length));
+    const W3=640,colW=depths.length>1?(W3-120)/(depths.length-1):0,rowH=64,H3=Math.max(150,maxRow*rowH+70);
+    const pos2={};
+    depths.forEach((d2,ci)=>{ cols[d2].sort((a,b)=>String(byId[a].name).localeCompare(String(byId[b].name))); cols[d2].forEach((id,ri)=>{ pos2[id]={x:60+ci*colW, y:H3/2+(ri-(cols[d2].length-1)/2)*rowH}; }); });
+    let svg3=`<svg viewBox="0 0 ${W3} ${H3}" style="width:100%;background:#10131c;border:2px solid #fff;border-radius:6px;margin-top:4px">`;
+    ids.forEach(id=>{(byId[id].exits||[]).forEach(e=>{ if(drawn[e]&&id<e){const A=pos2[id],B=pos2[e]; const ghost=drawn[id]==='ghost'||drawn[e]==='ghost'; svg3+=`<line x1="${A.x.toFixed(0)}" y1="${A.y.toFixed(0)}" x2="${B.x.toFixed(0)}" y2="${B.y.toFixed(0)}" stroke="${ghost?'#3a3f4b':'#6b5a33'}" stroke-width="2"${ghost?' stroke-dasharray="5 4"':''}/>`;} });});
+    ids.forEach(id=>{const r=byId[id],q=pos2[id];const full=drawn[id]==='full';const hereR=String(r.name).toLowerCase()===curRoomL;const pr=progOf(r.name)||{};
+      const fill=hereR?'#FAC775':(pr.cleared||pr.looted)?'#97C459':(full?'#9aa0a8':'#2a2f3b');
+      svg3+=`<circle cx="${q.x.toFixed(0)}" cy="${q.y.toFixed(0)}" r="${hereR?11:8}" fill="${fill}" stroke="#000" stroke-width="1.5">${hereR?'<animate attributeName="r" values="10;13;10" dur="1.6s" repeatCount="indefinite"/>':''}</circle>`;
+      if(full){
+        const icons=(r.kind==='boss'?'☠':'')+(r.hidden?'🗝':'')+(pr.cleared?'⚔️':'')+(pr.looted?'💰':'');
+        svg3+=`<text x="${q.x.toFixed(0)}" y="${(q.y-15).toFixed(0)}" text-anchor="middle" font-size="11" fill="${hereR?'#FAC775':'#ddd'}" font-family="'IBM Plex Sans Thai',sans-serif">${escapeHtml(String(r.name).slice(0,22))}</text>`;
+        if(icons) svg3+=`<text x="${q.x.toFixed(0)}" y="${(q.y+24).toFixed(0)}" text-anchor="middle" font-size="11">${icons}</text>`;
+      } else {
+        svg3+=`<text x="${q.x.toFixed(0)}" y="${(q.y+4).toFixed(0)}" text-anchor="middle" font-size="11" fill="#777">?</text>`;
+      }
+    });
+    svg3+='</svg>';
+    return '<div class="note" style="text-align:left;padding:2px 2px 0">'+escapeHtml(dHit.name)+'</div>'+svg3+'<div class="note" style="text-align:left;padding:4px 2px;font-size:11px">🟡 ห้องปัจจุบัน · 🟢 เคลียร์/เก็บแล้ว · ? = เห็นทางแต่ยังไม่สำรวจ · 🗝 ห้องลับ · ☠ ห้องลึกสุด · ⚔️ เคลียร์ศัตรู · 💰 เก็บสมบัติ</div>';
+  }catch(e){ return null; }
+}
 async function renderMap(){
   const p=$('panel-map');
   const isHost=campaign.host_id===me.id;
@@ -6905,66 +6962,17 @@ async function renderMap(){
   p.appendChild(cur);
   // ── v201: DUNGEON MAP — กราฟห้องจริงจาก dungeons.data.graph (server เป็นเจ้าของผัง — mapGuard บังคับเดินตามนี้) ──
   //   วาดเฉพาะห้อง discovered + เงา "?" ปลายทางออกของห้องที่เคยไป · hidden ที่ยังไม่เจอ = ไม่วาดเลย · แทนที่ WORLD/QUEST ระหว่างอยู่ในดันเจี้ยน
+  //   v627ui: ตัวสร้าง HTML แยกเป็น dunMapHtml() ด้านบน — ใช้ซ้ำในรายการ DUNGEONS (กดดูผังดันเจี้ยนที่เคยผ่าน)
   let inDunMap=false;
   try{
     let dHit=null;
     if(here.length) for(const d of ds){ const dn=(d.name||'').toLowerCase().trim(); if(dn.length>3 && here.some(h=>h.includes(dn)||dn.includes(h))){ dHit=d; break; } }
-    const g=dHit&&dHit.data&&dHit.data.graph;
-    if(g&&Array.isArray(g.rooms)&&g.rooms.length){
+    const dmHtml=dHit?dunMapHtml(dHit,st):null;
+    if(dmHtml){
       inDunMap=true;
-      const _dpRoot=((st.settings||{}).dungeon_progress)||{}; const _byDD=_dpRoot.byDungeon&&dHit&&_dpRoot.byDungeon[dHit.id]&&_dpRoot.byDungeon[dHit.id].rooms; const dprogD=(_byDD&&typeof _byDD==='object')?_byDD:(_dpRoot.rooms||{});   // M9 (v414): rooms ของดันเจี้ยนนี้ (byDungeon[id] · fallback legacy flat)
-      const progOf=nm=>{const l=String(nm).toLowerCase(); for(const k in dprogD){ if(String(k).toLowerCase()===l) return dprogD[k]||{}; } return null;};
-      const discD=r=>{const pr=progOf(r.name); return !!(pr&&(pr.discovered||pr.cleared||pr.looted));};
-      const curRoomL=String(st.current_room||'').toLowerCase();
-      const byId={}; g.rooms.forEach(r=>byId[r.id]=r);
-      const drawn={};
-      g.rooms.forEach(r=>{ if(discD(r)||String(r.name).toLowerCase()===curRoomL) drawn[r.id]='full'; });
-      g.rooms.forEach(r=>{ if(drawn[r.id]==='full') (r.exits||[]).forEach(e=>{const t=byId[e]; if(t&&!drawn[t.id]&&!t.hidden) drawn[t.id]='ghost';}); });
-      const ids=Object.keys(drawn);
-      if(ids.length){
-        const dm=document.createElement('div'); dm.className='item';
-        const pins=(dHit.data&&dHit.data.pins)||{};
-        const havePins=dHit.map_path&&ids.some(id=>pins[id]&&Number.isFinite(+pins[id].x));
-        if(havePins){
-          // ── v253 §9: ปักหมุดห้องบนรูปแผนที่จริง — ตำแหน่งปาร์ตี้ = หมุดเรืองแสง · กฎเผยห้องเดียวกับกราฟ ──
-          let ph='<div style="position:relative;width:100%;border:2px solid #fff;border-radius:6px;overflow:hidden;margin-top:4px">';
-          ph+='<img src="'+PUBLIC_URL+'maps/'+dHit.map_path+'" style="width:100%;display:block">';
-          ids.forEach(id=>{const pin=pins[id]; if(!pin||!Number.isFinite(+pin.x)) return;
-            const r=byId[id],full=drawn[id]==='full',hereR=String(r.name).toLowerCase()===curRoomL,pr=progOf(r.name)||{};
-            const col=hereR?'#FAC775':(pr.cleared||pr.looted)?'#97C459':(full?'#fff':'#888');
-            const ic=(r.kind==='boss'?'☠':'')+(r.hidden?'🗝':'')+(pr.cleared?'⚔️':'')+(pr.looted?'💰':'');
-            const lbl=full?escapeHtml(String(r.name).slice(0,18)):'?'; const sz=hereR?16:11;
-            ph+='<div style="position:absolute;left:'+Math.max(0,Math.min(100,+pin.x))+'%;top:'+Math.max(0,Math.min(100,+pin.y))+'%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">'
-              +'<div style="width:'+sz+'px;height:'+sz+'px;border-radius:50%;background:'+col+';border:2px solid #000;margin:0 auto'+(hereR?';box-shadow:0 0 9px 2px #FAC775':'')+'"></div>'
-              +'<div style="font-size:10px;color:'+(hereR?'#FAC775':'#fff')+';text-shadow:0 0 3px #000,0 0 4px #000;white-space:nowrap;margin-top:1px;font-weight:600">'+lbl+(ic?' '+ic:'')+'</div></div>';
-          });
-          ph+='</div>';
-          dm.innerHTML='<div class="sectitle">DUNGEON MAP</div><div class="note" style="text-align:left;padding:2px 2px 0">'+escapeHtml(dHit.name)+' 🗺</div>'+ph+'<div class="note" style="text-align:left;padding:4px 2px;font-size:11px">🟡 ห้องปัจจุบัน · 🟢 เคลียร์/เก็บแล้ว · ? = เห็นทางแต่ยังไม่สำรวจ · 🗝 ห้องลับ · ☠ ห้องลึกสุด</div>';
-        } else {
-        const cols={}; ids.forEach(id=>{const d2=Math.max(0,Math.floor(+byId[id].depth||0)); (cols[d2]=cols[d2]||[]).push(id);});
-        const depths=Object.keys(cols).map(Number).sort((a,b)=>a-b);
-        const maxRow=Math.max.apply(null,depths.map(d2=>cols[d2].length));
-        const W3=640,colW=depths.length>1?(W3-120)/(depths.length-1):0,rowH=64,H3=Math.max(150,maxRow*rowH+70);
-        const pos2={};
-        depths.forEach((d2,ci)=>{ cols[d2].sort((a,b)=>String(byId[a].name).localeCompare(String(byId[b].name))); cols[d2].forEach((id,ri)=>{ pos2[id]={x:60+ci*colW, y:H3/2+(ri-(cols[d2].length-1)/2)*rowH}; }); });
-        let svg3=`<svg viewBox="0 0 ${W3} ${H3}" style="width:100%;background:#10131c;border:2px solid #fff;border-radius:6px;margin-top:4px">`;
-        ids.forEach(id=>{(byId[id].exits||[]).forEach(e=>{ if(drawn[e]&&id<e){const A=pos2[id],B=pos2[e]; const ghost=drawn[id]==='ghost'||drawn[e]==='ghost'; svg3+=`<line x1="${A.x.toFixed(0)}" y1="${A.y.toFixed(0)}" x2="${B.x.toFixed(0)}" y2="${B.y.toFixed(0)}" stroke="${ghost?'#3a3f4b':'#6b5a33'}" stroke-width="2"${ghost?' stroke-dasharray="5 4"':''}/>`;} });});
-        ids.forEach(id=>{const r=byId[id],q=pos2[id];const full=drawn[id]==='full';const hereR=String(r.name).toLowerCase()===curRoomL;const pr=progOf(r.name)||{};
-          const fill=hereR?'#FAC775':(pr.cleared||pr.looted)?'#97C459':(full?'#9aa0a8':'#2a2f3b');
-          svg3+=`<circle cx="${q.x.toFixed(0)}" cy="${q.y.toFixed(0)}" r="${hereR?11:8}" fill="${fill}" stroke="#000" stroke-width="1.5">${hereR?'<animate attributeName="r" values="10;13;10" dur="1.6s" repeatCount="indefinite"/>':''}</circle>`;
-          if(full){
-            const icons=(r.kind==='boss'?'☠':'')+(r.hidden?'🗝':'')+(pr.cleared?'⚔️':'')+(pr.looted?'💰':'');
-            svg3+=`<text x="${q.x.toFixed(0)}" y="${(q.y-15).toFixed(0)}" text-anchor="middle" font-size="11" fill="${hereR?'#FAC775':'#ddd'}" font-family="'IBM Plex Sans Thai',sans-serif">${escapeHtml(String(r.name).slice(0,22))}</text>`;
-            if(icons) svg3+=`<text x="${q.x.toFixed(0)}" y="${(q.y+24).toFixed(0)}" text-anchor="middle" font-size="11">${icons}</text>`;
-          } else {
-            svg3+=`<text x="${q.x.toFixed(0)}" y="${(q.y+4).toFixed(0)}" text-anchor="middle" font-size="11" fill="#777">?</text>`;
-          }
-        });
-        svg3+='</svg>';
-        dm.innerHTML='<div class="sectitle">DUNGEON MAP</div><div class="note" style="text-align:left;padding:2px 2px 0">'+escapeHtml(dHit.name)+'</div>'+svg3+'<div class="note" style="text-align:left;padding:4px 2px;font-size:11px">🟡 ห้องปัจจุบัน · 🟢 เคลียร์/เก็บแล้ว · ? = เห็นทางแต่ยังไม่สำรวจ · 🗝 ห้องลับ · ☠ ห้องลึกสุด · ⚔️ เคลียร์ศัตรู · 💰 เก็บสมบัติ</div>';
-        }
-        p.appendChild(dm);
-      }
+      const dm=document.createElement('div'); dm.className='item';
+      dm.innerHTML='<div class="sectitle">DUNGEON MAP</div>'+dmHtml;
+      p.appendChild(dm);
     }
   }catch(e){}
   // ── v542 WORLD MAP: route diagram ตัวอักษร (แทน v200 จุดวงกลมตำแหน่ง hash) — spec NPC_MAP_DUNGEON_REVAMP_PLAN §2.1 ──
@@ -7098,10 +7106,22 @@ async function renderMap(){
       p.appendChild(qm);
     }
   }catch(e){}
-  // DUNGEONS list (host เซ็ตฉากได้)
+  // DUNGEONS list — v627ui: กดชื่อ = กางผังห้อง/ทางแยกที่เคยสำรวจของดันเจี้ยนนั้น (lazy render ตอนเปิดครั้งแรก)
+  //   ตัดปุ่ม Set scene ออก (legacy ยุคก่อน v201 — เขียน current_room=ชื่อดันเจี้ยน + current_map ทับจาก client ขัดหลัก server เป็นเจ้าของผัง/ตำแหน่ง · mapGuard คุมสองค่านี้เองแล้ว)
   if(ds.length){
     const dl=document.createElement('div'); dl.className='item'; dl.innerHTML='<div class="sectitle">DUNGEONS</div>';
-    ds.forEach(d2=>{ const row=document.createElement('div'); row.className='kv'; row.innerHTML=`<span class="k">▣ ${escapeHtml(d2.name)}${d2.map_path?' 🗺':''}</span>`; if(isHost){ const b=document.createElement('button'); b.className='btn ghost sm'; b.textContent='Set scene'; b.onclick=()=>setScene(d2); row.appendChild(b); } dl.appendChild(row); });
+    ds.forEach(d2=>{
+      const det=document.createElement('details'); det.style.cssText='border:1px solid #444;border-radius:8px;margin:6px 0;padding:2px 10px';
+      const sum=document.createElement('summary'); sum.style.cssText='cursor:pointer;padding:5px 0;font-weight:600;font-size:14px';
+      sum.textContent='▣ '+d2.name+(d2.map_path?' 🗺':'');
+      det.appendChild(sum);
+      const body=document.createElement('div'); det.appendChild(body); let _rendered=false;
+      det.addEventListener('toggle',function(){ if(!det.open||_rendered) return; _rendered=true;
+        const h=dunMapHtml(d2,st);
+        body.innerHTML=h||'<div class="note" style="text-align:left;padding:6px 2px">ยังไม่เคยสำรวจดันเจี้ยนนี้ — ผังจะเผยเมื่อได้เข้าไปจริง</div>';
+      });
+      dl.appendChild(det);
+    });
     p.appendChild(dl);
   } else {
     const e=document.createElement('div'); e.className='note'; e.style.cssText='text-align:left;padding:6px 2px'; e.textContent='ยังไม่มีดันเจียน — เพิ่มได้ในแท็บ Files'; p.appendChild(e);
@@ -7161,10 +7181,7 @@ async function renderMap(){
     });
   }catch(e){}
 }
-async function setScene(d){
-  try{ const { error }=await supa.from('campaign_state').upsert({campaign_id:campaign.id,current_map:d.map_path||null,current_room:d.name,updated_at:new Date().toISOString()},{onConflict:'campaign_id'}); if(error) throw error; await loadState(); renderMap(); toast('ตั้งฉากแล้ว ✓'); }
-  catch(e){ toast(e.message||'ตั้งฉากไม่สำเร็จ',true); }
-}
+// v627ui: setScene ถูกถอด — legacy ก่อน v201 (host เขียน current_room/current_map จาก client ตรง) · ปัจจุบัน server (mapGuard/dunMapGuard) เป็นเจ้าของสองค่านี้
 
 // ───────── render: files (placeholder — เปิดเต็มในขั้น RAG) ─────────
 // dropdown รวมรายการไฟล์ (กันล้นต่อกัน) — append แถวลงใน det._body
