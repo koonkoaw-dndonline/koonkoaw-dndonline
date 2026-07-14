@@ -2284,12 +2284,20 @@ async function createCampaign(){
     campaign = Array.isArray(data)?data[0]:data;
     const _tone=_oneshot?'':((($('newTone')||{}).value||'').trim());   // v296: ถอด pace ออก — บลูพรินท์คุมจังหวะ
     // v617: เขียนโหมด/แนวเนื้อเรื่อง/เลเวลเริ่ม (คอลัมน์ campaigns · migration 0086 — pattern เดียวกับ tone: host เขียนตรงผ่าน RLS)
-    try{
+    // v628 #10 (static review): เช็ค {error} จริง + readback — supabase-js ไม่ throw ดังนั้น try/catch เดิมไม่มีวันจับ
+    //   (update ถูก network/RLS ปฏิเสธ = UI คิดว่า ONE SHOT L5 แต่ DB ยัง open/L1 → resolver เดินโหมดผิดเงียบทั้งเกม)
+    {
       const _patch={ play_mode:pendingMode, story_style:pendingStyle, start_level:(_oneshot?pendingLevel:1) };
       if(_tone) _patch.tone=_tone;
-      await supa.from('campaigns').update(_patch).eq('id',campaign.id);
-      Object.assign(campaign,_patch);
-    }catch(e){}
+      let _cfgErr=(await supa.from('campaigns').update(_patch).eq('id',campaign.id)).error;
+      if(_cfgErr) _cfgErr=(await supa.from('campaigns').update(_patch).eq('id',campaign.id)).error;   // retry 1 ครั้ง (network ชั่วคราว)
+      if(_cfgErr){
+        toast('บันทึกโหมด/แนวเนื้อเรื่องไม่สำเร็จ ('+(_cfgErr.message||'')+') — โลกถูกสร้างด้วยค่าเริ่มต้น ปรับโหมดได้ใน DM Tools',true);
+        console.warn('createCampaign config update failed',_cfgErr);
+      } else Object.assign(campaign,_patch);
+      // readback ค่าจริงจาก DB — resolver อ่าน DB เท่านั้น UI ต้องสะท้อนค่าที่บันทึกได้จริง
+      try{ const { data:_cfgRow }=await supa.from('campaigns').select('play_mode,story_style,start_level,tone').eq('id',campaign.id).maybeSingle(); if(_cfgRow) Object.assign(campaign,_cfgRow); }catch(e){}
+    }
     // จัดทำดัชนีกฎเข้า RAG (แยกหมวดตามชื่อไฟล์) → DM ดึงเฉพาะที่จำเป็นต่อโหมดฉาก ประหยัด token
     const rf=$('rulesFiles');
     if(rf && rf.files && rf.files.length){
@@ -3135,11 +3143,24 @@ async function createCharacter(){
   $('charBtn').disabled=true;
   try{
     suggestHP(); const hpv=parseInt($('cHp').value); const maxhp=isNaN(hpv)?null:Math.max(1,hpv);
-    const { data:ch, error } = await supa.from('characters').insert({
-      campaign_id:campaign.id, user_id:me.id, name, class:classValue()||null,
-      public_status:{ hp: maxhp?`${maxhp}/${maxhp}`:'100%' }
-    }).select().single();
-    if(error) throw error;
+    let ch;
+    { const { data:_chIns, error } = await supa.from('characters').insert({
+        campaign_id:campaign.id, user_id:me.id, name, class:classValue()||null,
+        public_status:{ hp: maxhp?`${maxhp}/${maxhp}`:'100%' }
+      }).select().single();
+      // v628 #6 (static review): ครั้งก่อนชีท insert ล้ม = character row ค้าง + unique(campaign_id,user_id) → สร้างซ้ำติด 23505 ถาวร
+      //   แก้: กู้ต่อจากแถวเดิม (สร้างชีท/สกิลให้แถวนั้น) แทนโยน error ทึบ
+      if(error && String(error.code)==='23505'){
+        const { data:_chEx } = await supa.from('characters').select().eq('campaign_id',campaign.id).eq('user_id',me.id).maybeSingle();
+        if(!_chEx) throw error;
+        // sync ชื่อ/คลาส/สถานะตามฟอร์มล่าสุด (RLS characters_update: owner เขียนได้ — กันชีทคำนวณจากคลาสใหม่แต่แถว characters ค้างคลาสเก่า)
+        const _fix={ name, class:classValue()||null, public_status:{ hp: maxhp?`${maxhp}/${maxhp}`:'100%' } };
+        const { error:_fixErr } = await supa.from('characters').update(_fix).eq('id',_chEx.id);
+        ch=_fixErr?_chEx:Object.assign({},_chEx,_fix);
+        toast('พบตัวละครค้างจากรอบก่อน — สร้างต่อจากแถวเดิมให้แล้ว');
+      } else if(error) throw error;
+      else ch=_chIns;
+    }
     let eqp={ weapon:weaponValue(), offhand:'', armor:'', shield:'', accessory:'' }, invp=[], walletp={gp:0,sp:0,cp:0};
     if(selectedPkg && Array.isArray(selectedPkg.items)){
       for(const it of selectedPkg.items){ const ci=ITEM_CAT[it.slug]; const nm=ci?ci.name:it.slug; const qty=it.qty||1; const cat=ci?ci.category:'';
@@ -3164,7 +3185,7 @@ async function createCharacter(){
     };
     persistCombatStats(sheet, classValue());
     const { error: _shErr } = await supa.from('character_sheets').insert({ character_id:ch.id, sheet });   // v271 L5: เช็ค error (เดิมไม่เช็ค → ถ้า insert ล้ม ได้ตัวละครไม่มีชีทเงียบๆ)
-    if(_shErr) throw _shErr;
+    if(_shErr && String(_shErr.code)!=='23505') throw _shErr;   // v628 #6: 23505 = ชีทมีอยู่แล้ว (path กู้ตัวละครค้าง) — ใช้ของเดิม ห้ามทับ
     // ความสามารถเริ่มต้นตามคลาส → แท็บ Skills (ไม่พังถ้าตาราง skills ยังไม่ได้ migrate)
     try{
       const ck=classKey(); const feats=ck?CLASS_FEATURES[ck]:null;
@@ -3179,8 +3200,14 @@ async function createCharacter(){
       chosenSpells.forEach((sp,i)=>rows.push({campaign_id:campaign.id,character_id:ch.id,name:sp.name,description:sp.effect||'',max_uses:0,used:0,recharge:sp.level===0?'atwill':'long',level:sp.level,sort:100+i}));   // v574: เวทมีระดับ max_uses:0 = ร่ายผ่าน spell slot รวม (ไม่ใช่ตัวนับรายเวท) — แก้ desync "รวมไม่หัก/ย่อยหัก" (มิเรอร์ backend prepare endpoints.ts) · ติด level ให้ slot tracker
       // กันชื่อซ้ำ (เช่น Fey Ancestry/Darkvision จากหลายแหล่ง) ก่อน insert
       const _seen={}; const _uniq=rows.filter(r=>{ const k=(r.name||'').toLowerCase(); if(_seen[k]) return false; _seen[k]=1; return true; });
-      if(_uniq.length) await supa.from('skills').insert(_uniq);
-    }catch(e){}
+      // v628 #6 (static review): เช็ค {error} จริง (supabase-js ไม่ throw — catch เดิมจับอะไรไม่ได้ = เวท/racial traits หายเงียบ)
+      //   upsert ignoreDuplicates รองรับ path กู้ตัวละครค้าง (แถวเดิมอยู่แล้วไม่ทับ used) · สกิลคลาส server เติมให้เอง (seedClassFeatureRows v627)
+      //   แต่เวทที่เลือก/racial traits ไม่มีใครเติม — ผู้เล่นต้องรู้ทันที
+      if(_uniq.length){
+        const { error:_skErr } = await supa.from('skills').upsert(_uniq,{ onConflict:'character_id,name', ignoreDuplicates:true });
+        if(_skErr){ toast('บันทึกสกิล/เวทเริ่มต้นไม่ครบ ('+(_skErr.message||'')+') — เข้าเกมได้ แต่แจ้งผู้ดูแลเพื่อเติมเวทที่เลือกไว้',true); console.warn('skills seed failed',_skErr); }
+      }
+    }catch(e){ console.warn('skills seed failed',e); toast('บันทึกสกิลเริ่มต้นไม่สำเร็จ — เข้าเกมได้ แต่แจ้งผู้ดูแลเพื่อเติมสกิล',true); }
     _cacheSet('ttrpg_bg_'+campaign.id, sheet.notes||'');
     myChar=ch; mySheet=sheet; await refreshAll(); show('campaign'); switchTab('story');
   }catch(e){ toast(e.message||'Failed to create character',true); }
