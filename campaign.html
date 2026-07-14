@@ -1846,7 +1846,7 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
       <h2>New Campaign <span class="note" id="createModeChip" style="display:inline">OPEN WORLD</span></h2>
       <p class="sub">You'll be the host (DM) of this world — up to 4 players.</p>
       <label class="fld">Campaign name<input type="text" id="newName" placeholder="e.g. Legend of Eldraria"/></label>
-      <div class="fld" style="margin-bottom:4px">แนวเนื้อเรื่อง (Story Style) — ระบบใช้ถ่วงน้ำหนักการสุ่มเควส/การผจญภัยทั้งโลก</div>
+      <div class="fld" style="margin-bottom:4px;font-size:13px;color:var(--gray);line-height:1.6">แนวเนื้อเรื่อง (Story Style) — ระบบใช้ถ่วงน้ำหนักการสุ่มเควส/การผจญภัยทั้งโลก</div><!-- v628ui: เดิม div.fld ไม่มี font-size (label.fld เท่านั้นที่มี) → ตกไปใช้ขนาด body ใหญ่เกิน+ตัดคำกลางพยางค์ -->
       <div class="card stylepick" data-style="journey" onclick="pickStyle(this,'journey','hostCreateScreen')" style="cursor:pointer;text-align:left;padding:8px 12px;margin:4px 0;outline:2px solid currentColor">
         <b>🧭 EPIC JOURNEY</b> <span class="note" style="display:inline">— การเดินทางอิสระตามปกติ ปริศนา+การผจญภัยหลายรูปแบบสุ่มคละกัน (ค่าเริ่มต้น)</span>
       </div>
@@ -1872,7 +1872,7 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
       <h2>ONE SHOT — ตั้งโจทย์เรื่องเดียวจบ</h2>
       <p class="sub">ฟอร์มย่อ — โลกใบนี้เกิดมาเพื่อเรื่องนี้เรื่องเดียว จบแล้วปิดถาวร (อ่านย้อนได้ เล่นต่อไม่ได้)</p>
       <label class="fld">ชื่อเรื่อง<input type="text" id="osName" placeholder="เช่น คืนสังหารที่คฤหาสน์เรเวนมัวร์"/></label>
-      <div class="fld" style="margin-bottom:4px">แนวเนื้อเรื่อง — คุมโครงทั้งเรื่อง</div>
+      <div class="fld" style="margin-bottom:4px;font-size:13px;color:var(--gray);line-height:1.6">แนวเนื้อเรื่อง — คุมโครงทั้งเรื่อง</div>
       <div class="card stylepick" data-style="journey" onclick="pickStyle(this,'journey','hostOneshotScreen')" style="cursor:pointer;text-align:left;padding:8px 12px;margin:4px 0;outline:2px solid currentColor">
         <b>🧭 EPIC JOURNEY</b> <span class="note" style="display:inline">— ภารกิจผจญภัยเข้มข้นเรื่องเดียว เดินทาง→ปะทะ→ไคลแมกซ์</span>
       </div>
@@ -1883,7 +1883,7 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
         <b>⛏ DUNGEON CRAWLER</b> <span class="note" style="display:inline">— ดันเจี้ยนเดียว ดำดิ่งถึงก้น โค่นสิ่งที่เฝ้าอยู่</span>
       </div>
       <label class="fld">โจทย์ของเรื่อง (สั้นๆ พอ — DM ขยายเอง)<textarea id="osPremise" style="height:70px" placeholder="เช่น &quot;ขุนนางถูกฆ่ากลางงานเลี้ยง ประตูปิดตาย ฆาตกรอยู่ในหมู่แขก&quot;"></textarea></label>
-      <div class="fld" style="margin-bottom:4px">เลเวลเริ่มต้นของปาร์ตี้ — ทุกคนถูกดันขึ้นถึงเลเวลนี้หลังสร้างตัวละคร (เลือก feature เองทีละขั้น)</div>
+      <div class="fld" style="margin-bottom:4px;font-size:13px;color:var(--gray);line-height:1.6">เลเวลเริ่มต้นของปาร์ตี้ — ทุกคนถูกดันขึ้นถึงเลเวลนี้หลังสร้างตัวละคร (เลือก feature เองทีละขั้น)</div>
       <div class="srow3" style="gap:8px">
         <div class="card lvlpick" data-lv="3" onclick="pickLevel(this,3)" style="cursor:pointer;text-align:center;padding:8px 4px"><b>เลเวล 3</b><div class="note">เหมาะกับมือใหม่</div></div>
         <div class="card lvlpick" data-lv="5" onclick="pickLevel(this,5)" style="cursor:pointer;text-align:center;padding:8px 4px;outline:2px solid currentColor"><b>เลเวล 5</b><div class="note">ช่วงสนุกสุดของ D&D</div></div>
@@ -4740,8 +4740,12 @@ async function renderItems(){
   bag.innerHTML=`<div class="winhead"><div class="sectitle" style="margin:0">BACKPACK</div><span class="chip">${inv.length} items</span></div>`;
   if(!inv.length){ bag.innerHTML+='<div class="kv"><span class="k">— empty —</span></div>'; }
   else inv.forEach(i=>{
-    const disp=typeof i==='string'?i:((i.name||'')+(i.qty&&i.qty>1?` x${i.qty}`:''));
-    const nm=typeof i==='string'?i:(i.name||'');
+    const _nm0=typeof i==='string'?i:(i.name||'');
+    const _qty0=typeof i==='string'?1:(i.qty&&i.qty>1?+i.qty:1);
+    // v628ui (คำสั่ง Koon 07-14): ลูกธนู/กระสุน = ไม่นับแล้ว (infinite_ammo default ON ตั้งแต่ v573 — consumeGuard ไม่หัก) → ตัดเลขนับทุกฟอร์ม ("(20)"/"×10"/x20/qty) แสดง ∞ แทน · โลกที่ตั้ง settings.infinite_ammo=false ค่อยกลับมาโชว์เลขจริง
+    const _isAmmo=/ลูกธนู|ลูกศร|ลูกหน้าไม้|ลูกดอก|ลูกกระสุน|ลูกสลิง|\barrows?\b|\bbolts?\b|\bsling\s*bullets?\b|\bammunition\b/i.test(_nm0)&&((((worldState||{}).settings)||{}).infinite_ammo!==false);
+    const nm=_isAmmo?_nm0.replace(/\s*[(（]\s*\d+\s*[)）]\s*$/,'').replace(/\s*[x×]\s*\d+\s*$/i,'').trim():_nm0;
+    const disp=_isAmmo?(nm+' ∞'):(nm+(_qty0>1?` x${_qty0}`:''));
     const row=document.createElement('div'); row.className='kv'; row.style.alignItems='center';
     row.innerHTML=`<span class="k">▸ ${escapeHtml(disp)}</span>`;
     if(equipSlotFor(nm)){ const eb=document.createElement('button'); eb.className='btn ghost sm'; eb.textContent='🛡 สวมใส่'; eb.onclick=()=>equipItem(nm); row.appendChild(eb); if(equipSlotFor(nm)==='weapon'){ const ob=document.createElement('button'); ob.className='btn ghost sm'; ob.textContent='⚔ มือรอง'; ob.onclick=()=>equipOffhand(nm); row.appendChild(ob); } }
@@ -5505,7 +5509,10 @@ async function renderNPCs(){
   let rows=null;
   try{ const r=await supa.from('npcs').select('*').eq('campaign_id',campaign.id).order('updated_at',{ascending:false}); if(!r.error) rows=(r.data||[]).filter(n=>n.discovered!==false&&n.archived!==true); }catch(e){}   /* v546: +archived (0084) */
   if(rows===null){ p.innerHTML='<div class="muted">NPC system not enabled yet<br>Run migration.sql</div>'; return; }
-  if(!rows.length){ p.innerHTML='<div class="muted">No NPCs discovered yet</div>'; return; }
+  // v628ui (คำสั่ง Koon 07-14): สารานุกรมมอนสเตอร์ต้องครบทุกตัวที่เคยเจอ — ฐานหลัก = ตาราง monsters (ทุกตัวที่เคย spawn ในศึกของแคมเปญ)
+  //   เดิมสร้างจากแถว npcs อย่างเดียว → โผล่เฉพาะตัวที่ DM เผลอส่ง npc_update (เคสจริง: มีแค่ Bandit ทั้งที่สู้ Death Dog/Goblin/Spider มาแล้ว)
+  let monTab=[]; try{ const mr=await supa.from('monsters').select('name').eq('campaign_id',campaign.id); if(!mr.error) monTab=mr.data||[]; }catch(e){}
+  if(!rows.length&&!monTab.length){ p.innerHTML='<div class="muted">No NPCs discovered yet</div>'; return; }
   const isHost=campaign.host_id===me.id;
   // ความสัมพันธ์ส่วนตัวของผู้เล่นคนนี้ (RLS คืนเฉพาะของตัวละครตัวเอง — เพื่อนไม่เห็นของเรา)
   let myRels=[]; try{ const rr=await supa.from('relationships').select('npc_name,score,tier,romance,note').eq('campaign_id',campaign.id); if(!rr.error) myRels=rr.data||[]; }catch(e){}
@@ -5542,11 +5549,15 @@ async function renderNPCs(){
     return a.localeCompare(b); });
   // v611b (คำสั่ง Koon): ไม่มี icon หน้าหัวข้อ · กลุ่มมอนสเตอร์ = สารานุกรม (bestiary) รวมร่างตามชนิด
   const stemOfM=nm=>String(nm||'').trim().replace(/\s+([A-H]|\d{1,2})$/,'').trim();
-  const monStems=[...new Set(monRows.map(n=>lcN(stemOfM(n.name))))].map(st=>({stem:st, rows:monRows.filter(n=>lcN(stemOfM(n.name))===st)}));
+  // v628ui: stem จาก ตาราง monsters (ฐานหลัก — ทุกตัวที่เคย spawn) ∪ แถว npcs ที่เข้าเกณฑ์มอน (เสริม — ให้ข้อมูลสถานที่พบ)
+  const _msMap={};
+  monTab.forEach(m=>{ const dp=stemOfM(m.name); const st=lcN(dp); if(!st) return; const e=(_msMap[st]=_msMap[st]||{stem:st,disp:dp,nMon:0,rows:[]}); e.nMon++; });
+  monRows.forEach(n=>{ const dp=stemOfM(n.name); const st=lcN(dp); if(!st) return; const e=(_msMap[st]=_msMap[st]||{stem:st,disp:dp,nMon:0,rows:[]}); e.rows.push(n); });
+  const monStems=Object.values(_msMap).sort((a,b)=>a.disp.localeCompare(b.disp));
   const groups=cityKeys.map(c2=>({key:'city:'+lcN(c2), label:c2, rows:byCity[c2]}));
   if(favRows.length) groups.push({key:'fav', label:'คนสนิท', rows:favRows.slice().sort((a,b)=>(+((relOf(b.name)||{}).score)||0)-(+((relOf(a.name)||{}).score)||0))});
   if(deadRows.length) groups.push({key:'dead', label:'เสียชีวิต', rows:deadRows});
-  if(monRows.length) groups.push({key:'mon', label:'สารานุกรมมอนสเตอร์', rows:monRows, kind:'mon'});
+  if(monStems.length) groups.push({key:'mon', label:'สารานุกรมมอนสเตอร์', rows:monRows, kind:'mon'});   /* v628ui: เกณฑ์ = stems (monsters∪npcs) ไม่ใช่แค่แถว npcs */
   if(!groups.length){ p.innerHTML='<div class="muted">No NPCs discovered yet</div>'; return; }
   if(!groups.some(g=>g.key===_npcCity)) _npcCity=groups[0].key;
   // แถบค้นหา (ค้นข้ามทุกเมือง)
@@ -5587,8 +5598,9 @@ async function renderNPCs(){
       // bestiary: list ชื่อชนิด (ตัวใหญ่) — ไม่แยก A/B/C
       monStems.forEach(g=>{ const key='mon:'+g.stem;
         const b=document.createElement('button'); b.type='button'; b.className='npc5-row'+(key===_npcSel?' on':'');
-        b.innerHTML='<span style="letter-spacing:.5px">'+escapeHtml(stemOfM(g.rows[0].name).toUpperCase())+'</span>'
-          +(g.rows.length>1?' <span class="muted" style="font-size:11px">×'+g.rows.length+'</span>':'');
+        const cnt=Math.max(g.nMon||0,g.rows.length);   /* v628ui: นับจากตาราง monsters (ร่าง A/B/C) ก่อน fallback แถว npcs */
+        b.innerHTML='<span style="letter-spacing:.5px">'+escapeHtml(g.disp.toUpperCase())+'</span>'
+          +(cnt>1?' <span class="muted" style="font-size:11px">×'+cnt+'</span>':'');
         b.onclick=()=>{ tick(); _npcSel=key; drawList(); drawDetail(); };
         colList.appendChild(b); });
       drawDetail(); return;
@@ -5611,8 +5623,8 @@ async function renderNPCs(){
     const g=monStems.find(x=>x.stem===stem); if(!g){ colDet.innerHTML=''; return; }
     const bz=await loadBestiary();
     if(_npcSel!=='mon:'+stem) return;   // ผู้ใช้เปลี่ยนตัวเลือกระหว่างโหลด
-    const disp=stemOfM(g.rows[0].name);
-    // สถานที่พบ: distinct จากแถว npcs ของชนิดนี้
+    const disp=g.disp||stemOfM(((g.rows[0]||{}).name)||'');   /* v628ui: stem จากตาราง monsters อาจไม่มีแถว npcs เลย */
+    // สถานที่พบ: distinct จากแถว npcs ของชนิดนี้ (มอนจากศึกล้วนไม่มีแถว npcs = '—')
     const places=[...new Set(g.rows.map(n=>cityLbl(n.city)))].filter(Boolean);
     // HP ที่เคยเจอ: min–max จากตาราง monsters (ทุกตัวที่เคย spawn ชนิดนี้)
     const hps=bz.mons.filter(m2=>lcN(stemOfM(m2.name))===stem).map(m2=>+m2.max_hp||0).filter(v=>v>0);
@@ -5644,7 +5656,7 @@ async function renderNPCs(){
     const card=document.createElement('div'); card.className='item';
     card.innerHTML=`<div class="nm" style="letter-spacing:1px">${escapeHtml(disp.toUpperCase())}</div>`
       +`<div class="npc open" style="border:0;background:transparent;box-shadow:none"><div class="npc-detail" style="padding:2px 0 0">`
-      +kv('เคยพบ',g.rows.length+' ตัว'+(kills?' · ปาร์ตี้ล้มไป '+kills+' ตัว':''))
+      +kv('เคยพบ',Math.max(g.nMon||0,g.rows.length)+' ตัว'+(kills?' · ปาร์ตี้ล้มไป '+kills+' ตัว':''))
       +kv('CR',crTxt)
       +kv('สถานที่พบ',places.join(' · ')||'—')
       +kv('HP ที่เคยเจอ',hpTxt)
