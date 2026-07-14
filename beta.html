@@ -4134,6 +4134,16 @@ async function renderLevelUpPanel(p){
       boxO.appendChild(row); });
     card.appendChild(boxO);
   }
+  // v630 D5: Subclass ทุกคลาส (นอกจาก paladin=oath · cleric=domain แท็บ Skills) — เลเวลถึงจุดเลือกแล้วยังไม่เลือก → บังคับเลือกในหน้านี้ (เดิม Fighter L3 auto-done = subclass null ตลอดชีพ)
+  let subclassPick=null;
+  if(ri&&ri.subclass&&ri.subclass.available){
+    const boxS=document.createElement('div'); boxS.innerHTML='<div class="sectitle" style="margin-top:8px">SUBCLASS — แนวทางของคลาส (เลือกครั้งเดียว เปลี่ยนไม่ได้)</div>';
+    (ri.subclass.options||[]).forEach(o=>{ const row=document.createElement('label'); row.className='fld'; row.style.cssText='flex-direction:row;align-items:flex-start;gap:8px;cursor:pointer;margin:1px 0';
+      row.innerHTML='<input type="radio" name="subclassSel" style="margin-top:3px"><span><b>'+escapeHtml(o.name)+'</b></span>';
+      row.querySelector('input').onchange=()=>{ subclassPick=o.key; };
+      boxS.appendChild(row); });
+    card.appendChild(boxS);
+  }
   const cantripPicks=new Set(), spellPicks=new Set();
   const ck=ckA;
   const allowFE=levelUpAllowanceFE(ck, lvl);
@@ -4191,7 +4201,7 @@ async function renderLevelUpPanel(p){
   try{ const kn=new Set(); const r=await supa.from('skills').select('name').eq('character_id',myChar.id); (r.data||[]).forEach(x=>kn.add(String(x.name).toLowerCase())); feats=(SKILL_CAT||[]).filter(f=>(f.classes||[]).includes(ck)&&f.level===lvl&&!kn.has(String(f.name).toLowerCase())); }catch(e){}
   if(feats.length){ const fb=document.createElement('div'); fb.innerHTML='<div class="sectitle" style="margin-top:8px">ความสามารถใหม่ของเลเวลนี้ (ได้รับอัตโนมัติ)</div>'; feats.forEach(f=>{ const d=document.createElement('div'); d.className='note'; d.style.cssText='text-align:left;color:#9fe0a0;margin:1px 0'; d.innerHTML='\u2726 <b>'+escapeHtml(f.name)+'</b> <span class="muted" style="font-size:11px">'+escapeHtml(f.effect||'')+'</span>'; fb.appendChild(d); }); card.appendChild(fb); }
   const btn=document.createElement('button'); btn.className='btn'; btn.style.marginTop='10px'; btn.textContent='\u2713 ยืนยันเลเวลอัพ';
-  btn.onclick=()=>submitLevelUp(asiState, {cantrips:[...cantripPicks], spells:[...spellPicks], oath:oathPick}, feats, btn);
+  btn.onclick=()=>submitLevelUp(asiState, {cantrips:[...cantripPicks], spells:[...spellPicks], oath:oathPick, subclass:subclassPick}, feats, btn);   // v630 D5: +subclass
   // v415: ฝังตัวเลือก Fighting Style ในหน้าเลเวลอัพ — Fighter/Paladin/Ranger ที่เพิ่งได้สไตล์เลือกได้ตรงนี้เลย (กันบั๊ก "ขึ้นมาให้ดูแต่เลือกไม่ได้" — เดิม selector อยู่ท้ายหน้า Stat/แท็บ Skills · gate พามาหน้านี้)
   try{ if(/fighter|paladin|ranger|นักรบ|นักสู้|พาลาดิน|อัศวิน|เรนเจอร์|พราน/i.test(myChar.class||'')) renderFightingStyleCard(card); }catch(e){}
   card.appendChild(btn); p.appendChild(card);
@@ -4204,6 +4214,7 @@ async function submitLevelUp(asiState, picks, feats, btn){
     const payload={char_id:myChar.id, cantrip_slugs:cSlugs, spell_slugs:sSlugs};
     if(asiState && Object.keys(asiState).length) payload.asi=asiState;
     if(picks && picks.oath) payload.oath=picks.oath;   // v183: Sacred Oath
+    if(picks && picks.subclass) payload.subclass=picks.subclass;   // v630 D5: Subclass (server writer sheet.subclass)
     {
       const tok=(await supa.auth.getSession()).data.session?.access_token;
       const rr=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
