@@ -901,6 +901,10 @@ body.in-battle .bs-cs-btn{display:block;}
 .bs-init-list,.bs-log-list{display:flex;flex-direction:column;gap:5px;}
 .bs-log-list{font-family:'IBM Plex Sans Thai',sans-serif;font-size:13px;line-height:1.5;color:#fff;}
 .bs-logrow{padding:1px 0;}
+/* v623 B (DG-6): แอนิเมตเลขทอยจริงจาก server บนแถว [server-rolled] ใหม่ — client ไม่ทอยเองแล้ว */
+.bs-droll{color:#ffd76a;font-weight:bold;display:inline-block;min-width:1.2em;text-align:center;}
+.bs-droll-done{animation:bsDpop .35s ease;}
+@keyframes bsDpop{0%{transform:scale(1.7);color:#fff;}100%{transform:scale(1);}}
 .bs-initrow{display:flex;align-items:center;gap:9px;padding:3px 2px;font-family:'IBM Plex Sans Thai',sans-serif;white-space:nowrap;}
 .bs-initrow.me .bs-iname{text-decoration:underline;}
 .bs-ini{min-width:22px;text-align:center;font-weight:700;color:#9a9a9a;font-size:13px;}
@@ -3144,8 +3148,8 @@ async function createCharacter(){
         else if(cat==='shield' && !eqp.shield) eqp.shield=nm;
         else invp.push({name:nm,qty:qty}); }
     }
-    // เงินเริ่มต้น: ถ้าชุดกำหนด gold เองใช้ค่านั้น, ไม่งั้นใช้ตาราง PHB ตามคลาส (ดีฟอลต์ 15 gp = เงิน background)
-    { const _ck=classKey(); walletp.gp = (selectedPkg && selectedPkg.gold) ? selectedPkg.gold : (CLASS_START_GOLD[_ck]||15); }
+    // เงินเริ่มต้น (v623 D3/H11 กัน double-dip): ชุดกำหนด gold เอง = ใช้ค่านั้น · ได้ชุดอุปกรณ์เต็ม (items) = เงินติดกระเป๋า 15 gp (PHB: starting wealth ตามคลาส คือทางเลือก "แทนอุปกรณ์" — ห้ามได้ทั้งคู่) · ไม่มี package = เงินคลาสเต็ม
+    { const _ck=classKey(); walletp.gp = (selectedPkg && selectedPkg.gold) ? selectedPkg.gold : (selectedPkg && Array.isArray(selectedPkg.items) && selectedPkg.items.length) ? 15 : (CLASS_START_GOLD[_ck]||15); }
     const sheet={
       race:raceValue(), sex:$('cSex').value.trim(), age:$('cAge').value.trim(),
       dragonborn_element: (raceKey()==='dragonborn') ? dragonbornElement : undefined,   // v291: ธาตุ → resist + Breath Weapon (server ใช้)
@@ -6124,7 +6128,9 @@ async function renderBattleInitLog(initEl, logEl){
     let logs=_logsPre||[];   // (06-11) ใช้ผลที่ fetch รวมไว้ข้างบน
     const ICON={initiative:'🎲',attack:'🎲',damage:'💥',heal:'💚',save:'🛡',check:'🎯',move:'👣',condition:'⭐',death:'☠',flee:'🏃',round_advance:'🔄',note:'📝'};
     const _lfrag=document.createDocumentFragment();
-    logs.forEach(l=>{ if(l.entry_type==='note'&&/^\s*(⚔️|✦|✕|⚠|💢|🛡|💀)|^\s*\(แก้|ยังไม่(ล้ม|ตาย|ฟื้น)|ถูกกำจัดไปแล้ว|ไม่มี(บาดแผล|การรักษา|การโจมตีจาก)|รอดบาดแผล|การโจมตี(พลาด|ไม่เข้า)|ระบบ:/.test(String(l.summary||''))) return;   /* v459: ซ่อน note ของ guard/ระบบ (สับสนกับบทบรรยาย) */ const d=document.createElement('div'); d.className='bs-logrow'; if(l.entry_type==='round_advance') d.style.color='#9a9a9a'; d.innerHTML=(ICON[l.entry_type]||'•')+' '+escapeHtml(l.summary); _lfrag.appendChild(d); });
+    // v623 B (DG-6 Option 2): แถวใหม่ที่ server ทอยจริง → ครอบเลข d20 ด้วย .bs-droll แล้วแอนิเมตหลัง render (client ไม่ทอยเองแล้ว — เลขบนจอ = เลขจริงเสมอ)
+    var _prevLastN=parseFloat(logEl.getAttribute('data-last'))||0;
+    logs.forEach(l=>{ if(l.entry_type==='note'&&/^\s*(⚔️|✦|✕|⚠|💢|🛡|💀)|^\s*\(แก้|ยังไม่(ล้ม|ตาย|ฟื้น)|ถูกกำจัดไปแล้ว|ไม่มี(บาดแผล|การรักษา|การโจมตีจาก)|รอดบาดแผล|การโจมตี(พลาด|ไม่เข้า)|ระบบ:/.test(String(l.summary||''))) return;   /* v459: ซ่อน note ของ guard/ระบบ (สับสนกับบทบรรยาย) */ const d=document.createElement('div'); d.className='bs-logrow'; if(l.entry_type==='round_advance') d.style.color='#9a9a9a'; let _h=escapeHtml(l.summary); if(_prevLastN&&(+l.seq>_prevLastN)&&/\[server-rolled\]/.test(String(l.summary||''))){ _h=_h.replace(/(d20\s*[=(]\s*)(\d+)/, function(_m,pre,n){ return pre+'<span class="bs-droll" data-n="'+n+'">'+n+'</span>'; }); } d.innerHTML=(ICON[l.entry_type]||'•')+' '+_h; _lfrag.appendChild(d); });
     if(!_lfrag.childNodes.length){ const d=document.createElement('div'); d.className='note'; d.style.color='#9a9a9a'; d.textContent='— ยังไม่มีบันทึกการรบ —'; _lfrag.appendChild(d); }
     var _lg=document.createElement('div'); _lg.appendChild(_lfrag.cloneNode(true));
     if(logEl.getAttribute('data-sig')!==_lg.innerHTML){
@@ -6135,8 +6141,19 @@ async function renderBattleInitLog(initEl, logEl){
       var _lnear=(logEl.scrollHeight-logEl.scrollTop-logEl.clientHeight)<80, _lprev=logEl.scrollTop;
       logEl.replaceChildren(_lfrag);
       setTimeout(function(){ logEl.scrollTop=(_newLog||_lnear)?logEl.scrollHeight:_lprev; },0);
+      bsAnimateDice(logEl);   // v623 B (DG-6): แอนิเมตเลขทอยจริงบนแถวใหม่
     }
   }
+}
+// v623 B (DG-6 Option 2): หมุนตัวเลขสุ่มสั้นๆ แล้วหยุดที่ 'เลขจริงจาก server' — ความรู้สึกได้ทอย โดยเลข = ของจริงเสมอ
+function bsAnimateDice(scope){
+  try{
+    scope.querySelectorAll('.bs-droll:not([data-anim])').forEach(function(sp){
+      sp.setAttribute('data-anim','1');
+      var fin=sp.getAttribute('data-n')||sp.textContent, t=0;
+      var iv=setInterval(function(){ t++; if(t>=8){ clearInterval(iv); sp.textContent=fin; sp.classList.add('bs-droll-done'); } else { sp.textContent=String(1+Math.floor(Math.random()*20)); } },60);
+    });
+  }catch(e){}
 }
 function _bsChatName(uid){ try{ return chatNameFor(uid); }catch(e){ return 'Player'; } }
 function renderBattleChat(){
@@ -8230,17 +8247,11 @@ window.cc = (function(){
     if(turn && turn.movement && !turn.action){
       if(!confirm('ยังไม่ได้เลือก Action (เช่น โจมตี / Dash) — จะเดินอย่างเดียวแล้วจบเทิร์นเลยใช่ไหม?\n\nเป้าอยู่ไกล: เลือก Action ▸ Dash จะวิ่งได้ไกลขึ้นสองเท่า')) return;
     }
-    var diceList = collectDice();
-    if(diceList.length === 0){
-      rollResults = [];
-      var _okS = await sendToBackend([]);
-      phase = (_okS===false) ? 'building' : 'resolved';   // v538 M18: ส่งล้ม → คงเมนู (เดิมโชว์ "SENT TO DM" แล้ว DONE ทิ้งเทิร์น)
-      renderAll();
-      return;
-    }
-    rollQueue = diceList;
+    // ── v623 B (DG-6 Option 2 · run 5): ตัดการทอยฝั่ง client ทั้งหมด — เดิม ROLL ALL ทอยเลขที่ server ไม่เคยใช้ (c5 ทอยเองเสมอ · structured_turn.rolls = dead data)
+    //   = ผู้เล่นเห็นเลขหนึ่งแต่ระบบใช้อีกเลข · ตอนนี้ส่งเทิร์นตรง → server ทอย → เลขจริงแอนิเมตใน Battle Log (bs-droll) — เลขบนจอ = เลขจริงเสมอ
     rollResults = [];
-    phase = 'rolling';
+    var _okS = await sendToBackend([]);
+    phase = (_okS===false) ? 'building' : 'resolved';   // v538 M18: ส่งล้ม → คงเมนู (เดิมโชว์ "SENT TO DM" แล้ว DONE ทิ้งเทิร์น)
     renderAll();
   }
   async function onRoll(){
@@ -8491,7 +8502,7 @@ window.cc = (function(){
     var frame = document.getElementById('ccFrame');
     var rows = '';
     if(rollResults.length === 0){
-      rows = '<div class="cc-dice-row"><span class="cc-lab">[NARRATIVE]</span> turn sent without dice</div>';
+      rows = '<div class="cc-dice-row"><span class="cc-lab">[SENT]</span> ส่งเทิร์นแล้ว — 🎲 server ทอยเต๋าจริงให้ ผลปรากฏใน Battle Log</div>';   // v623 B (DG-6): client ไม่ทอยเองแล้ว
     } else {
       for(var i=0;i<rollResults.length;i++){
         var r = rollResults[i];
