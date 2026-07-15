@@ -950,6 +950,7 @@ body.in-battle .bs-cs-btn{display:block;}
 .npc5-row{display:flex;align-items:center;gap:7px;width:100%;padding:8px;border:0;background:transparent;color:var(--white);font-size:13.5px;text-align:left;cursor:pointer;border-radius:4px;font-family:inherit;}
 .npc5-row:hover{background:rgba(128,128,128,.14);}
 .npc5-row.on{background:rgba(128,128,128,.26);}
+.npc5-row .muted{padding:0;line-height:1;text-align:left;}   /* v633ui: rule กลาง .muted (placeholder padding 24px) ทำแถวที่มีป้าย ×N สูงไม่เท่าแถวอื่นในสารานุกรมมอนสเตอร์ */
 @media (max-width:899px){
   .npc5{display:flex;flex-direction:column;}
   .npc5-cities{flex-direction:row;flex-wrap:wrap;}
@@ -7683,7 +7684,10 @@ function subscribeRealtime(){
     }, 30000);
   }
   rtChannel = supa.channel('camp-'+campaign.id)
-    .on('postgres_changes',{event:'*',schema:'public',table:'narrative',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ rtLastSyncTs=Date.now(); if(payload&&payload.new&&payload.eventType!=='DELETE'){ mergeNarrative(payload.new); } else { await loadNarrative(); } if(activeTab()==='story') renderStory(); if(activeTab()==='quest') renderQuest(); if(typeof scheduleBattleScene==='function') scheduleBattleScene(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'narrative',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ rtLastSyncTs=Date.now(); if(payload&&payload.new&&payload.eventType!=='DELETE'){ mergeNarrative(payload.new); } else { await loadNarrative(); }
+      /* v634ui DYN-29: บรรทัดระบบที่บอกว่าชีทเปลี่ยน (พัก/เงิน/ฟื้น/แพ้/ตื่น) → reload ชีท+สมาชิก (เดิม mySheet ไม่มี realtime — แท็บ Stat ค้าง HP/เงินเก่าจน reload หน้า · throttle 15s) */
+      try{ var _c634=String((payload&&payload.new&&payload.new.content)||''); if(/^(🛏|💰|⚠️|💀|💤)/.test(_c634) && (!window._shReloadTs || Date.now()-window._shReloadTs>15000)){ window._shReloadTs=Date.now(); refreshAll().then(function(){ if(activeTab()==='me') renderMe(); if(activeTab()==='party') renderParty(); }).catch(function(e){}); } }catch(e){}
+      if(activeTab()==='story') renderStory(); if(activeTab()==='quest') renderQuest(); if(typeof scheduleBattleScene==='function') scheduleBattleScene(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'quests',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='quest') renderQuest(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'rounds',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); await loadRound(); if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'actions',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); if(activeTab()==='story') renderRoundbar(); })
