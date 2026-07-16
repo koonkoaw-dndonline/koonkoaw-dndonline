@@ -2208,6 +2208,8 @@ async function endCampaign(){
   catch(e){ toast(e.message||'ลบไม่สำเร็จ',true); }
 }
 async function leaveCampaign(){
+  // v643 FIX-10 (BUGPLAN_2026-07-17 A7-correction): RPC มี host guard อยู่แล้ว ("host cannot leave own campaign") — กันที่ UI ให้ข้อความไทยชัดก่อนถึง confirm
+  if(campaign && me && campaign.host_id===me.id){ alert('Host ออกจากโลกของตัวเองไม่ได้ — ใช้ ✕ End World (ลบถาวร) หรือชวนเพื่อนมาเล่นต่อ'); return; }
   if(!confirm('ออกจากแคมเปญนี้?')) return;
   try{ const { error } = await supa.rpc('leave_campaign',{ p_campaign:campaign.id }); if(error) throw error; toast('ออกจากแคมเปญแล้ว'); setTimeout(()=>location.reload(),500); }
   catch(e){ toast(e.message||'ออกไม่สำเร็จ',true); }
@@ -3144,6 +3146,8 @@ async function createCharacter(){
   if(!classValue()){ toast('ยังไม่ได้เลือกอาชีพ (Class) — เลือกก่อนเข้าเกม',true); const _e=$('cClass'); if(_e){try{_e.focus();_e.scrollIntoView({block:'center'});}catch(x){}} return; }
   if(!raceValue()){ toast('ยังไม่ได้เลือกเผ่าพันธุ์ (Race) — เลือกก่อนเข้าเกม',true); const _e=$('cRace'); if(_e){try{_e.focus();_e.scrollIntoView({block:'center'});}catch(x){}} return; }
   if(!($('cSex')&&$('cSex').value||'').trim()){ toast('ยังไม่ได้เลือกเพศ (Sex) — เลือกก่อนเข้าเกม',true); const _e=$('cSex'); if(_e){try{_e.focus();_e.scrollIntoView({block:'center'});}catch(x){}} return; }
+  // v643 FIX-9 (BUGPLAN_2026-07-17 A8 — เคสจริง playtest 07-16: PC สถิติ 8 ทั้งแถบเข้าเกมเงียบๆ): บังคับกระจาย point buy ให้ครบก่อน
+  if(typeof pbSpent==='function' && pbSpent() < PB_BUDGET){ toast('ยังเหลือแต้มสถานะ '+(PB_BUDGET-pbSpent())+' แต้ม (ABILITY SCORES · POINT BUY) — กระจายให้ครบก่อนเข้าเกม',true); const _e=$('pbWrap'); if(_e){try{_e.scrollIntoView({block:'center'});}catch(x){}} return; }
   $('charBtn').disabled=true;
   try{
     suggestHP(); const hpv=parseInt($('cHp').value); const maxhp=isNaN(hpv)?null:Math.max(1,hpv);
@@ -6703,7 +6707,7 @@ async function renderBattleGrid(p){
     // v420: ตัดเงากลม renderer ออก (ผู้ใช้ขอ — แอสเซ็ทไม่มีฐานในตัว ยืนบน tile โดยตรง) · ขยาย sprite + anchor เท้าตามชนิด (char/obj/mon เท้าคนละแถว 0.875/0.855/0.905)
     const _DETAIL=1.3;   // v422: ขยาย sprite +30% (เห็นรายละเอียดงานศิลป์ชัดขึ้น) — ปรับค่านี้ตัวเดียว
     const _FR={ch:0.875,ob:0.855,mo:0.905}, _SZ={ch:64*_DETAIL*_ACTOR_SCALE,mo:64*_DETAIL*_ACTOR_SCALE,ob:64*_DETAIL*_ACTOR_SCALE};   // v561: สเกล 'แอสเซ็ททั้งหมด' (คน/มอน/วัตถุ) ×_ACTOR_SCALE เท่ากัน — สัดส่วนคงเดิม (แก้ v560 ที่วัตถุไม่โต = เกวียนเล็ก/มอนดูใหญ่เกิน) · base 64px × _DETAIL
-    const _imgTok=(href,fr,px,bl)=>{ const z=px; const _rd=down?` transform="rotate(${_lieDeg} ${fx.toFixed(1)} ${(fy-z*fr+z/2).toFixed(1)})"`:''; return `<image href="${href}" x="${(fx-z/2).toFixed(1)}" y="${(fy-z*fr).toFixed(1)}" width="${z.toFixed(1)}" height="${z.toFixed(1)}" style="image-rendering:pixelated${bl?';filter:blur('+bl+'px)':''}" opacity="${op}"${_rd}/>`; };   // v449: ล้ม=หมุนรอบ 'กึ่งกลางภาพ' (นอนตะแคงอยู่กับที่ ไม่เหวี่ยงหลุดนอกช่องจนหาย)
+    const _imgTok=(href,fr,px,bl,sm)=>{ const z=px; const _rd=down?` transform="rotate(${_lieDeg} ${fx.toFixed(1)} ${(fy-z*fr+z/2).toFixed(1)})"`:''; const _st=sm?'image-rendering:auto':`image-rendering:pixelated${bl?';filter:blur('+bl+'px)':''}`; return `<image href="${href}" x="${(fx-z/2).toFixed(1)}" y="${(fy-z*fr).toFixed(1)}" width="${z.toFixed(1)}" height="${z.toFixed(1)}" style="${_st}" opacity="${op}"${_rd}/>`; };   // v449: ล้ม=หมุนรอบ 'กึ่งกลางภาพ' (นอนตะแคงอยู่กับที่ ไม่เหวี่ยงหลุดนอกช่องจนหาย) · v642: param sm → smooth (ไม่ pixelated ไม่ blur) · เหตุผล: svg เป็น width:100% = สเกลลื่นตามจอ อัตราย่อไม่มีวันลงตัว (วัดจริง มือถือ DPR2: sprite 35.2 css / 70 device px = asset 128 over 1.82× → nearest ทิ้งพิกเซล 45% แบบไม่สม่ำเสมอ) · pixelated ถูกเฉพาะตอนคุมซูมเป็นจำนวนเต็มได้ ซึ่ง renderer นี้คุมไม่ได้ · _SPRITE_BLUR=0.4 เดิมคือพลาสเตอร์ปิดอาการนี้
     const _oimg=(t.kind==='object')?tokImgHref(t):null;
     const _spr=(t.kind==='object'&&!(_oimg&&_oimg.url))?spriteFn(t):null, gly=glyphFor(t);
     const _os=(t.kind==='object')?objScaleFor(t):1;   // v483 proportional
@@ -6716,7 +6720,7 @@ async function renderBattleGrid(p){
     else { const _tkimg=tokImgHref(t), _mt=(_tkimg&&_tkimg.tiles)||1, _mpx=_SZ.mo*_mt;   // revert: monster = _SZ.mo(64) × tiles (size-category) · _mt ใช้ pawn/HP ต่อ
       const _moc=(_mt>1)&&monOccludesParty(t,toks);   // v570: มอนใหญ่บังหมากปาร์ตี้หลัง → จางให้เห็นทะลุ
       if(_tkimg&&_tkimg.url&&monSpriteOk(_tkimg.url)){ const _mo=_imgTok(_tkimg.url,_FR.mo,_mpx,_SPRITE_BLUR); s+=(_moc?`<g opacity="0.4">`+_mo+`</g>`:_mo); }   // v638 BUG1: sprite โหลดไม่ได้ → ตกไปสาขา pawn (ไม่ใช่ภาพว่าง)
-      else if(_hd){ s+=_imgTok(_hd,_FR.ch,_SZ.ch,_SPRITE_BLUR); }
+      else if(_hd){ s+=_imgTok(_hd,_FR.ch,_SZ.ch,_SPRITE_BLUR,true); }   // v642: ตัวละคร (PC/ally/npc + มอน humanoid ที่ยืม sprite_class) = smooth · พื้น/วัตถุ/มอน คง pixelated เดิม → ความต่างของ filter กลายเป็นภาษาบอกว่าอันไหนคือตัวละคร (มิเรอร์แนวคิด DoF v560 ที่แยกชั้นหน้า/ชั้นหลัง) · revert = เปลี่ยน true เป็น false
       else { const pal=PAL[t.kind]||PAL.pc, ba=pal[0], da=pal[1], li=pal[2];
         const _tf=`${down?`rotate(${_lieDeg} ${fx.toFixed(1)} ${(fy-8).toFixed(1)}) `:''}${_mt>1?`translate(${fx.toFixed(1)} ${fy.toFixed(1)}) scale(${_mt}) translate(${(-fx).toFixed(1)} ${(-fy).toFixed(1)})`:''}`.trim();   // v449: ล้ม=หมุนรอบกึ่งกลาง pawn (อยู่กับที่) + มอนใหญ่=scale
         if(_tf) s+=`<g transform="${_tf}">`;
