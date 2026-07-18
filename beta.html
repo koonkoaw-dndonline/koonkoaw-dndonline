@@ -2401,7 +2401,18 @@ async function enterCampaign(){
   subscribeRealtime();
 }
 
-async function refreshAll(){
+/* v663 X4-06 (BUGROOTS 07-18): refreshAll ถูกเรียกซ้อนได้จาก realtime handler + resolve-finally + tab opening — request เก่าจบทีหลังเขียน globals ย้อนสถานะ → serialize + coalesce (ผู้เรียกระหว่าง flight ได้ run ใหม่ร่วมกัน 1 รอบหลังจบ) */
+let _raCur=null, _raPend=null;
+function refreshAll(){
+  if(_raPend) return _raPend;
+  if(_raCur){
+    _raPend = _raCur.catch(function(){}).then(function(){ _raPend=null; return refreshAll(); });
+    return _raPend;
+  }
+  _raCur = _refreshAllInner().finally(function(){ _raCur=null; });
+  return _raCur;
+}
+async function _refreshAllInner(){
   await Promise.all([loadMembers(), loadCharacters(), loadRound(), loadNarrative(), loadState()]);
   loadCatalogs();
   myChar = characters.find(c=>c.user_id===me.id) || null;
@@ -7718,14 +7729,17 @@ function subscribeRealtime(){
         if(typeof campaign==='undefined'||!campaign) return;
         if(typeof resolving!=='undefined' && resolving) return;
         const r=await supa.from('rounds').select('id,phase').eq('campaign_id',campaign.id).order('round_number',{ascending:false}).limit(1).maybeSingle();
-        if(!r.data || r.data.phase!=='resolving') return;
+        if(!r.data || r.data.phase!=='resolving'){ window._wdNoPh=0; return; }
         const pp=await supa.from('narrative').select('created_at').eq('round_id',r.data.id).eq('status','placeholder').order('created_at',{ascending:false}).limit(1).maybeSingle();
-        const age=pp.data?(Date.now()-new Date(pp.data.created_at).getTime()):999999;
+        /* v663 X4-08 (BUGROOTS 07-18): ไม่มี placeholder ≠ ค้างแน่นอน (อาจ promote เป็น final แล้ว/postDM ยังทำงาน/realtime คนละเฟส) — ต้องเห็นต่อเนื่อง ≥3 tick (~90s) ก่อนถือว่า stale (เดิม age=999999 ทันที → recovery ยิงซ้ำ = เคสสด 08:53-08:59 tail 381s) */
+        let age;
+        if(pp.data){ age=Date.now()-new Date(pp.data.created_at).getTime(); window._wdNoPh=0; }
+        else { window._wdNoPh=(window._wdNoPh||0)+1; age=(window._wdNoPh>=3)?999999:0; }
         if(age>100000 && Date.now()-(window._wdLast||0)>90000){ window._wdLast=Date.now(); console.log('[watchdog] รอบค้าง resolving → กระตุ้นกู้'); if(typeof resolveRound==='function') resolveRound(false); }
       }catch(e){}
     }, 30000);
   }
-  rtChannel = supa.channel('camp-'+campaign.id)
+  var _rtCh = supa.channel('camp-'+campaign.id)
     .on('postgres_changes',{event:'*',schema:'public',table:'narrative',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ rtLastSyncTs=Date.now(); if(payload&&payload.new&&payload.eventType!=='DELETE'){ mergeNarrative(payload.new); } else { await loadNarrative(); }
       /* v634ui DYN-29: บรรทัดระบบที่บอกว่าชีทเปลี่ยน (พัก/เงิน/ฟื้น/แพ้/ตื่น) → reload ชีท+สมาชิก (เดิม mySheet ไม่มี realtime — แท็บ Stat ค้าง HP/เงินเก่าจน reload หน้า · throttle 15s) */
       try{ var _c634=String((payload&&payload.new&&payload.new.content)||''); if(/^(🛏|💰|⚠️|💀|💤)/.test(_c634) && (!window._shReloadTs || Date.now()-window._shReloadTs>15000)){ window._shReloadTs=Date.now(); refreshAll().then(function(){ if(activeTab()==='me') renderMe(); if(activeTab()==='party') renderParty(); }).catch(function(e){}); } }catch(e){}
@@ -7743,19 +7757,31 @@ function subscribeRealtime(){
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'combat_log',filter:'campaign_id=eq.'+campaign.id}, async()=>{ scheduleBattleScene(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'battle_grids',filter:'campaign_id=eq.'+campaign.id}, async()=>{ scheduleBattleScene(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'grid_tokens',filter:'campaign_id=eq.'+campaign.id}, async()=>{ scheduleBattleScene(); })
-    .subscribe((status)=>{
-      if(status==='SUBSCRIBED'){ rtLastSyncTs=Date.now(); }
-      else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){
-        try{ supa.removeChannel(rtChannel); }catch(e){} rtChannel=null;
-        setTimeout(()=>{ if(!document.hidden && !rtChannel) subscribeRealtime(); }, 1500);
-      }
-    });
+    ;
+  /* v663 X4-01/02/03/04 (BUGROOTS 07-18 · เคสสด 08:53 stack overflow): callback ปิดเหนือ instance ตัวเอง (_rtCh) ไม่ใช่ global — กัน ABA (callback เก่าของ A ลบ B) ·
+     null-before-remove + _torn = re-enter จาก removeChannel เป็น no-op · reconnect timer เดียว (clear ก่อนตั้งใหม่) · assign ก่อน subscribe (กัน callback เร็วกว่า assignment) */
+  _rtCh._createdAt = Date.now();
+  rtChannel = _rtCh;
+  _rtCh.subscribe((status)=>{
+    if(status==='SUBSCRIBED'){ rtLastSyncTs=Date.now(); return; }
+    if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){
+      if(_rtCh._torn) return;
+      _rtCh._torn = true;
+      if(rtChannel===_rtCh) rtChannel = null;
+      try{ supa.removeChannel(_rtCh); }catch(e){}
+      if(window._rtReconnT) clearTimeout(window._rtReconnT);
+      window._rtReconnT = setTimeout(()=>{ window._rtReconnT=null; if(!document.hidden && !rtChannel) subscribeRealtime(); }, 1500);
+    }
+  });
   startRtFallback();
 }
 // ── มือถือ-resilient: re-sync สถานะหลักเมื่อ realtime ตกหล่น (Safari ตัด websocket ตอนพับแอป) ──
 let _narrSig='', _roundSig='', _rtPoll=null;
+let _rsRunning=false, _rsQueuedForce=null;   /* v663 X4-06: single-flight (poll 8s + visibility/online/pageshow ซ้อนกันได้ — เก่าจบทีหลังเขียน globals ย้อนสถานะ) */
 async function resyncAll(force){
   if(typeof campaign==='undefined' || !campaign || !campaign.id) return;
+  if(_rsRunning){ _rsQueuedForce = (_rsQueuedForce===true) || !!force; return; }
+  _rsRunning = true;
   try{
     await Promise.all([loadRound(), loadNarrative(), loadCharacters(), loadState()]);
     if(typeof updateCombatBadge==='function'){ try{ await updateCombatBadge(); }catch(e){} }   /* v271 H4: poll/visibility/online ดึง _combatActive ใหม่ (กัน input-mode ค้างหลังศึกจบ) */
@@ -7772,11 +7798,21 @@ async function resyncAll(force){
     else if(t==='map'){ if(changed){ try{applyMood();}catch(e){} renderMap(); } }
     else if(t==='mon'){ renderCombat(); }
   }catch(e){}
+  finally{
+    _rsRunning=false;
+    if(_rsQueuedForce!==null){ const f=_rsQueuedForce===true; _rsQueuedForce=null; resyncAll(f); }
+  }
 }
 function ensureRtAlive(){
   try{
     const st = rtChannel && rtChannel.state;
-    if(!rtChannel || st!=='joined'){ try{ supa.removeChannel(rtChannel); }catch(e){} rtChannel=null; subscribeRealtime(); }
+    /* v663 X4-05: 'joining' อายุ <15s = กำลังเชื่อมปกติ อย่าฆ่า (เดิม visibility/online/pageshow remove subscription ที่ยังเชื่อมอยู่) + null-before-remove + _torn (X4-01 — helper เดียวกับ status callback) */
+    const _joiningGrace = st==='joining' && rtChannel && rtChannel._createdAt && (Date.now()-rtChannel._createdAt<15000);
+    if(!rtChannel || (st!=='joined' && !_joiningGrace)){
+      const _old = rtChannel; rtChannel = null;
+      if(_old){ _old._torn = true; try{ supa.removeChannel(_old); }catch(e){} }
+      subscribeRealtime();
+    }
   }catch(e){}
 }
 function startRtFallback(){
