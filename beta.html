@@ -1778,7 +1778,7 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
 <div class="center" id="authScreen">
   <div class="card">
     <h2>Sign In</h2>
-    <p class="sub">ใส่อีเมลแล้วกด "ส่ง" — <b>บนคอม</b> คลิกลิงก์ในเมล · <b>บนมือถือ</b> พิมพ์รหัส 6 หลักจากเมลด้านล่าง (ไม่ต้องสลับเบราเซอร์ → session ค้างให้ ไม่ต้องล็อกอินใหม่ทุกครั้ง)</p>
+    <p class="sub">Enter your email and press "Send" — <b>on desktop</b>, click the link in the email · <b>on mobile</b>, type the 6-digit code from the email below (no need to switch browsers → your session is kept, so you won't have to sign in every time)</p>
     <p class="note" id="loginHint" style="color:#f59; font-weight:600"></p>
     <label class="fld hidden" id="anonFld">Supabase Anon/Publishable Key
       <input type="password" id="anonKey" placeholder="eyJ... or sb_publishable_..."/>
@@ -1786,13 +1786,13 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
     <label class="fld">Email
       <input type="email" id="email" placeholder="you@example.com" autocomplete="email"/>
     </label>
-    <button class="btn" id="loginBtn" onclick="sendMagicLink()">ส่งอีเมลเข้าสู่ระบบ</button>
+    <button class="btn" id="loginBtn" onclick="sendMagicLink()">Send sign-in email</button>
     <p class="note" id="authNote"></p>
     <div id="otpBox" style="margin-top:8px">
-      <label class="fld">📱 มือถือ: พิมพ์รหัส 6 หลักจากอีเมล (หลังกด "ส่งอีเมล" ด้านบน) แล้วกด "ยืนยันรหัส" — คอม: คลิกลิงก์ในเมลแทนได้
-        <input type="text" id="otpCode" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="พิมพ์รหัส 6 หลัก"/>
+      <label class="fld">📱 Mobile: type the 6-digit code from the email (after pressing "Send sign-in email" above), then press "Verify code" — Desktop: you can click the link in the email instead
+        <input type="text" id="otpCode" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="Enter the 6-digit code"/>
       </label>
-      <button class="btn" id="verifyBtn" onclick="verifyCode()" style="margin-top:6px">ยืนยันรหัส</button>
+      <button class="btn" id="verifyBtn" onclick="verifyCode()" style="margin-top:6px">Verify code</button>
     </div>
   </div>
 </div>
@@ -2166,9 +2166,9 @@ function _loginPersistHints(){
     const isMobile=/Android|iPhone|iPad|iPod/i.test(ua);
     const standalone=(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||window.navigator.standalone===true;
     let warn='', col='#f59';
-    if(!storageOk) warn='⚠️ เบราว์เซอร์นี้ไม่เก็บข้อมูล (โหมดไม่ระบุตัวตน/ปิด storage) — ต้องล็อกอินใหม่ทุกครั้ง · ปิดโหมดส่วนตัวแล้วเปิดใหม่ จะล็อกอินค้างให้';
-    else if(inApp) warn='⚠️ คุณเปิดเกมในเบราว์เซอร์ภายในแอป (Line/Facebook/เมล ฯลฯ) — session จะหลุดทุกครั้ง · แตะเมนู ⋮/⋯ มุมจอ → "เปิดในเบราว์เซอร์" (Chrome/Safari) แล้ว "เพิ่มลงหน้าจอหลัก" จะล็อกอินค้างถาวร';
-    else if(isMobile && !standalone){ warn='💡 อยากให้ล็อกอินค้างถาวร (ไม่ต้องล็อกอินใหม่ทุกครั้ง): บน iPhone แตะปุ่มแชร์ ⬆️ → "เพิ่มลงในหน้าจอโฮม" · บน Android แตะเมนู ⋮ → "เพิ่มลงในหน้าจอหลัก" แล้วเปิดเกมจากไอคอนนั้นเสมอ — ล็อกอินครั้งเดียวค้างถาวร (เปิดในแท็บเบราว์เซอร์ปกติ iOS จะลบ session ทุก ~7 วัน)'; col='#7cf'; }
+    if(!storageOk) warn='⚠️ This browser is not storing data (private mode / storage disabled) — you will have to sign in every time · Turn off private mode and reopen to stay signed in';
+    else if(inApp) warn='⚠️ You opened the game in an in-app browser (Line/Facebook/Mail, etc.) — your session will drop every time · Tap the ⋮/⋯ menu → "Open in browser" (Chrome/Safari), then "Add to Home Screen" to stay signed in permanently';
+    else if(isMobile && !standalone){ warn='💡 To stay signed in permanently (no signing in every time): on iPhone tap the Share button ⬆️ → "Add to Home Screen" · on Android tap the ⋮ menu → "Add to Home screen", then always open the game from that icon — sign in once, stay signed in (in a normal browser tab, iOS clears the session every ~7 days)'; col='#7cf'; }
     const el=$('loginHint'); if(el){ el.textContent=warn; el.style.color=col; }
   }catch(e){}
 }
@@ -2211,24 +2211,24 @@ async function sendMagicLink(){
     _otpEmail = email;
     try{ localStorage.setItem('lastEmail', email); }catch(e){}   // v281: จำอีเมล
     try{ $('otpBox').classList.remove('hidden'); const _f=$('otpCode'); if(_f) _f.focus(); }catch(e){}
-    $('authNote').textContent='✅ ส่งอีเมลไปที่ '+email+' แล้ว — คอม: คลิกลิงก์ในเมล · มือถือ: พิมพ์รหัส 6 หลักจากเมลด้านล่างแล้วกด "ยืนยันรหัส"';
-  }catch(e){ toast(e.message||'ส่งอีเมลไม่สำเร็จ',true); }
+    $('authNote').textContent='✅ Sent an email to '+email+' — Desktop: click the link in the email · Mobile: type the 6-digit code from the email below, then press "Verify code"';
+  }catch(e){ toast(e.message||'Could not send the email',true); }
   finally{ $('loginBtn').disabled=false; }
 }
 // v276: ยืนยันด้วยรหัส 6 หลัก (มือถือ) — session ลง localStorage ของเบราเซอร์ที่เล่นจริง → กลับมาไม่ต้อง login ใหม่
 async function verifyCode(){
-  if(!supa){ toast('ยังไม่ได้เชื่อมต่อ Supabase',true); return; }
+  if(!supa){ toast('Not connected to Supabase yet',true); return; }
   const code=(($('otpCode')&&$('otpCode').value)||'').trim();
   const email=_otpEmail || (($('email')&&$('email').value)||'').trim();
-  if(!email){ toast('ใส่อีเมลก่อน',true); return; }
-  if(!code){ toast('ใส่รหัสจากอีเมล',true); return; }
+  if(!email){ toast('Enter your email first',true); return; }
+  if(!code){ toast('Enter the code from the email',true); return; }
   const vb=$('verifyBtn'); if(vb) vb.disabled=true;
   try{ let { error } = await supa.auth.verifyOtp({ email, token: code, type: 'email' });
     if(error){ const _r2=await supa.auth.verifyOtp({ email, token: code, type: 'magiclink' }); error=_r2.error; }   // เผื่อ type ต่าง (code vs link)
     if(error) throw error;
     try{ localStorage.setItem('lastEmail', email); }catch(e){}   // v281: จำอีเมล
     await afterAuthChange();
-  }catch(e){ toast(e.message||'รหัสไม่ถูกต้อง/หมดอายุ — ขอใหม่ได้',true); }
+  }catch(e){ toast(e.message||'Invalid or expired code — you can request a new one',true); }
   finally{ if(vb) vb.disabled=false; }
 }
 async function doLogout(){ await supa.auth.signOut(); location.reload(); }
