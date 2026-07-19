@@ -1778,7 +1778,7 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
 <div class="center" id="authScreen">
   <div class="card">
     <h2>Sign In</h2>
-    <p class="sub">Enter your email and press "Send" — <b>on desktop</b>, click the link in the email · <b>on mobile</b>, type the 6-digit code from the email below (no need to switch browsers → your session is kept, so you won't have to sign in every time)</p>
+    <p class="sub">Enter your email and press "Send" — we'll email you a <b>6-digit code</b>. Type it in the box below and press "Verify code" (works on desktop and mobile · your session is kept, so you won't have to sign in every time)</p>
     <p class="note" id="loginHint" style="color:#f59; font-weight:600"></p>
     <label class="fld hidden" id="anonFld">Supabase Anon/Publishable Key
       <input type="password" id="anonKey" placeholder="eyJ... or sb_publishable_..."/>
@@ -1789,7 +1789,7 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
     <button class="btn" id="loginBtn" onclick="sendMagicLink()">Send sign-in email</button>
     <p class="note" id="authNote"></p>
     <div id="otpBox" style="margin-top:8px">
-      <label class="fld">📱 Mobile: type the 6-digit code from the email (after pressing "Send sign-in email" above), then press "Verify code" — Desktop: you can click the link in the email instead
+      <label class="fld">🔑 Type the 6-digit code from the email (after pressing "Send sign-in email" above), then press "Verify code"
         <input type="text" id="otpCode" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="Enter the 6-digit code"/>
       </label>
       <button class="btn" id="verifyBtn" onclick="verifyCode()" style="margin-top:6px">Verify code</button>
@@ -2211,7 +2211,7 @@ async function sendMagicLink(){
     _otpEmail = email;
     try{ localStorage.setItem('lastEmail', email); }catch(e){}   // v281: จำอีเมล
     try{ $('otpBox').classList.remove('hidden'); const _f=$('otpCode'); if(_f) _f.focus(); }catch(e){}
-    $('authNote').textContent='✅ Sent an email to '+email+' — Desktop: click the link in the email · Mobile: type the 6-digit code from the email below, then press "Verify code"';
+    $('authNote').textContent='✅ Sent a 6-digit code to '+email+' — type it in the box below, then press "Verify code"';
   }catch(e){ toast(e.message||'Could not send the email',true); }
   finally{ $('loginBtn').disabled=false; }
 }
