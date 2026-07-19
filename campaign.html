@@ -2018,13 +2018,14 @@ const SUPA_URL = 'https://caxksvqlgrvwnjynbbye.supabase.co';
 const SUPA_ANON = 'sb_publishable_kODadNf7PNUWJr_ZTViABw_IsP6ggJ6';
 // ▲▲▲ key สาธารณะ (publishable) — ปลอดภัยที่จะฝัง ความปลอดภัยจริงอยู่ที่ RLS ▲▲▲
 const RESOLVE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/resolve-round';
-const FRONTEND_BUILD = 202607190700;   // v700 dynamic catalog campaign/language isolation + curated readiness scope
+const FRONTEND_BUILD = 202607190712;   // v712 Slowlife atomic closure: NPC entry + queue recovery/poll + main-round pause parity
 const FRONTEND_COMPAT_EPOCH = 2;
 const INGEST_FN  = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-file';
 const INGEST_PUZZLE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-puzzle';
 const DUNGEON_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-dungeon';
 const DYNAMIC_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/dynamic-task';
 let supa=null, session=null, me=null;            // me = auth user
+let slowlifeState={active:false,mode:'off'};     // v710: resolver-filtered projection; host never receives private prose
 const OWNER_EMAILS=['koonkoaw@hotmail.com','koonkoaw19871@gmail.com'];   // ช่วงทดสอบ: เฉพาะอีเมลในลิสต์สร้างโลกได้ (กัน API token หมด) — ต้องตรงกับ allowlist ใน migration 0140
 // ══ v210 BETA MODE — เปิดเมื่อไฟล์ชื่อมี beta (beta.html) หรือ ?beta=1 · กำแพงจริงอยู่ฝั่ง server (BETA_CODE env + migration 0056) ══
 const BETA=/beta/i.test(location.pathname)||new URLSearchParams(location.search).has('beta');
@@ -2113,7 +2114,7 @@ async function betaAskBackupKeys(tok){
   }catch(e){}
 }
 let campaign=null, members=[], myChar=null, characters=[], curRound=null, narrative=[], mySheet={}, mySheetUpdatedAt=null, worldState=null, chatMsgs=[];
-const ENGLISH_UI_ENABLED=false;   // Slice E owner gate: reviewer flips only after pre-enable Go and server flag enable.
+const ENGLISH_UI_ENABLED=true;   // Slice E: flipped 2026-07-19 — reviewer GO (catalog gate ok=true, 639/639 approved) + server flag english_mode_enabled=true. Needs frontend push + cache-bust to go live.
 let pendingGameLanguage=null, englishModeAvailable=false;   // D1: DB world language wins after create/JOIN; pending is pre-world only.
 const UI18N=globalThis.TTRPG_I18N;
 function uiLanguage(){ return campaign ? UI18N.language(campaign.game_language) : UI18N.language(pendingGameLanguage||'th'); }
@@ -2514,6 +2515,7 @@ async function _refreshAllInner(){
   await Promise.all([loadMembers(), loadCharacters(), loadRound(), loadNarrative(), loadState()]);
   loadCatalogs();
   myChar = characters.find(c=>c.user_id===me.id) || null;
+  await loadSlowlifeState();   // v710: hydrate before renderRoundbar so the main action box never flashes during a live window
   if(myChar){ try{ const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle(); if(r.error) throw r.error; mySheet=r.data?.sheet||{}; mySheetUpdatedAt=r.data?.updated_at||null; cacheSave('sheet_'+myChar.id, mySheet); }catch(e){ const c=cacheLoad('sheet_'+myChar.id); mySheet=c||mySheet||{}; } }
   await Promise.all([updateCombatBadge(), refreshCombatTurn()]);   // v638 BUG2: await combat-state hydration ก่อน render ถัดไป — กัน branch race (roundbar เลือกสาขา non-combat ผิดตอนเปิดศึก → combat options หลุดทุกจอ)
   scheduleBattleScene();
@@ -3410,11 +3412,107 @@ function switchTab(t){
   else if(t==='companion') renderCompanion();
 }
 // ───────── Companion v2 roster (C2) ─────────
-let _companionViewCache=null,_companionViewTs=0;
+let _companionViewCache=null,_companionViewTs=0,_slowlifePollT=null;
 async function companionResolve(payload){
   const tok=(await supa.auth.getSession()).data.session?.access_token; if(!tok) throw new Error('กรุณาเข้าสู่ระบบใหม่');
   const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify(Object.assign({campaign_id:campaign.id},payload))});
   const j=await r.json(); if(!r.ok||j.error){ const e=new Error(j.note||j.message||j.error||'ทำรายการไม่สำเร็จ'); e.payload=j; throw e; } return j;
+}
+async function loadSlowlifeState(force){
+  if(!campaign||String(campaign.companion_mode||'').toLowerCase()!=='v2'){ slowlifeState={active:false,mode:'off'}; return slowlifeState; }
+  if(!force&&slowlifeState&&slowlifeState._ts&&Date.now()-slowlifeState._ts<5000) return slowlifeState;
+  const previous=slowlifeState;
+  try{ const j=await companionResolve({slowlife_view:true}); slowlifeState=Object.assign({},j,{_ts:Date.now()}); return slowlifeState; }
+  catch(e){ console.warn('slowlife_view unavailable',e); if(previous&&previous.active) return previous; slowlifeState={active:false,mode:'off',error:e.message||'unavailable',_ts:Date.now()}; return slowlifeState; }
+}
+async function slowlifeMutate(payload,success){
+  try{ const j=await companionResolve(payload); toast(j.note||success||uiCopy('บันทึกแล้ว','Saved')); slowlifeState={active:false,mode:'off'}; await loadSlowlifeState(true); renderRoundbar(); if(activeTab()==='companion') renderCompanion(); return j; }
+  catch(e){ toast(e.message||uiCopy('ทำรายการไม่สำเร็จ','Request failed'),true); slowlifeState._ts=0; await loadSlowlifeState(true); renderRoundbar(); if(activeTab()==='companion') renderCompanion(); return null; }
+}
+async function slowlifeSetMode(mode){
+  if(campaign.host_id!==me.id) return;
+  const j=await slowlifeMutate({set_wall_mode:{slowlife_lanes:mode}},uiCopy('ตั้งโหมด Slowlife แล้ว','Slowlife mode updated'));
+  if(j) await loadSlowlifeState(true);
+}
+async function slowlifeOpen(kind){
+  if(campaign.host_id!==me.id) return;
+  const horizon=Math.floor(Number(prompt(uiCopy('ระยะเวลาหน้าต่าง (นาที · 15-720 · หาร 5 ลงตัว)','Window length in minutes (15-720, divisible by 5)'),'60'))||0);
+  if(horizon<15||horizon>720||horizon%5) return toast(uiCopy('เวลาไม่ถูกต้อง','Invalid duration'),true);
+  await slowlifeMutate({slowlife_open:{kind:kind,horizon_minutes:horizon,request_key:crypto.randomUUID()}},uiCopy('เปิดช่วง Slowlife แล้ว','Slowlife opened'));
+}
+async function slowlifeStartSolo(){
+  if(!myChar) return toast(uiCopy('ต้องมีตัวละครก่อน','Create a character first'),true);
+  await slowlifeMutate({slowlife_start:{character_id:myChar.id,request_key:crypto.randomUUID()}},uiCopy('เปิดเลนส่วนตัวแล้ว','Private lane opened'));
+}
+async function slowlifeInvite(companionId,kind,selectedPc){
+  const v=selectedPc?null:await companionViewLoad(true),pc=selectedPc||companionOwnedPc(v); if(!pc) return toast(uiCopy('ต้องมีตัวละครของคุณก่อน','You need a character first'),true);
+  await slowlifeMutate({slowlife_invite:{recipient_character_id:pc.character_id,subject_character_id:companionId,interaction_kind:kind,request_key:crypto.randomUUID()}},uiCopy('ส่งคำเชิญแล้ว — เลือกตอบรับด้านบน','Invitation created — choose a response above'));
+}
+async function slowlifeInviteNpc(npcId,kind){
+  if(!myChar) return toast(uiCopy('ต้องมีตัวละครของคุณก่อน','You need a character first'),true);
+  const j=await slowlifeMutate({slowlife_invite:{recipient_character_id:myChar.id,subject_npc_id:npcId,interaction_kind:kind,request_key:crypto.randomUUID()}},uiCopy('สร้างคำเชิญ NPC แล้ว — ไปเลือกตอบรับในแท็บ Companion','NPC invitation created — choose a response in the Companion tab'));
+  if(j) switchTab('companion');
+}
+async function slowlifeDecision(invitationId,decision){
+  await slowlifeMutate({slowlife_decide:{invitation_id:invitationId,decision:decision,request_key:crypto.randomUUID()}},decision==='accepted'?uiCopy('ตอบรับและเปิดเลนแล้ว','Accepted; lane opened'):uiCopy('บันทึกคำตอบแล้ว','Response saved'));
+}
+async function slowlifeSubmit(laneId,characterId){
+  const ta=$('slowlife-act-'+laneId),text=String(ta&&ta.value||'').trim(); if(!text) return toast(uiCopy('พิมพ์กิจกรรมก่อน','Describe an activity first'),true);
+  if(ta) ta.disabled=true;
+  await slowlifeMutate({slowlife_action:{lane_id:laneId,character_id:characterId,action_text:text,request_key:crypto.randomUUID()}},uiCopy('เลนดำเนินต่อแล้ว','Lane advanced'));
+}
+async function slowlifeReady(laneId,mode){
+  await slowlifeMutate({slowlife_ready:{lane_id:laneId,mode:mode||'park',request_key:crypto.randomUUID()}},uiCopy('พร้อมรวมตัวแล้ว','Ready to regroup'));
+}
+async function slowlifeShare(knowledgeId){
+  if(!confirm(uiCopy('เปิดเผยข้อมูลนี้ให้ทั้งปาร์ตี้หรือไม่? หลังยืนยัน host และสมาชิกทุกคนจะเห็นเฉพาะข้อความนี้','Share this fact with the whole party? After confirmation, the host and all members can see only this disclosed text.'))) return;
+  await slowlifeMutate({slowlife_share:{knowledge_id:knowledgeId,mode:'public_observation',request_key:crypto.randomUUID()}},uiCopy('เปิดเผยข้อมูลให้ปาร์ตี้แล้ว','Fact shared with the party'));
+}
+async function slowlifeClose(){
+  if(campaign.host_id!==me.id) return;
+  const sw=slowlifeState&&slowlifeState.window; if(!sw) return;
+  if(!confirm(uiCopy('รวมปาร์ตี้และ commit เวลาโลกตอนนี้? บทส่วนตัวยังคงเห็นเฉพาะผู้รับ · หากยังไม่มีเลน ระบบจะยกเลิกโดยไม่ขยับเวลา','Regroup and commit world time now? Private prose remains recipient-only. If no lane exists, the window is cancelled without advancing time.'))) return;
+  const j=await slowlifeMutate({slowlife_close:{window_id:sw.id,request_key:crypto.randomUUID()}},uiCopy('รวมปาร์ตี้แล้ว','Party regrouped'));
+  if(j) await refreshAll();
+}
+function slowlifeSection(s,companionView){
+  const host=campaign.host_id===me.id,E=escapeHtml,mode=String(s&&s.mode||'off');
+  let h='<div class="item" style="border:1px solid rgba(127,209,127,.35);margin-bottom:14px"><div class="nm">🌿 '+uiCopy('Slowlife Lanes','Slowlife Lanes')+'</div>';
+  if(!s||!s.active){
+    h+='<div class="note" style="text-align:left">'+(mode==='off'?uiCopy('ระบบปิดอยู่เป็นค่าเริ่มต้น — ไม่มีการแยกเลน','The feature is off by default — no lanes are split'):mode==='shadow'?uiCopy('โหมด Shadow ตรวจ eligibility เท่านั้น ยังไม่สร้างเลน','Shadow mode checks eligibility only; it does not create lanes'):uiCopy('พร้อมเปิดได้เฉพาะฉากปลอดภัยในเมืองหรือจุดพักระหว่างทาง','Ready only at a safe city or road-rest boundary'))+'</div>';
+    if(host) h+='<div class="srow2" style="flex-wrap:wrap"><button class="btn ghost sm" onclick="slowlifeSetMode(\'off\')">Off</button><button class="btn ghost sm" onclick="slowlifeSetMode(\'shadow\')">Shadow</button><button class="btn ghost sm" onclick="slowlifeSetMode(\'enforce\')">Enforce</button>'+(mode==='enforce'?'<button class="btn sm" onclick="slowlifeOpen(\'city_slowlife\')">'+uiCopy('เปิดช่วงในเมือง','Open city window')+'</button><button class="btn sm" onclick="slowlifeOpen(\'road_rest_slowlife\')">'+uiCopy('เปิดช่วงพักระหว่างทาง','Open road-rest window')+'</button>':'')+'</div>';
+    return h+'</div>';
+  }
+  const sw=s.window||{};
+  h+='<div class="sub">'+E(sw.kind||'')+' · '+E(sw.status||'')+' · '+uiCopy('จุดรวมตัว ','checkpoint ') +E(sw.horizon_minutes||0)+' '+uiCopy('นาที','minutes')+'</div>';
+  h+='<div class="note" style="text-align:left">'+(host?uiCopy('คุณเห็นเฉพาะสถานะเลน/เวลา บทส่วนตัวและความรู้ลับถูกซ่อนจาก host','You can see lane/time health only. Private prose and secret knowledge are hidden from the host.'):uiCopy('แต่ละคนเล่นได้พร้อมกัน คิว AI ทำทีละงาน และไม่มีศึก/ดาเมจ/การจับกุมในเลน','Everyone can play concurrently; AI jobs serialize, and lanes cannot create combat, damage, or capture.'))+'</div>';
+  if((s.invitations||[]).some(x=>x.status==='pending')){
+    h+='<h3>'+uiCopy('คำเชิญส่วนตัว','Private invitations')+'</h3>'+(s.invitations||[]).filter(x=>x.status==='pending').map(x=>'<div class="item"><div class="note" style="text-align:left">'+E(x.preview||'')+'</div><div class="srow2"><button class="btn sm" onclick="slowlifeDecision(\''+x.id+'\',\'accepted\')">'+uiCopy('ตอบรับ','Accept')+'</button><button class="btn ghost sm" onclick="slowlifeDecision(\''+x.id+'\',\'deferred\')">'+uiCopy('ไว้ทีหลัง','Defer')+'</button><button class="btn ghost sm" onclick="slowlifeDecision(\''+x.id+'\',\'declined\')">'+uiCopy('ปฏิเสธ','Decline')+'</button></div></div>').join('');
+  }
+  if(host){
+    const health=s.lane_health||[]; h+='<h3>'+uiCopy('สถานะเลน (ไม่มีเนื้อหา)','Lane health (no content)')+'</h3>'+(health.length?health.map(x=>'<div class="sub">'+E(x.id).slice(0,8)+' · '+E(x.status)+' · '+E(x.elapsed_minutes)+'/'+E(sw.horizon_minutes)+'m · '+E(x.resolved_beats)+'/4</div>').join(''):'<div class="muted">'+uiCopy('ยังไม่มีเลน','No lanes yet')+'</div>');
+    h+='<div class="srow2" style="margin-top:8px"><button class="btn" onclick="slowlifeClose()">'+uiCopy('รวมปาร์ตี้ / ปิดหน้าต่าง','Regroup / close window')+'</button></div>';
+  }else{
+    const lanes=s.lanes||[]; if(!lanes.length) h+='<button class="btn" onclick="slowlifeStartSolo()">'+uiCopy('เริ่มกิจกรรมคนเดียว','Start a solo activity')+'</button>';
+    lanes.forEach(l=>{
+      const owner=characters.find(c=>String(c.id)===String(l.owner_character_id))||myChar||{};
+      const prose=(s.narrative||[]).filter(n=>String(n.lane_id)===String(l.id));
+      const deferred=(s.effects||[]).filter(x=>String(x.lane_id)===String(l.id)&&x.status==='deferred');
+      const currentTurn=(s.turns||[]).filter(t=>String(t.lane_id)===String(l.id)).sort((a,b)=>Number(a.sequence)-Number(b.sequence)).slice(-1)[0]||null;
+      h+='<div class="item" style="margin:9px 0"><div class="nm">'+E(owner.name||uiCopy('เลนของคุณ','Your lane'))+' <span class="tag">'+E(l.status)+'</span></div><div class="sub">'+E(l.local_elapsed_minutes)+'/'+E(sw.horizon_minutes)+' '+uiCopy('นาที','minutes')+' · '+E(l.resolved_beats)+'/4 beats</div>';
+      h+=prose.map(n=>'<div class="note" style="text-align:left;white-space:normal;margin:7px 0">'+E(n.content||'').replace(/\n/g,'<br>')+'</div>').join('');
+      h+=deferred.map(x=>'<div class="note" style="text-align:left;color:#FAC775">'+uiCopy('(แก้: ผล '+E(x.effect_kind)+' ยังไม่เปลี่ยนของ/เงิน/วัสดุ — ต้องมีรายการยืนยันจาก server)','(Fixed: '+E(x.effect_kind)+' has not changed items, money, or materials — a typed server receipt is required)')+'</div>').join('');
+      if(l.status==='active'&&(!currentTurn||currentTurn.status==='awaiting_action')) h+='<textarea id="slowlife-act-'+l.id+'" placeholder="'+uiCopy('กิจกรรมสงบในเมือง/จุดพัก: คุย เดต ซื้อของ คราฟต์ ศึกษา พัก หรือฟังข่าว','Safe city/road-rest activity: talk, date, shop, craft, study, rest, or gather rumors')+'"></textarea><div class="srow2"><button class="btn sm" onclick="slowlifeSubmit(\''+l.id+'\',\''+l.owner_character_id+'\')">'+uiCopy('ดำเนินเลน','Advance lane')+'</button><button class="btn ghost sm" onclick="slowlifeReady(\''+l.id+'\',\'park\')">'+uiCopy('รอที่จุดนัด','Wait at checkpoint')+'</button></div>';
+      else if(l.status==='active'&&currentTurn&&['queued','processing'].includes(currentTurn.status)) h+='<div class="note" style="text-align:left">'+uiCopy('คิวของคุณถูกเก็บแล้ว ระบบกำลังประมวลผลทีละเลน คุณไปดูส่วนอื่นได้และหน้านี้จะตรวจผลให้อัตโนมัติ','Your turn is safely queued. The system processes one lane at a time; you may browse elsewhere and this view will check again automatically.')+'</div>';
+      else if(l.status==='ready'&&Number(l.local_elapsed_minutes)<Number(sw.horizon_minutes)) h+='<button class="btn ghost sm" onclick="slowlifeReady(\''+l.id+'\',\'park\')">'+uiCopy('เติมเวลารอถึงจุดรวมตัว','Wait until checkpoint')+'</button>';
+      else if(l.status==='failed_recoverable') h+='<div class="note" style="text-align:left;color:#FAC775">'+uiCopy('(แก้: คิวลองกู้คืนครบเพดานแล้ว บทที่ไม่เสร็จไม่ถูก commit คุณยังเลือกกลับไปรอที่จุดนัดได้)','(Fixed: queue recovery reached its limit. Incomplete prose was not committed; you may still wait at the checkpoint.)')+'</div><button class="btn ghost sm" onclick="slowlifeReady(\''+l.id+'\',\'park\')">'+uiCopy('กลับไปรอที่จุดนัด','Return to checkpoint')+'</button>';
+      h+='</div>';
+    });
+  }
+  if((s.knowledge||[]).length) h+='<h3>'+uiCopy('ความรู้ส่วนตัวของตัวละคร','Private character knowledge')+'</h3>'+(s.knowledge||[]).map(k=>'<div class="item"><div class="note" style="text-align:left">'+E(k.fact||'')+'</div><button class="btn ghost sm" onclick="slowlifeShare(\''+k.id+'\')">'+uiCopy('บอกปาร์ตี้','Tell the party')+'</button></div>').join('');
+  if((s.shared_knowledge||[]).length) h+='<h3>'+uiCopy('ข้อมูลที่เพื่อนบอกคุณ','Facts shared with you')+'</h3>'+(s.shared_knowledge||[]).map(k=>'<div class="note" style="text-align:left">'+E(k.fact||'')+'</div>').join('');
+  if((s.observations||[]).length) h+='<h3>'+uiCopy('สิ่งที่ทุกคนสังเกตได้','Public observations')+'</h3>'+(s.observations||[]).map(o=>'<div class="note" style="text-align:left">'+E(o.content||'')+'</div>').join('');
+  return h+'</div>';
 }
 async function companionViewLoad(force){
   if(!force&&_companionViewCache&&Date.now()-_companionViewTs<10000) return _companionViewCache;
@@ -3436,11 +3534,13 @@ function companionCard(c,isHost,view){
 }
 async function renderCompanion(){
   const p=$('panel-companion'); if(!p) return; p.innerHTML='<div class="muted">กำลังโหลด Companion roster…</div>';
-  try{ const v=await companionViewLoad(false), all=v.companions||[], active=all.filter(c=>c.status==='active'), reserve=all.filter(c=>c.status==='reserve'), memorial=all.filter(c=>['dead','former'].includes(c.status)); const host=campaign.host_id===me.id;
+  try{ const pair=await Promise.all([companionViewLoad(false),loadSlowlifeState(true)]),v=pair[0],sl=pair[1], all=v.companions||[], active=all.filter(c=>c.status==='active'), reserve=all.filter(c=>c.status==='reserve'), memorial=all.filter(c=>['dead','former'].includes(c.status)); const host=campaign.host_id===me.id;
+    if(_slowlifePollT){ clearTimeout(_slowlifePollT); _slowlifePollT=null; }
+    if((sl.turns||[]).some(t=>['queued','processing'].includes(String(t.status)))) _slowlifePollT=setTimeout(()=>{ if(activeTab()==='companion') renderCompanion(); },3500);
     const fr=await supa.from('private_narrative').select('id,kind,content,created_at,recipient_character_id,companion_character_id').eq('campaign_id',campaign.id).order('created_at',{ascending:false}).limit(30); if(fr.error) throw fr.error;
     const feed=(fr.data||[]).slice().reverse(); const feedHtml=feed.map(x=>`<div class="item" style="margin:7px 0"><div class="sub">${escapeHtml(x.kind||'private')} · ${escapeHtml(new Date(x.created_at).toLocaleString())}</div><div class="note" style="text-align:left;white-space:normal">${escapeHtml(x.content||'').replace(/\n/g,'<br>')}</div></div>`).join('')||'<div class="muted">ยังไม่มีฉากส่วนตัว</div>';
     const consent=v.consent&&v.consent.adult_confirmed?'ยืนยันอายุจริงแล้ว':'ยังไม่เปิด Romance';
-    p.innerHTML=`<div class="item"><div class="nm">Companion Roster</div><div class="sub">Active ${active.length}/3 · Reserve ${reserve.length} · Memorial ${memorial.length}</div><button class="btn ghost sm" onclick="companionConsent()">ตั้งค่า Romance / วันเกิด</button> <span class="muted">${consent}</span></div>`+
+    p.innerHTML=slowlifeSection(sl,v)+`<div class="item"><div class="nm">Companion Roster</div><div class="sub">Active ${active.length}/3 · Reserve ${reserve.length} · Memorial ${memorial.length}</div><button class="btn ghost sm" onclick="companionConsent()">ตั้งค่า Romance / วันเกิด</button> <span class="muted">${consent}</span></div>`+
       `<h3>Active ${active.length}/3</h3>${active.map(c=>companionCard(c,host,v)).join('')||'<div class="muted">ยังไม่มี companion ในทีม</div>'}`+
       `<h3>Reserve</h3>${reserve.map(c=>companionCard(c,host,v)).join('')||'<div class="muted">กองสำรองว่าง</div>'}`+
       (memorial.length?`<h3>Memorial / History</h3>${memorial.map(c=>companionCard(c,false,v)).join('')}`:'')+
@@ -3450,6 +3550,8 @@ async function renderCompanion(){
 function companionSoon(label){ toast(label+' จะเปิดในเฟส Privacy/Interaction'); }
 async function companionInteract(companionId,kind){
   try{ const v=await companionViewLoad(true),pc=companionOwnedPc(v); if(!pc) return toast('ต้องมีตัวละครของคุณก่อน',true); if(kind==='romance'&&!pc.romance_enabled) return toast('ตัวละครนี้ยังไม่ได้เปิด Romance access',true);
+    const sl=await loadSlowlifeState(true); if(sl&&sl.active){ await slowlifeInvite(companionId,kind,pc); return; }
+    if(sl&&sl.mode==='enforce') return toast(uiCopy('(แก้: ฉากส่วนตัวเปิดได้เฉพาะช่วง Slowlife ที่ปลอดภัยในเมืองหรือจุดพักระหว่างทาง)','(Fixed: private scenes open only during a safe city or road-rest Slowlife window.)'),true);
     const labels={talk:'คุยเรื่องใด (เว้นว่างได้)',spend:'อยากใช้เวลาร่วมกันแบบใด (เว้นว่างได้)',romance:'อยากสื่อเจตนาอย่างไร — การกดส่งไม่การันตีว่า companion จะตอบรับ'};
     const intent=String(prompt(labels[kind]||'เจตนาของฉาก','')||'').trim(); toast('กำลังเปิดฉากส่วนตัว…');
     const j=await companionResolve({companion_interact:{character_id:pc.character_id,companion_id:companionId,kind,intent,request_key:crypto.randomUUID()}}); toast(j.note||'บันทึกฉากแล้ว'); _companionViewCache=null; renderCompanion();
@@ -3778,6 +3880,16 @@ async function renderRoundbar(){
   // v617 ONE SHOT soft-end: โลกจบถาวร — แบนเนอร์ read-only แทนช่องสั่งการทั้งหมด (resolver ปฏิเสธทุก action อยู่แล้ว)
   if(campaign.status==='ended'){
     bar.innerHTML='<div class="note" style="text-align:left;padding:9px 8px;line-height:1.6;border:1px solid rgba(250,199,117,0.5);border-radius:8px;background:rgba(250,199,117,0.06)">⚡ <b>เรื่องนี้จบบริบูรณ์แล้ว</b><br><span class="muted">โลกนี้ปิดถาวร — เลื่อนอ่านเนื้อเรื่องทั้งหมดย้อนหลังได้'+(isHost?' · ปุ่ม "✕ End World" มุมบนใช้ลบโลกถาวรเมื่อไม่ต้องการเก็บแล้ว':'')+'</span></div>';
+    return;
+  }
+  if(slowlifeState&&slowlifeState.active){
+    const sw=slowlifeState.window||{}; bar.innerHTML='';
+    const note=document.createElement('div'); note.className='note'; note.style.cssText='text-align:left;padding:10px 9px;line-height:1.6;border:1px solid rgba(127,209,127,.45);border-radius:8px;background:rgba(127,209,127,.06)';
+    note.innerHTML=uiCopy('🌿 <b>กำลังอยู่ในช่วง Slowlife</b><br>รอบหลักถูกพักไว้ ทุกคนเล่นเลนของตัวเองได้โดยไม่ต้องรอกัน และจะไม่มีการต่อสู้เกิดขึ้นจนกว่าจะรวมปาร์ตี้','🌿 <b>Slowlife is active</b><br>The main round is paused. Everyone may play their own lane without waiting, and combat cannot begin until the party regroups.');
+    if(sw.status==='regroup_required') note.innerHTML=uiCopy('🛡️ <b>หยุดก่อนเกิดอันตราย</b><br>ระบบกำลังรวมปาร์ตี้ เหตุคุกคามจะถูกส่งกลับรอบหลักหลังปิดหน้าต่างโดยยังไม่เปิดศึก','🛡️ <b>Stopped before danger</b><br>The party is regrouping. The threat returns to the main round only after this window closes, without opening combat.');
+    bar.appendChild(note);
+    const open=document.createElement('button'); open.className='btn'; open.textContent=uiCopy('เปิดเลน Slowlife','Open Slowlife lanes'); open.onclick=()=>switchTab('companion'); bar.appendChild(open);
+    if(isHost){ const close=document.createElement('button'); close.className='btn ghost sm'; close.textContent=uiCopy('รวมปาร์ตี้ / ปิดหน้าต่าง','Regroup / close window'); close.onclick=slowlifeClose; bar.appendChild(close); }
     return;
   }
   // STAGE 1: ยังไม่มีปูมหลังโลก → host เริ่ม intro
@@ -4201,6 +4313,7 @@ function gateBeforePlay(){
 }
 async function submitAction(charIdOverride){
   if(gateBeforePlay()) return;
+  if(slowlifeState&&slowlifeState.active){ toast(uiCopy('(แก้: รอบหลักถูกพัก — ใช้เลน Slowlife หรือรวมปาร์ตี้ก่อน)','(Fixed: the main round is paused — use a Slowlife lane or regroup first)'),true); switchTab('companion'); return; }
   if(window._actSubmitting) return;   // v538: กัน double-click (มิเรอร์ _quickBusy/_vaSubmitting) — เดิมไม่มี guard → 2 insert ชน unique(round_id,user_id) = toast error ดิบ
   const isPet=(typeof charIdOverride==='string');
   const cid=isPet?charIdOverride:(myChar?.id||null);
@@ -4233,6 +4346,7 @@ async function submitAction(charIdOverride){
 async function quickSubmit(text){
   if(!curRound || !text) return;
   if(gateBeforePlay()) return;
+  if(slowlifeState&&slowlifeState.active){ toast(uiCopy('(แก้: รอบหลักถูกพัก — ใช้เลน Slowlife หรือรวมปาร์ตี้ก่อน)','(Fixed: the main round is paused — use a Slowlife lane or regroup first)'),true); switchTab('companion'); return; }
   if(window._quickBusy) return; window._quickBusy=true;
   try{
     const { error } = await supa.from('actions').insert({ campaign_id:campaign.id, round_id:curRound.id, user_id:me.id, character_id:myChar?.id||null, action_text:text });
@@ -4250,6 +4364,7 @@ function setMyThinking(on){
 }
 var _autoChain=0, _retryChain=0;
 async function resolveRound(force, mode){
+  if(slowlifeState&&slowlifeState.active){ toast(uiCopy('(แก้: ปิด Slowlife และรวมปาร์ตี้ก่อนดำเนินรอบหลัก)','(Fixed: close Slowlife and regroup before continuing the main round)'),true); switchTab('companion'); return; }
   if(resolving) return; resolving=true; renderRoundbar();
   var _again=false, _retry=false, _waitRetry=false;
   var afterSubmit=!!window._afterSubmit; window._afterSubmit=false;   // เพิ่งกดส่ง → ถ้าเจอ "รอ" ให้ลองซ้ำ (กัน race)
@@ -6016,10 +6131,11 @@ async function renderNPCs(){
     const relRow=r?`<div class="kv2"><b>ความสัมพันธ์<br><span class="muted" style="font-size:11px">(ส่วนตัว เฉพาะคุณ)</span></b><span>${r.romance?'❤ ':''}${escapeHtml(r.tier||'')} · ${sc>=0?'+':''}${sc}<div style="height:6px;border-radius:3px;background:rgba(128,128,128,.25);margin-top:4px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${c}"></div></div>${r.note?'<div class="muted" style="font-size:11px;margin-top:3px">'+escapeHtml(r.note)+'</div>':''}</span></div>`
                   :`<div class="kv2"><b>ความสัมพันธ์</b><span class="muted">ยังไม่สนิท — ขยับจากการพูดคุย/ช่วยเหลือในเนื้อเรื่อง</span></div>`;
     const notesHtml=nt.length?(nt3.map(x=>escapeHtml(String(x))).join('<br>')+(nt.length>3?`<details style="margin-top:4px"><summary style="cursor:pointer;font-size:11px">ดูทั้งหมด (${nt.length})</summary><div style="margin-top:4px">${nt.map(x=>escapeHtml(String(x))).join('<br>')}</div></details>`:'')):'-';
+    const laneInvite=(!isHost&&!deadN&&slowlifeState&&slowlifeState.active)?`<div class="kv2"><b>${escapeHtml(uiCopy('ชวนเข้าเลน','Invite to lane'))}</b><span style="display:flex;flex-wrap:wrap;gap:6px"><button class="btn ghost sm" onclick="slowlifeInviteNpc('${n.id}','talk')">${escapeHtml(uiCopy('พูดคุย','Talk'))}</button><button class="btn ghost sm" onclick="slowlifeInviteNpc('${n.id}','private_story')">${escapeHtml(uiCopy('เรื่องส่วนตัว','Private story'))}</button><button class="btn ghost sm" onclick="slowlifeInviteNpc('${n.id}','romance')">${escapeHtml(uiCopy('เชิงรัก','Romance'))}</button></span></div>`:'';
     const del=isHost?`<div class="kv2"><b></b><span><button class="btn ghost sm" onclick="deleteNPC('${n.id}')">✕ ลบ (ถ้าซ้ำ/ผิด)</button></span></div>`:'';
     const card=document.createElement('div'); card.className='item';
     card.innerHTML=`<div class="nm" style="display:flex;align-items:center;gap:8px">${sexIconOf(n)}<span${deadN?' style="text-decoration:line-through;opacity:.65"':''}>${escapeHtml(n.name)}</span>${deadN?'<span style="font-size:12px">☠</span>':''}${(r&&r.romance)?'<span style="font-size:12px">❤</span>':''}</div>`
-      +`<div class="npc open" style="border:0;background:transparent;box-shadow:none"><div class="npc-detail" style="padding:2px 0 0">${relRow}${kv('Role',n.role)}${kv('เพศ/วัย',sa)}${kv('เมือง',cityLbl(n.city))}${kv('เสียงพูด',n.voice)}${kv('ลักษณะเด่น',n.trait)}${kv('ต้องการ',n.want)}${kv('ปมผูกพัน',n.bond_pc)}<div class="kv2"><b>Notes</b><span>${notesHtml}</span></div>${del}</div></div>`;
+      +`<div class="npc open" style="border:0;background:transparent;box-shadow:none"><div class="npc-detail" style="padding:2px 0 0">${relRow}${kv('Role',n.role)}${kv('เพศ/วัย',sa)}${kv('เมือง',cityLbl(n.city))}${kv('เสียงพูด',n.voice)}${kv('ลักษณะเด่น',n.trait)}${kv('ต้องการ',n.want)}${kv('ปมผูกพัน',n.bond_pc)}<div class="kv2"><b>Notes</b><span>${notesHtml}</span></div>${laneInvite}${del}</div></div>`;
     colDet.appendChild(card);
   }
   drawCities(); drawList();
