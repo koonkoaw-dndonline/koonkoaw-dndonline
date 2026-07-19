@@ -3637,33 +3637,71 @@ function makeSkipBtn(){
   sk.onclick=()=>{ if(confirm('Skip เทิร์นของ '+(gCombat.activeName||'ผู้เล่นนี้')+'?\n(เทิร์นนี้จะถือว่าตั้งรับ/Dodge — ใช้เมื่อผู้เล่น/บอทไม่ตอบสนองเท่านั้น)')) resolveRound(true); };
   return sk;
 }
+// DM Options v704: flat envelope renderer + suggestion-only draft. Canonical block is mirrored in beta.html.
+// v708-fix (reviewer P0-2): malformed/partial envelope ต้องไม่ถูกทิ้ง — คืน card ข้อความดิบ (ยังกดได้/แก้ได้) แทน null
+function dmRawOption(s){ const t=String(s==null?'':s).trim(); return {legacy:true,title:t.length>72?t.slice(0,69)+'…':t,action:t,target:'',expected:'',cost:'',risk:'',range:'',roll:'',why:'',raw:t}; }
+function dmParseOption(raw){
+  const s=String(raw==null?'':raw).trim(); if(!s) return null;
+  const re=/\b(TITLE|ACTION|TARGET|EXPECTED|COST|RISK|RANGE|ROLL|WHY)\s*=/gi, marks=[]; let m;
+  while((m=re.exec(s))) marks.push({tag:m[1].toLowerCase(),at:m.index,end:m.index+m[0].length});
+  if(!marks.length) return {legacy:true,title:s,action:s,target:'',expected:'',cost:'',risk:'',range:'',roll:'',why:'',raw:s};
+  const out={legacy:false,title:'',action:'',target:'',expected:'',cost:'',risk:'',range:'',roll:'',why:'',raw:s}, seen={};
+  for(let i=0;i<marks.length;i++){ const x=marks[i]; if(seen[x.tag]) return dmRawOption(s); seen[x.tag]=1; out[x.tag]=s.slice(x.end,i+1<marks.length?marks[i+1].at:s.length).replace(/\s*::\s*$/,'').trim(); }
+  // v708-fix: partial/malformed envelope ต้องไม่ถูกทิ้งเงียบ (จะทำ combat โชว์ <3/0 การ์ดตอน shadow) — render เท่าที่ parse ได้
+  if(!out.title&&!out.action) return dmRawOption(s);
+  if(!out.title) out.title=out.action.length>60?out.action.slice(0,57)+'…':out.action;
+  if(!out.action) out.action=out.title;
+  return out;
+}
+function dmFillOption(opt,setRec,idx){
+  const t=$('actInput'); if(!t) return;
+  t.value=opt.action||opt.title||''; t.focus();
+  window._dmOptionDraftRef=(setRec&&setRec.set_id)?{set_id:String(setRec.set_id),index:idx,character_id:(myChar&&myChar.id)||null,rid:(curRound&&curRound.id)||null}:null;
+}
+function dmOptionCard(raw,setRec,idx){
+  const fallbackRaw=String(raw==null?'':raw).trim(); if(!fallbackRaw) return null;
+  // v709 P0: malformed tagged envelopes stay usable in shadow/off. The
+  // authoritative validator may reject them in enforce, but the renderer must
+  // never turn three server suggestions into zero cards.
+  const opt=dmParseOption(raw)||{legacy:true,title:fallbackRaw,action:fallbackRaw,target:'',expected:'',cost:'',risk:'',range:'',roll:'',why:'',raw:fallbackRaw};
+  const d=document.createElement('details'); d.className='dmopt'; d.style.cssText='margin:5px 0;border:1px solid #555;padding:5px 7px;text-align:left';
+  const s=document.createElement('summary'); s.style.cssText='cursor:pointer;font-weight:700'; s.textContent=opt.title; d.appendChild(s);
+  const body=document.createElement('div'); body.style.cssText='padding:6px 2px;line-height:1.45';
+  const rows=[[uiCopy('การกระทำ','Action'),opt.action],[uiCopy('เป้าหมาย','Target'),opt.target],[uiCopy('ผลที่คาด','Expected'),opt.expected],[uiCopy('ต้นทุน','Cost'),opt.cost],[uiCopy('ความเสี่ยง','Risk'),opt.risk],[uiCopy('ระยะ','Range'),opt.range],[uiCopy('ทอย','Roll'),opt.roll],[uiCopy('เหตุผล','Why'),opt.why]];
+  rows.forEach(r=>{ if(!r[1]||r[1]==='-'||r[1]==='—') return; const x=document.createElement('div'); x.innerHTML='<b>'+escapeHtml(r[0])+':</b> '+escapeHtml(r[1]); body.appendChild(x); });
+  const b=document.createElement('button'); b.type='button'; b.className='btn ghost sm'; b.style.marginTop='6px'; b.textContent=uiCopy('ใช้เป็นคำแนะนำ','Use as draft'); b.onclick=()=>dmFillOption(opt,setRec,idx); body.appendChild(b);
+  d.appendChild(body); return d;
+}
+function dmRenderOptions(host,list,setRec){
+  host.querySelectorAll('.dmopt').forEach(x=>x.remove());
+  (Array.isArray(list)?list:[]).slice(0,6).forEach((raw,i)=>{ const card=dmOptionCard(raw,setRec,i); if(card) host.appendChild(card); });
+}
 // D: ปุ่มขอตัวเลือกเฉพาะตัว — ใช้ทั้ง story mode และคอมแบตที่ DM ลืมส่ง options (เรียก personal_options endpoint)
 //   ตัวเลือกที่ได้ถูกแคชต่อรอบ (window._persOpts) — roundbar re-render บ่อยจาก realtime จะวาดกลับให้ ไม่หาย
 function persOptsWidget(){
   const pw=document.createElement('div'); pw.className='copt'; pw.id='persOpts';
-  const renderList=(list)=>{
-    pw.querySelectorAll('button.popt').forEach(x=>x.remove());
-    list.slice(0,5).forEach(o=>{ const _o=(typeof plainNarr==='function')?plainNarr(String(o)):String(o); const ob=document.createElement('button'); ob.type='button'; ob.className='popt'; ob.textContent=_o; ob.onclick=()=>quickSubmit(_o); pw.appendChild(ob); });
-  };
-  const pb=document.createElement('button'); pb.type='button'; pb.textContent='🎲 ขอตัวเลือกเฉพาะตัว (DM เสนอให้ '+(myChar?myChar.name:'')+')';
+  if(window._dmOptionStale){ const sn=document.createElement('div'); sn.className='note'; sn.textContent=window._dmOptionStale; pw.appendChild(sn); }
+  const renderList=(list,setRec,note)=>{ pw.querySelectorAll('.dmopt-note').forEach(x=>x.remove()); if(note){ const n=document.createElement('div'); n.className='note dmopt-note'; n.textContent=String(note); pw.appendChild(n); } dmRenderOptions(pw,list,setRec); };
+  const pb=document.createElement('button'); pb.type='button'; pb.textContent=uiCopy('🎲 ขอตัวเลือกเฉพาะตัว (DM เสนอให้ ','🎲 Request personal options (for ')+(myChar?myChar.name:'')+')';
   pb.onclick=async()=>{
-    pb.disabled=true; const _t=pb.textContent; pb.textContent='🎲 DM กำลังคิดตัวเลือกให้คุณ…';
+    pb.disabled=true; const _t=pb.textContent; pb.textContent=uiCopy('🎲 DM กำลังคิดตัวเลือกให้คุณ…','🎲 The DM is preparing options…');
     try{
       const tok=(await supa.auth.getSession()).data.session?.access_token;
       const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id, personal_options:true})});
       const j=await r.json();
       const list2=Array.isArray(j.options)?j.options:[];
-      if(!list2.length){ toast((j.error||'ยังไม่ได้ตัวเลือก ลองอีกครั้ง')+(j.detail?(' — '+String(j.detail).slice(0,80)):''),true); }
+      if(!list2.length){ toast((j.note||j.error||uiCopy('ยังไม่ได้ตัวเลือก ลองอีกครั้ง','No options yet — try again'))+(j.detail?(' — '+String(j.detail).slice(0,80)):''),true); }
       else{
-        window._persOpts={ rid:(curRound&&curRound.id)||null, list:list2 };   // แคชต่อรอบ — กัน re-render ลบทิ้ง
-        renderList(list2);
+        window._dmOptionStale=null;
+        window._persOpts={ rid:(curRound&&curRound.id)||null, list:list2, set:j.option_set||null, note:j.note||null, surface:j.surface||'personal' };   // cache is round/context-bound; server receipt exists only in enforce
+        renderList(list2,j.option_set||null,j.note||null);
       }
-    }catch(e){ toast('ขอตัวเลือกไม่สำเร็จ',true); }
+    }catch(e){ toast(uiCopy('ขอตัวเลือกไม่สำเร็จ','Could not request options'),true); }
     pb.disabled=false; pb.textContent=_t;
   };
   pw.appendChild(pb);
   // มีตัวเลือกแคชของรอบนี้อยู่แล้ว → วาดกลับทันที (หลัง re-render)
-  try{ if(window._persOpts && curRound && window._persOpts.rid===curRound.id && Array.isArray(window._persOpts.list)) renderList(window._persOpts.list); }catch(e){}
+  try{ if(window._persOpts && curRound && window._persOpts.rid===curRound.id && Array.isArray(window._persOpts.list)) renderList(window._persOpts.list,window._persOpts.set||null,window._persOpts.note||null); }catch(e){}
   return pw;
 }
 // v287: ผู้เล่นกด "ไปต่อ" หลังอ่านบทปิดท้ายศึก → server เพิ่ม done · ครบทุกคน (หรือ host force) → finalize → VICTORY
@@ -3736,6 +3774,7 @@ async function renderRoundbar(){
   const myseq=++roundbarSeq;            // กัน render ซ้อน (ต้นเหตุกล่องตอบซ้ำ)
   const bar=$('roundbar');
   const isHost = campaign.host_id===me.id;
+  if(window._dmOptionDraftRef&&curRound&&window._dmOptionDraftRef.rid!==curRound.id) window._dmOptionDraftRef=null;
   // v617 ONE SHOT soft-end: โลกจบถาวร — แบนเนอร์ read-only แทนช่องสั่งการทั้งหมด (resolver ปฏิเสธทุก action อยู่แล้ว)
   if(campaign.status==='ended'){
     bar.innerHTML='<div class="note" style="text-align:left;padding:9px 8px;line-height:1.6;border:1px solid rgba(250,199,117,0.5);border-radius:8px;background:rgba(250,199,117,0.06)">⚡ <b>เรื่องนี้จบบริบูรณ์แล้ว</b><br><span class="muted">โลกนี้ปิดถาวร — เลื่อนอ่านเนื้อเรื่องทั้งหมดย้อนหลังได้'+(isHost?' · ปุ่ม "✕ End World" มุมบนใช้ลบโลกถาวรเมื่อไม่ต้องการเก็บแล้ว':'')+'</span></div>';
@@ -3965,15 +4004,21 @@ async function renderRoundbar(){
       // A: ทางเลือกคุณภาพจาก DM ขึ้น 'บนสุด' กดได้ทันที — เมนูคำสั่งเต็มตามหลัง
       // v638 ownerWall: แสดง options เฉพาะเมื่อเป็น 'ของเรา' — ใช้ owner รวม 2 แท็ก (for_char_id||opt_for) กัน cross-branch leak
       const _optsMine = _optIsMine(cb);
+      if(cb.options_note && _optsMine){ const on=document.createElement('div'); on.className='note'; on.style.cssText='text-align:left;padding:6px 2px;color:#FAC775'; on.textContent=String(cb.options_note); bar.appendChild(on); }
       if(Array.isArray(cb.options) && cb.options.length && _optsMine){
         const opts=document.createElement('div'); opts.className='copt';
-        const oh=document.createElement('div'); oh.className='copt-h'; oh.textContent='— แนวทางที่ DM เสนอ (กดเลือกได้เลย) —'; opts.appendChild(oh);
-        cb.options.slice(0,5).forEach(o=>{ const _o=(typeof plainNarr==='function')?plainNarr(o):o; const ob=document.createElement('button'); ob.type='button'; ob.textContent=_o; ob.onclick=()=>quickSubmit(_o); opts.appendChild(ob); });
+        const oh=document.createElement('div'); oh.className='copt-h'; oh.textContent=uiCopy('— แนวทางที่ DM เสนอ (เลือกเป็น draft แล้วแก้ได้) —','— DM suggestions (use as an editable draft) —'); opts.appendChild(oh);
+        dmRenderOptions(opts,cb.options,cb.option_set||null);
         bar.appendChild(opts);
       } else if(myChar){
         // ไม่มี options ของเรา (DM ลืมส่ง / เป็นของคนอื่น) → ปุ่มขอตัวเลือก on-demand แทน
         bar.appendChild(persOptsWidget());
       }
+      // One free-text draft in combat, deliberately separate from BATTLE COMMAND.
+      const draft=document.createElement('div'); draft.className='copt';
+      const taC=document.createElement('textarea'); taC.id='actInput'; taC.placeholder=uiCopy('พิมพ์หรือแก้การกระทำได้อิสระ — ตัวเลือกของ DM เป็นเพียงคำแนะนำ','Type or edit any action — DM options are suggestions only'); if(keepAct) taC.value=keepAct; draft.appendChild(taC);
+      const sbC=document.createElement('button'); sbC.type='button'; sbC.className='btn'; sbC.textContent=uiCopy('Submit Action','Submit Action'); sbC.onclick=()=>submitAction(); draft.appendChild(sbC); bar.appendChild(draft);
+      if(window._dmOptionStale&&Array.isArray(cb.options)&&cb.options.length) bar.appendChild(persOptsWidget());
       // เมนู COMBAT COMMAND — ย่อเหลือปุ่มบรรทัดเดียว (ทั้ง desktop+mobile) กดแล้วขยาย: desktop=หน้าต่างลอยเยื้องซ้าย · mobile=กางในแผงเดิม
       if(typeof window.cc==='object' && window.cc && typeof window.cc.openInline==='function'){
         const _inBat = document.body.classList.contains('in-battle');
@@ -3997,15 +4042,16 @@ async function renderRoundbar(){
       //   กดแล้วเติมช่องพิมพ์ (แก้ไขต่อได้ก่อนส่ง — ไม่ยิงทันทีแบบในศึก)
       // v587 optOwner + v638 ownerWall: ผู้รับ options แบบรวม 2 แท็ก (for_char_id||opt_for) — กัน combat option หลุดเมื่อ render สาขานี้
       const _optsMineS = _optIsMine(cb);
+      if(cb.options_note && _optsMineS){ const on=document.createElement('div'); on.className='note'; on.style.cssText='text-align:left;padding:6px 2px;color:#FAC775'; on.textContent=String(cb.options_note); bar.appendChild(on); }
       if(Array.isArray(cb.options) && cb.options.length && !_optsMineS){
         const w=document.createElement('div'); w.className='note'; w.style.cssText='text-align:left;padding:6px 2px;line-height:1.5';
-        w.innerHTML='💬 ทางเลือกนี้เป็นของ <b>'+escapeHtml(_optOwner(cb).name||'เพื่อนร่วมทีม')+'</b> — คุณยังพิมพ์การกระทำของตัวเองด้านล่างได้';
+        w.innerHTML=uiCopy('💬 ทางเลือกนี้เป็นของ <b>','💬 These suggestions belong to <b>')+escapeHtml(_optOwner(cb).name||uiCopy('เพื่อนร่วมทีม','a teammate'))+uiCopy('</b> — คุณยังพิมพ์การกระทำของตัวเองด้านล่างได้','</b> — you can still type your own action below');
         bar.appendChild(w);
       }
       if(Array.isArray(cb.options) && cb.options.length && _optsMineS){
         const opts=document.createElement('div'); opts.className='copt';
-        const oh=document.createElement('div'); oh.className='copt-h'; oh.textContent='— ทางเลือกในจังหวะนี้ (กดเลือก แล้วแก้ไขเพิ่มได้) —'; opts.appendChild(oh);
-        cb.options.slice(0,5).forEach(o=>{ const _o=(typeof plainNarr==='function')?plainNarr(o):o; const ob=document.createElement('button'); ob.type='button'; ob.textContent=_o; ob.onclick=()=>{ const t=document.getElementById('actInput'); if(t){ t.value=_o; t.focus(); } }; opts.appendChild(ob); });
+        const oh=document.createElement('div'); oh.className='copt-h'; oh.textContent=uiCopy('— ทางเลือกในจังหวะนี้ (เลือกเป็น draft แล้วแก้ได้) —','— Suggestions for this moment (use as an editable draft) —'); opts.appendChild(oh);
+        dmRenderOptions(opts,cb.options,cb.option_set||null);
         bar.appendChild(opts);
       }
       const ta=document.createElement('textarea'); ta.id='actInput'; ta.placeholder='จะให้ตัวละครทำอะไร? พิมพ์ได้อิสระ เช่น  •เดินไปคุยกับพ่อค้าเรื่องข่าวลือ  •ตรวจหากับดักรอบประตู  •โจมตีกอบลินตัวซ้ายด้วยดาบ  •ลองโน้มน้าวยามให้ปล่อยผ่าน  •ค้นหีบในมุมห้อง (ใส่เป้าหมาย/รายละเอียดยิ่งเยอะ DM ยิ่งบรรยายตรงใจ)'; if(keepAct) ta.value=keepAct; bar.appendChild(ta);
@@ -4015,7 +4061,7 @@ async function renderRoundbar(){
     // v587 optOwner + v638 ownerWall: DM ขอทอยเจาะจงเพื่อน → ซ่อนปุ่มทอยจากจอเรา (owner รวม 2 แท็ก · กันทอยแทนคนผิด)
     const _rrMineS = _optIsMine(cb);
     if(rr.needed && !_rrMineS){
-      const rw=document.createElement('div'); rw.className='econleg'; rw.textContent='🎲 DM ขอให้ '+(_optOwner(cb).name||'เพื่อนร่วมทีม')+' เป็นคนทอย — รอผลจากอีกฝั่ง'; bar.appendChild(rw);
+      const rw=document.createElement('div'); rw.className='econleg'; rw.textContent=uiCopy('🎲 DM ขอให้ ','🎲 The DM asked ')+(_optOwner(cb).name||uiCopy('เพื่อนร่วมทีม','a teammate'))+uiCopy(' เป็นคนทอย — รอผลจากอีกฝั่ง',' to roll — waiting for their result'); bar.appendChild(rw);
     }
     if(rr.needed && _rrMineS){
       const dice=document.createElement('div'); dice.className='dicerow';
@@ -4162,12 +4208,22 @@ async function submitAction(charIdOverride){
   if(!isPet && pendingAoE){ txt+=`\n[เป้าหมายพื้นที่: ศูนย์กลาง ${pendingAoE.centerCell} ${pendingAoE.radiusFt?('รัศมี '+pendingAoE.radiusFt+' ฟุต'):'(จุดเดียว)'} ครอบคลุม ${pendingAoE.cells.join(', ')}]`; }
   window._actSubmitting=true;
   try{
-    const { error } = await supa.from('actions').insert({
-      campaign_id:campaign.id, round_id:curRound.id, user_id:me.id, character_id:cid, action_text:txt
-    });
-    if(error) throw error;
+    const ref=(!isPet&&window._dmOptionDraftRef&&window._dmOptionDraftRef.rid===curRound.id)?window._dmOptionDraftRef:null;
+    if(ref){
+      const tok=(await supa.auth.getSession()).data.session?.access_token;
+      const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,submit_option:{set_id:ref.set_id,index:ref.index,character_id:ref.character_id,action_text:txt}})});
+      const j=await r.json();
+      if(!r.ok||j.error){
+        if(j.error==='option_submit_failed'){ toast(j.note||uiCopy('(แก้: บันทึกการกระทำไม่สำเร็จ — ลองส่งอีกครั้ง)','(Fixed: the action could not be saved — try submitting again)'),true); return; }
+        window._dmOptionDraftRef=null; window._persOpts=null; window._dmOptionStale=j.note||uiCopy('(แก้: ตัวเลือกชุดเดิมใช้ไม่ได้แล้ว — ขอชุดใหม่)','(Fixed: the old option set is no longer valid — request a new set)'); toast(window._dmOptionStale,true); await loadRound(); renderRoundbar(); return;
+      }
+      window._dmOptionDraftRef=null; window._dmOptionStale=null;
+    }else{
+      const { error } = await supa.from('actions').insert({ campaign_id:campaign.id, round_id:curRound.id, user_id:me.id, character_id:cid, action_text:txt });
+      if(error) throw error;
+    }
     if(!isPet) pendingAoE=null;
-    toast('Action submitted ✓');
+    toast(uiCopy('ส่งการกระทำแล้ว ✓','Action submitted ✓'));
     await loadRound(); renderRoundbar();
     window._afterSubmit=true; resolveRound(false);   // ลองประมวลผล — backend ตอบ waiting ถ้ายังไม่ครบ
   }catch(e){ toast(e.message||'Submit failed',true); }
@@ -7536,6 +7592,28 @@ function fileDropdown(labelText, count){
   const body=document.createElement('div'); body.className='filedd-body'; det.appendChild(body);
   det._body=body; return det;
 }
+let _dmOptAuditPage=0;
+async function dmOptionsAuditCard(){
+  const pageSize=10, from=_dmOptAuditPage*pageSize;
+  const setBase=()=>supa.from('system_logs').select('id',{count:'exact',head:true}).eq('campaign_id',campaign.id).eq('source','optionsAudit').eq('detail->>event','set_audit');
+  const submitBase=()=>supa.from('system_logs').select('id',{count:'exact',head:true}).eq('campaign_id',campaign.id).eq('source','optionsAudit').eq('detail->>event','submit');
+  const [totalR,unavailR,staleR,rewriteR,hardErrR,rowsR]=await Promise.all([
+    setBase(), setBase().eq('detail->>unavailable','true'), submitBase().eq('detail->>stale','true'), submitBase().eq('detail->>rewritten','true'),
+    supa.from('system_logs').select('id',{count:'exact',head:true}).eq('campaign_id',campaign.id).eq('source','optionsAudit').eq('level','error'),
+    supa.from('system_logs').select('id,level,message,detail,created_at').eq('campaign_id',campaign.id).eq('source','optionsAudit').eq('detail->>event','set_audit').order('created_at',{ascending:false}).range(from,from+pageSize-1)
+  ]);
+  if(rowsR.error) return null;
+  const total=totalR.count||0, unavail=unavailR.count||0, pages=Math.max(1,Math.ceil(total/pageSize)); if(_dmOptAuditPage>=pages) _dmOptAuditPage=pages-1;
+  const card=document.createElement('div'); card.className='item';
+  card.innerHTML='<div class="sectitle">🎯 DM OPTIONS AUDIT</div><div class="note" style="text-align:left">'+uiCopy('ชุดทั้งหมด ','Total sets ')+total+' · '+uiCopy('unavailable ','unavailable ')+(total?Math.round(unavail*100/total):0)+'% · stale '+(staleR.count||0)+' · rewritten '+(rewriteR.count||0)+' · '+uiCopy('ข้อผิดพลาดร้ายแรง ','hard errors ')+(hardErrR.count||0)+'<br>'+uiCopy('ช่วงเก็บตัวอย่างห้าม prune system_logs ต่ำกว่า 1000 แถว; ต้องมีอย่างน้อย 100 ชุดก่อนพิจารณา enforce','During sampling, keep at least 1000 system-log rows and collect at least 100 option sets before enforce')+'</div>';
+  (rowsR.data||[]).forEach(row=>{ const det=row.detail||{}, d=document.createElement('details'); d.style.cssText='margin:5px 0;border-top:1px solid #444;padding-top:5px'; const s=document.createElement('summary'); s.textContent=new Date(row.created_at).toLocaleString()+' · '+(det.surface||'submit')+' · '+(det.wall_mode||'')+' · '+(det.unavailable?'unavailable':((det.final||[]).length+' final')); d.appendChild(s); const b=document.createElement('div'); b.style.cssText='white-space:pre-wrap;font-size:12px;line-height:1.45;padding:5px';
+    const reasons=(det.parsed||[]).map(x=>({raw:x.raw,reasons:x.reasons}));
+    b.textContent='original → '+JSON.stringify(det.original||[],null,2)+'\nreasons → '+JSON.stringify(reasons,null,2)+'\nfinal → '+JSON.stringify(det.final||[],null,2)+'\ntiming/model/token → '+JSON.stringify({timings:det.timings,model:det.model,token:det.token,repair:det.repair},null,2); d.appendChild(b); card.appendChild(d); });
+  const nav=document.createElement('div'); nav.style.cssText='display:flex;gap:6px;align-items:center;margin-top:7px';
+  const prev=document.createElement('button'); prev.className='btn ghost sm'; prev.textContent='‹'; prev.disabled=_dmOptAuditPage<=0; prev.onclick=()=>{_dmOptAuditPage--;renderFiles();};
+  const next=document.createElement('button'); next.className='btn ghost sm'; next.textContent='›'; next.disabled=_dmOptAuditPage>=pages-1; next.onclick=()=>{_dmOptAuditPage++;renderFiles();};
+  const lab=document.createElement('span'); lab.className='muted'; lab.textContent=(_dmOptAuditPage+1)+'/'+pages; nav.append(prev,lab,next); card.appendChild(nav); return card;
+}
 async function renderFiles(){
   const _hostF=$('panel-files'); _hostF.innerHTML='<div class="sk-cols"></div>'; const p=_hostF.firstElementChild;   /* v531c: multicol บน wrapper (มิเรอร์ skills) */
   const isHost=campaign.host_id===me.id;
@@ -7553,6 +7631,7 @@ async function renderFiles(){
         p.appendChild(card);
       }
     }catch(e){}
+    try{ const oa=await dmOptionsAuditCard(); if(oa) p.appendChild(oa); }catch(e){}
   }
   let files=null;
   try{ const r=await supa.from('references_files').select('*').eq('campaign_id',campaign.id).order('created_at',{ascending:false}); if(!r.error) files=r.data||[]; }catch(e){}
