@@ -2116,7 +2116,19 @@ async function betaAskBackupKeys(tok){
 let campaign=null, members=[], myChar=null, characters=[], curRound=null, narrative=[], mySheet={}, mySheetUpdatedAt=null, worldState=null, chatMsgs=[];
 const ENGLISH_UI_ENABLED=true;   // Slice E: flipped 2026-07-19 — reviewer GO (catalog gate ok=true, 639/639 approved) + server flag english_mode_enabled=true. Needs frontend push + cache-bust to go live.
 let pendingGameLanguage=null, englishModeAvailable=false;   // D1: DB world language wins after create/JOIN; pending is pre-world only.
-const UI18N=globalThis.TTRPG_I18N;
+const _I18N_ASSETS_OK=!!(globalThis.TTRPG_I18N&&globalThis.TTRPG_CHARACTER_EN&&globalThis.TTRPG_RUNTIME_COPY);   // v713h: are the external EN runtime files loaded? (i18n-runtime.js / character-content-en.js / runtime-copy-en.js)
+if(!_I18N_ASSETS_OK){ try{ console.error('[assets] English runtime JS did not load (missing globalThis.TTRPG_I18N/TTRPG_CHARACTER_EN/TTRPG_RUNTIME_COPY) — re-upload frontend/*.js next to campaign.html + hard-refresh (Ctrl+Shift+R). Running Thai-only fallback so sign-in still works.'); }catch(e){} }
+// v713h SYSTEMIC GUARD: a missing/late external JS file must NEVER brick sign-in (root of "Cannot read properties of undefined (reading 'language')"). Shim is used ONLY when the real runtime is absent; when present, TTRPG_I18N wins verbatim.
+const UI18N=globalThis.TTRPG_I18N||{
+  language:function(l){ return String(l||'').toLowerCase()==='en'?'en':'th'; },
+  text:function(l,k,v){ return (v&&v.message!=null)?String(v.message):String(k||''); },
+  errorText:function(l,c){ return String(c||'error'); },
+  translateDom:function(){},                 // no-op → DOM keeps its hardcoded Thai defaults
+  installDisplayWall:function(){}, installDialogWall:function(){},
+  latinPublicTextVerdict:function(){ return 'ok'; },   // don't block input when validator missing
+  catalogRowVisibleForWorld:function(){ return true; },
+  localizeCatalogRow:function(l,r){ return r; }
+};
 function uiLanguage(){ return campaign ? UI18N.language(campaign.game_language) : UI18N.language(pendingGameLanguage||'th'); }
 function uiText(key,vars){ return UI18N.text(uiLanguage(),key,vars); }
 function uiCopy(th,en){ return uiLanguage()==='en'?en:th; }
@@ -2191,6 +2203,7 @@ function pruneOtherCampaignCache(curId){
   else { initClient(anon); }
   try{ const _le=localStorage.getItem('lastEmail'); const _ef=$('email'); if(_le&&_ef&&!_ef.value) _ef.value=_le; }catch(e){}   // v281: จำอีเมลล่าสุด — ไม่ต้องพิมพ์ใหม่ทุกครั้ง
   _loginPersistHints();   // v281: เตือนถ้าเบราว์เซอร์ไม่เก็บ session (in-app browser / โหมดส่วนตัว = หลุดทุกครั้ง)
+  if(!_I18N_ASSETS_OK){ try{ const el=$('loginHint'); if(el){ el.textContent='⚠️ โหลดไฟล์ภาษา (i18n) ไม่ครบ — ใช้ไทยชั่วคราว · ถ้าหน้าจอเพี้ยนให้กด Ctrl+Shift+R'; el.style.color='#f59'; } }catch(e){} }   // v713h: surface missing-asset state instead of a silent crash
   // ถ้ามี key แล้ว เช็ค session (รวมถึง magic-link ที่เพิ่งกลับมา)
   if(supa){ await afterAuthChange(); }
 })();
@@ -3231,7 +3244,7 @@ const RACE_FEATURES={
        {name:'Aggressive',description:'ใช้ bonus action พุ่งเข้าหาศัตรูเป็นระยะเท่าความเร็วของคุณ',max_uses:0,recharge:'passive'},
        {name:'Relentless Endurance',description:'เมื่อ HP จะเหลือ 0 ให้คงเหลือ 1 HP แทน (1/long rest)',max_uses:1,recharge:'long'}],
 };
-const CHARACTER_EN=globalThis.TTRPG_CHARACTER_EN;
+const CHARACTER_EN=globalThis.TTRPG_CHARACTER_EN||{classFeatureDescriptions:{},raceFeatures:{}};   // v713h: fallback so a missing character-content-en.js can't crash EN sheet creation (raceFeatures[rk] below)
 function raceKey(){ const r=(raceValue()||'').toLowerCase(); if(/drow|dark.?elf/.test(r)) return 'drow'; if(/half.?elf/.test(r)) return 'halfelf'; if(/half.?orc/.test(r)) return 'halforc'; for(const k in RACE_FEATURES){ if(r.includes(k)) return k; } return null; }
 function classKey(){ const c=(classValue()||'').toLowerCase(); for(const k in CLASS_SKILLS){ if(c.includes(k)) return k; } return null; }
 // เงินเริ่มต้นตาม PHB (class starting wealth, เฉลี่ย gp) — monk = 5d4 gp
