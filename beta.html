@@ -1769,6 +1769,7 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
   <button class="tab" data-tab="quest" onclick="switchTab('quest')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/></svg></span><span class="tlab">Quest</span></button>
   <button class="tab" data-tab="files" onclick="switchTab('files')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="7" y="5" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/><rect x="2" y="7" width="1" height="1"/><rect x="5" y="7" width="1" height="1"/></svg></span><span class="tlab">Files</span></button>
   <button class="tab" data-tab="chron" onclick="switchTab('chron')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="1" height="1"/><rect x="1" y="0" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="6" y="0" width="1" height="1"/><rect x="7" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="7" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="7" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="7" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="7" y="5" width="1" height="1"/></svg></span><span class="tlab">Chronicle</span></button>
+  <button class="tab" data-tab="companion" onclick="switchTab('companion')"><span class="tico">🤝</span><span class="tlab">Companion</span></button>
 </div>
 <div id="mobileClock" class="mobileclock hidden"></div>
 </div>
@@ -1908,6 +1909,7 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
       <label class="fld">Sex<select id="cSex"><option value="">— เลือก —</option><option value="ชาย">ชาย (M)</option><option value="หญิง">หญิง (F)</option><option value="อื่นๆ">อื่นๆ/ไม่ระบุ</option></select></label>
       <label class="fld">Age<input type="text" id="cAge" placeholder="e.g. 24"/></label>
     </div>
+    <label class="fld">วันเกิดในปฏิทินโลก (ไม่บังคับ)<input type="text" id="cBirth" placeholder="YYYY-MM-DD · เดือนละ 30 วัน"/></label>
     <input type="text" id="cRaceCustom" class="hidden" placeholder="ชื่อเผ่านอกกฎ เช่น Aarakocra" style="margin:6px 0"/>
     <div id="cRaceInfo" class="note hidden" style="text-align:left;border-left:3px solid #5B8DEF;padding:4px 8px;margin:2px 0 6px"></div>
     <div id="cDragonElem" class="hidden" style="text-align:left;margin:2px 0 6px;font-size:13px">ธาตุสายมังกร (Dragonborn): <select id="cDragonElemSel" onchange="dragonbornElement=this.value" style="margin-left:4px"><option value="fire">ไฟ Fire (แดง/ทอง/ทองเหลือง)</option><option value="cold">เย็น Cold (ขาว/เงิน)</option><option value="lightning">ไฟฟ้า Lightning (น้ำเงิน/บรอนซ์)</option><option value="acid">กรด Acid (ดำ/ทองแดง)</option><option value="poison">พิษ Poison (เขียว)</option></select> <span class="muted" style="font-size:12px">— ใช้กับลมหายใจ + ความต้านทาน</span></div>
@@ -1987,6 +1989,7 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
 <div class="panel" id="panel-quest" data-tab="quest"></div>
 <div class="panel" id="panel-files" data-tab="files"></div>
 <div class="panel" id="panel-chron" data-tab="chron"></div>
+<div class="panel" id="panel-companion" data-tab="companion" style="max-width:1120px"></div>
 
 <div class="toast" id="toast"></div>
 
@@ -1999,6 +2002,8 @@ const SUPA_URL = 'https://caxksvqlgrvwnjynbbye.supabase.co';
 const SUPA_ANON = 'sb_publishable_kODadNf7PNUWJr_ZTViABw_IsP6ggJ6';
 // ▲▲▲ key สาธารณะ (publishable) — ปลอดภัยที่จะฝัง ความปลอดภัยจริงอยู่ที่ RLS ▲▲▲
 const RESOLVE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/resolve-round';
+const FRONTEND_BUILD = 202607190700;   // v700 dynamic catalog campaign/language isolation
+const FRONTEND_COMPAT_EPOCH = 2;
 const INGEST_FN  = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-file';
 const INGEST_PUZZLE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-puzzle';
 const DUNGEON_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-dungeon';
@@ -2025,14 +2030,15 @@ if(BETA){
     try{
       if(typeof u==='string'&&u.indexOf(RESOLVE_FN)===0&&opt&&typeof opt.body==='string'){
         const b=JSON.parse(opt.body);
-        if(betaCode()&&b&&typeof b==='object'&&!b.beta_code) b.beta_code=betaCode();
+        if(BETA&&betaCode()&&b&&typeof b==='object'&&!b.beta_code) b.beta_code=betaCode();
+        if(b&&typeof b==='object'){ if(!b.client_build) b.client_build=FRONTEND_BUILD; if(!b.client_epoch) b.client_epoch=FRONTEND_COMPAT_EPOCH; }
         opt=Object.assign({},opt,{body:JSON.stringify(b)});
       }
     }catch(e){}
     const p=_F(u,opt);
     try{
       if(typeof u==='string'&&u.indexOf(RESOLVE_FN)===0){
-        p.then(r=>{ if(r&&r.status===403){ r.clone().json().then(j=>{
+        p.then(r=>{ try{ frontendRequirementSeen(r.headers.get('X-Min-Frontend-Build'),r.headers.get('X-Min-Frontend-Epoch')); }catch(e){} if(BETA&&r&&r.status===403){ r.clone().json().then(j=>{
           if(j&&j.error==='beta_code_required'){ try{localStorage.removeItem('betaCode');}catch(e){} alert('รหัสเบต้าไม่ถูกต้อง/หมดอายุ — รีเฟรชหน้าแล้วใส่รหัสใหม่ (ขอจากผู้ดูแล)'); }
           else if(j&&j.error==='gemini_key_required'){ betaAskKey(); }
         }).catch(()=>{}); } return r; }).catch(()=>{});
@@ -2040,6 +2046,29 @@ if(BETA){
     }catch(e){}
     return p;
   };
+}
+let _frontendRequirement=null, _frontendBuildCheckBusy=false;
+function frontendDraftPending(){
+  try{ for(const id of ['actInput','petActInput','ccNarr']){ const e=document.getElementById(id); if(e&&String(e.value||'').trim()) return true; } if(window._actSubmitting||window._quickBusy) return true; if(window.cc&&window.cc.isBusy&&window.cc.isBusy()) return true; }catch(e){} return false;
+}
+function frontendRefreshSafe(){
+  const blockers=[]; if(frontendDraftPending()) blockers.push('draft'); if(resolving||(curRound&&curRound.phase==='resolving')) blockers.push('resolving'); if(window._combatActive) blockers.push('combat'); if(worldState&&worldState.settings&&worldState.settings.victory_ack&&worldState.settings.victory_ack.active) blockers.push('victory_transaction'); return {safe:blockers.length===0,blockers};
+}
+function renderFrontendRefreshBanner(){
+  let el=document.getElementById('frontendBuildBanner');
+  if(!_frontendRequirement){ if(el) el.remove(); return; }
+  if(!el){ el=document.createElement('div'); el.id='frontendBuildBanner'; el.style.cssText='position:fixed;left:10px;right:10px;top:10px;z-index:100000;background:#2b1600;color:#fff;border:2px solid #ffbf47;border-radius:8px;padding:10px 12px;font:600 14px/1.5 sans-serif;box-shadow:0 4px 18px #000'; document.body.appendChild(el); }
+  const v=frontendRefreshSafe(), why={draft:'มีข้อความที่ยังไม่ได้ส่ง',resolving:'DM กำลังประมวลผล',combat:'ยังอยู่กลางการต่อสู้',victory_transaction:'กำลังปิดธุรกรรมหลังศึก'};
+  el.innerHTML='<div>⚠️ หน้าเกมรุ่นนี้เก่ากว่ารุ่นที่ server รองรับ'+(v.safe?' — พร้อมรีเฟรชอย่างปลอดภัย':' — ระบบจะไม่รีเฟรชกลางงาน')+'</div><div style="font-weight:400;opacity:.85">'+(v.safe?'กดปุ่มเมื่อพร้อม ข้อมูลเกมอยู่บน server แล้ว':'รอ: '+v.blockers.map(x=>why[x]||x).join(' · '))+'</div>';
+  const b=document.createElement('button'); b.type='button'; b.textContent=v.safe?'รีเฟรชเพื่อใช้รุ่นล่าสุด':'ยังรีเฟรชไม่ได้'; b.disabled=!v.safe; b.style.cssText='margin-top:7px;padding:7px 12px'; b.onclick=()=>{ if(frontendRefreshSafe().safe) window.location.reload(); }; el.appendChild(b);
+}
+function frontendRequirementSeen(minBuild,minEpoch){
+  const mb=Number(minBuild), mep=Number(minEpoch); if(!(mb>FRONTEND_BUILD||mep>FRONTEND_COMPAT_EPOCH)) return;
+  _frontendRequirement={minBuild:mb,minEpoch:mep}; renderFrontendRefreshBanner(); if(!window._frontendSafeRefreshT) window._frontendSafeRefreshT=setInterval(renderFrontendRefreshBanner,5000);
+}
+async function checkFrontendBuild(){
+  if(_frontendBuildCheckBusy) return; _frontendBuildCheckBusy=true;
+  try{ const tok=(await supa.auth.getSession()).data.session?.access_token; if(!tok) return; const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({ping:true,client_build:FRONTEND_BUILD,client_epoch:FRONTEND_COMPAT_EPOCH})}); const j=await r.json(); frontendRequirementSeen(j.min_frontend_build,j.min_frontend_epoch); }catch(e){} finally{_frontendBuildCheckBusy=false;}
 }
 // host ใส่/แก้ Gemini key ของโลก (เรียกเองหรือเด้งอัตโนมัติเมื่อ server บอกว่ายังไม่มี key)
 async function betaAskKey(){
@@ -2107,7 +2136,7 @@ function ensureStorageHeadroom(){
 function pruneOtherCampaignCache(curId){
   try{
     if(!curId) return; const cur=String(curId).toLowerCase(); const rm=[];
-    for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(!k||!k.startsWith('ttrpg_')||/^ttrpg_cat_/.test(k)) continue;   // เก็บ global catalog ไว้
+    for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(!k||!k.startsWith('ttrpg_')) continue;   // global catalog ไม่มี UUID จึงไม่ถูกลบ; scoped catalog ของโลกอื่นถูกลบ
       const m=k.match(/([0-9a-f-]{36})$/i); if(m && m[1].toLowerCase()!==cur) rm.push(k); }   // cache ต่อแคมเปญของแคมเปญ 'อื่น' → ลบ (เก็บเฉพาะปัจจุบัน)
     rm.forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} });
   }catch(e){}
@@ -2399,6 +2428,8 @@ async function enterCampaign(){
   if(musicOn){ applyMood(); } armMusicResume();
   updateMusicBtn();
   subscribeRealtime();
+  checkFrontendBuild();
+  if(!window._frontendBuildPoll) window._frontendBuildPoll=setInterval(checkFrontendBuild,300000);
 }
 
 /* v663 X4-06 (BUGROOTS 07-18): refreshAll ถูกเรียกซ้อนได้จาก realtime handler + resolve-finally + tab opening — request เก่าจบทีหลังเขียน globals ย้อนสถานะ → serialize + coalesce (ผู้เรียกระหว่าง flight ได้ run ใหม่ร่วมกัน 1 รอบหลังจบ) */
@@ -2498,12 +2529,30 @@ async function loadRound(){
   }catch(e){ const c=cacheLoad('round'); if(c) curRound=c; }
 }
 const NARR_WINDOW=50; let narrMore=false, _skipAutoScroll=false;
+// v681 G4: narrative.content is forensic source; each row selects its independent
+// projection wall (narrative_claim or lethal_projection). Shadow/off remain rollback-safe.
+function narrativeProjectionMode(n){
+  try{ const key=String((n&&n.projection_wall)||'narrative_claim')==='lethal_projection'?'lethal_projection':'narrative_claim'; const m=String(((((worldState||{}).settings||{}).wall_modes||{})[key])||'enforce').toLowerCase(); return ['off','shadow','enforce'].includes(m)?m:'enforce'; }catch(e){ return 'enforce'; }
+}
+function narrText(n){
+  if(!n) return '';
+  const p=String(n.projection_content||'').trim();
+  const legacy=String(n.legacy_content||'').trim();
+  return narrativeProjectionMode(n)==='enforce'&&p?p:(legacy||String(n.content||''));
+}
+function narrProjectionNote(n){
+  return narrativeProjectionMode(n)==='enforce'&&n&&n.projection_status==='corrected'?String(n.projection_note||'').trim():'';
+}
+function narrDraw(n){
+  const note=narrProjectionNote(n);
+  return colorizeNarr(narrText(n))+(note?'<div class="note" style="margin-top:7px">'+escapeHtml(note)+'</div>':'');
+}
 async function loadNarrative(){
   try{ const { data, error } = await supa.from('narrative').select('*').eq('campaign_id',campaign.id)
     .order('created_at',{ascending:false}).limit(NARR_WINDOW);
     if(error) throw error; const rows=(data||[]); narrMore = rows.length>=NARR_WINDOW; narrative = rows.slice().reverse(); cacheSave('narrative',narrative);
   }catch(e){ const c=cacheLoad('narrative'); if(c) narrative=c; }
-  _cacheSet('ttrpg_chron_'+campaign.id, JSON.stringify(narrative.map(n=>n.content)));   // v301: ผ่านงบ cache
+  _cacheSet('ttrpg_chron_'+campaign.id, JSON.stringify(narrative.map(n=>narrText(n))));   // v680: canonical projection ผ่านงบ cache
 }
 async function loadOlderNarrative(){
   if(!narrative.length) return;
@@ -2839,7 +2888,7 @@ function fillJoinBriefing(){
   if(!summary && !lastDM){ box.classList.add('hidden'); return; }   // ยังไม่มีเรื่อง = ปาร์ตี้เริ่มต้น ไม่ต้องโชว์
   let h='<div class="sectitle" style="margin:0 0 6px">📖 เรื่องราวจนถึงตอนนี้ (สรุปให้ผู้มาใหม่)</div>';
   if(summary) h+=`<div style="line-height:1.6;font-size:13px;white-space:pre-wrap">${escapeHtml(plainNarr(summary))}</div>`;
-  if(lastDM) h+=`<div class="sectitle" style="margin:10px 0 4px">ฉากปัจจุบัน</div><div style="line-height:1.6;font-size:13px;white-space:pre-wrap">${escapeHtml(plainNarr(String(lastDM.content)).slice(0,800))}</div>`;
+  if(lastDM) h+=`<div class="sectitle" style="margin:10px 0 4px">ฉากปัจจุบัน</div><div style="line-height:1.6;font-size:13px;white-space:pre-wrap">${escapeHtml(plainNarr(narrText(lastDM)).slice(0,800))}</div>`;
   h+='<div class="note" style="margin-top:8px">สร้างตัวละครให้เข้ากับสถานการณ์นี้ — DM จะบรรยายแนะนำตัวคุณเข้าสู่กลุ่มในตาถัดไป</div>';
   box.innerHTML=h; box.classList.remove('hidden');
 }
@@ -2895,24 +2944,27 @@ function onRaceChange(){ const sel=$('cRace'),cu=$('cRaceCustom'); if(!sel||!cu)
 }
 function weaponValue(){ const sel=$('cWeapon'); if(!sel) return ''; return sel.value==='__custom' ? (($('cWeaponCustom')||{}).value||'').trim() : (sel.value||'').trim(); }
 function onWeaponChange(){ const sel=$('cWeapon'),cu=$('cWeaponCustom'); if(!sel||!cu) return; if(sel.value==='__custom'){ cu.classList.remove('hidden'); cu.focus(); } else { cu.classList.add('hidden'); cu.value=''; } }
-// ── คลังไอเทม/คลาส (global catalog จาก DB) — โหลดครั้งเดียว แคชไว้ ──
+// ── v700 catalog: curated shared + current-campaign dynamic rows; item/skill cache แยกโลก ──
 let ITEM_CAT={}, CLASS_CAT={}, ITEM_BY_NAME={}, SPELL_CAT=[], SKILL_CAT=[], _catLoaded=false, selectedPkg=null;
+function _catalogCacheKey(kind){return kind+((kind==='itemcat'||kind==='skillcat')?'_'+campaign.id:'');}
+function _catalogScopeFilter(){return 'catalog_scope.eq.curated,origin_campaign_id.eq.'+campaign.id;}
+function _catalogRowsForWorld(rows){return (rows||[]).filter(r=>r.catalog_scope==='curated'||(r.catalog_scope==='campaign'&&r.origin_campaign_id===campaign.id&&r.game_language===(campaign.game_language||'th')));}
 async function loadCatalogs(){
   if(_catLoaded) return;
   try{
     const [ic,cc,sc,kc]=await Promise.all([
-      supa.from('item_catalog').select('slug,name,category,subtype,damage_dice,damage_type,properties,range_ft,armor_base,dex_cap,str_req,stealth_disadv,is_magic,rarity,requires_attunement,bonuses,effect,cost_gp'),
+      supa.from('item_catalog').select('slug,name,category,subtype,damage_dice,damage_type,properties,range_ft,armor_base,dex_cap,str_req,stealth_disadv,is_magic,rarity,requires_attunement,bonuses,effect,cost_gp,source,catalog_scope,origin_campaign_id,game_language').or(_catalogScopeFilter()),
       supa.from('class_catalog').select('slug,name,hit_die,armor_prof,weapon_prof,saving_throws,starting_packages'),
       supa.from('spell_catalog').select('slug,name,level,school,classes,casting_time,range_,components,duration,concentration,ritual,save,damage,effect,area_shape,area_size'),
-      supa.from('skill_catalog').select('slug,name,classes,level,max_uses,recharge,effect')
+      supa.from('skill_catalog').select('slug,name,classes,level,max_uses,recharge,effect,is_dm,source,catalog_scope,origin_campaign_id,game_language').or(_catalogScopeFilter())
     ]);
-    if(!ic.error&&ic.data){ ITEM_CAT={}; ic.data.forEach(r=>ITEM_CAT[r.slug]=r); _catSet('itemcat',ic.data); }
-    if(!cc.error&&cc.data){ CLASS_CAT={}; cc.data.forEach(r=>CLASS_CAT[r.slug]=r); _catSet('classcat',cc.data); }
-    if(!sc.error&&sc.data){ SPELL_CAT=sc.data; _catSet('spellcat',sc.data); }
-    if(!kc.error&&kc.data){ SKILL_CAT=kc.data; _catSet('skillcat',kc.data); }
+    if(!ic.error&&ic.data){ const ir=_catalogRowsForWorld(ic.data); ITEM_CAT={}; ir.forEach(r=>ITEM_CAT[r.slug]=r); _catSet(_catalogCacheKey('itemcat'),ir); }
+    if(!cc.error&&cc.data){ CLASS_CAT={}; cc.data.forEach(r=>CLASS_CAT[r.slug]=r); _catSet(_catalogCacheKey('classcat'),cc.data); }
+    if(!sc.error&&sc.data){ SPELL_CAT=sc.data; _catSet(_catalogCacheKey('spellcat'),sc.data); }
+    if(!kc.error&&kc.data){ const kr=_catalogRowsForWorld(kc.data); SKILL_CAT=kr; _catSet(_catalogCacheKey('skillcat'),kr); }
     if(!ic.error&&ic.data&&ic.data.length) _catLoaded=true;
   }catch(e){}
-  if(!_catLoaded){ const i=_catGet('itemcat'),c=_catGet('classcat'); if(i){ITEM_CAT={};i.forEach(r=>ITEM_CAT[r.slug]=r);} if(c){CLASS_CAT={};c.forEach(r=>CLASS_CAT[r.slug]=r);} const sp=_catGet('spellcat'); if(sp) SPELL_CAT=sp; const kp=_catGet('skillcat'); if(kp) SKILL_CAT=kp; }
+  if(!_catLoaded){ const i=_catGet(_catalogCacheKey('itemcat')),c=_catGet(_catalogCacheKey('classcat')); if(i){ITEM_CAT={};i.forEach(r=>ITEM_CAT[r.slug]=r);} if(c){CLASS_CAT={};c.forEach(r=>CLASS_CAT[r.slug]=r);} const sp=_catGet(_catalogCacheKey('spellcat')); if(sp) SPELL_CAT=sp; const kp=_catGet(_catalogCacheKey('skillcat')); if(kp) SKILL_CAT=kp; }
   buildItemIndex();
 }
 function pkgItemNames(pk){ return (pk.items||[]).map(it=>{ const ci=ITEM_CAT[it.slug]; const nm=ci?ci.name:it.slug; return nm+(it.qty>1?(' x'+it.qty):''); }).join(', '); }
@@ -3191,7 +3243,7 @@ async function createCharacter(){
     // เงินเริ่มต้น (v623 D3/H11 กัน double-dip): ชุดกำหนด gold เอง = ใช้ค่านั้น · ได้ชุดอุปกรณ์เต็ม (items) = เงินติดกระเป๋า 15 gp (PHB: starting wealth ตามคลาส คือทางเลือก "แทนอุปกรณ์" — ห้ามได้ทั้งคู่) · ไม่มี package = เงินคลาสเต็ม
     { const _ck=classKey(); walletp.gp = (selectedPkg && selectedPkg.gold) ? selectedPkg.gold : (selectedPkg && Array.isArray(selectedPkg.items) && selectedPkg.items.length) ? 15 : (CLASS_START_GOLD[_ck]||15); }
     const sheet={
-      race:raceValue(), sex:$('cSex').value.trim(), age:$('cAge').value.trim(),
+      race:raceValue(), sex:$('cSex').value.trim(), age:$('cAge').value.trim(), birth_date_game:($('cBirth').value||'').trim(),
       dragonborn_element: (raceKey()==='dragonborn') ? dragonbornElement : undefined,   // v291: ธาตุ → resist + Breath Weapon (server ใช้)
       abilities:{ str:finalAb('str'), dex:finalAb('dex'), con:finalAb('con'), int:finalAb('int'), wis:finalAb('wis'), cha:finalAb('cha') },
       skill_proficiencies: chosenSkills.slice(),
@@ -3205,6 +3257,10 @@ async function createCharacter(){
     persistCombatStats(sheet, classValue());
     const { error: _shErr } = await supa.from('character_sheets').insert({ character_id:ch.id, sheet });   // v271 L5: เช็ค error (เดิมไม่เช็ค → ถ้า insert ล้ม ได้ตัวละครไม่มีชีทเงียบๆ)
     if(_shErr && String(_shErr.code)!=='23505') throw _shErr;   // v628 #6: 23505 = ชีทมีอยู่แล้ว (path กู้ตัวละครค้าง) — ใช้ของเดิม ห้ามทับ
+    if(sheet.birth_date_game && campaign&&campaign.companion_mode==='v2'){
+      try{ await companionResolve({romance_confirm:{character_id:ch.id,birthday_only:true,birth_date:sheet.birth_date_game}}); }
+      catch(e){ toast(e.message||'วันเกิดยังไม่ถูกล็อกในปฏิทิน server — ตั้งใหม่ได้ในแท็บ Companion',true); }
+    }
     // ความสามารถเริ่มต้นตามคลาส → แท็บ Skills (ไม่พังถ้าตาราง skills ยังไม่ได้ migrate)
     try{
       const ck=classKey(); const feats=ck?CLASS_FEATURES[ck]:null;
@@ -3251,6 +3307,77 @@ function switchTab(t){
   else if(t==='quest') renderQuest();
   else if(t==='files') renderFiles();
   else if(t==='chron') renderChronicle();
+  else if(t==='companion') renderCompanion();
+}
+// ───────── Companion v2 roster (C2) ─────────
+let _companionViewCache=null,_companionViewTs=0;
+async function companionResolve(payload){
+  const tok=(await supa.auth.getSession()).data.session?.access_token; if(!tok) throw new Error('กรุณาเข้าสู่ระบบใหม่');
+  const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify(Object.assign({campaign_id:campaign.id},payload))});
+  const j=await r.json(); if(!r.ok||j.error){ const e=new Error(j.note||j.message||j.error||'ทำรายการไม่สำเร็จ'); e.payload=j; throw e; } return j;
+}
+async function companionViewLoad(force){
+  if(!force&&_companionViewCache&&Date.now()-_companionViewTs<10000) return _companionViewCache;
+  const j=await companionResolve({companion_view:true}); _companionViewCache=j; _companionViewTs=Date.now(); return j;
+}
+function companionTierTH(t){ return ({enemy:'ศัตรู',hostile:'เป็นปฏิปักษ์',wary:'ระแวง',neutral:'เป็นกลาง',friendly:'เป็นมิตร',trusted:'ไว้ใจ',close:'สนิท',inner_circle:'คนวงใน'})[String(t||'neutral')]||'เป็นกลาง'; }
+function companionOwnedPc(view){
+  const pcs=(view&&view.own_characters)||[]; if(!pcs.length) return null; if(pcs.length===1) return pcs[0];
+  const raw=prompt('เลือกตัวละครผู้ทำรายการ:\n'+pcs.map((p,i)=>(i+1)+'. '+p.name).join('\n'),'1'); const i=Math.floor(Number(raw))-1; return pcs[i]||null;
+}
+function companionCard(c,isHost,view){
+  const rel=(c.relationships||[]).map(r=>`<span class="tag">${escapeHtml(companionTierTH(r.tier))}</span>`).join(' ')||'<span class="muted">ยังไม่มีสายสัมพันธ์ที่เปิดเผย</span>';
+  const bag=(c.public_bag||[]).map(x=>`<span class="tag">${escapeHtml(x.name||x)}${x.qty>1?' ×'+x.qty:''}</span>`).join(' ')||'<span class="muted">กระเป๋าสาธารณะยังว่าง</span>';
+  const w=c.public_wallet||{gp:0,sp:0,cp:0};
+  const swap=isHost&&['active','reserve'].includes(c.status)?`<button class="btn ghost sm" onclick="companionRoster('${c.character_id}','${c.status}')">${c.status==='active'?'ย้ายไป Reserve':'ย้ายเข้า Active'}</button>`:'';
+  const romance=((view&&view.own_characters)||[]).some(p=>p.romance_enabled)?`<button class="btn ghost sm" onclick="companionInteract('${c.character_id}','romance')">จีบ</button>`:'';
+  const age=c.age_years==null?'':' · อายุ '+c.age_years;
+  return `<div class="item" style="margin:8px 0"><div class="nm">${escapeHtml(c.name)} <span class="tag">${escapeHtml(c.status)}</span></div><div class="sub">${escapeHtml(c.race||'')} ${escapeHtml(c.class||'')} · Lv ${c.level||1}${age}${c.active_slot?' · Slot '+c.active_slot:''}</div><div class="note" style="text-align:left;margin:7px 0">${rel}</div><div class="note" style="text-align:left;margin:7px 0">🎒 ${bag}<br>💰 ${w.gp||0} gp · ${w.sp||0} sp · ${w.cp||0} cp</div><div class="srow2" style="flex-wrap:wrap"><button class="btn ghost sm" onclick="companionInteract('${c.character_id}','talk')">คุยส่วนตัว</button><button class="btn ghost sm" onclick="companionInteract('${c.character_id}','spend')">ใช้เวลาด้วยกัน</button>${romance}<button class="btn ghost sm" onclick="companionGive('${c.character_id}')">มอบของ/เงิน</button><button class="btn ghost sm" onclick="companionRequest('${c.character_id}')">ขอของ</button><button class="btn ghost sm" onclick="toast('กระเป๋าที่เปิดเผยแสดงอยู่บนการ์ดแล้ว')">ดูกระเป๋า</button>${swap}</div></div>`;
+}
+async function renderCompanion(){
+  const p=$('panel-companion'); if(!p) return; p.innerHTML='<div class="muted">กำลังโหลด Companion roster…</div>';
+  try{ const v=await companionViewLoad(false), all=v.companions||[], active=all.filter(c=>c.status==='active'), reserve=all.filter(c=>c.status==='reserve'), memorial=all.filter(c=>['dead','former'].includes(c.status)); const host=campaign.host_id===me.id;
+    const fr=await supa.from('private_narrative').select('id,kind,content,created_at,recipient_character_id,companion_character_id').eq('campaign_id',campaign.id).order('created_at',{ascending:false}).limit(30); if(fr.error) throw fr.error;
+    const feed=(fr.data||[]).slice().reverse(); const feedHtml=feed.map(x=>`<div class="item" style="margin:7px 0"><div class="sub">${escapeHtml(x.kind||'private')} · ${escapeHtml(new Date(x.created_at).toLocaleString())}</div><div class="note" style="text-align:left;white-space:normal">${escapeHtml(x.content||'').replace(/\n/g,'<br>')}</div></div>`).join('')||'<div class="muted">ยังไม่มีฉากส่วนตัว</div>';
+    const consent=v.consent&&v.consent.adult_confirmed?'ยืนยันอายุจริงแล้ว':'ยังไม่เปิด Romance';
+    p.innerHTML=`<div class="item"><div class="nm">Companion Roster</div><div class="sub">Active ${active.length}/3 · Reserve ${reserve.length} · Memorial ${memorial.length}</div><button class="btn ghost sm" onclick="companionConsent()">ตั้งค่า Romance / วันเกิด</button> <span class="muted">${consent}</span></div>`+
+      `<h3>Active ${active.length}/3</h3>${active.map(c=>companionCard(c,host,v)).join('')||'<div class="muted">ยังไม่มี companion ในทีม</div>'}`+
+      `<h3>Reserve</h3>${reserve.map(c=>companionCard(c,host,v)).join('')||'<div class="muted">กองสำรองว่าง</div>'}`+
+      (memorial.length?`<h3>Memorial / History</h3>${memorial.map(c=>companionCard(c,false,v)).join('')}`:'')+
+      `<h3>Private relationship feed</h3><div class="note" style="text-align:left">เห็นได้เฉพาะบัญชีผู้รับผ่าน RLS</div>${feedHtml}`;
+  }catch(e){ p.innerHTML='<div class="item"><div class="nm">Companion</div><div class="note">'+escapeHtml(e.message||'โหลดไม่ได้')+'</div></div>'; }
+}
+function companionSoon(label){ toast(label+' จะเปิดในเฟส Privacy/Interaction'); }
+async function companionInteract(companionId,kind){
+  try{ const v=await companionViewLoad(true),pc=companionOwnedPc(v); if(!pc) return toast('ต้องมีตัวละครของคุณก่อน',true); if(kind==='romance'&&!pc.romance_enabled) return toast('ตัวละครนี้ยังไม่ได้เปิด Romance access',true);
+    const labels={talk:'คุยเรื่องใด (เว้นว่างได้)',spend:'อยากใช้เวลาร่วมกันแบบใด (เว้นว่างได้)',romance:'อยากสื่อเจตนาอย่างไร — การกดส่งไม่การันตีว่า companion จะตอบรับ'};
+    const intent=String(prompt(labels[kind]||'เจตนาของฉาก','')||'').trim(); toast('กำลังเปิดฉากส่วนตัว…');
+    const j=await companionResolve({companion_interact:{character_id:pc.character_id,companion_id:companionId,kind,intent,request_key:crypto.randomUUID()}}); toast(j.note||'บันทึกฉากแล้ว'); _companionViewCache=null; renderCompanion();
+  }catch(e){ toast(e.message||'เปิดฉากส่วนตัวไม่สำเร็จ',true); }
+}
+async function companionConsent(){
+  try{ const v=await companionViewLoad(true),pc=companionOwnedPc(v); if(!pc) return toast('ต้องมีตัวละครของคุณก่อน',true);
+    const adult=confirm('กด OK เพื่อยืนยันว่าผู้เล่นตัวจริงมีอายุ 18 ปีขึ้นไป\nกด Cancel เพื่อไม่ยืนยันและปิดสิทธิ์ Romance ของบัญชี');
+    const romance=adult&&confirm('เปิดเส้นทาง Romance ให้ '+pc.name+' หรือไม่?\nการเปิดสิทธิ์ไม่บังคับให้ companion ตอบรับ');
+    let birth=''; if(!pc.birthday_known) birth=String(prompt('วันเกิดของ '+pc.name+' ในปฏิทินโลก (ไม่บังคับ · YYYY-MM-DD · เดือนละ 30 วัน)','')||'').trim();
+    const body={character_id:pc.character_id,adult_confirmed:adult,romance_enabled:romance}; if(birth) body.birth_date=birth;
+    const j=await companionResolve({romance_confirm:body}); toast(j.note||'บันทึกแล้ว'); _companionViewCache=null; renderCompanion();
+  }catch(e){ toast(e.message||'บันทึก consent ไม่สำเร็จ',true); }
+}
+async function companionGive(companionId){
+  try{ const v=await companionViewLoad(false),pc=companionOwnedPc(v); if(!pc) return toast('ต้องมีตัวละครของคุณก่อน',true); const kind=String(prompt('พิมพ์ item เพื่อมอบของ หรือ money เพื่อมอบเงิน','item')||'').trim().toLowerCase(); if(!kind) return;
+    let body;if(kind==='money'){ const gp=Math.floor(Number(prompt('จำนวน GP','1'))||0); if(gp<1) return toast('จำนวนเงินไม่ถูกต้อง',true); body={transfer_currency:{from_character_id:pc.character_id,to_character_id:companionId,gp,transfer_key:crypto.randomUUID()}}; }
+    else { const item=String(prompt('ชื่อของตามที่อยู่ในกระเป๋า','')||'').trim(); const qty=Math.floor(Number(prompt('จำนวน','1'))||0); if(!item||qty<1) return toast('ชื่อหรือจำนวนไม่ถูกต้อง',true); body={transfer_item:{from_character_id:pc.character_id,to_character_id:companionId,item,qty,transfer_key:crypto.randomUUID()}}; }
+    const j=await companionResolve(body); toast(j.note||'มอบเรียบร้อย'); _companionViewCache=null; await refreshAll(); renderCompanion();
+  }catch(e){ toast(e.message||'มอบไม่สำเร็จ',true); }
+}
+async function companionRequest(companionId){
+  try{ const v=await companionViewLoad(false),pc=companionOwnedPc(v); if(!pc) return toast('ต้องมีตัวละครของคุณก่อน',true); const item=String(prompt('อยากขอของชิ้นใด','')||'').trim(); if(!item) return; const qty=Math.max(1,Math.floor(Number(prompt('จำนวน','1'))||1)); const j=await companionResolve({companion_request_give:{companion_id:companionId,to_character_id:pc.character_id,item,qty,transfer_key:crypto.randomUUID()}}); toast(j.note||'ส่งคำขอแล้ว');
+  }catch(e){ toast(e.message||'ส่งคำขอไม่สำเร็จ',true); }
+}
+async function companionRoster(characterId,status){
+  try{ let desired=status==='active'?'reserve':'active',slot=null;if(desired==='active'){ slot=Math.floor(Number(prompt('Active slot (1-3)','1'))||0);if(slot<1||slot>3)return toast('slot ต้องเป็น 1-3',true); } const j=await companionResolve({roster_swap:{character_id:characterId,desired_status:desired,active_slot:slot,swap_key:crypto.randomUUID()}}); toast(j.note||'สลับ roster แล้ว'); _companionViewCache=null; await refreshAll(); renderCompanion();
+  }catch(e){ toast(e.message||'สลับ roster ไม่สำเร็จ',true); }
 }
 // ───────── OOC chat (คุยวางแผนนอกเรื่อง) ─────────
 async function loadChat(){
@@ -3357,8 +3484,8 @@ async function renderStory(){
   const isStreaming = n => n.status==='placeholder' && n.content && !/^_/.test(String(n.content).trim());
   const shown = narrative.filter(n => n.status !== 'placeholder' || isStreaming(n));
   const feed=$('narrFeed');
-  const isig = n => (n.status||'')+':'+((n.content||'').length);
-  const cdraw = n => isStreaming(n) ? (colorizeNarr(n.content)+'<span class="dots">▌</span>') : colorizeNarr(n.content);
+  const isig = n => (n.status||'')+':'+narrText(n).length+':'+(n.projection_status||'')+':'+(n.projection_note||'');
+  const cdraw = n => isStreaming(n) ? (colorizeNarr(n.content)+'<span class="dots">▌</span>') : narrDraw(n);
   const existing=[...feed.querySelectorAll('.narr')];
   const sameStruct = shown.length>0 && existing.length===shown.length && shown.every((n,i)=> existing[i] && existing[i].dataset.nid===String(n.id));
   if(sameStruct){
@@ -5747,6 +5874,15 @@ async function deleteNPC(id){
 }
 
 // ───────── battle tracker: initiative order + combat log ─────────
+// v679 LIVE-G3a: combat HUD consumes the immutable encounter snapshot, never a fresh campaign_state sample.
+function combatLocationLabel(enc){
+  try{
+    const s=enc&&enc.location_snapshot; if(!s||!s.location_snapshot_id) return '';
+    const main=String(s.site_name||s.settlement_name||s.region_name||s.kingdom_name||'').trim();
+    const room=String(s.room_name||'').trim();
+    return [main,room&&room.toLowerCase()!==main.toLowerCase()?room:''].filter(Boolean).join(' — ');
+  }catch(e){ return ''; }
+}
 async function renderInitiativeTracker(p){
   let enc=null;
   try{ const r=await supa.from('combat_encounters').select('*').eq('campaign_id',campaign.id).neq('status','ended').maybeSingle(); if(!r.error) enc=r.data; }catch(e){ return; }
@@ -5756,6 +5892,7 @@ async function renderInitiativeTracker(p){
   let csMap={}; try{ const r=await supa.from('combat_state').select('id,cur_hp,monsters(max_hp,name)').eq('campaign_id',campaign.id); (r.data||[]).forEach(x=>csMap[x.id]=x); }catch(e){}
   const wrap=document.createElement('div'); wrap.className='item';
   wrap.innerHTML=`<div class="winhead"><div class="sectitle" style="margin:0">⚔ INITIATIVE</div><span class="chip">Round ${enc.combat_round}</span></div>`;
+  const _locHud=combatLocationLabel(enc); if(_locHud){ const d=document.createElement('div'); d.className='note'; d.style.cssText='text-align:left;padding:3px 2px;color:#FAC775'; d.textContent='📍 '+_locHud; d.title='location snapshot '+String(enc.location_snapshot_id||''); wrap.appendChild(d); }
   const list=document.createElement('div'); list.style.cssText='display:flex;flex-direction:column;gap:4px;margin-top:6px';
   ents.filter(e=>e.is_active).forEach(e=>{
     const isParty=e.side==='party';
@@ -6147,7 +6284,7 @@ async function renderBattleScene(){
         // v211: ตัดบทสนทนา/เนื้อเรื่องก่อนเข้าศึกออก — โชว์เฉพาะบทตั้งแต่ศึกเริ่ม (เผื่อ 90 วิ ให้บทเปิดศึกที่เกิดก่อน encounter row ติดมาด้วย)
         var _since=null;
         try{ if(window.gEncStartedAt){ _since=new Date(new Date(window.gEncStartedAt).getTime()-90000).toISOString(); } }catch(e){}
-        var _rec=(typeof narrative!=='undefined'?narrative:[]).filter(function(n){return n && n.status!=='placeholder' && n.content && (!_since || !n.created_at || String(n.created_at)>=_since);}).slice(-3);
+        var _rec=(typeof narrative!=='undefined'?narrative:[]).filter(function(n){return n && n.status!=='placeholder' && narrText(n) && (!_since || !n.created_at || String(n.created_at)>=_since);}).slice(-3);
         var _nf=document.createDocumentFragment();
         // (06-11) เว้นช่องระหว่างกรอบบรรยาย + เส้นคั่นจางๆ ให้อ่านง่าย · บทล่าสุดกรอบเด่นขึ้นเล็กน้อย
         _rec.forEach(function(n,i){
@@ -6155,7 +6292,7 @@ async function renderBattleScene(){
           var d=document.createElement('div'); d.className='narr';
           d.style.cssText='margin:0 0 12px;padding:8px 10px;border:1px solid '+(last?'rgba(250,199,117,0.45)':'rgba(255,255,255,0.10)')+';border-radius:6px;background:rgba(255,255,255,'+(last?'0.04':'0.015')+')'+(last?'':';opacity:0.82');
           if(last) d.style.marginBottom='2px';
-          d.innerHTML='<div class="meta">🎲 DM'+(last?' · ล่าสุด':'')+'</div><div class="narrc">'+colorizeNarr(n.content)+'</div>';
+          d.innerHTML='<div class="meta">🎲 DM'+(last?' · ล่าสุด':'')+'</div><div class="narrc">'+narrDraw(n)+'</div>';
           _nf.appendChild(d);
         });
         if(!_nf.childNodes.length){ var _e=document.createElement('div'); _e.className='note'; _e.style.color='#9a9a9a'; _e.textContent='— รอการบรรยายการต่อสู้ —'; _nf.appendChild(_e); }
@@ -6199,6 +6336,7 @@ async function renderBattleInitLog(initEl, logEl){
   }catch(e){}
   if(initEl){
     const _frag=document.createDocumentFragment();
+    const _locHud2=combatLocationLabel(enc); if(_locHud2){ const ld=document.createElement('div'); ld.className='note'; ld.style.cssText='text-align:left;padding:2px 5px;color:#FAC775;font-size:12px'; ld.textContent='📍 '+_locHud2; ld.title='location snapshot '+String(enc.location_snapshot_id||''); _frag.appendChild(ld); }
     ents.filter(e=>e.is_active).forEach(e=>{
       const isParty=e.side==='party'; let hpTxt='', pct=null;
       if(isParty){ const c=characters.find(x=>x.id===e.character_id); const hp=(c&&c.public_status&&c.public_status.hp)||''; hpTxt=hp; if(/^\d+\/\d+/.test(String(hp))){ const m=String(hp).split('/'); pct=Math.max(0,Math.min(1,(+m[0])/(+m[1]||1))); } }
@@ -7633,7 +7771,7 @@ async function renderChronicle(){
     const det=document.createElement('details'); det.className='item'; det.style.cursor='pointer';
     const sm=document.createElement('summary'); sm.textContent='ดูเนื้อเรื่องเต็มทุกตอน ('+narrative.length+')'; sm.style.cssText='font-weight:600;padding:4px 0';
     det.appendChild(sm);
-    narrative.forEach((n,i)=>{ const t=document.createElement('div'); t.className='chron-text'; t.style.marginTop='8px'; t.innerHTML=colorizeNarr(n.content); det.appendChild(t); });
+    narrative.forEach((n,i)=>{ const t=document.createElement('div'); t.className='chron-text'; t.style.marginTop='8px'; t.innerHTML=narrDraw(n); det.appendChild(t); });
     p.appendChild(det);
   }
   // อัลบั้มภาพ + ตัวสร้าง prompt ภาพ (ไป gen ข้างนอกเอง — ไม่เสียค่า API)
@@ -7644,7 +7782,7 @@ async function genScenePrompt(btn,out){
   if(!narrative.length){ toast('ยังไม่มีเนื้อเรื่อง',true); return; }
   btn.disabled=true; btn.textContent='กำลังสร้าง…';
   try{
-    const recent=narrative.slice(-3).map(n=>n.content).join('\n\n').slice(0,3000);
+    const recent=narrative.slice(-3).map(n=>narrText(n)).join('\n\n').slice(0,3000);
     const ask='จากฉากนี้ในเกม D&D แนว pixel art / fantasy ให้เขียน "image generation prompt" ภาษาอังกฤษ 1 ย่อหน้า (บรรยายฉาก ตัวละคร แสง บรรยากาศ สไตล์ภาพ) สำหรับเอาไปสร้างภาพใน AI ภายนอก ตอบเฉพาะตัว prompt เท่านั้น ไม่ต้องมีคำอธิบายอื่น:\n\n'+recent;
     const token=(await supa.auth.getSession()).data.session?.access_token;
     const r=await fetch(DYNAMIC_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
@@ -7713,7 +7851,7 @@ function exportChronicle(){
     ? chroniclesData.map(ch=> ch.kind==='volume'
         ? '<h2 style="border-bottom:2px solid #999;padding-bottom:4px;margin-top:28px">'+escapeHtml(ch.title||'เล่ม')+'</h2><p><em>'+escapeHtml(ch.summary).replace(/\n/g,'<br>')+'</em></p>'
         : '<h3 style="margin-top:20px">บทที่ '+ch.idx+' — '+escapeHtml(ch.title||'')+'</h3><p>'+escapeHtml(ch.summary).replace(/\n/g,'<br>')+'</p>').join('')
-    : narrative.map((n,i)=>'<h3>Entry '+(i+1)+'</h3><p>'+escapeHtml(n.content).replace(/\n/g,'<br>')+'</p>').join('');
+    : narrative.map((n,i)=>'<h3>Entry '+(i+1)+'</h3><p>'+escapeHtml(narrText(n)).replace(/\n/g,'<br>')+'</p>').join('');
   const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>'+escapeHtml(campaign.name)+'</title></head><body style="font-family:sans-serif;max-width:720px;margin:auto;padding:24px;line-height:1.8;background:#fff;color:#111"><h1>'+escapeHtml(campaign.name)+(chroniclesData.length?' — พงศาวดาร':'')+'</h1>'+body+'</body></html>';
   const blob=new Blob([html],{type:'text/html'}); const url=URL.createObjectURL(blob);
   const a=document.createElement('a'); a.href=url; a.download='chronicle.html'; a.click(); URL.revokeObjectURL(url); toast('Saved ✓');

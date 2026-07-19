@@ -17,6 +17,9 @@
 <script>/* v610 skin: ตั้งคลาสก่อน CSS paint กันจอกะพริบ — default = paper (กระดาษนิยาย) · classic = ธีมพิกเซลเดิม */
 try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentElement.classList.add('skin-paper'); }catch(e){}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./runtime-copy-en.js?v=20260719d4"></script>
+<script src="./i18n-runtime.js?v=20260719d4"></script>
+<script src="./character-content-en.js?v=20260719d2"></script>
 <style>
 /* ============================================================
    TTRPG CAMPAIGN — Dragon Quest (NES) monochrome re-skin (เฟส 5)
@@ -1769,6 +1772,7 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
   <button class="tab" data-tab="quest" onclick="switchTab('quest')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/></svg></span><span class="tlab">Quest</span></button>
   <button class="tab" data-tab="files" onclick="switchTab('files')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="7" y="5" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/><rect x="2" y="7" width="1" height="1"/><rect x="5" y="7" width="1" height="1"/></svg></span><span class="tlab">Files</span></button>
   <button class="tab" data-tab="chron" onclick="switchTab('chron')"><span class="tico"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="1" height="1"/><rect x="1" y="0" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="6" y="0" width="1" height="1"/><rect x="7" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="7" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="7" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="7" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="7" y="5" width="1" height="1"/></svg></span><span class="tlab">Chronicle</span></button>
+  <button class="tab" data-tab="companion" onclick="switchTab('companion')"><span class="tico">🤝</span><span class="tlab">Companion</span></button>
 </div>
 <div id="mobileClock" class="mobileclock hidden"></div>
 </div>
@@ -1798,100 +1802,113 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
 
 <!-- LOBBY (v617 PLAY MODES: แยก HOST/JOIN → โหมดการเล่น 3 แบบ → สร้างโลก+แนวเนื้อเรื่อง 3 แบบ — docs/PLAY_MODES_PLAN.md §2) -->
 <div class="center hidden" id="lobbyScreen">
-  <!-- จอ 1: เลือกบทบาท -->
-  <div id="roleScreen">
-    <div class="card" id="createCard" onclick="lobbyGo('hostModeScreen')" style="cursor:pointer;text-align:left">
-      <h2>HOST — สร้างโลกใหม่</h2>
-      <p class="sub">คุณเป็นผู้คุมเกม (DM) ของโลกนี้ — เลือกรูปแบบการเล่น สร้างโลก แล้วชวนเพื่อนได้สูงสุด 4 คน</p>
-      <p class="note" style="font-weight:600">สร้างโลก →</p>
+  <!-- D1: pre-world bilingual picker. English stays hidden until the server flag is enabled. -->
+  <div id="languageScreen">
+    <div class="card" style="max-width:560px;text-align:center">
+      <h2 data-i18n="language.title">เลือกภาษาของโลก</h2>
+      <p class="sub" data-i18n="language.sub">ภาษาจะถูกล็อกเมื่อสร้างหรือเข้าร่วมโลกแล้ว และเปลี่ยนภายหลังไม่ได้</p>
+      <div class="srow2" style="gap:10px;margin-top:14px">
+        <button type="button" class="btn" onclick="chooseGameLanguage('th')" data-i18n="language.th">ไทย</button>
+        <button type="button" class="btn hidden" id="englishLanguageBtn" onclick="chooseGameLanguage('en')" data-i18n="language.en">ENGLISH</button>
+      </div>
+      <p class="note hidden" id="englishLanguageDisabled" data-i18n="language.enDisabled">English mode ยังไม่เปิดใช้งาน</p>
     </div>
-    <div class="divider">OR</div>
+  </div>
+  <!-- จอ 1: เลือกบทบาท -->
+  <div id="roleScreen" class="hidden">
+    <button type="button" class="btn ghost sm" onclick="showLanguagePicker()" style="margin-bottom:8px" data-i18n="common.backLanguage">← เปลี่ยนภาษา</button>
+    <div class="card" id="createCard" onclick="lobbyGo('hostModeScreen')" style="cursor:pointer;text-align:left">
+      <h2 data-i18n="role.hostTitle">HOST — สร้างโลกใหม่</h2>
+      <p class="sub" data-i18n="role.hostSub">คุณเป็นผู้คุมเกม (DM) ของโลกนี้ — เลือกรูปแบบการเล่น สร้างโลก แล้วชวนเพื่อนได้สูงสุด 4 คน</p>
+      <p class="note" style="font-weight:600" data-i18n="role.hostAction">สร้างโลก →</p>
+    </div>
+    <div class="divider" data-i18n="common.or">หรือ</div>
     <div class="card" onclick="lobbyGo('joinScreen')" style="cursor:pointer;text-align:left">
-      <h2>JOIN — เข้าร่วมโลกเพื่อน</h2>
-      <p class="sub">ขอรหัสเชิญ 6 ตัวอักษรจาก Host แล้วสร้างตัวละครเข้าไปผจญภัยด้วยกัน</p>
-      <p class="note" style="font-weight:600">ใส่รหัสเชิญ →</p>
+      <h2 data-i18n="role.joinTitle">JOIN — เข้าร่วมโลกเพื่อน</h2>
+      <p class="sub" data-i18n="role.joinSub">ขอรหัสเชิญ 6 ตัวอักษรจาก Host แล้วสร้างตัวละครเข้าไปผจญภัยด้วยกัน</p>
+      <p class="note" style="font-weight:600" data-i18n="role.joinAction">ใส่รหัสเชิญ →</p>
     </div>
   </div>
   <!-- จอ 2: JOIN (เหมือนเดิมทุกอย่าง แค่แยกจอ) -->
   <div id="joinScreen" class="hidden">
     <div class="card">
-      <button type="button" class="btn ghost sm" onclick="lobbyGo('roleScreen')" style="margin-bottom:8px">← กลับ</button>
-      <h2>Join with Code</h2>
-      <p class="sub">Ask the host for the 6-character invite code.</p>
-      <label class="fld">Invite code<input type="text" id="joinCode" placeholder="e.g. EMM8YM" maxlength="6" style="text-transform:uppercase;font-family:'VT323',monospace;font-size:22px;letter-spacing:4px;"/></label>
-      <button class="btn ghost" id="joinBtn" onclick="joinCampaign()">Join</button>
+      <button type="button" class="btn ghost sm" onclick="lobbyGo('roleScreen')" style="margin-bottom:8px" data-i18n="common.back">← กลับ</button>
+      <h2 data-i18n="join.title">เข้าร่วมด้วยรหัส</h2>
+      <p class="sub" data-i18n="join.sub">ขอรหัสเชิญ 6 ตัวอักษรจาก Host</p>
+      <label class="fld" data-i18n-prefix="join.code">รหัสเชิญ<input type="text" id="joinCode" data-i18n-placeholder="join.placeholder" placeholder="เช่น EMM8YM" maxlength="6" style="text-transform:uppercase;font-family:'VT323',monospace;font-size:22px;letter-spacing:4px;"/></label>
+      <button class="btn ghost" id="joinBtn" onclick="joinCampaign()" data-i18n="join.button">เข้าร่วม</button>
     </div>
   </div>
   <!-- จอ 3: HOST เลือกโหมดการเล่น -->
   <div id="hostModeScreen" class="hidden" style="max-width:560px">
-    <button type="button" class="btn ghost sm" onclick="lobbyGo('roleScreen')" style="margin-bottom:8px">← กลับ</button>
-    <h2 style="margin:4px 0">เลือกรูปแบบการเล่น</h2>
+    <button type="button" class="btn ghost sm" onclick="lobbyGo('roleScreen')" style="margin-bottom:8px" data-i18n="common.back">← กลับ</button>
+    <h2 style="margin:4px 0" data-i18n="mode.title">เลือกรูปแบบการเล่น</h2>
     <div class="card modepick" data-mode="open" onclick="pickMode(this,'open')" style="cursor:pointer;text-align:left;margin-bottom:10px;outline:2px solid currentColor">
-      <h2 style="font-size:17px">OPEN WORLD <span class="note" style="display:inline;font-weight:400">— เล่นอิสระ ไม่มีกำหนดจบ</span></h2>
-      <p class="sub" style="margin:4px 0 0">อยากทำอะไรก็ได้ตามใจ — รับงานจากกระดานประกาศ ออกสำรวจโลก หรือใช้ชีวิตสบายๆ ในเมือง เรื่องราวใหญ่จะค่อยๆ เผยตัวตามทางที่เราเลือกเอง เหมาะกับการเล่นต่อเนื่องยาวๆ</p>
+      <h2 style="font-size:17px">OPEN WORLD <span class="note" style="display:inline;font-weight:400" data-i18n="mode.openLabel">— เล่นอิสระ ไม่มีกำหนดจบ</span></h2>
+      <p class="sub" style="margin:4px 0 0" data-i18n="mode.openDesc">อยากทำอะไรก็ได้ตามใจ — รับงานจากกระดานประกาศ ออกสำรวจโลก หรือใช้ชีวิตสบายๆ ในเมือง เรื่องราวใหญ่จะค่อยๆ เผยตัวตามทางที่เราเลือกเอง เหมาะกับการเล่นต่อเนื่องยาวๆ</p>
     </div>
     <div class="card modepick" data-mode="session" onclick="pickMode(this,'session')" style="cursor:pointer;text-align:left;margin-bottom:10px">
-      <h2 style="font-size:17px">SESSION <span class="note" style="display:inline;font-weight:400">— เล่นจบเป็นตอนๆ ในโลกใบเดิม</span></h2>
-      <p class="sub" style="margin:4px 0 0">แต่ละตอนมีภารกิจใหญ่หนึ่งเรื่องให้ทำตั้งแต่ต้นจนจบ — สืบเรื่องราว ออกเดินทาง ผ่านศึกใหญ่ แล้วรับรางวัลปิดตอน กลับมาเล่นครั้งหน้าก็เริ่มตอนใหม่ต่อจากเรื่องเดิม เหมาะกับการนัดเล่นเป็นครั้งๆ</p>
+      <h2 style="font-size:17px">SESSION <span class="note" style="display:inline;font-weight:400" data-i18n="mode.sessionLabel">— เล่นจบเป็นตอนๆ ในโลกใบเดิม</span></h2>
+      <p class="sub" style="margin:4px 0 0" data-i18n="mode.sessionDesc">แต่ละตอนมีภารกิจใหญ่หนึ่งเรื่องให้ทำตั้งแต่ต้นจนจบ — สืบเรื่องราว ออกเดินทาง ผ่านศึกใหญ่ แล้วรับรางวัลปิดตอน กลับมาเล่นครั้งหน้าก็เริ่มตอนใหม่ต่อจากเรื่องเดิม เหมาะกับการนัดเล่นเป็นครั้งๆ</p>
     </div>
     <div class="card modepick" data-mode="oneshot" onclick="pickMode(this,'oneshot')" style="cursor:pointer;text-align:left;margin-bottom:10px">
-      <h2 style="font-size:17px">ONE SHOT <span class="note" style="display:inline;font-weight:400">— เรื่องสั้น จบในรอบเดียว</span></h2>
-      <p class="sub" style="margin:4px 0 0">เริ่มด้วยตัวละครฝีมือระดับสูงและภารกิจที่ชัดเจนตั้งแต่ต้น เดินเรื่องเข้มข้นรวดเดียวถึงบทสรุป จบแล้วโลกปิดถาวร (ยังเปิดอ่านย้อนหลังได้) เหมาะกับลองเล่นครั้งแรก หรืออยากเล่นให้จบในคืนเดียว</p>
+      <h2 style="font-size:17px">ONE SHOT <span class="note" style="display:inline;font-weight:400" data-i18n="mode.oneshotLabel">— เรื่องสั้น จบในรอบเดียว</span></h2>
+      <p class="sub" style="margin:4px 0 0" data-i18n="mode.oneshotDesc">เริ่มด้วยตัวละครฝีมือระดับสูงและภารกิจที่ชัดเจนตั้งแต่ต้น เดินเรื่องเข้มข้นรวดเดียวถึงบทสรุป จบแล้วโลกปิดถาวร (ยังเปิดอ่านย้อนหลังได้) เหมาะกับลองเล่นครั้งแรก หรืออยากเล่นให้จบในคืนเดียว</p>
     </div>
-    <button class="btn" onclick="modeNext()" style="margin-top:4px">ถัดไป: สร้างโลก →</button>
+    <button class="btn" onclick="modeNext()" style="margin-top:4px" data-i18n="mode.next">ถัดไป: สร้างโลก →</button>
   </div>
   <!-- จอ 4: HOST สร้างโลก (open/session) — ตัดเพลงออก (ไปลงทีหลังแท็บ Files) + เพิ่มแนวเนื้อเรื่อง -->
   <div id="hostCreateScreen" class="hidden">
     <div class="card">
-      <button type="button" class="btn ghost sm" onclick="lobbyGo('hostModeScreen')" style="margin-bottom:8px">← กลับไปเลือกโหมด</button>
-      <h2>New Campaign <span class="note" id="createModeChip" style="display:inline">OPEN WORLD</span></h2>
-      <p class="sub">You'll be the host (DM) of this world — up to 4 players.</p>
-      <label class="fld">Campaign name<input type="text" id="newName" placeholder="e.g. Legend of Eldraria"/></label>
-      <div class="fld" style="margin-bottom:4px;font-size:13px;color:var(--gray);line-height:1.6">แนวเนื้อเรื่อง (Story Style) — ระบบใช้ถ่วงน้ำหนักการสุ่มเควส/การผจญภัยทั้งโลก</div><!-- v628ui: เดิม div.fld ไม่มี font-size (label.fld เท่านั้นที่มี) → ตกไปใช้ขนาด body ใหญ่เกิน+ตัดคำกลางพยางค์ -->
+      <button type="button" class="btn ghost sm" onclick="lobbyGo('hostModeScreen')" style="margin-bottom:8px" data-i18n="common.backMode">← กลับไปเลือกโหมด</button>
+      <h2><span data-i18n="create.title">สร้างแคมเปญใหม่</span> <span class="note" id="createModeChip" style="display:inline">OPEN WORLD</span></h2>
+      <p class="sub" data-i18n="create.sub">คุณเป็น Host (DM) ของโลกนี้ — ผู้เล่นได้สูงสุด 4 คน</p>
+      <label class="fld" data-i18n-prefix="create.name">ชื่อแคมเปญ<input type="text" id="newName" data-i18n-placeholder="create.namePlaceholder" placeholder="เช่น ตำนานแห่งเอลดราเรีย"/></label>
+      <div class="fld" style="margin-bottom:4px;font-size:13px;color:var(--gray);line-height:1.6" data-i18n="create.storyStyle">แนวเนื้อเรื่อง (Story Style) — ระบบใช้ถ่วงน้ำหนักการสุ่มเควส/การผจญภัยทั้งโลก</div><!-- v628ui: เดิม div.fld ไม่มี font-size (label.fld เท่านั้นที่มี) → ตกไปใช้ขนาด body ใหญ่เกิน+ตัดคำกลางพยางค์ -->
       <div class="card stylepick" data-style="journey" onclick="pickStyle(this,'journey','hostCreateScreen')" style="cursor:pointer;text-align:left;padding:8px 12px;margin:4px 0;outline:2px solid currentColor">
-        <b>🧭 EPIC JOURNEY</b> <span class="note" style="display:inline">— การเดินทางอิสระตามปกติ ปริศนา+การผจญภัยหลายรูปแบบสุ่มคละกัน (ค่าเริ่มต้น)</span>
+        <b>🧭 EPIC JOURNEY</b> <span class="note" style="display:inline" data-i18n="style.journeyDesc">— การเดินทางอิสระตามปกติ ปริศนา+การผจญภัยหลายรูปแบบสุ่มคละกัน (ค่าเริ่มต้น)</span>
       </div>
       <div class="card stylepick" data-style="mystery" onclick="pickStyle(this,'mystery','hostCreateScreen')" style="cursor:pointer;text-align:left;padding:8px 12px;margin:4px 0">
-        <b>🕯 MYSTERY</b> <span class="note" style="display:inline">— เน้นแก้ปริศนา ช่วยเหลือชาวบ้าน เดินเรื่องในเมืองเป็นหลัก · คอมแบต/ดันเจี้ยนเป็นรอง</span>
+        <b>🕯 MYSTERY</b> <span class="note" style="display:inline" data-i18n="style.mysteryDesc">— เน้นแก้ปริศนา ช่วยเหลือชาวบ้าน เดินเรื่องในเมืองเป็นหลัก · คอมแบต/ดันเจี้ยนเป็นรอง</span>
       </div>
       <div class="card stylepick" data-style="dungeon" onclick="pickStyle(this,'dungeon','hostCreateScreen')" style="cursor:pointer;text-align:left;padding:8px 12px;margin:4px 0">
-        <b>⛏ DUNGEON CRAWLER</b> <span class="note" style="display:inline">— ไล่ลงดันเจี้ยนปริศนาไปเรื่อยๆ พัซเซิล+คอมแบตเข้มข้นเป็นแกน</span>
+        <b>⛏ DUNGEON CRAWLER</b> <span class="note" style="display:inline" data-i18n="style.dungeonDesc">— ไล่ลงดันเจี้ยนปริศนาไปเรื่อยๆ พัซเซิล+คอมแบตเข้มข้นเป็นแกน</span>
       </div>
-      <label class="fld">Rules / tone (optional)<textarea id="newRules" placeholder="พิมพ์กติกา/โทนของโลก เช่น &quot;high fantasy, ความรุนแรงต่ำ, เน้นไขปริศนามากกว่าบู๊&quot; — หรือปล่อยว่างให้ DM ใช้กลไกมาตรฐาน (ลอร์เฉพาะโลกใส่ทีหลังด้วยเครื่องมือ ingest)"></textarea></label>
+      <label class="fld" data-i18n-prefix="create.rules">กติกา / โทน (ไม่บังคับ)<textarea id="newRules" data-i18n-placeholder="create.rulesPlaceholder" placeholder="พิมพ์กติกาหรือโทนของโลก หรือปล่อยว่างให้ DM ใช้กลไกมาตรฐาน"></textarea></label>
       <div class="srow2" style="gap:8px">
-        <label class="fld">โทนเรื่อง (Tone)<input type="text" id="newTone" placeholder="เช่น heroic, dark, mystery, comedic"/></label>
+        <label class="fld" data-i18n-prefix="create.tone">โทนเรื่อง<input type="text" id="newTone" data-i18n-placeholder="create.tonePlaceholder" placeholder="เช่น heroic, dark, mystery, comedic"/></label>
       </div>
       <!-- (ตัดช่องอัปไฟล์กฎ/อ้างอิงออก — กลไก DM อยู่ในโค้ดกลางแล้ว; ลอร์เฉพาะโลกใช้เครื่องมือ ingest แทน) -->
-      <p class="note">🎵 เพลงประกอบ — ตัดออกจากหน้านี้แล้ว ไปเพิ่มทีหลังได้ที่แท็บ <b>Files</b> ในเกม (อัปโหลด + เลือกอารมณ์เพลง + ลบ ครบทุกอย่าง)</p>
-      <button class="btn" id="createBtn" onclick="createCampaign()">Create Campaign</button>
+      <p class="note" data-i18n="create.musicNote">🎵 เพลงประกอบ — เพิ่มภายหลังได้ที่แท็บ Files ในเกม</p>
+      <button class="btn" id="createBtn" onclick="createCampaign()" data-i18n="create.button">สร้างแคมเปญ</button>
     </div>
   </div>
   <!-- จอ 4b: ONE SHOT ฟอร์มย่อ -->
   <div id="hostOneshotScreen" class="hidden">
     <div class="card">
-      <button type="button" class="btn ghost sm" onclick="lobbyGo('hostModeScreen')" style="margin-bottom:8px">← กลับไปเลือกโหมด</button>
-      <h2>ONE SHOT — ตั้งโจทย์เรื่องเดียวจบ</h2>
-      <p class="sub">ฟอร์มย่อ — โลกใบนี้เกิดมาเพื่อเรื่องนี้เรื่องเดียว จบแล้วปิดถาวร (อ่านย้อนได้ เล่นต่อไม่ได้)</p>
-      <label class="fld">ชื่อเรื่อง<input type="text" id="osName" placeholder="เช่น คืนสังหารที่คฤหาสน์เรเวนมัวร์"/></label>
-      <div class="fld" style="margin-bottom:4px;font-size:13px;color:var(--gray);line-height:1.6">แนวเนื้อเรื่อง — คุมโครงทั้งเรื่อง</div>
+      <button type="button" class="btn ghost sm" onclick="lobbyGo('hostModeScreen')" style="margin-bottom:8px" data-i18n="common.backMode">← กลับไปเลือกโหมด</button>
+      <h2 data-i18n="oneshot.title">ONE SHOT — ตั้งโจทย์เรื่องเดียวจบ</h2>
+      <p class="sub" data-i18n="oneshot.sub">ฟอร์มย่อ — โลกใบนี้เกิดมาเพื่อเรื่องนี้เรื่องเดียว จบแล้วปิดถาวร (อ่านย้อนได้ เล่นต่อไม่ได้)</p>
+      <label class="fld" data-i18n-prefix="oneshot.name">ชื่อเรื่อง<input type="text" id="osName" data-i18n-placeholder="oneshot.namePlaceholder" placeholder="เช่น คืนสังหารที่คฤหาสน์เรเวนมัวร์"/></label>
+      <div class="fld" style="margin-bottom:4px;font-size:13px;color:var(--gray);line-height:1.6" data-i18n="oneshot.style">แนวเนื้อเรื่อง — คุมโครงทั้งเรื่อง</div>
       <div class="card stylepick" data-style="journey" onclick="pickStyle(this,'journey','hostOneshotScreen')" style="cursor:pointer;text-align:left;padding:8px 12px;margin:4px 0;outline:2px solid currentColor">
-        <b>🧭 EPIC JOURNEY</b> <span class="note" style="display:inline">— ภารกิจผจญภัยเข้มข้นเรื่องเดียว เดินทาง→ปะทะ→ไคลแมกซ์</span>
+        <b>🧭 EPIC JOURNEY</b> <span class="note" style="display:inline" data-i18n="oneshot.journeyDesc">— ภารกิจผจญภัยเข้มข้นเรื่องเดียว เดินทาง→ปะทะ→ไคลแมกซ์</span>
       </div>
       <div class="card stylepick" data-style="mystery" onclick="pickStyle(this,'mystery','hostOneshotScreen')" style="cursor:pointer;text-align:left;padding:8px 12px;margin:4px 0">
-        <b>🕯 MYSTERY</b> <span class="note" style="display:inline">— คดีเดียวไขให้จบ</span>
+        <b>🕯 MYSTERY</b> <span class="note" style="display:inline" data-i18n="oneshot.mysteryDesc">— คดีเดียวไขให้จบ</span>
       </div>
       <div class="card stylepick" data-style="dungeon" onclick="pickStyle(this,'dungeon','hostOneshotScreen')" style="cursor:pointer;text-align:left;padding:8px 12px;margin:4px 0">
-        <b>⛏ DUNGEON CRAWLER</b> <span class="note" style="display:inline">— ดันเจี้ยนเดียว ดำดิ่งถึงก้น โค่นสิ่งที่เฝ้าอยู่</span>
+        <b>⛏ DUNGEON CRAWLER</b> <span class="note" style="display:inline" data-i18n="oneshot.dungeonDesc">— ดันเจี้ยนเดียว ดำดิ่งถึงก้น โค่นสิ่งที่เฝ้าอยู่</span>
       </div>
-      <label class="fld">โจทย์ของเรื่อง (สั้นๆ พอ — DM ขยายเอง)<textarea id="osPremise" style="height:70px" placeholder="เช่น &quot;ขุนนางถูกฆ่ากลางงานเลี้ยง ประตูปิดตาย ฆาตกรอยู่ในหมู่แขก&quot;"></textarea></label>
-      <div class="fld" style="margin-bottom:4px;font-size:13px;color:var(--gray);line-height:1.6">เลเวลเริ่มต้นของปาร์ตี้ — ทุกคนถูกดันขึ้นถึงเลเวลนี้หลังสร้างตัวละคร (เลือก feature เองทีละขั้น)</div>
+      <label class="fld" data-i18n-prefix="oneshot.premise">โจทย์ของเรื่อง (สั้นๆ พอ — DM ขยายเอง)<textarea id="osPremise" style="height:70px" data-i18n-placeholder="oneshot.premisePlaceholder" placeholder="เช่น ขุนนางถูกฆ่ากลางงานเลี้ยง ประตูปิดตาย ฆาตกรอยู่ในหมู่แขก"></textarea></label>
+      <div class="fld" style="margin-bottom:4px;font-size:13px;color:var(--gray);line-height:1.6" data-i18n="oneshot.level">เลเวลเริ่มต้นของปาร์ตี้ — ทุกคนถูกดันขึ้นถึงเลเวลนี้หลังสร้างตัวละคร</div>
       <div class="srow3" style="gap:8px">
-        <div class="card lvlpick" data-lv="3" onclick="pickLevel(this,3)" style="cursor:pointer;text-align:center;padding:8px 4px"><b>เลเวล 3</b><div class="note">เหมาะกับมือใหม่</div></div>
-        <div class="card lvlpick" data-lv="5" onclick="pickLevel(this,5)" style="cursor:pointer;text-align:center;padding:8px 4px;outline:2px solid currentColor"><b>เลเวล 5</b><div class="note">ช่วงสนุกสุดของ D&D</div></div>
-        <div class="card lvlpick" data-lv="8" onclick="pickLevel(this,8)" style="cursor:pointer;text-align:center;padding:8px 4px"><b>เลเวล 8</b><div class="note">สายบู๊จัดเต็ม</div></div>
+        <div class="card lvlpick" data-lv="3" onclick="pickLevel(this,3)" style="cursor:pointer;text-align:center;padding:8px 4px"><b data-i18n="oneshot.level3">เลเวล 3</b><div class="note" data-i18n="oneshot.level3Note">เหมาะกับมือใหม่</div></div>
+        <div class="card lvlpick" data-lv="5" onclick="pickLevel(this,5)" style="cursor:pointer;text-align:center;padding:8px 4px;outline:2px solid currentColor"><b data-i18n="oneshot.level5">เลเวล 5</b><div class="note" data-i18n="oneshot.level5Note">ช่วงสนุกสุดของ D&D</div></div>
+        <div class="card lvlpick" data-lv="8" onclick="pickLevel(this,8)" style="cursor:pointer;text-align:center;padding:8px 4px"><b data-i18n="oneshot.level8">เลเวล 8</b><div class="note" data-i18n="oneshot.level8Note">สายบู๊จัดเต็ม</div></div>
       </div>
-      <p class="note" style="margin-top:8px">ตัดออกจากฟอร์มย่อ: 🎵 เพลง · โทนเรื่องแยกช่อง (รวมในโจทย์ได้เลย) · ลอร์ ingest</p>
-      <button class="btn" id="createOsBtn" onclick="createCampaign()">เริ่มเรื่อง ⚡</button>
+      <p class="note" style="margin-top:8px" data-i18n="oneshot.omitted">ตัดออกจากฟอร์มย่อ: เพลง · โทนเรื่องแยกช่อง · ลอร์ ingest</p>
+      <button class="btn" id="createOsBtn" onclick="createCampaign()" data-i18n="oneshot.button">เริ่มเรื่อง ⚡</button>
     </div>
   </div>
 </div>
@@ -1899,56 +1916,57 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
 <!-- CHARACTER CREATE -->
 <div class="center hidden" id="charScreen">
   <div class="card" style="max-width:480px">
-    <h2>Create Character</h2>
-    <p class="sub">อ่านปูมหลังโลกที่ DM เล่าก่อน แล้วสร้างตัวละครให้เข้ากับโลกนี้ — ตั้งค่าตามกฎ D&D หรือจะนอกกฎให้ DM improvise ก็ได้ (ข้อมูลพื้นฐานทุกคนเห็น · แผ่นเต็มเห็นเฉพาะคุณ)</p>
+    <h2 data-i18n="builder.title">สร้างตัวละคร</h2>
+    <p class="sub" data-i18n="builder.sub">อ่านปูมหลังโลกก่อน แล้วสร้างตัวละครให้เข้ากับโลกนี้ ข้อมูลพื้นฐานทุกคนเห็น ส่วนแผ่นเต็มเห็นเฉพาะคุณ</p>
     <div id="joinBrief" class="hidden" style="text-align:left;border:var(--px) solid var(--white);border-radius:8px;padding:12px 14px;margin:4px 0 12px;background:rgba(255,255,255,.04);max-height:220px;overflow:auto"></div>
-    <label class="fld">Name<input type="text" id="cName" placeholder="e.g. Kael"/></label>
+    <label class="fld" data-i18n-prefix="builder.name">ชื่อ<input type="text" id="cName" data-i18n-placeholder="builder.namePlaceholder" placeholder="เช่น Kael"/></label>
     <div class="srow3">
-      <label class="fld">Race<select id="cRace" onchange="onRaceChange()"><option value="">— เลือกเผ่า —</option><option>Human</option><option>Elf</option><option>Drow (Dark Elf)</option><option>Dwarf</option><option>Halfling</option><option>Half-Elf</option><option>Half-Orc</option><option>Tiefling</option><option>Dragonborn</option><option>Gnome</option><option>Aasimar</option><option>Goliath</option><option>Orc</option><option value="__custom">อื่นๆ (พิมพ์เอง)</option></select></label>
-      <label class="fld">Sex<select id="cSex"><option value="">— เลือก —</option><option value="ชาย">ชาย (M)</option><option value="หญิง">หญิง (F)</option><option value="อื่นๆ">อื่นๆ/ไม่ระบุ</option></select></label>
-      <label class="fld">Age<input type="text" id="cAge" placeholder="e.g. 24"/></label>
+      <label class="fld" data-i18n-prefix="builder.race">เผ่า<select id="cRace" onchange="onRaceChange()"><option value="" data-i18n="builder.selectRace">— เลือกเผ่า —</option><option>Human</option><option>Elf</option><option>Drow (Dark Elf)</option><option>Dwarf</option><option>Halfling</option><option>Half-Elf</option><option>Half-Orc</option><option>Tiefling</option><option>Dragonborn</option><option>Gnome</option><option>Aasimar</option><option>Goliath</option><option>Orc</option><option value="__custom" data-i18n="builder.custom">อื่นๆ (พิมพ์เอง)</option></select></label>
+      <label class="fld" data-i18n-prefix="builder.sex">เพศ<select id="cSex"><option value="" data-i18n="builder.select">— เลือก —</option><option value="male" data-i18n="builder.male">ชาย (M)</option><option value="female" data-i18n="builder.female">หญิง (F)</option><option value="other" data-i18n="builder.other">อื่นๆ/ไม่ระบุ</option></select></label>
+      <label class="fld" data-i18n-prefix="builder.age">อายุ<input type="text" id="cAge" data-i18n-placeholder="builder.agePlaceholder" placeholder="เช่น 24"/></label>
     </div>
-    <input type="text" id="cRaceCustom" class="hidden" placeholder="ชื่อเผ่านอกกฎ เช่น Aarakocra" style="margin:6px 0"/>
+    <label class="fld" data-i18n-prefix="builder.birth">วันเกิดในปฏิทินโลก (ไม่บังคับ)<input type="text" id="cBirth" data-i18n-placeholder="builder.birthPlaceholder" placeholder="YYYY-MM-DD · เดือนละ 30 วัน"/></label>
+    <input type="text" id="cRaceCustom" class="hidden" data-i18n-placeholder="builder.customRacePlaceholder" placeholder="ชื่อเผ่านอกกฎ เช่น Aarakocra" style="margin:6px 0"/>
     <div id="cRaceInfo" class="note hidden" style="text-align:left;border-left:3px solid #5B8DEF;padding:4px 8px;margin:2px 0 6px"></div>
-    <div id="cDragonElem" class="hidden" style="text-align:left;margin:2px 0 6px;font-size:13px">ธาตุสายมังกร (Dragonborn): <select id="cDragonElemSel" onchange="dragonbornElement=this.value" style="margin-left:4px"><option value="fire">ไฟ Fire (แดง/ทอง/ทองเหลือง)</option><option value="cold">เย็น Cold (ขาว/เงิน)</option><option value="lightning">ไฟฟ้า Lightning (น้ำเงิน/บรอนซ์)</option><option value="acid">กรด Acid (ดำ/ทองแดง)</option><option value="poison">พิษ Poison (เขียว)</option></select> <span class="muted" style="font-size:12px">— ใช้กับลมหายใจ + ความต้านทาน</span></div>
+    <div id="cDragonElem" class="hidden" style="text-align:left;margin:2px 0 6px;font-size:13px"><span data-i18n="builder.dragonElement">ธาตุสายมังกร (Dragonborn):</span> <select id="cDragonElemSel" onchange="dragonbornElement=this.value" style="margin-left:4px"><option value="fire" data-i18n="builder.dragonFire">ไฟ Fire (แดง/ทอง/ทองเหลือง)</option><option value="cold" data-i18n="builder.dragonCold">เย็น Cold (ขาว/เงิน)</option><option value="lightning" data-i18n="builder.dragonLightning">ไฟฟ้า Lightning (น้ำเงิน/บรอนซ์)</option><option value="acid" data-i18n="builder.dragonAcid">กรด Acid (ดำ/ทองแดง)</option><option value="poison" data-i18n="builder.dragonPoison">พิษ Poison (เขียว)</option></select> <span class="muted" style="font-size:12px" data-i18n="builder.dragonNote">— ใช้กับลมหายใจ + ความต้านทาน</span></div>
     <datalist id="raceList">
       <option value="Human"></option><option value="Elf"></option><option value="Dwarf"></option>
       <option value="Halfling"></option><option value="Half-Elf"></option><option value="Half-Orc"></option>
       <option value="Tiefling"></option><option value="Dragonborn"></option><option value="Gnome"></option>
       <option value="Aasimar"></option><option value="Goliath"></option><option value="Orc"></option>
     </datalist>
-    <label class="fld">Class
+    <label class="fld" data-i18n-prefix="builder.class">อาชีพ
       <select id="cClass" onchange="onClassChange()">
-        <option value="">— เลือกอาชีพ —</option>
+        <option value="" data-i18n="builder.selectClass">— เลือกอาชีพ —</option>
         <option>Barbarian</option><option>Bard</option><option>Cleric</option>
         <option>Druid</option><option>Fighter</option><option>Monk</option>
         <option>Paladin</option><option>Ranger</option><option>Rogue</option>
         <option>Sorcerer</option><option>Warlock</option><option>Wizard</option><option>Artificer</option>
-        <option value="__custom">อื่นๆ (พิมพ์เอง / นอกกฎ)</option>
+        <option value="__custom" data-i18n="builder.customClass">อื่นๆ (พิมพ์เอง / นอกกฎ)</option>
       </select>
     </label>
-    <input type="text" id="cClassCustom" class="hidden" oninput="suggestHP();renderSkillPick()" placeholder="ชื่ออาชีพนอกกฎ เช่น Blood Hunter" style="margin-top:6px"/>
+    <input type="text" id="cClassCustom" class="hidden" oninput="suggestHP();renderSkillPick()" data-i18n-placeholder="builder.customClassPlaceholder" placeholder="ชื่ออาชีพนอกกฎ เช่น Blood Hunter" style="margin-top:6px"/>
     <div id="cClassInfo" class="note hidden" style="text-align:left;border-left:3px solid #97C459;padding:4px 8px;margin:2px 0 6px"></div>
-    <div class="sectitle" style="margin-top:6px">STARTING EQUIPMENT (ชุดเริ่มต้น)</div>
-    <div id="pkgWrap" class="note">เลือกอาชีพก่อน เพื่อดูชุดเริ่มต้นตามคลาส</div>
-    <div class="sectitle" style="margin-top:4px">ABILITY SCORES · POINT BUY</div>
+    <div class="sectitle" style="margin-top:6px" data-i18n="builder.equipment">ชุดอุปกรณ์เริ่มต้น</div>
+    <div id="pkgWrap" class="note" data-i18n="builder.chooseClassPackage">เลือกอาชีพก่อน เพื่อดูชุดเริ่มต้นตามคลาส</div>
+    <div class="sectitle" style="margin-top:4px" data-i18n="builder.pointBuy">ค่าความสามารถ · POINT BUY</div>
     <div id="pbInfo" class="note" style="text-align:center;margin:2px 0;font-size:13px"></div>
     <div id="pbWrap" class="pbgrid"></div>
     <div class="srow2" style="margin-top:4px">
-      <button type="button" class="btn ghost sm" onclick="pbStandard()">Standard Array</button>
-      <button type="button" class="btn ghost sm" onclick="pbReset()">Reset (all 8)</button>
+      <button type="button" class="btn ghost sm" onclick="pbStandard()" data-i18n="builder.standardArray">Standard Array</button>
+      <button type="button" class="btn ghost sm" onclick="pbReset()" data-i18n="builder.reset">รีเซ็ต (ทุกค่าเป็น 8)</button>
     </div>
-    <div class="note">งบ 27 แต้ม · ค่า 8–15 (ก่อนโบนัสเผ่า) · 14–15 ใช้แต้มแพงขึ้น</div>
-    <div class="sectitle" style="margin-top:8px">RACIAL / BACKGROUND BONUS</div>
-    <div class="note" style="margin:0 0 4px">เลือกโบนัสเผ่า/พื้นเพ (2024 RAW): +2 และ +1 คนละค่า หรือ +1/+1/+1 สามค่า → สูงสุด 17</div>
+    <div class="note" data-i18n="builder.pointBudget">งบ 27 แต้ม · ค่า 8–15 (ก่อนโบนัสเผ่า) · 14–15 ใช้แต้มแพงขึ้น</div>
+    <div class="sectitle" style="margin-top:8px" data-i18n="builder.bonus">โบนัสเผ่า / พื้นเพ</div>
+    <div class="note" style="margin:0 0 4px" data-i18n="builder.bonusNote">เลือก +2 และ +1 คนละค่า หรือ +1/+1/+1 สามค่า → สูงสุด 17</div>
     <div id="bonusWrap"></div>
     <div id="finalScores" class="note" style="text-align:center;margin:4px 0;font-size:14px"></div>
     <div class="srow2">
-      <label class="fld">Max HP (auto ตามกฎ)<input type="number" id="cHp" readonly style="color:#9a9a9a"/></label>
-      <label class="fld">Starting weapon<select id="cWeapon" onchange="onWeaponChange()"><option value="">— เลือกอาวุธ —</option><option>Dagger (1d4 piercing)</option><option>Club (1d4 bludgeoning)</option><option>Quarterstaff (1d6 bludgeoning)</option><option>Spear (1d6 piercing)</option><option>Handaxe (1d6 slashing)</option><option>Mace (1d6 bludgeoning)</option><option>Shortsword (1d6 piercing)</option><option>Rapier (1d8 piercing)</option><option>Longsword (1d8 slashing)</option><option>Warhammer (1d8 bludgeoning)</option><option>Battleaxe (1d8 slashing)</option><option>Shortbow (1d6 piercing)</option><option>Longbow (1d8 piercing)</option><option>Light Crossbow (1d8 piercing)</option><option>Greatsword (2d6 slashing)</option><option>Greataxe (1d12 slashing)</option><option value="__custom">อื่นๆ (พิมพ์เอง)</option></select></label>
+      <label class="fld" data-i18n-prefix="builder.maxHp">Max HP (คำนวณตามกฎ)<input type="number" id="cHp" readonly style="color:#9a9a9a"/></label>
+      <label class="fld" data-i18n-prefix="builder.weapon">อาวุธเริ่มต้น<select id="cWeapon" onchange="onWeaponChange()"><option value="" data-i18n="builder.selectWeapon">— เลือกอาวุธ —</option><option>Dagger (1d4 piercing)</option><option>Club (1d4 bludgeoning)</option><option>Quarterstaff (1d6 bludgeoning)</option><option>Spear (1d6 piercing)</option><option>Handaxe (1d6 slashing)</option><option>Mace (1d6 bludgeoning)</option><option>Shortsword (1d6 piercing)</option><option>Rapier (1d8 piercing)</option><option>Longsword (1d8 slashing)</option><option>Warhammer (1d8 bludgeoning)</option><option>Battleaxe (1d8 slashing)</option><option>Shortbow (1d6 piercing)</option><option>Longbow (1d8 piercing)</option><option>Light Crossbow (1d8 piercing)</option><option>Greatsword (2d6 slashing)</option><option>Greataxe (1d12 slashing)</option><option value="__custom" data-i18n="builder.custom">อื่นๆ (พิมพ์เอง)</option></select></label>
     </div>
-    <input type="text" id="cWeaponCustom" class="hidden" placeholder="อาวุธนอกกฎ เช่น Whip (1d4)" style="margin:6px 0"/>
-    <div class="note">HP เลเวล 1 = Hit Die สูงสุดของคลาส + CON modifier (custom class = d8) — เปลี่ยนคลาส/CON แล้วคำนวณให้อัตโนมัติ</div>
+    <input type="text" id="cWeaponCustom" class="hidden" data-i18n-placeholder="builder.customWeaponPlaceholder" placeholder="อาวุธนอกกฎ เช่น Whip (1d4)" style="margin:6px 0"/>
+    <div class="note" data-i18n="builder.hpNote">HP เลเวล 1 = Hit Die สูงสุดของคลาส + CON modifier (custom class = d8)</div>
     <datalist id="basicWeapons">
       <option value="Dagger (1d4 piercing)"></option><option value="Club (1d4 bludgeoning)"></option>
       <option value="Quarterstaff (1d6 bludgeoning)"></option><option value="Spear (1d6 piercing)"></option>
@@ -1959,15 +1977,15 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
       <option value="Longbow (1d8 piercing)"></option><option value="Light Crossbow (1d8 piercing)"></option>
       <option value="Greatsword (2d6 slashing)"></option><option value="Greataxe (1d12 slashing)"></option>
     </datalist>
-    <div class="sectitle" style="margin-top:4px">SKILL PROFICIENCIES</div>
+    <div class="sectitle" style="margin-top:4px" data-i18n="builder.skills">ทักษะถนัด</div>
     <div id="skillInfo" class="note"></div>
     <div id="skillWrap" class="skgrid"></div>
-    <div class="sectitle" id="spellSecTitle" style="margin-top:4px;display:none">CANTRIP / เวทเริ่มต้น</div>
+    <div class="sectitle" id="spellSecTitle" style="margin-top:4px;display:none" data-i18n="builder.spells">CANTRIP / เวทเริ่มต้น</div>
     <div id="spellInfo" class="note" style="display:none"></div>
     <div id="spellWrap" class="skgrid" style="display:none"></div>
-    <label class="fld">Background / notes (private)<textarea id="cNotes" placeholder="ภูมิหลัง ความลับ ฯลฯ (เห็นเฉพาะคุณ)"></textarea></label>
-    <label class="fld">🎯 ปมที่อยากให้ DM หยิบไปผูกเรื่อง (DM เห็น)<textarea id="cHooks" placeholder="เช่น: ตามหาน้องสาวที่หายไป · กลัวไฟเพราะบ้านเคยถูกเผา · เป็นหนี้กิลด์โจร — DM จะค่อยๆ ผูกเข้าเควส/NPC ให้รู้สึกว่าเรื่องเกี่ยวกับเรา (ต่างจาก notes ลับด้านบน)"></textarea></label>
-    <button class="btn" id="charBtn" onclick="createCharacter()">Enter the World</button>
+    <label class="fld" data-i18n-prefix="builder.notes">ภูมิหลัง / โน้ต (ส่วนตัว)<textarea id="cNotes" data-i18n-placeholder="builder.notesPlaceholder" placeholder="ภูมิหลัง ความลับ ฯลฯ (เห็นเฉพาะคุณ)"></textarea></label>
+    <label class="fld" data-i18n-prefix="builder.hooks">🎯 ปมที่อยากให้ DM หยิบไปผูกเรื่อง (DM เห็น)<textarea id="cHooks" data-i18n-placeholder="builder.hooksPlaceholder" placeholder="เช่น ตามหาน้องสาวที่หายไป หรือเป็นหนี้กิลด์โจร"></textarea></label>
+    <button class="btn" id="charBtn" onclick="createCharacter()" data-i18n="builder.enter">เข้าสู่โลก</button>
   </div>
 </div>
 
@@ -1987,6 +2005,7 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
 <div class="panel" id="panel-quest" data-tab="quest"></div>
 <div class="panel" id="panel-files" data-tab="files"></div>
 <div class="panel" id="panel-chron" data-tab="chron"></div>
+<div class="panel" id="panel-companion" data-tab="companion" style="max-width:1120px"></div>
 
 <div class="toast" id="toast"></div>
 
@@ -1999,6 +2018,8 @@ const SUPA_URL = 'https://caxksvqlgrvwnjynbbye.supabase.co';
 const SUPA_ANON = 'sb_publishable_kODadNf7PNUWJr_ZTViABw_IsP6ggJ6';
 // ▲▲▲ key สาธารณะ (publishable) — ปลอดภัยที่จะฝัง ความปลอดภัยจริงอยู่ที่ RLS ▲▲▲
 const RESOLVE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/resolve-round';
+const FRONTEND_BUILD = 202607190700;   // v700 dynamic catalog campaign/language isolation + curated readiness scope
+const FRONTEND_COMPAT_EPOCH = 2;
 const INGEST_FN  = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-file';
 const INGEST_PUZZLE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-puzzle';
 const DUNGEON_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-dungeon';
@@ -2025,14 +2046,15 @@ if(BETA){
     try{
       if(typeof u==='string'&&u.indexOf(RESOLVE_FN)===0&&opt&&typeof opt.body==='string'){
         const b=JSON.parse(opt.body);
-        if(betaCode()&&b&&typeof b==='object'&&!b.beta_code) b.beta_code=betaCode();
+        if(BETA&&betaCode()&&b&&typeof b==='object'&&!b.beta_code) b.beta_code=betaCode();
+        if(b&&typeof b==='object'){ if(!b.client_build) b.client_build=FRONTEND_BUILD; if(!b.client_epoch) b.client_epoch=FRONTEND_COMPAT_EPOCH; }
         opt=Object.assign({},opt,{body:JSON.stringify(b)});
       }
     }catch(e){}
     const p=_F(u,opt);
     try{
       if(typeof u==='string'&&u.indexOf(RESOLVE_FN)===0){
-        p.then(r=>{ if(r&&r.status===403){ r.clone().json().then(j=>{
+        p.then(r=>{ try{ frontendRequirementSeen(r.headers.get('X-Min-Frontend-Build'),r.headers.get('X-Min-Frontend-Epoch')); }catch(e){} if(BETA&&r&&r.status===403){ r.clone().json().then(j=>{
           if(j&&j.error==='beta_code_required'){ try{localStorage.removeItem('betaCode');}catch(e){} alert('รหัสเบต้าไม่ถูกต้อง/หมดอายุ — รีเฟรชหน้าแล้วใส่รหัสใหม่ (ขอจากผู้ดูแล)'); }
           else if(j&&j.error==='gemini_key_required'){ betaAskKey(); }
         }).catch(()=>{}); } return r; }).catch(()=>{});
@@ -2040,6 +2062,29 @@ if(BETA){
     }catch(e){}
     return p;
   };
+}
+let _frontendRequirement=null, _frontendBuildCheckBusy=false;
+function frontendDraftPending(){
+  try{ for(const id of ['actInput','petActInput','ccNarr']){ const e=document.getElementById(id); if(e&&String(e.value||'').trim()) return true; } if(window._actSubmitting||window._quickBusy) return true; if(window.cc&&window.cc.isBusy&&window.cc.isBusy()) return true; }catch(e){} return false;
+}
+function frontendRefreshSafe(){
+  const blockers=[]; if(frontendDraftPending()) blockers.push('draft'); if(resolving||(curRound&&curRound.phase==='resolving')) blockers.push('resolving'); if(window._combatActive) blockers.push('combat'); if(worldState&&worldState.settings&&worldState.settings.victory_ack&&worldState.settings.victory_ack.active) blockers.push('victory_transaction'); return {safe:blockers.length===0,blockers};
+}
+function renderFrontendRefreshBanner(){
+  let el=document.getElementById('frontendBuildBanner');
+  if(!_frontendRequirement){ if(el) el.remove(); return; }
+  if(!el){ el=document.createElement('div'); el.id='frontendBuildBanner'; el.style.cssText='position:fixed;left:10px;right:10px;top:10px;z-index:100000;background:#2b1600;color:#fff;border:2px solid #ffbf47;border-radius:8px;padding:10px 12px;font:600 14px/1.5 sans-serif;box-shadow:0 4px 18px #000'; document.body.appendChild(el); }
+  const v=frontendRefreshSafe(), why={draft:'มีข้อความที่ยังไม่ได้ส่ง',resolving:'DM กำลังประมวลผล',combat:'ยังอยู่กลางการต่อสู้',victory_transaction:'กำลังปิดธุรกรรมหลังศึก'};
+  el.innerHTML='<div>⚠️ หน้าเกมรุ่นนี้เก่ากว่ารุ่นที่ server รองรับ'+(v.safe?' — พร้อมรีเฟรชอย่างปลอดภัย':' — ระบบจะไม่รีเฟรชกลางงาน')+'</div><div style="font-weight:400;opacity:.85">'+(v.safe?'กดปุ่มเมื่อพร้อม ข้อมูลเกมอยู่บน server แล้ว':'รอ: '+v.blockers.map(x=>why[x]||x).join(' · '))+'</div>';
+  const b=document.createElement('button'); b.type='button'; b.textContent=v.safe?'รีเฟรชเพื่อใช้รุ่นล่าสุด':'ยังรีเฟรชไม่ได้'; b.disabled=!v.safe; b.style.cssText='margin-top:7px;padding:7px 12px'; b.onclick=()=>{ if(frontendRefreshSafe().safe) window.location.reload(); }; el.appendChild(b);
+}
+function frontendRequirementSeen(minBuild,minEpoch){
+  const mb=Number(minBuild), mep=Number(minEpoch); if(!(mb>FRONTEND_BUILD||mep>FRONTEND_COMPAT_EPOCH)) return;
+  _frontendRequirement={minBuild:mb,minEpoch:mep}; renderFrontendRefreshBanner(); if(!window._frontendSafeRefreshT) window._frontendSafeRefreshT=setInterval(renderFrontendRefreshBanner,5000);
+}
+async function checkFrontendBuild(){
+  if(_frontendBuildCheckBusy) return; _frontendBuildCheckBusy=true;
+  try{ const tok=(await supa.auth.getSession()).data.session?.access_token; if(!tok) return; const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({ping:true,client_build:FRONTEND_BUILD,client_epoch:FRONTEND_COMPAT_EPOCH})}); const j=await r.json(); frontendRequirementSeen(j.min_frontend_build,j.min_frontend_epoch); }catch(e){} finally{_frontendBuildCheckBusy=false;}
 }
 // host ใส่/แก้ Gemini key ของโลก (เรียกเองหรือเด้งอัตโนมัติเมื่อ server บอกว่ายังไม่มี key)
 async function betaAskKey(){
@@ -2068,6 +2113,31 @@ async function betaAskBackupKeys(tok){
   }catch(e){}
 }
 let campaign=null, members=[], myChar=null, characters=[], curRound=null, narrative=[], mySheet={}, mySheetUpdatedAt=null, worldState=null, chatMsgs=[];
+const ENGLISH_UI_ENABLED=false;   // Slice E owner gate: reviewer flips only after pre-enable Go and server flag enable.
+let pendingGameLanguage=null, englishModeAvailable=false;   // D1: DB world language wins after create/JOIN; pending is pre-world only.
+const UI18N=globalThis.TTRPG_I18N;
+function uiLanguage(){ return campaign ? UI18N.language(campaign.game_language) : UI18N.language(pendingGameLanguage||'th'); }
+function uiText(key,vars){ return UI18N.text(uiLanguage(),key,vars); }
+function uiCopy(th,en){ return uiLanguage()==='en'?en:th; }
+function applyUiLanguage(lang){ UI18N.translateDom(document,UI18N.language(lang)); if(campaign){ UI18N.installDisplayWall(document,()=>uiLanguage()); UI18N.installDialogWall(()=>uiLanguage()); } document.documentElement.lang=lang==='en'?'en':'th'; }
+function showLanguagePicker(clearPending){
+  if(clearPending){ pendingGameLanguage=null; try{sessionStorage.removeItem('ttrpg_pending_game_language');}catch(e){} }
+  applyUiLanguage('th');
+  ['roleScreen','joinScreen','hostModeScreen','hostCreateScreen','hostOneshotScreen'].forEach(s=>{const el=$(s);if(el)el.classList.add('hidden');});
+  const ls=$('languageScreen'); if(ls) ls.classList.remove('hidden');
+  const eb=$('englishLanguageBtn'); if(eb) eb.classList.toggle('hidden',!englishModeAvailable);
+}
+async function refreshEnglishModeAvailability(){
+  englishModeAvailable=false;
+  try{const r=await supa.rpc('english_mode_enabled'); englishModeAvailable=ENGLISH_UI_ENABLED&&!r.error&&r.data===true;}catch(e){}
+  const eb=$('englishLanguageBtn'); if(eb) eb.classList.toggle('hidden',!englishModeAvailable);
+}
+function chooseGameLanguage(lang){
+  lang=UI18N.language(lang);
+  if(lang==='en'&&!englishModeAvailable){toast(UI18N.text('en','create.languageDisabled'),true);return;}
+  pendingGameLanguage=lang; try{sessionStorage.setItem('ttrpg_pending_game_language',lang);}catch(e){}
+  applyUiLanguage(lang); lobbyGo('roleScreen');
+}
 let econUsed={}, econUsedRound=null;   // action economy: มาร์ก local ว่าผู้เล่นใช้อะไรไปแล้วในเทิร์น
 let rtChannel=null, resolving=false;
 // ── Realtime resilience (Phase 2 fix) ──
@@ -2107,7 +2177,7 @@ function ensureStorageHeadroom(){
 function pruneOtherCampaignCache(curId){
   try{
     if(!curId) return; const cur=String(curId).toLowerCase(); const rm=[];
-    for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(!k||!k.startsWith('ttrpg_')||/^ttrpg_cat_/.test(k)) continue;   // เก็บ global catalog ไว้
+    for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(!k||!k.startsWith('ttrpg_')) continue;   // global catalog ไม่มี UUID จึงไม่ถูกลบ; scoped catalog ของโลกอื่นถูกลบ
       const m=k.match(/([0-9a-f-]{36})$/i); if(m && m[1].toLowerCase()!==cur) rm.push(k); }   // cache ต่อแคมเปญของแคมเปญ 'อื่น' → ลบ (เก็บเฉพาะปัจจุบัน)
     rm.forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} });
   }catch(e){}
@@ -2224,8 +2294,19 @@ async function loadMyCampaign(){
   const _allC = (mem||[]).map(m=>m.campaigns).filter(Boolean);
   const active = _allC.filter(c=>c.status==='active');
   const _endedC = _allC.filter(c=>c.status==='ended');   // v617 ONE SHOT soft-end: โลกจบถาวรยังเข้าไปอ่านย้อนได้ (read-only — resolver ปฏิเสธทุก action)
-  if(!active.length && !_endedC.length){ show('lobbyScreen'); return; }
+  if(!active.length && !_endedC.length){
+    show('lobbyScreen');
+    try{const saved=sessionStorage.getItem('ttrpg_pending_game_language');pendingGameLanguage=(saved==='th'||saved==='en')?saved:null;}catch(e){pendingGameLanguage=null;}
+    await refreshEnglishModeAvailability();
+    if(pendingGameLanguage==='en'&&!englishModeAvailable) pendingGameLanguage=null;
+    if(pendingGameLanguage){applyUiLanguage(pendingGameLanguage);lobbyGo('roleScreen');}
+    else showLanguagePicker(false);
+    return;
+  }
   campaign = active[0] || _endedC[0];
+  UI18N.language(campaign.game_language);   // D1 fail closed: never infer a world language from browser state.
+  pendingGameLanguage=null; try{sessionStorage.removeItem('ttrpg_pending_game_language');}catch(e){}
+  applyUiLanguage(campaign.game_language);
   pruneOtherCampaignCache(campaign.id);   // v300: ล้าง cache แคมเปญอื่น (กัน localStorage โตจนเต็ม = หลุด login)
   await enterCampaign();
 }
@@ -2265,7 +2346,7 @@ function onMusicFiles(files){
 // ── v617 PLAY MODES: lobby flow state + สลับจอย่อย (roleScreen → join / hostMode → hostCreate / hostOneshot) ──
 let pendingMode='open', pendingStyle='journey', pendingLevel=5;
 function lobbyGo(id){
-  ['roleScreen','joinScreen','hostModeScreen','hostCreateScreen','hostOneshotScreen'].forEach(s=>{ const el=$(s); if(el) el.classList.toggle('hidden', s!==id); });
+  ['languageScreen','roleScreen','joinScreen','hostModeScreen','hostCreateScreen','hostOneshotScreen'].forEach(s=>{ const el=$(s); if(el) el.classList.toggle('hidden', s!==id); });
 }
 function pickMode(el,m){ pendingMode=m; document.querySelectorAll('#hostModeScreen .modepick').forEach(x=>x.style.outline=''); el.style.outline='2px solid currentColor'; }
 function modeNext(){
@@ -2275,16 +2356,24 @@ function modeNext(){
 function pickStyle(el,s,scope){ pendingStyle=s; document.querySelectorAll('#'+scope+' .stylepick').forEach(x=>x.style.outline=''); el.style.outline='2px solid currentColor'; }
 function pickLevel(el,n){ pendingLevel=n; document.querySelectorAll('#hostOneshotScreen .lvlpick').forEach(x=>x.style.outline=''); el.style.outline='2px solid currentColor'; }
 async function createCampaign(){
-  if(!OWNER_EMAILS.includes((me.email||'').toLowerCase())&&!(BETA&&betaCode())){ toast('ช่วงทดสอบ: เฉพาะเจ้าของระบบเท่านั้นที่สร้างโลกได้',true); return; }   // v210: เบต้า+รหัส = สร้างได้ (server เช็ครหัสซ้ำใน migration 0056)
+  const lang=UI18N.language(pendingGameLanguage);
+  if(!OWNER_EMAILS.includes((me.email||'').toLowerCase())&&!(BETA&&betaCode())){ toast(UI18N.text(lang,'create.ownerOnly'),true); return; }   // v210: เบต้า+รหัส = สร้างได้ (server เช็ครหัสซ้ำใน migration 0056)
   const _oneshot=pendingMode==='oneshot';   // v617: ONE SHOT ใช้ฟอร์มย่อ (osName/osPremise + เลเวลเริ่ม 3/5/8)
-  const name=(_oneshot?$('osName'):$('newName')).value.trim(); if(!name){toast(_oneshot?'ตั้งชื่อเรื่องก่อน':'Name your campaign first',true);return;}
+  const name=(_oneshot?$('osName'):$('newName')).value.trim(); if(!name){toast(UI18N.text(lang,'create.nameRequired'),true);return;}
+  if(lang==='en'&&UI18N.latinPublicTextVerdict(name)!=='ok'){toast(UI18N.text(lang,'create.publicLatinRequired'),true);return;}
   $('createBtn').disabled=true; if($('createOsBtn')) $('createOsBtn').disabled=true;
   try{
     const manual=(_oneshot?$('osPremise'):$('newRules')).value.trim();
     const combined=[rulesFromFiles, manual].filter(Boolean).join('\n\n').trim();
-    const { data, error } = await supa.rpc('create_campaign', BETA&&betaCode() ? { p_name:name, p_rules:combined, p_beta_code:betaCode() } : { p_name:name, p_rules:combined });
+    const { data, error } = await supa.rpc('create_campaign_language',{p_name:name,p_rules:combined,p_beta_code:(BETA&&betaCode())?betaCode():null,p_game_language:lang});
     if(error) throw error;
-    campaign = Array.isArray(data)?data[0]:data;
+    const created=Array.isArray(data)?data[0]:data;
+    if(!created||created.ok!==true) throw new Error((created&&created.error)||'campaign-create-rejected');
+    const {data:_createdCampaign,error:_createdReadErr}=await supa.from('campaigns').select('*').eq('id',created.campaign_id).single();
+    if(_createdReadErr||!_createdCampaign) throw (_createdReadErr||new Error('campaign-create-readback-failed'));
+    campaign=_createdCampaign;
+    if(campaign.game_language!==lang) throw new Error('campaign-language-readback-mismatch');
+    pendingGameLanguage=null; try{sessionStorage.removeItem('ttrpg_pending_game_language');}catch(e){}
     const _tone=_oneshot?'':((($('newTone')||{}).value||'').trim());   // v296: ถอด pace ออก — บลูพรินท์คุมจังหวะ
     // v617: เขียนโหมด/แนวเนื้อเรื่อง/เลเวลเริ่ม (คอลัมน์ campaigns · migration 0086 — pattern เดียวกับ tone: host เขียนตรงผ่าน RLS)
     // v628 #10 (static review): เช็ค {error} จริง + readback — supabase-js ไม่ throw ดังนั้น try/catch เดิมไม่มีวันจับ
@@ -2295,16 +2384,17 @@ async function createCampaign(){
       let _cfgErr=(await supa.from('campaigns').update(_patch).eq('id',campaign.id)).error;
       if(_cfgErr) _cfgErr=(await supa.from('campaigns').update(_patch).eq('id',campaign.id)).error;   // retry 1 ครั้ง (network ชั่วคราว)
       if(_cfgErr){
-        toast('บันทึกโหมด/แนวเนื้อเรื่องไม่สำเร็จ ('+(_cfgErr.message||'')+') — โลกถูกสร้างด้วยค่าเริ่มต้น ปรับโหมดได้ใน DM Tools',true);
+        toast(UI18N.text(lang,'create.configFailed',{message:_cfgErr.message||''}),true);
         console.warn('createCampaign config update failed',_cfgErr);
       } else Object.assign(campaign,_patch);
       // readback ค่าจริงจาก DB — resolver อ่าน DB เท่านั้น UI ต้องสะท้อนค่าที่บันทึกได้จริง
-      try{ const { data:_cfgRow }=await supa.from('campaigns').select('play_mode,story_style,start_level,tone').eq('id',campaign.id).maybeSingle(); if(_cfgRow) Object.assign(campaign,_cfgRow); }catch(e){}
+      try{ const { data:_cfgRow }=await supa.from('campaigns').select('play_mode,story_style,start_level,tone,game_language').eq('id',campaign.id).maybeSingle(); if(_cfgRow) Object.assign(campaign,_cfgRow); }catch(e){}
+      if(campaign.game_language!==lang) throw new Error('campaign-language-readback-mismatch');
     }
     // จัดทำดัชนีกฎเข้า RAG (แยกหมวดตามชื่อไฟล์) → DM ดึงเฉพาะที่จำเป็นต่อโหมดฉาก ประหยัด token
     const rf=$('rulesFiles');
     if(rf && rf.files && rf.files.length){
-      $('createBtn').textContent='กำลังจัดทำดัชนีกฎ…';
+      $('createBtn').textContent=UI18N.text(lang,'create.indexing');
       const tok=(await supa.auth.getSession()).data.session?.access_token;
       for(const file of rf.files){
         const cat=ruleCategory(file.name); if(!cat) continue;   // ข้าม 00/03/11
@@ -2319,13 +2409,13 @@ async function createCampaign(){
     // ── v210 BETA wizard: ฝังลอร์ Forgotten Realms อัตโนมัติ (มาร์ค beta_world — ล็อกจนกว่ามี key) → ขอ Gemini key ของ host ──
     if(BETA&&betaCode()){
       const tokB=(await supa.auth.getSession()).data.session?.access_token;
-      $('createBtn').textContent='กำลังฝังลอร์ Forgotten Realms…';
+      $('createBtn').textContent=UI18N.text(lang,'create.seedingLore');
       try{
         const rL=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tokB},body:JSON.stringify({campaign_id:campaign.id,beta_seed_lore:true})});
         const jL=await rL.json();
         if(jL&&jL.ok) toast(`🌍 ลอร์ Forgotten Realms พร้อม (${jL.chunks||'มีอยู่แล้ว'} ส่วน) ✓`); else toast((jL&&jL.message)||'ฝังลอร์ไม่สำเร็จ (เล่นได้ปกติ)',true);
       }catch(e){}
-      $('createBtn').textContent='ตั้งค่า Gemini key…';
+      $('createBtn').textContent=UI18N.text(lang,'create.settingKey');
       for(let i=0;i<3;i++){
         const k=(prompt('🔑 ขั้นสุดท้าย: ใส่ Gemini API key ของคุณ (host)\nขอฟรี 1 นาที: aistudio.google.com → "Get API key" → Create API key → ก๊อปมาวาง (ขึ้นต้น AIza...)\n\nโลกเบต้าใช้ key ของ host เท่านั้น — ไม่ใส่ = ยังเล่นไม่ได้')||'').trim();
         if(!k){ toast('ยังไม่ได้ใส่ key — ใส่ทีหลังได้ ระบบจะถามอีกครั้งตอนเริ่มเล่น',true); break; }
@@ -2345,32 +2435,38 @@ async function createCampaign(){
       const c2=prompt('❌ รหัสเบต้าที่เครื่องจำไว้ไม่ถูกต้อง\n\nใส่รหัสใหม่ให้ตรงเป๊ะ (ตัวพิมพ์ใหญ่-เล็กมีผล — ขอจากผู้ดูแลโดยตรง):');
       if(c2&&c2.trim()){ try{ localStorage.setItem('betaCode',c2.trim()); }catch(_e){} toast('บันทึกรหัสแล้ว — กด Create Campaign อีกครั้งได้เลย'); }
       else toast('ยังไม่มีรหัสเบต้า — สร้างโลกไม่ได้จนกว่าจะใส่รหัสถูก',true);
-    } else toast(e.message||'Create failed',true);
+    } else toast(UI18N.errorText(lang,e.message||e.code||'campaign-create-rejected'),true);
   }
-  finally{ $('createBtn').disabled=false; $('createBtn').textContent='Create Campaign'; if($('createOsBtn')){ $('createOsBtn').disabled=false; $('createOsBtn').textContent='เริ่มเรื่อง ⚡'; } }
+  finally{ $('createBtn').disabled=false; $('createBtn').textContent=UI18N.text(lang,'create.button'); if($('createOsBtn')){ $('createOsBtn').disabled=false; $('createOsBtn').textContent=UI18N.text(lang,'oneshot.button'); } }
 }
 async function joinCampaign(){
-  const code=$('joinCode').value.trim().toUpperCase(); if(!code){toast('Enter the invite code',true);return;}
+  const lang=UI18N.language(pendingGameLanguage);
+  const code=$('joinCode').value.trim().toUpperCase(); if(!code){toast(UI18N.text(lang,'join.codeRequired'),true);return;}
   $('joinBtn').disabled=true;
   try{
-    const { data:cid, error } = await supa.rpc('join_campaign',{ p_code:code });
+    const { data:joined, error } = await supa.rpc('join_campaign_language',{p_code:code,p_game_language:lang});
     if(error) throw error;
-    const { data:c } = await supa.from('campaigns').select('*').eq('id',cid).single();
-    campaign=c; await enterCampaign();
-  }catch(e){ toast(e.message||'Join failed (wrong code / full / already in another campaign)',true); }
+    const result=Array.isArray(joined)?joined[0]:joined;
+    if(!result||result.ok!==true) throw new Error((result&&result.error)||'join-failed');
+    const { data:c,error:readErr } = await supa.from('campaigns').select('*').eq('id',result.campaign_id).single();
+    if(readErr||!c) throw (readErr||new Error('join-readback-failed'));
+    if(c.game_language!==lang||result.game_language!==lang) throw new Error('campaign-language-readback-mismatch');
+    campaign=c; pendingGameLanguage=null; try{sessionStorage.removeItem('ttrpg_pending_game_language');}catch(e){} await enterCampaign();
+  }catch(e){ toast(UI18N.errorText(lang,e.message||e.code||'join-failed'),true); }
   finally{ $('joinBtn').disabled=false; }
 }
 
 // ───────── enter campaign ─────────
 async function enterCampaign(){
+  UI18N.language(campaign&&campaign.game_language); applyUiLanguage(campaign.game_language);
   $('hdTitle').textContent = campaign.name;
   if(campaign.host_id===me.id && campaign.join_code){
     $('hdCode').textContent='Code: '+campaign.join_code; $('hdCode').classList.remove('hidden');
-    $('hdCode').onclick=()=>{navigator.clipboard?.writeText(campaign.join_code);toast('Code copied');};
+    $('hdCode').onclick=()=>{navigator.clipboard?.writeText(campaign.join_code);toast(uiText('world.codeCopied'));};
   }
   if(campaign.host_id===me.id){   // World ID + ปุ่ม Ingest token เฉพาะ host — ก๊อปไปใช้ ingest ลอร์ได้ง่าย
     const wid=$('hdWorld'); if(wid){ wid.textContent='World: '+campaign.id; wid.classList.remove('hidden');
-      wid.onclick=()=>{navigator.clipboard?.writeText(campaign.id);toast('World ID copied ✓');}; }
+      wid.onclick=()=>{navigator.clipboard?.writeText(campaign.id);toast(uiText('world.idCopied'));}; }
     const tb=$('hdToken'); if(tb){ tb.classList.remove('hidden');
       tb.onclick=async()=>{ try{ const t=(await supa.auth.getSession()).data.session?.access_token||''; if(!t){toast('ไม่พบ session — ลองรีเฟรช',true);return;}
         await navigator.clipboard.writeText(t); toast('🔑 Ingest token copied ✓ — วางใน HOST_TOKEN (อายุ ~1 ชม.)'); }
@@ -2399,6 +2495,8 @@ async function enterCampaign(){
   if(musicOn){ applyMood(); } armMusicResume();
   updateMusicBtn();
   subscribeRealtime();
+  checkFrontendBuild();
+  if(!window._frontendBuildPoll) window._frontendBuildPoll=setInterval(checkFrontendBuild,300000);
 }
 
 /* v663 X4-06 (BUGROOTS 07-18): refreshAll ถูกเรียกซ้อนได้จาก realtime handler + resolve-finally + tab opening — request เก่าจบทีหลังเขียน globals ย้อนสถานะ → serialize + coalesce (ผู้เรียกระหว่าง flight ได้ run ใหม่ร่วมกัน 1 รอบหลังจบ) */
@@ -2498,12 +2596,30 @@ async function loadRound(){
   }catch(e){ const c=cacheLoad('round'); if(c) curRound=c; }
 }
 const NARR_WINDOW=50; let narrMore=false, _skipAutoScroll=false;
+// v699: content remains the backward-compatible corrected rendering. Raw forensic
+// prose lives in source_content; projection is opt-in until the rollout gate is proven.
+function narrativeProjectionMode(n){
+  try{ const key=String((n&&n.projection_wall)||'narrative_claim')==='lethal_projection'?'lethal_projection':'narrative_claim'; const m=String(((((worldState||{}).settings||{}).wall_modes||{})[key])||'shadow').toLowerCase(); return ['off','shadow','enforce'].includes(m)?m:'shadow'; }catch(e){ return 'shadow'; }
+}
+function narrText(n){
+  if(!n) return '';
+  const p=String(n.projection_content||'').trim();
+  const legacy=String(n.legacy_content||'').trim();
+  return narrativeProjectionMode(n)==='enforce'&&p?p:(legacy||String(n.content||''));
+}
+function narrProjectionNote(n){
+  return narrativeProjectionMode(n)==='enforce'&&n&&n.projection_status==='corrected'?String(n.projection_note||'').trim():'';
+}
+function narrDraw(n){
+  const note=narrProjectionNote(n);
+  return colorizeNarr(narrText(n))+(note?'<div class="note" style="margin-top:7px">'+escapeHtml(note)+'</div>':'');
+}
 async function loadNarrative(){
   try{ const { data, error } = await supa.from('narrative').select('*').eq('campaign_id',campaign.id)
     .order('created_at',{ascending:false}).limit(NARR_WINDOW);
     if(error) throw error; const rows=(data||[]); narrMore = rows.length>=NARR_WINDOW; narrative = rows.slice().reverse(); cacheSave('narrative',narrative);
   }catch(e){ const c=cacheLoad('narrative'); if(c) narrative=c; }
-  _cacheSet('ttrpg_chron_'+campaign.id, JSON.stringify(narrative.map(n=>n.content)));   // v301: ผ่านงบ cache
+  _cacheSet('ttrpg_chron_'+campaign.id, JSON.stringify(narrative.map(n=>narrText(n))));   // v680: canonical projection ผ่านงบ cache
 }
 async function loadOlderNarrative(){
   if(!narrative.length) return;
@@ -2752,16 +2868,29 @@ async function fillRelTop(){
     const el=$('relTopBox'); if(!el||!campaign) return;
     const now=Date.now();
     if(!window._relTopCache||now-window._relTopCache.t>60000||window._relTopCache.cid!==campaign.id){
-      const [rr,nn]=await Promise.all([
+      const companionView=(async()=>{
+        if(String(campaign.companion_mode||'').toLowerCase()!=='v2') return {companions:[],own_characters:[]};
+        const tok=(await supa.auth.getSession()).data.session?.access_token; if(!tok) return {companions:[],own_characters:[]};
+        const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,companion_view:true})});
+        const j=await r.json().catch(()=>({}));
+        if(!r.ok){ console.warn('companion_view unavailable',j&&j.error); return {companions:[],own_characters:[]}; }
+        return j||{companions:[],own_characters:[]};
+      })();
+      const [rr,nn,cv]=await Promise.all([
         supa.from('relationships').select('npc_name,score,romance').eq('campaign_id',campaign.id),
         supa.from('npcs').select('name,sex').eq('campaign_id',campaign.id),
+        companionView,
       ]);
-      window._relTopCache={t:now,cid:campaign.id,rels:(rr.data||[]),npcs:(nn.data||[])};
+      window._relTopCache={t:now,cid:campaign.id,rels:(rr.data||[]),npcs:(nn.data||[]),companions:(cv.companions||[]),ownChars:(cv.own_characters||[])};
     }
-    const {rels,npcs}=window._relTopCache;
+    const {rels,npcs,companions,ownChars}=window._relTopCache;
     const lc=s=>String(s||'').toLowerCase().trim();
     const top=rels.slice().sort((a,b)=>(+b.score||0)-(+a.score||0)).slice(0,5).filter(r=>Math.round(+r.score||0)>0||r.romance);
-    if(!top.length){ el.style.display='none'; return; }
+    const tierRank={enemy:0,hostile:1,wary:2,neutral:3,friendly:4,trusted:5,close:6,inner_circle:7};
+    const tierTH={enemy:'ศัตรู',hostile:'เป็นปฏิปักษ์',wary:'ระแวง',neutral:'เป็นกลาง',friendly:'เป็นมิตร',trusted:'ไว้ใจ',close:'สนิท',inner_circle:'คนวงใน'};
+    const compTop=(companions||[]).flatMap(c=>(c.relationships||[]).map(r=>({name:c.name,target:r.target_character_id,tier:String(r.tier||'neutral')})))
+      .sort((a,b)=>(tierRank[b.tier]??3)-(tierRank[a.tier]??3)).slice(0,5);
+    if(!top.length&&!compTop.length){ el.style.display='none'; return; }
     let h='<span class="whlabel">BONDS</span>';
     top.forEach(r=>{
       const sc=Math.round(+r.score||0);
@@ -2770,8 +2899,13 @@ async function fillRelTop(){
       const col=sc>=70?'var(--rel-hi)':sc>=20?'var(--rel-good)':sc>=-19?'var(--rel-neu)':sc>=-44?'var(--rel-wary)':'var(--rel-bad)';
       h+=`<span class="wh" title="ความสัมพันธ์ ${sc>=0?'+':''}${sc}">${sx}<b style="color:${col}">${escapeHtml(r.npc_name)}</b>${r.romance?'<span style="font-size:11px">❤</span>':''}</span>`;
     });
+    compTop.forEach(r=>{
+      const pc=(ownChars||[]).find(x=>String(x.character_id)===String(r.target));
+      const col=['inner_circle','close'].includes(r.tier)?'var(--rel-hi)':['trusted','friendly'].includes(r.tier)?'var(--rel-good)':r.tier==='neutral'?'var(--rel-neu)':r.tier==='wary'?'var(--rel-wary)':'var(--rel-bad)';
+      h+=`<span class="wh" title="${escapeHtml(pc&&pc.name?pc.name+' · ':'')}${escapeHtml(tierTH[r.tier]||tierTH.neutral)}"><span style="font-size:11px">🤝</span><b style="color:${col}">${escapeHtml(r.name)}</b><small style="opacity:.75"> ${escapeHtml(tierTH[r.tier]||tierTH.neutral)}</small></span>`;
+    });
     el.innerHTML=h; el.style.display='';
-  }catch(e){}
+  }catch(e){ console.warn('BONDS projection failed',e); }
 }
 
 // ───────── character ─────────
@@ -2784,7 +2918,7 @@ function pbSpent(){ let s=0; for(const k in pb) s+=PB_COST[pb[k]]; return s; }
 function abMod(v){ const m=Math.floor((v-10)/2); return (m>=0?'+':'−')+Math.abs(m); }
 function pbAdj(ab,d){
   const nv=pb[ab]+d; if(nv<8||nv>15) return;
-  if(d>0){ const extra=PB_COST[nv]-PB_COST[pb[ab]]; if(extra>(PB_BUDGET-pbSpent())){ toast('แต้มไม่พอ — ลดค่าอื่นก่อน',true); return; } }
+  if(d>0){ const extra=PB_COST[nv]-PB_COST[pb[ab]]; if(extra>(PB_BUDGET-pbSpent())){ toast(uiText('builder.pointsInsufficient'),true); return; } }
   pb[ab]=nv; renderPB(); suggestHP();
 }
 function pbStandard(){ pb={str:15,dex:14,con:13,int:12,wis:10,cha:8}; renderPB(); suggestHP(); }
@@ -2793,7 +2927,7 @@ function renderPB(){
   const w=$('pbWrap'); if(!w) return;
   const order=[['str','STR'],['dex','DEX'],['con','CON'],['int','INT'],['wis','WIS'],['cha','CHA']];
   w.innerHTML=order.map(([k,lab])=>`<div class="pbrow"><span class="pblab">${lab}</span><button type="button" class="pbbtn" onclick="pbAdj('${k}',-1)">−</button><span class="pbval">${pb[k]}</span><button type="button" class="pbbtn" onclick="pbAdj('${k}',1)">+</button><span class="pbmod">${abMod(pb[k])}</span></div>`).join('');
-  const info=$('pbInfo'); if(info) info.textContent='Points left: '+(PB_BUDGET-pbSpent())+' / '+PB_BUDGET;
+  const info=$('pbInfo'); if(info) info.textContent=uiText('builder.pointsLeft',{left:PB_BUDGET-pbSpent(),total:PB_BUDGET});
   renderFinal();
 }
 // ── โบนัสเผ่า/พื้นเพ (2024 RAW): +2/+1 ต่างค่า หรือ +1/+1/+1 → สูงสุด 17 ──
@@ -2826,8 +2960,8 @@ function renderFinal(){
   const el=$('finalScores'); if(!el) return;
   const m=abBonusMap();
   let warn='';
-  if(bonusMode==='2-1' && bonusPick.a===bonusPick.b) warn=' ⚠ +2/+1 ต้องคนละค่า';
-  if(bonusMode==='1-1-1'){ const s=[bonusPick.a,bonusPick.b,bonusPick.c]; if(new Set(s).size<3) warn=' ⚠ ต้องเลือก 3 ค่าต่างกัน'; }
+  if(bonusMode==='2-1' && bonusPick.a===bonusPick.b) warn=uiText('builder.bonusDistinct21');
+  if(bonusMode==='1-1-1'){ const s=[bonusPick.a,bonusPick.b,bonusPick.c]; if(new Set(s).size<3) warn=uiText('builder.bonusDistinct111'); }
   el.innerHTML='FINAL: '+['str','dex','con','int','wis','cha'].map(k=>{ const fv=pb[k]+(m[k]||0); return `${k.toUpperCase()} <b>${fv}</b>`; }).join(' · ')+(warn?`<span style="color:#ff6b6b">${warn}</span>`:'');
 }
 // ── ผู้เล่นที่เพิ่ง join: สรุป "เรื่องราวจนถึงตอนนี้" ให้อ่านก่อนสร้างตัวละคร ──
@@ -2837,10 +2971,10 @@ function fillJoinBriefing(){
   // ข้อความ DM ล่าสุด (เฉพาะ final) เผื่อยังไม่มี summary
   const lastDM=[...narrative].reverse().find(n=>n.author==='dm'&&n.status!=='placeholder');
   if(!summary && !lastDM){ box.classList.add('hidden'); return; }   // ยังไม่มีเรื่อง = ปาร์ตี้เริ่มต้น ไม่ต้องโชว์
-  let h='<div class="sectitle" style="margin:0 0 6px">📖 เรื่องราวจนถึงตอนนี้ (สรุปให้ผู้มาใหม่)</div>';
+  let h='<div class="sectitle" style="margin:0 0 6px">'+escapeHtml(uiText('builder.briefTitle'))+'</div>';
   if(summary) h+=`<div style="line-height:1.6;font-size:13px;white-space:pre-wrap">${escapeHtml(plainNarr(summary))}</div>`;
-  if(lastDM) h+=`<div class="sectitle" style="margin:10px 0 4px">ฉากปัจจุบัน</div><div style="line-height:1.6;font-size:13px;white-space:pre-wrap">${escapeHtml(plainNarr(String(lastDM.content)).slice(0,800))}</div>`;
-  h+='<div class="note" style="margin-top:8px">สร้างตัวละครให้เข้ากับสถานการณ์นี้ — DM จะบรรยายแนะนำตัวคุณเข้าสู่กลุ่มในตาถัดไป</div>';
+  if(lastDM) h+=`<div class="sectitle" style="margin:10px 0 4px">${escapeHtml(uiText('builder.currentScene'))}</div><div style="line-height:1.6;font-size:13px;white-space:pre-wrap">${escapeHtml(plainNarr(narrText(lastDM)).slice(0,800))}</div>`;
+  h+='<div class="note" style="margin-top:8px">'+escapeHtml(uiText('builder.briefNote'))+'</div>';
   box.innerHTML=h; box.classList.remove('hidden');
 }
 // ── อาชีพ: select + ช่องพิมพ์เองเมื่อเลือก "อื่นๆ" ──
@@ -2879,40 +3013,54 @@ const RACE_TIPS={
   'Goliath':'โกไลแอธ — ยักษ์ภูเขา แบกหนัก ทนหนาว ลดดาเมจที่ได้รับได้ · เข้ากับ Barbarian/Fighter',
   'Orc':'ออร์ค — พละกำลังดิบ พุ่งเข้าหาศัตรูไว อึดถึก · เข้ากับ Barbarian/Fighter',
 };
+const CLASS_TIPS_EN={
+  Barbarian:'A durable front-line warrior who enters Rage to hit harder and resist physical damage. Very approachable for new players.',Bard:'A versatile performer who excels at social scenes, support magic, and creative problem-solving.',Cleric:'A divine spellcaster, healer, armored combatant, and specialist against undead.',Druid:'A nature spellcaster who heals, controls the battlefield, and later transforms into beasts.',Fighter:'A straightforward weapon-and-armor expert with reliable accuracy and durability. Excellent for new players.',Monk:'A fast, unarmored martial artist with rapid strikes, mobility, and strong defenses.',Paladin:'A holy warrior who combines armor, healing, oaths, and explosive Divine Smite damage.',Ranger:'A mobile hunter skilled with bows or two weapons, tracking, wilderness travel, and nature magic.',Rogue:'A stealth and skill expert who deals heavy Sneak Attack damage and handles locks and traps.',Sorcerer:'An innate spellcaster with powerful magic and flexible Metamagic, balanced by low durability.',Warlock:'A pact-bound spellcaster with reliable Eldritch Blast attacks and story hooks tied to a patron.',Wizard:'A fragile but exceptionally versatile prepared spellcaster with the broadest spellbook.',Artificer:'A magical inventor who combines tools, crafted equipment, and support magic.'
+};
+const RACE_TIPS_EN={
+  Human:'Adaptable and flexible: one extra skill, an Origin Feat, and Heroic Inspiration. Works with every class.',Elf:'Keen senses, Darkvision, Fey Ancestry, and Trance. A natural fit for Ranger, Rogue, or Wizard.', 'Drow (Dark Elf)':'Superior Darkvision and innate magic, balanced by Sunlight Sensitivity.',Dwarf:'Durable, poison-resistant, and knowledgeable about stonework. Strong as a Fighter or Cleric.',Halfling:'Small, brave, nimble, and famously Lucky. Strong as a Rogue or Bard.','Half-Elf':'Socially gifted with Darkvision, Fey Ancestry, and two additional skill proficiencies.','Half-Orc':'Powerful and hard to drop, with Relentless Endurance and stronger melee critical hits.',Tiefling:'Fire-resistant with Darkvision and innate infernal magic. Strong as a Warlock or Sorcerer.',Dragonborn:'Choose a draconic damage type for your breath weapon and matching resistance.',Gnome:'Small, clever, magically resilient, and gifted with Darkvision.',Aasimar:'Celestial heritage grants healing, Darkvision, and radiant and necrotic resistance.',Goliath:'A mountain-born powerhouse with strong carrying capacity, cold resistance, and damage reduction.',Orc:'Strong, aggressive, and difficult to drop, with Darkvision and Relentless Endurance.'
+};
 function _tipShow(id,txt){ const el=$(id); if(!el) return; if(txt){ el.textContent=txt; el.classList.remove('hidden'); } else el.classList.add('hidden'); }
 function onClassChange(){
   const sel=$('cClass'); const cu=$('cClassCustom'); if(!sel||!cu) return;
   if(sel.value==='__custom'){ cu.classList.remove('hidden'); cu.focus(); }
   else { cu.classList.add('hidden'); cu.value=''; }
-  _tipShow('cClassInfo', CLASS_TIPS[sel.value]||'');
+  _tipShow('cClassInfo', (uiLanguage()==='en'?CLASS_TIPS_EN:CLASS_TIPS)[sel.value]||'');
   suggestHP(); renderSkillPick(); renderPackages(); renderSpellPick();
 }
 function raceValue(){ const sel=$('cRace'); if(!sel) return ''; return sel.value==='__custom' ? (($('cRaceCustom')||{}).value||'').trim() : (sel.value||'').trim(); }
-function onRaceChange(){ const sel=$('cRace'),cu=$('cRaceCustom'); if(!sel||!cu) return; if(sel.value==='__custom'){ cu.classList.remove('hidden'); cu.focus(); } else { cu.classList.add('hidden'); cu.value=''; } _tipShow('cRaceInfo', RACE_TIPS[sel.value]||'');
+function onRaceChange(){ const sel=$('cRace'),cu=$('cRaceCustom'); if(!sel||!cu) return; if(sel.value==='__custom'){ cu.classList.remove('hidden'); cu.focus(); } else { cu.classList.add('hidden'); cu.value=''; } _tipShow('cRaceInfo', (uiLanguage()==='en'?RACE_TIPS_EN:RACE_TIPS)[sel.value]||'');
   // v291: ตัวเลือกธาตุสายมังกร (Dragonborn) + รีเฟรชสกิล/โบนัส (Human +1 สกิล/+1 ค่าสถานะ · Half-Elf +2 สกิล)
   const de=$('cDragonElem'); if(de){ if(raceKey()==='dragonborn') de.classList.remove('hidden'); else de.classList.add('hidden'); }
   try{ renderSkillPick(); renderBonus(); }catch(e){}
 }
 function weaponValue(){ const sel=$('cWeapon'); if(!sel) return ''; return sel.value==='__custom' ? (($('cWeaponCustom')||{}).value||'').trim() : (sel.value||'').trim(); }
 function onWeaponChange(){ const sel=$('cWeapon'),cu=$('cWeaponCustom'); if(!sel||!cu) return; if(sel.value==='__custom'){ cu.classList.remove('hidden'); cu.focus(); } else { cu.classList.add('hidden'); cu.value=''; } }
-// ── คลังไอเทม/คลาส (global catalog จาก DB) — โหลดครั้งเดียว แคชไว้ ──
-let ITEM_CAT={}, CLASS_CAT={}, ITEM_BY_NAME={}, SPELL_CAT=[], SKILL_CAT=[], _catLoaded=false, selectedPkg=null;
+// ── v700 catalog: curated shared + current-campaign dynamic rows; item/skill cache แยกโลก ──
+let ITEM_CAT={}, CLASS_CAT={}, ITEM_BY_NAME={}, SPELL_CAT=[], SKILL_CAT=[], _catLoaded=false, _catalogBlocked=false, selectedPkg=null;
+function _catalogCacheKey(kind){return kind+'_'+uiLanguage()+((kind==='itemcat'||kind==='skillcat')?'_'+campaign.id:'');}
+function _catalogScopeFilter(){return 'catalog_scope.eq.curated,origin_campaign_id.eq.'+campaign.id;}
+function _localizeCatalogRows(kind,rows){
+  return (rows||[]).filter(src=>UI18N.catalogRowVisibleForWorld(uiLanguage(),kind,src,campaign.id)).map(src=>UI18N.localizeCatalogRow(uiLanguage(),kind,src));
+}
 async function loadCatalogs(){
   if(_catLoaded) return;
   try{
     const [ic,cc,sc,kc]=await Promise.all([
-      supa.from('item_catalog').select('slug,name,category,subtype,damage_dice,damage_type,properties,range_ft,armor_base,dex_cap,str_req,stealth_disadv,is_magic,rarity,requires_attunement,bonuses,effect,cost_gp'),
-      supa.from('class_catalog').select('slug,name,hit_die,armor_prof,weapon_prof,saving_throws,starting_packages'),
-      supa.from('spell_catalog').select('slug,name,level,school,classes,casting_time,range_,components,duration,concentration,ritual,save,damage,effect,area_shape,area_size'),
-      supa.from('skill_catalog').select('slug,name,classes,level,max_uses,recharge,effect')
+      supa.from('item_catalog').select('slug,name,name_en,category,subtype,damage_dice,damage_type,properties,range_ft,armor_base,dex_cap,str_req,stealth_disadv,is_magic,rarity,requires_attunement,bonuses,effect,effect_en,charges,charges_en,cost_gp,source,catalog_scope,origin_campaign_id,game_language').or(_catalogScopeFilter()),
+      supa.from('class_catalog').select('slug,name,hit_die,armor_prof,weapon_prof,saving_throws,starting_packages,starting_packages_en'),
+      supa.from('spell_catalog').select('slug,name,level,school,classes,casting_time,range_,components,duration,concentration,ritual,save,damage,effect,effect_en,area_shape,area_size'),
+      supa.from('skill_catalog').select('slug,name,classes,level,max_uses,recharge,effect,effect_en,is_dm,source,catalog_scope,origin_campaign_id,game_language').or(_catalogScopeFilter())
     ]);
-    if(!ic.error&&ic.data){ ITEM_CAT={}; ic.data.forEach(r=>ITEM_CAT[r.slug]=r); _catSet('itemcat',ic.data); }
-    if(!cc.error&&cc.data){ CLASS_CAT={}; cc.data.forEach(r=>CLASS_CAT[r.slug]=r); _catSet('classcat',cc.data); }
-    if(!sc.error&&sc.data){ SPELL_CAT=sc.data; _catSet('spellcat',sc.data); }
-    if(!kc.error&&kc.data){ SKILL_CAT=kc.data; _catSet('skillcat',kc.data); }
-    if(!ic.error&&ic.data&&ic.data.length) _catLoaded=true;
-  }catch(e){}
-  if(!_catLoaded){ const i=_catGet('itemcat'),c=_catGet('classcat'); if(i){ITEM_CAT={};i.forEach(r=>ITEM_CAT[r.slug]=r);} if(c){CLASS_CAT={};c.forEach(r=>CLASS_CAT[r.slug]=r);} const sp=_catGet('spellcat'); if(sp) SPELL_CAT=sp; const kp=_catGet('skillcat'); if(kp) SKILL_CAT=kp; }
+    const anyErr=ic.error||cc.error||sc.error||kc.error;
+    if(uiLanguage()==='en'&&anyErr) throw anyErr;   // EN is deliberately fail-closed: no Thai catalog fallback.
+    if(!ic.error){ const ir=_localizeCatalogRows('item',ic.data); ITEM_CAT={}; ir.forEach(r=>ITEM_CAT[r.slug]=r); _catSet(_catalogCacheKey('itemcat'),ir); }
+    if(!cc.error){ const cr=_localizeCatalogRows('class',cc.data); CLASS_CAT={}; cr.forEach(r=>CLASS_CAT[r.slug]=r); _catSet(_catalogCacheKey('classcat'),cr); }
+    if(!sc.error){ const sr=_localizeCatalogRows('spell',sc.data); SPELL_CAT=sr; _catSet(_catalogCacheKey('spellcat'),sr); }
+    if(!kc.error){ const kr=_localizeCatalogRows('skill',kc.data); SKILL_CAT=kr; _catSet(_catalogCacheKey('skillcat'),kr); }
+    if(!anyErr&&ic.data&&ic.data.length) _catLoaded=true;
+  }catch(e){if(uiLanguage()==='en'){_catalogBlocked=true;toast(uiText('builder.catalogBlocked'),true);console.warn('English catalog blocked',e);return;}}
+  if(!_catLoaded){ const i=_catGet(_catalogCacheKey('itemcat')),c=_catGet(_catalogCacheKey('classcat')); if(i){ITEM_CAT={};i.forEach(r=>ITEM_CAT[r.slug]=r);} if(c){CLASS_CAT={};c.forEach(r=>CLASS_CAT[r.slug]=r);} const sp=_catGet(_catalogCacheKey('spellcat')); if(sp) SPELL_CAT=sp; const kp=_catGet(_catalogCacheKey('skillcat')); if(kp) SKILL_CAT=kp; }
+  if(uiLanguage()==='en'&&(!Object.keys(ITEM_CAT).length||!Object.keys(CLASS_CAT).length||!SPELL_CAT.length||!SKILL_CAT.length)){_catalogBlocked=true;toast(uiText('builder.catalogBlocked'),true);return;}
   buildItemIndex();
 }
 function pkgItemNames(pk){ return (pk.items||[]).map(it=>{ const ci=ITEM_CAT[it.slug]; const nm=ci?ci.name:it.slug; return nm+(it.qty>1?(' x'+it.qty):''); }).join(', '); }
@@ -2920,11 +3068,11 @@ function renderPackages(){
   const w=$('pkgWrap'); if(!w) return; selectedPkg=null;
   const ck=classKey(); const cd=ck?CLASS_CAT[ck]:null;
   const pkgs=(cd&&Array.isArray(cd.starting_packages))?cd.starting_packages:[];
-  if(!pkgs.length){ w.innerHTML='<span class="muted">คลาสนี้ไม่มีชุดสำเร็จรูป — เลือกอาวุธด้านล่างเอง</span>'; return; }
+  if(!pkgs.length){ w.innerHTML='<span class="muted">'+escapeHtml(uiText('builder.noPackage'))+'</span>'; return; }
   w.innerHTML='';
   pkgs.forEach((pk,idx)=>{
     const row=document.createElement('label'); row.className='fld'; row.style.cssText='flex-direction:row;align-items:flex-start;gap:8px;cursor:pointer;margin:2px 0';
-    row.innerHTML='<input type="radio" name="startpkg" style="margin-top:3px"><span><b>'+escapeHtml(pk.label||('ชุด '+(idx+1)))+'</b><div class="muted" style="font-size:12px;line-height:1.4">'+escapeHtml(pkgItemNames(pk))+(pk.gold?(' · '+pk.gold+' gp'):'')+'</div></span>';
+    row.innerHTML='<input type="radio" name="startpkg" style="margin-top:3px"><span><b>'+escapeHtml(pk.label||uiText('builder.packageN',{n:idx+1}))+'</b><div class="muted" style="font-size:12px;line-height:1.4">'+escapeHtml(pkgItemNames(pk))+(pk.gold?(' · '+pk.gold+' gp'):'')+'</div></span>';
     row.querySelector('input').onchange=()=>{ selectedPkg=pk; };
     w.appendChild(row);
   });
@@ -3081,6 +3229,7 @@ const RACE_FEATURES={
        {name:'Aggressive',description:'ใช้ bonus action พุ่งเข้าหาศัตรูเป็นระยะเท่าความเร็วของคุณ',max_uses:0,recharge:'passive'},
        {name:'Relentless Endurance',description:'เมื่อ HP จะเหลือ 0 ให้คงเหลือ 1 HP แทน (1/long rest)',max_uses:1,recharge:'long'}],
 };
+const CHARACTER_EN=globalThis.TTRPG_CHARACTER_EN;
 function raceKey(){ const r=(raceValue()||'').toLowerCase(); if(/drow|dark.?elf/.test(r)) return 'drow'; if(/half.?elf/.test(r)) return 'halfelf'; if(/half.?orc/.test(r)) return 'halforc'; for(const k in RACE_FEATURES){ if(r.includes(k)) return k; } return null; }
 function classKey(){ const c=(classValue()||'').toLowerCase(); for(const k in CLASS_SKILLS){ if(c.includes(k)) return k; } return null; }
 // เงินเริ่มต้นตาม PHB (class starting wealth, เฉลี่ย gp) — monk = 5d4 gp
@@ -3096,14 +3245,14 @@ function renderSkillPick(){
   const wrap=$('skillWrap'); if(!wrap) return;
   const def=skillDef(); const list=def.list==='ALL'?ALL_SKILLS:def.list;
   chosenSkills=chosenSkills.filter(s=>list.includes(s));
-  const rk=raceKey(); const rb = rk==='human'?' (+1 เผ่า Human)':rk==='halfelf'?' (+2 เผ่า Half-Elf)':'';
-  const info=$('skillInfo'); if(info) info.textContent=`เลือก ${def.n} สกิล (${chosenSkills.length}/${def.n})${rb}`+(classKey()?'':' · คลาสนอกกฎ → เลือกได้ 2 จากทั้งหมด');
+  const rk=raceKey(); const rb = rk==='human'?uiText('builder.humanSkillBonus'):rk==='halfelf'?uiText('builder.halfElfSkillBonus'):'';
+  const info=$('skillInfo'); if(info) info.textContent=uiText('builder.skillInfo',{max:def.n,current:chosenSkills.length,raceBonus:rb,custom:classKey()?'':uiText('builder.customClassSkills')});
   wrap.innerHTML=list.map(s=>`<button type="button" class="skbtn${chosenSkills.includes(s)?' on':''}" onclick="toggleSkill('${s}')">${s}</button>`).join('');
 }
 function toggleSkill(s){
   const def=skillDef(); const i=chosenSkills.indexOf(s);
   if(i>=0) chosenSkills.splice(i,1);
-  else { if(chosenSkills.length>=def.n){ toast(`เลือกได้ ${def.n} สกิลตามคลาส`,true); return; } chosenSkills.push(s); }
+  else { if(chosenSkills.length>=def.n){ toast(uiText('builder.skillLimit',{n:def.n}),true); return; } chosenSkills.push(s); }
   renderSkillPick();
 }
 // ───────── เลือก cantrip/เวทเริ่มต้น (สายเวท) ตอนสร้างตัวละคร ─────────
@@ -3121,15 +3270,15 @@ function renderSpellPick(){
   const show = (caps.cantrip>0 || caps.lvl1>0);
   [ttl,info,wrap].forEach(el=>{ if(el) el.style.display = show?'':'none'; });
   if(!show){ chosenSpells=[]; wrap.innerHTML=''; return; }
-  if(!SPELL_CAT.length){ wrap.innerHTML='<span class="note">กำลังโหลดคลังเวท…</span>'; if(!window._spellPickLoading){ window._spellPickLoading=1; loadCatalogs().then(()=>{ window._spellPickLoading=0; renderSpellPick(); }); } return; }
+  if(!SPELL_CAT.length){ wrap.innerHTML='<span class="note">'+escapeHtml(uiText(_catalogBlocked?'builder.catalogBlocked':'builder.spellsLoading'))+'</span>'; if(!_catalogBlocked&&!window._spellPickLoading){ window._spellPickLoading=1; loadCatalogs().then(()=>{ window._spellPickLoading=0; renderSpellPick(); }); } return; }
   const ckClasses=(sp)=>Array.isArray(sp.classes)?sp.classes:[];
   const avail=SPELL_CAT.filter(sp=> sp.level<=1 && (caps.custom || ckClasses(sp).includes(caps.ck)) );
   chosenSpells=chosenSpells.filter(x=>avail.some(sp=>sp.slug===x.slug));   // กันค้างของคลาสเก่า
   const nC=chosenSpells.filter(x=>x.level===0).length, n1=chosenSpells.filter(x=>x.level===1).length;
-  if(info) info.innerHTML=`เลือก cantrip ${nC}/${caps.cantrip}`+(caps.lvl1>0?` · เวทเลเวล 1 ${n1}/${caps.lvl1}`:'')+(caps.custom?' · อาชีพนอกกฎ (เลือกอิสระ DM กำกับ)':'');
+  if(info) info.textContent=uiText('builder.spellInfo',{cantrips:nC,cantripMax:caps.cantrip,levelOne:caps.lvl1>0?uiText('builder.levelOneCount',{current:n1,max:caps.lvl1}):'',custom:caps.custom?uiText('builder.customSpellNote'):''});
   const grp=(L)=>avail.filter(sp=>sp.level===L);
   let html='';
-  [[0,'Cantrip',caps.cantrip],[1,'เลเวล 1',caps.lvl1]].forEach(([L,lab,cap])=>{
+  [[0,'Cantrip',caps.cantrip],[1,uiText('builder.levelOne'),caps.lvl1]].forEach(([L,lab,cap])=>{
     if(cap<=0) return; const g=grp(L); if(!g.length) return;
     html+=`<div class="note" style="grid-column:1/-1;color:#9ad;text-align:left;margin-top:4px">${lab}</div>`;
     html+=g.map(sp=>{ const on=chosenSpells.some(x=>x.slug===sp.slug);
@@ -3146,19 +3295,21 @@ function toggleSpell(slug){
   else {
     const cap = sp.level===0?caps.cantrip:caps.lvl1;
     const cur = chosenSpells.filter(x=>x.level===sp.level).length;
-    if(cur>=cap){ toast(sp.level===0?`เลือก cantrip ได้ ${cap}`:`เลือกเวทเลเวล 1 ได้ ${cap}`,true); return; }
+    if(cur>=cap){ toast(uiText(sp.level===0?'builder.cantripLimit':'builder.spellLimit',{n:cap}),true); return; }
     chosenSpells.push({ slug:sp.slug, name:sp.name, level:sp.level, effect:sp.effect||'' });
   }
   renderSpellPick();
 }
 async function createCharacter(){
-  const name=$('cName').value.trim(); if(!name){toast('Name your character first',true);return;}
+  const lang=uiLanguage(),name=$('cName').value.trim(); if(!name){toast(uiText('builder.nameRequired'),true);return;}
   // v441: บังคับเลือกอาชีพ/เผ่า/เพศ ก่อนเข้าเกม — กันตัวละครหลุดแบบไม่มีคลาส (ไม่มี sprite + กลไกอาชีพไม่ทำงาน)
-  if(!classValue()){ toast('ยังไม่ได้เลือกอาชีพ (Class) — เลือกก่อนเข้าเกม',true); const _e=$('cClass'); if(_e){try{_e.focus();_e.scrollIntoView({block:'center'});}catch(x){}} return; }
-  if(!raceValue()){ toast('ยังไม่ได้เลือกเผ่าพันธุ์ (Race) — เลือกก่อนเข้าเกม',true); const _e=$('cRace'); if(_e){try{_e.focus();_e.scrollIntoView({block:'center'});}catch(x){}} return; }
-  if(!($('cSex')&&$('cSex').value||'').trim()){ toast('ยังไม่ได้เลือกเพศ (Sex) — เลือกก่อนเข้าเกม',true); const _e=$('cSex'); if(_e){try{_e.focus();_e.scrollIntoView({block:'center'});}catch(x){}} return; }
+  if(!classValue()){ toast(uiText('builder.classRequired'),true); const _e=$('cClass'); if(_e){try{_e.focus();_e.scrollIntoView({block:'center'});}catch(x){}} return; }
+  if(!raceValue()){ toast(uiText('builder.raceRequired'),true); const _e=$('cRace'); if(_e){try{_e.focus();_e.scrollIntoView({block:'center'});}catch(x){}} return; }
+  if(!($('cSex')&&$('cSex').value||'').trim()){ toast(uiText('builder.sexRequired'),true); const _e=$('cSex'); if(_e){try{_e.focus();_e.scrollIntoView({block:'center'});}catch(x){}} return; }
+  if(lang==='en'&&[name,classValue(),raceValue()].some(v=>UI18N.latinPublicTextVerdict(v)!=='ok')){toast(uiText('builder.publicLatinRequired'),true);return;}
+  if(_catalogBlocked){toast(uiText('builder.catalogBlocked'),true);return;}
   // v643 FIX-9 (BUGPLAN_2026-07-17 A8 — เคสจริง playtest 07-16: PC สถิติ 8 ทั้งแถบเข้าเกมเงียบๆ): บังคับกระจาย point buy ให้ครบก่อน
-  if(typeof pbSpent==='function' && pbSpent() < PB_BUDGET){ toast('ยังเหลือแต้มสถานะ '+(PB_BUDGET-pbSpent())+' แต้ม (ABILITY SCORES · POINT BUY) — กระจายให้ครบก่อนเข้าเกม',true); const _e=$('pbWrap'); if(_e){try{_e.scrollIntoView({block:'center'});}catch(x){}} return; }
+  if(typeof pbSpent==='function' && pbSpent() < PB_BUDGET){ toast(uiText('builder.pointsRemaining',{n:PB_BUDGET-pbSpent()}),true); const _e=$('pbWrap'); if(_e){try{_e.scrollIntoView({block:'center'});}catch(x){}} return; }
   $('charBtn').disabled=true;
   try{
     suggestHP(); const hpv=parseInt($('cHp').value); const maxhp=isNaN(hpv)?null:Math.max(1,hpv);
@@ -3176,7 +3327,7 @@ async function createCharacter(){
         const _fix={ name, class:classValue()||null, public_status:{ hp: maxhp?`${maxhp}/${maxhp}`:'100%' } };
         const { error:_fixErr } = await supa.from('characters').update(_fix).eq('id',_chEx.id);
         ch=_fixErr?_chEx:Object.assign({},_chEx,_fix);
-        toast('พบตัวละครค้างจากรอบก่อน — สร้างต่อจากแถวเดิมให้แล้ว');
+        toast(uiText('builder.recovered'));
       } else if(error) throw error;
       else ch=_chIns;
     }
@@ -3191,7 +3342,7 @@ async function createCharacter(){
     // เงินเริ่มต้น (v623 D3/H11 กัน double-dip): ชุดกำหนด gold เอง = ใช้ค่านั้น · ได้ชุดอุปกรณ์เต็ม (items) = เงินติดกระเป๋า 15 gp (PHB: starting wealth ตามคลาส คือทางเลือก "แทนอุปกรณ์" — ห้ามได้ทั้งคู่) · ไม่มี package = เงินคลาสเต็ม
     { const _ck=classKey(); walletp.gp = (selectedPkg && selectedPkg.gold) ? selectedPkg.gold : (selectedPkg && Array.isArray(selectedPkg.items) && selectedPkg.items.length) ? 15 : (CLASS_START_GOLD[_ck]||15); }
     const sheet={
-      race:raceValue(), sex:$('cSex').value.trim(), age:$('cAge').value.trim(),
+      race:raceValue(), sex:$('cSex').value.trim(), age:$('cAge').value.trim(), birth_date_game:($('cBirth').value||'').trim(),
       dragonborn_element: (raceKey()==='dragonborn') ? dragonbornElement : undefined,   // v291: ธาตุ → resist + Breath Weapon (server ใช้)
       abilities:{ str:finalAb('str'), dex:finalAb('dex'), con:finalAb('con'), int:finalAb('int'), wis:finalAb('wis'), cha:finalAb('cha') },
       skill_proficiencies: chosenSkills.slice(),
@@ -3205,15 +3356,20 @@ async function createCharacter(){
     persistCombatStats(sheet, classValue());
     const { error: _shErr } = await supa.from('character_sheets').insert({ character_id:ch.id, sheet });   // v271 L5: เช็ค error (เดิมไม่เช็ค → ถ้า insert ล้ม ได้ตัวละครไม่มีชีทเงียบๆ)
     if(_shErr && String(_shErr.code)!=='23505') throw _shErr;   // v628 #6: 23505 = ชีทมีอยู่แล้ว (path กู้ตัวละครค้าง) — ใช้ของเดิม ห้ามทับ
+    if(sheet.birth_date_game && campaign&&campaign.companion_mode==='v2'){
+      try{ await companionResolve({romance_confirm:{character_id:ch.id,birthday_only:true,birth_date:sheet.birth_date_game}}); }
+      catch(e){ toast(e.message||uiText('builder.birthdayFailed'),true); }
+    }
     // ความสามารถเริ่มต้นตามคลาส → แท็บ Skills (ไม่พังถ้าตาราง skills ยังไม่ได้ migrate)
     try{
-      const ck=classKey(); const feats=ck?CLASS_FEATURES[ck]:null;
+      const ck=classKey(); let feats=ck?CLASS_FEATURES[ck]:null;
+      if(lang==='en'&&feats){const over=(CHARACTER_EN.classFeatureDescriptions&&CHARACTER_EN.classFeatureDescriptions[ck])||{};feats=feats.map(f=>over[f.name]?Object.assign({},f,{description:over[f.name]}):f);}
       const rows=[];
       if(feats&&feats.length) feats.forEach((f,i)=>rows.push({campaign_id:campaign.id,character_id:ch.id,name:f.name,description:f.description,max_uses:(/lay on hands/i.test(f.name)?5:f.max_uses),used:0,recharge:f.recharge,sort:i}));   // v418: Lay on Hands max_uses = พูล 5×level (เริ่ม L1=5 · server อัปตามเลเวล)
       // ความสามารถเฉพาะเผ่า (racial traits: passive/active) → ลง skills เช่นกัน
-      const rk=raceKey(); let rfeats=rk?RACE_FEATURES[rk]:null;
+      const rk=raceKey(); let rfeats=rk?(lang==='en'?CHARACTER_EN.raceFeatures[rk]:RACE_FEATURES[rk]):null;
       // v291: Dragonborn → ฝังธาตุที่เลือกในคำอธิบาย (ผู้เล่นเห็นชัด · server ใช้ sheet.dragonborn_element)
-      if(rk==='dragonborn' && rfeats){ const _elTH={fire:'ไฟ',cold:'เย็น',lightning:'ไฟฟ้า',acid:'กรด',poison:'พิษ'}[dragonbornElement]||dragonbornElement; rfeats=rfeats.map(f=>(/breath|resistance|ancestry/i.test(f.name)?{...f,description:f.description+` (ธาตุ: ${_elTH})`}:f)); }
+      if(rk==='dragonborn' && rfeats){ const _el=lang==='en'?dragonbornElement:({fire:'ไฟ',cold:'เย็น',lightning:'ไฟฟ้า',acid:'กรด',poison:'พิษ'}[dragonbornElement]||dragonbornElement); rfeats=rfeats.map(f=>(/breath|resistance|ancestry/i.test(f.name)?{...f,description:f.description+(lang==='en'?` (type: ${_el})`:` (ธาตุ: ${_el})`)}:f)); }
       if(rfeats&&rfeats.length) rfeats.forEach((f,i)=>rows.push({campaign_id:campaign.id,character_id:ch.id,name:f.name,description:f.description,max_uses:f.max_uses,used:0,recharge:f.recharge,sort:50+i}));
       // เวท/cantrip ที่เลือกตอนสร้างตัว → ลง skills (cantrip=at-will ไม่จำกัด · เลเวล1=2 ครั้ง/long rest) → โผล่แท็บ Skills + Command Menu
       chosenSpells.forEach((sp,i)=>rows.push({campaign_id:campaign.id,character_id:ch.id,name:sp.name,description:sp.effect||'',max_uses:0,used:0,recharge:sp.level===0?'atwill':'long',level:sp.level,sort:100+i}));   // v574: เวทมีระดับ max_uses:0 = ร่ายผ่าน spell slot รวม (ไม่ใช่ตัวนับรายเวท) — แก้ desync "รวมไม่หัก/ย่อยหัก" (มิเรอร์ backend prepare endpoints.ts) · ติด level ให้ slot tracker
@@ -3224,12 +3380,12 @@ async function createCharacter(){
       //   แต่เวทที่เลือก/racial traits ไม่มีใครเติม — ผู้เล่นต้องรู้ทันที
       if(_uniq.length){
         const { error:_skErr } = await supa.from('skills').upsert(_uniq,{ onConflict:'character_id,name', ignoreDuplicates:true });
-        if(_skErr){ toast('บันทึกสกิล/เวทเริ่มต้นไม่ครบ ('+(_skErr.message||'')+') — เข้าเกมได้ แต่แจ้งผู้ดูแลเพื่อเติมเวทที่เลือกไว้',true); console.warn('skills seed failed',_skErr); }
+        if(_skErr){ toast(uiText('builder.skillSeedPartial',{message:_skErr.message||''}),true); console.warn('skills seed failed',_skErr); }
       }
-    }catch(e){ console.warn('skills seed failed',e); toast('บันทึกสกิลเริ่มต้นไม่สำเร็จ — เข้าเกมได้ แต่แจ้งผู้ดูแลเพื่อเติมสกิล',true); }
+    }catch(e){ console.warn('skills seed failed',e); toast(uiText('builder.skillSeedFailed'),true); }
     _cacheSet('ttrpg_bg_'+campaign.id, sheet.notes||'');
     myChar=ch; mySheet=sheet; await refreshAll(); show('campaign'); switchTab('story');
-  }catch(e){ toast(e.message||'Failed to create character',true); }
+  }catch(e){ toast((lang==='en'&&String(e.message||'').includes('english-public-text-required'))?uiText('builder.publicLatinRequired'):(e.message||uiText('builder.createFailed')),true); }
   finally{ $('charBtn').disabled=false; }
 }
 
@@ -3251,6 +3407,79 @@ function switchTab(t){
   else if(t==='quest') renderQuest();
   else if(t==='files') renderFiles();
   else if(t==='chron') renderChronicle();
+  else if(t==='companion') renderCompanion();
+}
+// ───────── Companion v2 roster (C2) ─────────
+let _companionViewCache=null,_companionViewTs=0;
+async function companionResolve(payload){
+  const tok=(await supa.auth.getSession()).data.session?.access_token; if(!tok) throw new Error('กรุณาเข้าสู่ระบบใหม่');
+  const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify(Object.assign({campaign_id:campaign.id},payload))});
+  const j=await r.json(); if(!r.ok||j.error){ const e=new Error(j.note||j.message||j.error||'ทำรายการไม่สำเร็จ'); e.payload=j; throw e; } return j;
+}
+async function companionViewLoad(force){
+  if(!force&&_companionViewCache&&Date.now()-_companionViewTs<10000) return _companionViewCache;
+  const j=await companionResolve({companion_view:true}); _companionViewCache=j; _companionViewTs=Date.now(); return j;
+}
+function companionTierTH(t){ return ({enemy:'ศัตรู',hostile:'เป็นปฏิปักษ์',wary:'ระแวง',neutral:'เป็นกลาง',friendly:'เป็นมิตร',trusted:'ไว้ใจ',close:'สนิท',inner_circle:'คนวงใน'})[String(t||'neutral')]||'เป็นกลาง'; }
+function companionOwnedPc(view){
+  const pcs=(view&&view.own_characters)||[]; if(!pcs.length) return null; if(pcs.length===1) return pcs[0];
+  const raw=prompt('เลือกตัวละครผู้ทำรายการ:\n'+pcs.map((p,i)=>(i+1)+'. '+p.name).join('\n'),'1'); const i=Math.floor(Number(raw))-1; return pcs[i]||null;
+}
+function companionCard(c,isHost,view){
+  const rel=(c.relationships||[]).map(r=>`<span class="tag">${escapeHtml(companionTierTH(r.tier))}</span>`).join(' ')||'<span class="muted">ยังไม่มีสายสัมพันธ์ที่เปิดเผย</span>';
+  const bag=(c.public_bag||[]).map(x=>`<span class="tag">${escapeHtml(x.name||x)}${x.qty>1?' ×'+x.qty:''}</span>`).join(' ')||'<span class="muted">กระเป๋าสาธารณะยังว่าง</span>';
+  const w=c.public_wallet||{gp:0,sp:0,cp:0};
+  const swap=isHost&&['active','reserve'].includes(c.status)?`<button class="btn ghost sm" onclick="companionRoster('${c.character_id}','${c.status}')">${c.status==='active'?'ย้ายไป Reserve':'ย้ายเข้า Active'}</button>`:'';
+  const romance=((view&&view.own_characters)||[]).some(p=>p.romance_enabled)?`<button class="btn ghost sm" onclick="companionInteract('${c.character_id}','romance')">จีบ</button>`:'';
+  const age=c.age_years==null?'':' · อายุ '+c.age_years;
+  return `<div class="item" style="margin:8px 0"><div class="nm">${escapeHtml(c.name)} <span class="tag">${escapeHtml(c.status)}</span></div><div class="sub">${escapeHtml(c.race||'')} ${escapeHtml(c.class||'')} · Lv ${c.level||1}${age}${c.active_slot?' · Slot '+c.active_slot:''}</div><div class="note" style="text-align:left;margin:7px 0">${rel}</div><div class="note" style="text-align:left;margin:7px 0">🎒 ${bag}<br>💰 ${w.gp||0} gp · ${w.sp||0} sp · ${w.cp||0} cp</div><div class="srow2" style="flex-wrap:wrap"><button class="btn ghost sm" onclick="companionInteract('${c.character_id}','talk')">คุยส่วนตัว</button><button class="btn ghost sm" onclick="companionInteract('${c.character_id}','spend')">ใช้เวลาด้วยกัน</button>${romance}<button class="btn ghost sm" onclick="companionGive('${c.character_id}')">มอบของ/เงิน</button><button class="btn ghost sm" onclick="companionRequest('${c.character_id}')">ขอของ</button><button class="btn ghost sm" onclick="toast('กระเป๋าที่เปิดเผยแสดงอยู่บนการ์ดแล้ว')">ดูกระเป๋า</button>${swap}</div></div>`;
+}
+async function renderCompanion(){
+  const p=$('panel-companion'); if(!p) return; p.innerHTML='<div class="muted">กำลังโหลด Companion roster…</div>';
+  try{ const v=await companionViewLoad(false), all=v.companions||[], active=all.filter(c=>c.status==='active'), reserve=all.filter(c=>c.status==='reserve'), memorial=all.filter(c=>['dead','former'].includes(c.status)); const host=campaign.host_id===me.id;
+    const fr=await supa.from('private_narrative').select('id,kind,content,created_at,recipient_character_id,companion_character_id').eq('campaign_id',campaign.id).order('created_at',{ascending:false}).limit(30); if(fr.error) throw fr.error;
+    const feed=(fr.data||[]).slice().reverse(); const feedHtml=feed.map(x=>`<div class="item" style="margin:7px 0"><div class="sub">${escapeHtml(x.kind||'private')} · ${escapeHtml(new Date(x.created_at).toLocaleString())}</div><div class="note" style="text-align:left;white-space:normal">${escapeHtml(x.content||'').replace(/\n/g,'<br>')}</div></div>`).join('')||'<div class="muted">ยังไม่มีฉากส่วนตัว</div>';
+    const consent=v.consent&&v.consent.adult_confirmed?'ยืนยันอายุจริงแล้ว':'ยังไม่เปิด Romance';
+    p.innerHTML=`<div class="item"><div class="nm">Companion Roster</div><div class="sub">Active ${active.length}/3 · Reserve ${reserve.length} · Memorial ${memorial.length}</div><button class="btn ghost sm" onclick="companionConsent()">ตั้งค่า Romance / วันเกิด</button> <span class="muted">${consent}</span></div>`+
+      `<h3>Active ${active.length}/3</h3>${active.map(c=>companionCard(c,host,v)).join('')||'<div class="muted">ยังไม่มี companion ในทีม</div>'}`+
+      `<h3>Reserve</h3>${reserve.map(c=>companionCard(c,host,v)).join('')||'<div class="muted">กองสำรองว่าง</div>'}`+
+      (memorial.length?`<h3>Memorial / History</h3>${memorial.map(c=>companionCard(c,false,v)).join('')}`:'')+
+      `<h3>Private relationship feed</h3><div class="note" style="text-align:left">เห็นได้เฉพาะบัญชีผู้รับผ่าน RLS</div>${feedHtml}`;
+  }catch(e){ p.innerHTML='<div class="item"><div class="nm">Companion</div><div class="note">'+escapeHtml(e.message||'โหลดไม่ได้')+'</div></div>'; }
+}
+function companionSoon(label){ toast(label+' จะเปิดในเฟส Privacy/Interaction'); }
+async function companionInteract(companionId,kind){
+  try{ const v=await companionViewLoad(true),pc=companionOwnedPc(v); if(!pc) return toast('ต้องมีตัวละครของคุณก่อน',true); if(kind==='romance'&&!pc.romance_enabled) return toast('ตัวละครนี้ยังไม่ได้เปิด Romance access',true);
+    const labels={talk:'คุยเรื่องใด (เว้นว่างได้)',spend:'อยากใช้เวลาร่วมกันแบบใด (เว้นว่างได้)',romance:'อยากสื่อเจตนาอย่างไร — การกดส่งไม่การันตีว่า companion จะตอบรับ'};
+    const intent=String(prompt(labels[kind]||'เจตนาของฉาก','')||'').trim(); toast('กำลังเปิดฉากส่วนตัว…');
+    const j=await companionResolve({companion_interact:{character_id:pc.character_id,companion_id:companionId,kind,intent,request_key:crypto.randomUUID()}}); toast(j.note||'บันทึกฉากแล้ว'); _companionViewCache=null; renderCompanion();
+  }catch(e){ toast(e.message||'เปิดฉากส่วนตัวไม่สำเร็จ',true); }
+}
+async function companionConsent(){
+  try{ const v=await companionViewLoad(true),pc=companionOwnedPc(v); if(!pc) return toast('ต้องมีตัวละครของคุณก่อน',true);
+    const adult=confirm('กด OK เพื่อยืนยันว่าผู้เล่นตัวจริงมีอายุ 18 ปีขึ้นไป\nกด Cancel เพื่อไม่ยืนยันและปิดสิทธิ์ Romance ของบัญชี');
+    const romance=adult&&confirm('เปิดเส้นทาง Romance ให้ '+pc.name+' หรือไม่?\nการเปิดสิทธิ์ไม่บังคับให้ companion ตอบรับ');
+    let birth=''; if(!pc.birthday_known) birth=String(prompt('วันเกิดของ '+pc.name+' ในปฏิทินโลก (จำเป็นเมื่อเปิด Romance · YYYY-MM-DD · เดือนละ 30 วัน)','')||'').trim();
+    const needsAgePolicy=romance&&(pc.age_years==null||Number(pc.age_years)<18);
+    const underageOk=needsAgePolicy&&confirm('หาก '+pc.name+' มีอายุตัวละคร 13-17 ปี\nยืนยันเปิดเฉพาะเส้นทางความสัมพันธ์แบบ PG-13 ที่ไม่มี adult content หรือไม่?\n(อายุต่ำกว่า 13 จะถูกบล็อกเสมอ; อายุ 18+ ระบบจะไม่ใช้ consent ข้อนี้)');
+    const body={character_id:pc.character_id,adult_confirmed:adult,romance_enabled:romance,underage_romance_confirmed:!!underageOk}; if(birth) body.birth_date=birth;
+    const j=await companionResolve({romance_confirm:body}); toast(j.note||'บันทึกแล้ว'); _companionViewCache=null; renderCompanion();
+  }catch(e){ toast(e.message||'บันทึก consent ไม่สำเร็จ',true); }
+}
+async function companionGive(companionId){
+  try{ const v=await companionViewLoad(false),pc=companionOwnedPc(v); if(!pc) return toast('ต้องมีตัวละครของคุณก่อน',true); const kind=String(prompt('พิมพ์ item เพื่อมอบของ หรือ money เพื่อมอบเงิน','item')||'').trim().toLowerCase(); if(!kind) return;
+    let body;if(kind==='money'){ const gp=Math.floor(Number(prompt('จำนวน GP','1'))||0); if(gp<1) return toast('จำนวนเงินไม่ถูกต้อง',true); body={transfer_currency:{from_character_id:pc.character_id,to_character_id:companionId,gp,transfer_key:crypto.randomUUID()}}; }
+    else { const item=String(prompt('ชื่อของตามที่อยู่ในกระเป๋า','')||'').trim(); const qty=Math.floor(Number(prompt('จำนวน','1'))||0); if(!item||qty<1) return toast('ชื่อหรือจำนวนไม่ถูกต้อง',true); body={transfer_item:{from_character_id:pc.character_id,to_character_id:companionId,item,qty,transfer_key:crypto.randomUUID()}}; }
+    const j=await companionResolve(body); toast(j.note||'มอบเรียบร้อย'); _companionViewCache=null; await refreshAll(); renderCompanion();
+  }catch(e){ toast(e.message||'มอบไม่สำเร็จ',true); }
+}
+async function companionRequest(companionId){
+  try{ const v=await companionViewLoad(false),pc=companionOwnedPc(v); if(!pc) return toast('ต้องมีตัวละครของคุณก่อน',true); const item=String(prompt('อยากขอของชิ้นใด','')||'').trim(); if(!item) return; const qty=Math.max(1,Math.floor(Number(prompt('จำนวน','1'))||1)); const j=await companionResolve({companion_request_give:{companion_id:companionId,to_character_id:pc.character_id,item,qty,transfer_key:crypto.randomUUID()}}); toast(j.note||'ส่งคำขอแล้ว');
+  }catch(e){ toast(e.message||'ส่งคำขอไม่สำเร็จ',true); }
+}
+async function companionRoster(characterId,status){
+  try{ let desired=status==='active'?'reserve':'active',slot=null;if(desired==='active'){ slot=Math.floor(Number(prompt('Active slot (1-3)','1'))||0);if(slot<1||slot>3)return toast('slot ต้องเป็น 1-3',true); } const j=await companionResolve({roster_swap:{character_id:characterId,desired_status:desired,active_slot:slot,swap_key:crypto.randomUUID()}}); toast(j.note||'สลับ roster แล้ว'); _companionViewCache=null; await refreshAll(); renderCompanion();
+  }catch(e){ toast(e.message||'สลับ roster ไม่สำเร็จ',true); }
 }
 // ───────── OOC chat (คุยวางแผนนอกเรื่อง) ─────────
 async function loadChat(){
@@ -3274,7 +3503,7 @@ function renderChatList(){
   const list=$('chatList'); if(!list) return; list.innerHTML='';
   if(!chatMsgs.length){ list.innerHTML='<div class="muted">ยังไม่มีข้อความ — เริ่มคุยได้เลย</div>'; return; }
   chatMsgs.slice(-40).forEach(mm=>{ const mine=mm.user_id===me.id; const d=document.createElement('div'); d.className='chatmsg'+(mine?' mine':'');
-    d.innerHTML=`<div class="chatname">${escapeHtml(chatNameFor(mm.user_id))}</div><div class="chatbody">${escapeHtml(mm.body)}</div>`; list.appendChild(d); });
+    d.innerHTML=`<div class="chatname">${escapeHtml(chatNameFor(mm.user_id))}</div><div class="chatbody" data-runtime-origin="user-source">${escapeHtml(mm.body)}</div>`; list.appendChild(d); });
   list.scrollTop=list.scrollHeight;
 }
 async function sendChat(){
@@ -3357,8 +3586,8 @@ async function renderStory(){
   const isStreaming = n => n.status==='placeholder' && n.content && !/^_/.test(String(n.content).trim());
   const shown = narrative.filter(n => n.status !== 'placeholder' || isStreaming(n));
   const feed=$('narrFeed');
-  const isig = n => (n.status||'')+':'+((n.content||'').length);
-  const cdraw = n => isStreaming(n) ? (colorizeNarr(n.content)+'<span class="dots">▌</span>') : colorizeNarr(n.content);
+  const isig = n => (n.status||'')+':'+narrText(n).length+':'+(n.projection_status||'')+':'+(n.projection_note||'');
+  const cdraw = n => isStreaming(n) ? (colorizeNarr(n.content)+'<span class="dots">▌</span>') : narrDraw(n);
   const existing=[...feed.querySelectorAll('.narr')];
   const sameStruct = shown.length>0 && existing.length===shown.length && shown.every((n,i)=> existing[i] && existing[i].dataset.nid===String(n.id));
   if(sameStruct){
@@ -3594,7 +3823,7 @@ async function renderRoundbar(){
   const keepAct=(document.getElementById('actInput')||{}).value||'';   // กันข้อความที่พิมพ์ค้างหายตอน re-render (placeholder/realtime)
   const _cbS=(curRound.meta||{}).combat||{}; const _incS=_cbS.active||!!window._combatActive; const _rng=_incS?`<span class="cs">${escapeHtml((typeof _cbS.range==='string'&&_cbS.range)?_cbS.range:'COMBAT')}</span>`:'';   /* v621 B7: range อาจเป็น object จาก meta เก่า → "[object Object]" */
   let html=`<div class="cstat"><span class="cs">Round ${curRound.round_number}</span><span class="cs ${submitted>=total?'done':'wait'}">Submitted ${submitted}/${total}</span>${_rng}</div>`;
-  list.forEach(a=>{ html+=`<div class="actionlog"><b>${escapeHtml(nameFor(a))}</b> ${escapeHtml(a.action_text)}</div>`; });
+  list.forEach(a=>{ html+=`<div class="actionlog"><b>${escapeHtml(nameFor(a))}</b> <span data-runtime-origin="user-source">${escapeHtml(a.action_text)}</span></div>`; });
   bar.innerHTML=html;   // สร้างทีเดียว (synchronous ต่อจากนี้ ไม่มี await)
   // ── v617 SESSION: การ์ดพักระหว่างตอน — ไม่บล็อกการเล่น (slowlife/เควสค้างได้) · ปุ่มเริ่มตอนถัดไปเห็นเฉพาะ host ──
   try{
@@ -5747,6 +5976,15 @@ async function deleteNPC(id){
 }
 
 // ───────── battle tracker: initiative order + combat log ─────────
+// v679 LIVE-G3a: combat HUD consumes the immutable encounter snapshot, never a fresh campaign_state sample.
+function combatLocationLabel(enc){
+  try{
+    const s=enc&&enc.location_snapshot; if(!s||!s.location_snapshot_id) return '';
+    const main=String(s.site_name||s.settlement_name||s.region_name||s.kingdom_name||'').trim();
+    const room=String(s.room_name||'').trim();
+    return [main,room&&room.toLowerCase()!==main.toLowerCase()?room:''].filter(Boolean).join(' — ');
+  }catch(e){ return ''; }
+}
 async function renderInitiativeTracker(p){
   let enc=null;
   try{ const r=await supa.from('combat_encounters').select('*').eq('campaign_id',campaign.id).neq('status','ended').maybeSingle(); if(!r.error) enc=r.data; }catch(e){ return; }
@@ -5756,6 +5994,7 @@ async function renderInitiativeTracker(p){
   let csMap={}; try{ const r=await supa.from('combat_state').select('id,cur_hp,monsters(max_hp,name)').eq('campaign_id',campaign.id); (r.data||[]).forEach(x=>csMap[x.id]=x); }catch(e){}
   const wrap=document.createElement('div'); wrap.className='item';
   wrap.innerHTML=`<div class="winhead"><div class="sectitle" style="margin:0">⚔ INITIATIVE</div><span class="chip">Round ${enc.combat_round}</span></div>`;
+  const _locHud=combatLocationLabel(enc); if(_locHud){ const d=document.createElement('div'); d.className='note'; d.style.cssText='text-align:left;padding:3px 2px;color:#FAC775'; d.textContent='📍 '+_locHud; d.title='location snapshot '+String(enc.location_snapshot_id||''); wrap.appendChild(d); }
   const list=document.createElement('div'); list.style.cssText='display:flex;flex-direction:column;gap:4px;margin-top:6px';
   ents.filter(e=>e.is_active).forEach(e=>{
     const isParty=e.side==='party';
@@ -5857,40 +6096,40 @@ function buildDmToolsCard(withFrame){
   // v76: ฟอนต์/ขนาดเดียวกันทุกชิ้นในการ์ด (อ่านง่าย ไม่โดดไปมา)
   const DMF="font-family:inherit;font-size:13px";   /* v610f: inherit (เหตุผลเดียวกับ FONT) */
   const tools=document.createElement('div'); tools.style.cssText=DMF;
-  if(withFrame){ tools.className='item'; tools.innerHTML='<div style="'+DMF+';font-weight:700;font-size:14px;text-align:left;padding:2px 0 4px">DM TOOLS <span style="font-weight:400;font-size:12px;color:#9a9a9a">host only</span></div>'; }
+  if(withFrame){ tools.className='item'; tools.innerHTML='<div style="'+DMF+';font-weight:700;font-size:14px;text-align:left;padding:2px 0 4px">DM TOOLS <span style="font-weight:400;font-size:12px;color:#9a9a9a">'+uiCopy('เฉพาะ host','host only')+'</span></div>'; }
   const ctl='style';
   const styleCtl=el=>{ el.style.cssText+=';'+DMF+';padding:4px 8px'; return el; };
   const r1=document.createElement('div'); r1.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0';
   const sel=styleCtl(document.createElement('select')); (characters||[]).forEach(c=>{ const o=document.createElement('option'); o.value=c.name; o.textContent=c.name; sel.appendChild(o); });
   const hpIn=styleCtl(document.createElement('input')); hpIn.type='number'; hpIn.min='0'; hpIn.placeholder='HP'; hpIn.style.width='52px';
-  const setBtn=styleCtl(document.createElement('button')); setBtn.className='btn sm'; setBtn.textContent='ตั้ง HP';
+  const setBtn=styleCtl(document.createElement('button')); setBtn.className='btn sm'; setBtn.textContent=uiCopy('ตั้ง HP','Set HP');
   setBtn.onclick=async()=>{
-    const hp=parseInt(hpIn.value,10); if(!Number.isFinite(hp)){ toast('ใส่ตัวเลข HP',true); return; }
-    if(!confirm('ตั้ง HP ของ '+sel.value+' เป็น '+hp+'?')) return;
+    const hp=parseInt(hpIn.value,10); if(!Number.isFinite(hp)){ toast(uiCopy('ใส่ตัวเลข HP','Enter an HP value'),true); return; }
+    if(!confirm(uiCopy('ตั้ง HP ของ ','Set HP for ')+sel.value+uiCopy(' เป็น ',' to ')+hp+'?')) return;
     setBtn.disabled=true;
     try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
       const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,set_hp:{name:sel.value,hp}})});
       const j=await r.json(); if(j.error) toast(j.error,true); else { toast(j.name+' → '+j.hp+'/'+j.max+' ✓'); try{ await refreshAll(); if(withFrame) renderParty(); }catch(e){} return; }
-    }catch(e){ toast('ไม่สำเร็จ',true); }
+    }catch(e){ toast(uiCopy('ไม่สำเร็จ','Operation failed'),true); }
     setBtn.disabled=false;
   };
   r1.appendChild(sel); r1.appendChild(hpIn); r1.appendChild(setBtn); tools.appendChild(r1);
   const r2=document.createElement('div'); r2.style.cssText='display:flex;gap:6px;flex-wrap:wrap';
-  const endB=styleCtl(document.createElement('button')); endB.className='btn warn sm'; endB.textContent='จบการต่อสู้ทันที';
+  const endB=styleCtl(document.createElement('button')); endB.className='btn warn sm'; endB.textContent=uiCopy('จบการต่อสู้ทันที','End Combat Now');
   endB.onclick=async()=>{
-    if(!confirm('จบการต่อสู้ปัจจุบันทันที? (ศัตรูถอนจากฉาก)')) return;
+    if(!confirm(uiCopy('จบการต่อสู้ปัจจุบันทันที? (ศัตรูถอนจากฉาก)','End the current combat now? Enemies will leave the scene.'))) return;
     try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
       const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,end_combat:true})});
-      const j=await r.json(); toast(j.error||'จบการต่อสู้แล้ว ✓',!!j.error);
-    }catch(e){ toast('ไม่สำเร็จ',true); }
+      const j=await r.json(); toast(j.error||uiCopy('จบการต่อสู้แล้ว ✓','Combat ended ✓'),!!j.error);
+    }catch(e){ toast(uiCopy('ไม่สำเร็จ','Operation failed'),true); }
   };
-  const clB=styleCtl(document.createElement('button')); clB.className='btn warn sm'; clB.textContent='ล้างแชททั้งห้อง (ลบจริง)';
+  const clB=styleCtl(document.createElement('button')); clB.className='btn warn sm'; clB.textContent=uiCopy('ล้างแชททั้งห้อง (ลบจริง)','Clear Room Chat (permanent)');
   clB.onclick=async()=>{
-    if(!confirm('ลบแชททั้งหมดของห้องนี้ถาวร?\nทุกเครื่องเห็นผล และกู้คืนไม่ได้')) return;
+    if(!confirm(uiCopy('ลบแชททั้งหมดของห้องนี้ถาวร?\nทุกเครื่องเห็นผล และกู้คืนไม่ได้','Permanently delete all chat in this room?\nEvery device will see the change, and it cannot be undone.'))) return;
     try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
       const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,clear_chat:true})});
-      const j=await r.json(); if(j.error) toast(j.error,true); else { toast('ลบแล้ว '+j.deleted+' ข้อความ ✓'); chatMsgs=[]; renderChatList(); try{ if(typeof renderBattleChat==='function') renderBattleChat(); }catch(e){} }
-    }catch(e){ toast('ไม่สำเร็จ',true); }
+      const j=await r.json(); if(j.error) toast(j.error,true); else { toast(uiCopy('ลบแล้ว ','Deleted ')+j.deleted+uiCopy(' ข้อความ ✓',' messages ✓')); chatMsgs=[]; renderChatList(); try{ if(typeof renderBattleChat==='function') renderBattleChat(); }catch(e){} }
+    }catch(e){ toast(uiCopy('ไม่สำเร็จ','Operation failed'),true); }
   };
   r2.appendChild(endB); if(!BETA) r2.appendChild(clB); tools.appendChild(r2);
   // v275/v277: ตั้ง/ลด HP มอนสเตอร์ (host) — เปลี่ยนได้หลายครั้ง (ช่วยกู้บั๊ก) · เลือกมอนที่ยังอยู่ในศึก · hp 0 = ออกจากศึก · อยู่ในชุดกู้ภัย (เบต้าเห็นด้วย)
@@ -5898,7 +6137,7 @@ function buildDmToolsCard(withFrame){
   const mSel=styleCtl(document.createElement('select')); mSel.style.maxWidth='168px';
   async function _fillMonSel(){
     const prev=mSel.value; mSel.innerHTML='';
-    { const o=document.createElement('option'); o.value=''; o.textContent='— มอนในศึก —'; mSel.appendChild(o); }
+    { const o=document.createElement('option'); o.value=''; o.textContent=uiCopy('— มอนในศึก —','— Monster in Combat —'); mSel.appendChild(o); }
     try{ const r=await supa.from('combat_state').select('id, cur_hp, monsters(name, max_hp)').eq('campaign_id',campaign.id).eq('active',true);
       (r.data||[]).forEach(cs=>{ if(!cs.monsters) return; const o=document.createElement('option'); o.value=cs.id; o.textContent=cs.monsters.name+' ('+(cs.cur_hp==null?'?':cs.cur_hp)+'/'+(cs.monsters.max_hp==null?'?':cs.monsters.max_hp)+')'; mSel.appendChild(o); });
       if(prev && Array.prototype.some.call(mSel.options,o=>o.value===prev)) mSel.value=prev;   // คงตัวเลือกเดิมถ้ามอนยังอยู่
@@ -5906,18 +6145,18 @@ function buildDmToolsCard(withFrame){
   }
   _fillMonSel();
   const mHpIn=styleCtl(document.createElement('input')); mHpIn.type='number'; mHpIn.min='0'; mHpIn.placeholder='HP'; mHpIn.style.width='52px';
-  const mBtn=styleCtl(document.createElement('button')); mBtn.className='btn sm'; mBtn.textContent='ตั้ง HP มอน';
-  const mRef=styleCtl(document.createElement('button')); mRef.className='btn ghost sm'; mRef.textContent='↻'; mRef.title='รีเฟรชรายชื่อ/HP มอน'; mRef.onclick=()=>{ _fillMonSel(); };
+  const mBtn=styleCtl(document.createElement('button')); mBtn.className='btn sm'; mBtn.textContent=uiCopy('ตั้ง HP มอน','Set Monster HP');
+  const mRef=styleCtl(document.createElement('button')); mRef.className='btn ghost sm'; mRef.textContent='↻'; mRef.title=uiCopy('รีเฟรชรายชื่อ/HP มอน','Refresh monster list / HP'); mRef.onclick=()=>{ _fillMonSel(); };
   mBtn.onclick=async()=>{
-    if(!mSel.value){ toast('เลือกมอนในศึกก่อน',true); return; }
-    const hp=parseInt(mHpIn.value,10); if(!Number.isFinite(hp)){ toast('ใส่ตัวเลข HP',true); return; }
-    const lbl=(mSel.options[mSel.selectedIndex]&&mSel.options[mSel.selectedIndex].textContent)||'มอน';
-    if(!confirm('ตั้ง HP ของ '+lbl+' เป็น '+hp+'?'+(hp<=0?'\n(มอนจะออกจากการต่อสู้)':''))) return;
+    if(!mSel.value){ toast(uiCopy('เลือกมอนในศึกก่อน','Choose a monster first'),true); return; }
+    const hp=parseInt(mHpIn.value,10); if(!Number.isFinite(hp)){ toast(uiCopy('ใส่ตัวเลข HP','Enter an HP value'),true); return; }
+    const lbl=(mSel.options[mSel.selectedIndex]&&mSel.options[mSel.selectedIndex].textContent)||uiCopy('มอน','monster');
+    if(!confirm(uiCopy('ตั้ง HP ของ ','Set HP for ')+lbl+uiCopy(' เป็น ',' to ')+hp+'?'+(hp<=0?uiCopy('\n(มอนจะออกจากการต่อสู้)','\n(The monster will leave combat)'):''))) return;
     mBtn.disabled=true;
     try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
       const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,set_mon_hp:{cs_id:mSel.value,hp}})});
-      const j=await r.json(); if(j.error) toast(j.error,true); else { toast(j.name+' → '+j.hp+(j.max!=null?'/'+j.max:'')+(j.dead?' (ออกจากศึก)':'')+' ✓'); try{ if(typeof scheduleBattleScene==='function') scheduleBattleScene(); if(typeof refreshCombatTurn==='function') refreshCombatTurn(); }catch(e){} try{ await _fillMonSel(); }catch(e){} }
-    }catch(e){ toast('ไม่สำเร็จ',true); }
+      const j=await r.json(); if(j.error) toast(j.error,true); else { toast(j.name+' → '+j.hp+(j.max!=null?'/'+j.max:'')+(j.dead?uiCopy(' (ออกจากศึก)',' (left combat)'):'')+' ✓'); try{ if(typeof scheduleBattleScene==='function') scheduleBattleScene(); if(typeof refreshCombatTurn==='function') refreshCombatTurn(); }catch(e){} try{ await _fillMonSel(); }catch(e){} }
+    }catch(e){ toast(uiCopy('ไม่สำเร็จ','Operation failed'),true); }
     mBtn.disabled=false;   // v277: re-enable เสมอ (เดิม return ตอนสำเร็จ → ปุ่มค้าง disabled = เปลี่ยนได้ครั้งเดียว)
   };
   rM.appendChild(mSel); rM.appendChild(mHpIn); rM.appendChild(mBtn); rM.appendChild(mRef); tools.appendChild(rM);
@@ -5927,51 +6166,51 @@ function buildDmToolsCard(withFrame){
   // v296: ถอด pace control ออกจาก DM TOOLS — บลูพรินท์/ผู้กำกับลับคุมจังหวะเรื่องแทนแล้ว (เดิม v39 set_pace)
   // v88: สไตล์การเล่าของ DM — preset 3 แบบ ทับซ้อนบน base DanMachi (มีผลรอบถัดไป)
   const r3s=document.createElement('div'); r3s.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px';
-  const sLbl=document.createElement('span'); sLbl.style.cssText=DMF+';color:#9a9a9a'; sLbl.textContent='สไตล์ DM:';
+  const sLbl=document.createElement('span'); sLbl.style.cssText=DMF+';color:#9a9a9a'; sLbl.textContent=uiCopy('สไตล์ DM:','DM style:');
   const sSel=styleCtl(document.createElement('select'));
-  [['off','ปกติ — base DanMachi'],['mercer','Cinematic — ภาพยนตร์ · NPC จัดจ้าน · slow-burn'],['brennan','High-energy — ด้นสดรับลูก · ตลกสลับดราม่า'],['woll','Intimate — อารมณ์ใกล้ชิด · สยองค่อยๆ บีบ']].forEach(([v,t])=>{ const o=document.createElement('option'); o.value=v; o.textContent=t; sSel.appendChild(o); });
+  [['off',uiCopy('ปกติ — base DanMachi','Standard — base DanMachi')],['mercer',uiCopy('Cinematic — ภาพยนตร์ · NPC จัดจ้าน · slow-burn','Cinematic — vivid NPCs and slow-burn drama')],['brennan',uiCopy('High-energy — ด้นสดรับลูก · ตลกสลับดราม่า','High-energy — responsive improvisation, comedy, and drama')],['woll',uiCopy('Intimate — อารมณ์ใกล้ชิด · สยองค่อยๆ บีบ','Intimate — close emotion and slowly tightening horror')]].forEach(([v,t])=>{ const o=document.createElement('option'); o.value=v; o.textContent=t; sSel.appendChild(o); });
   try{ supa.from('campaign_state').select('settings').eq('campaign_id',campaign.id).maybeSingle().then(r=>{ const v=r&&r.data&&r.data.settings&&r.data.settings.dm_style; if(v) sSel.value=v; }); }catch(e){}
-  const sBtn=styleCtl(document.createElement('button')); sBtn.className='btn sm'; sBtn.textContent='ตั้งสไตล์';
+  const sBtn=styleCtl(document.createElement('button')); sBtn.className='btn sm'; sBtn.textContent=uiCopy('ตั้งสไตล์','Set Style');
   sBtn.onclick=async()=>{
     sBtn.disabled=true;
     try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
       const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,set_style:sSel.value})});
-      const j=await r.json(); if(j.error) toast(j.error,true); else toast('สไตล์ DM → '+j.style+' ✓ (มีผลรอบถัดไป)');
-    }catch(e){ toast('ไม่สำเร็จ',true); }
+      const j=await r.json(); if(j.error) toast(j.error,true); else toast(uiCopy('สไตล์ DM → ','DM style → ')+j.style+uiCopy(' ✓ (มีผลรอบถัดไป)',' ✓ (applies next round)'));
+    }catch(e){ toast(uiCopy('ไม่สำเร็จ','Operation failed'),true); }
     sBtn.disabled=false;
   };
   r3s.appendChild(sLbl); r3s.appendChild(sSel); r3s.appendChild(sBtn); tools.appendChild(r3s);
   // v617 PLAY MODES: สลับโหมดการเล่นกลางแคมเปญ — open ⇄ session เท่านั้น (oneshot ถาวร — ไม่มีในตัวเลือก · server gate อีกชั้น)
   if(campaign.play_mode!=='oneshot'){
     const rPm=document.createElement('div'); rPm.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px';
-    const pmLbl=document.createElement('span'); pmLbl.style.cssText=DMF+';color:#9a9a9a'; pmLbl.textContent='โหมดการเล่น:';
+    const pmLbl=document.createElement('span'); pmLbl.style.cssText=DMF+';color:#9a9a9a'; pmLbl.textContent=uiCopy('โหมดการเล่น:','Play mode:');
     const pmSel=styleCtl(document.createElement('select'));
-    [['open','🌍 OPEN WORLD — อิสระเต็มรูปแบบ'],['session','📖 SESSION — จบเป็นตอน ในโลกต่อเนื่อง']].forEach(([v,t])=>{ const o=document.createElement('option'); o.value=v; o.textContent=t; pmSel.appendChild(o); });
+    [['open',uiCopy('🌍 OPEN WORLD — อิสระเต็มรูปแบบ','🌍 OPEN WORLD — full freedom')],['session',uiCopy('📖 SESSION — จบเป็นตอน ในโลกต่อเนื่อง','📖 SESSION — episodic play in a persistent world')]].forEach(([v,t])=>{ const o=document.createElement('option'); o.value=v; o.textContent=t; pmSel.appendChild(o); });
     pmSel.value=(campaign.play_mode==='session')?'session':'open';
-    const pmBtn=styleCtl(document.createElement('button')); pmBtn.className='btn sm'; pmBtn.textContent='ตั้งโหมด';
+    const pmBtn=styleCtl(document.createElement('button')); pmBtn.className='btn sm'; pmBtn.textContent=uiCopy('ตั้งโหมด','Set Mode');
     pmBtn.onclick=async()=>{
       pmBtn.disabled=true;
       try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
         const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,set_play_mode:pmSel.value})});
-        const j=await r.json(); if(j.error) toast(j.error,true); else { campaign.play_mode=j.play_mode; toast('โหมดการเล่น → '+(j.play_mode==='session'?'📖 SESSION':'🌍 OPEN WORLD')+' ✓ (มีผลรอบถัดไป)'); }
-      }catch(e){ toast('ไม่สำเร็จ',true); }
+        const j=await r.json(); if(j.error) toast(j.error,true); else { campaign.play_mode=j.play_mode; toast(uiCopy('โหมดการเล่น → ','Play mode → ')+(j.play_mode==='session'?'📖 SESSION':'🌍 OPEN WORLD')+uiCopy(' ✓ (มีผลรอบถัดไป)',' ✓ (applies next round)')); }
+      }catch(e){ toast(uiCopy('ไม่สำเร็จ','Operation failed'),true); }
       pmBtn.disabled=false;
     };
     rPm.appendChild(pmLbl); rPm.appendChild(pmSel); rPm.appendChild(pmBtn); tools.appendChild(rPm);
   }
   // v73: โครงเรื่อง session — host วางเป้าหมาย+climax (ความลับของผู้กำกับ DM จะพาเรื่องไปแบบเนียน)
   const r4=document.createElement('div'); r4.style.cssText='margin-top:8px';
-  const plLbl=document.createElement('div'); plLbl.style.cssText=DMF+';color:#9a9a9a;text-align:left'; plLbl.textContent='โครงเรื่อง session (ลับ — ผู้เล่นไม่เห็น):'; r4.appendChild(plLbl);
-  const gIn=styleCtl(document.createElement('input')); gIn.type='text'; gIn.placeholder='เป้าหมาย เช่น พาปาร์ตี้ไปพบผู้เฒ่าในถ้ำ'; gIn.style.width='100%'; gIn.style.margin='4px 0';
-  const cIn=styleCtl(document.createElement('input')); cIn.type='text'; cIn.placeholder='climax เช่น เผชิญหน้าหัวหน้าโจร'; cIn.style.width='100%'; cIn.style.margin='0 0 4px';
+  const plLbl=document.createElement('div'); plLbl.style.cssText=DMF+';color:#9a9a9a;text-align:left'; plLbl.textContent=uiCopy('โครงเรื่อง session (ลับ — ผู้เล่นไม่เห็น):','Session plan (private — players cannot see it):'); r4.appendChild(plLbl);
+  const gIn=styleCtl(document.createElement('input')); gIn.type='text'; gIn.placeholder=uiCopy('เป้าหมาย เช่น พาปาร์ตี้ไปพบผู้เฒ่าในถ้ำ','Goal, e.g. lead the party to the elder in the cave'); gIn.style.width='100%'; gIn.style.margin='4px 0';
+  const cIn=styleCtl(document.createElement('input')); cIn.type='text'; cIn.placeholder=uiCopy('climax เช่น เผชิญหน้าหัวหน้าโจร','Climax, e.g. confront the bandit chief'); cIn.style.width='100%'; cIn.style.margin='0 0 4px';
   const rowB=document.createElement('div'); rowB.style.cssText='display:flex;gap:6px';
-  const setP=styleCtl(document.createElement('button')); setP.className='btn sm'; setP.textContent='วางโครงเรื่อง';
-  const clrP=styleCtl(document.createElement('button')); clrP.className='btn ghost sm'; clrP.textContent='ล้าง';
+  const setP=styleCtl(document.createElement('button')); setP.className='btn sm'; setP.textContent=uiCopy('วางโครงเรื่อง','Set Plan');
+  const clrP=styleCtl(document.createElement('button')); clrP.className='btn ghost sm'; clrP.textContent=uiCopy('ล้าง','Clear');
   const callPlan=async(v)=>{ try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
     const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,set_plan:v})});
-    const j=await r.json(); if(j.error) toast(j.error,true); else toast(j.cleared?'ล้างโครงเรื่องแล้ว ✓':'วางโครงเรื่องแล้ว ✓ DM จะค่อยๆ พาเรื่องไป'); }catch(e){ toast('ไม่สำเร็จ',true); } };
-  setP.onclick=()=>{ const g=gIn.value.trim(); if(!g){ toast('ใส่เป้าหมายก่อน',true); return; } callPlan(g+(cIn.value.trim()?' :: '+cIn.value.trim():'')); };
-  clrP.onclick=()=>{ if(confirm('ล้างโครงเรื่อง session?')) callPlan('clear'); };
+    const j=await r.json(); if(j.error) toast(j.error,true); else toast(j.cleared?uiCopy('ล้างโครงเรื่องแล้ว ✓','Session plan cleared ✓'):uiCopy('วางโครงเรื่องแล้ว ✓ DM จะค่อยๆ พาเรื่องไป','Session plan saved ✓ The DM will guide the story gradually.')); }catch(e){ toast(uiCopy('ไม่สำเร็จ','Operation failed'),true); } };
+  setP.onclick=()=>{ const g=gIn.value.trim(); if(!g){ toast(uiCopy('ใส่เป้าหมายก่อน','Enter a goal first'),true); return; } callPlan(g+(cIn.value.trim()?' :: '+cIn.value.trim():'')); };
+  clrP.onclick=()=>{ if(confirm(uiCopy('ล้างโครงเรื่อง session?','Clear the session plan?'))) callPlan('clear'); };
   rowB.appendChild(setP); rowB.appendChild(clrP); r4.appendChild(gIn); r4.appendChild(cIn); r4.appendChild(rowB); tools.appendChild(r4);
   return tools;
 }
@@ -6147,7 +6386,7 @@ async function renderBattleScene(){
         // v211: ตัดบทสนทนา/เนื้อเรื่องก่อนเข้าศึกออก — โชว์เฉพาะบทตั้งแต่ศึกเริ่ม (เผื่อ 90 วิ ให้บทเปิดศึกที่เกิดก่อน encounter row ติดมาด้วย)
         var _since=null;
         try{ if(window.gEncStartedAt){ _since=new Date(new Date(window.gEncStartedAt).getTime()-90000).toISOString(); } }catch(e){}
-        var _rec=(typeof narrative!=='undefined'?narrative:[]).filter(function(n){return n && n.status!=='placeholder' && n.content && (!_since || !n.created_at || String(n.created_at)>=_since);}).slice(-3);
+        var _rec=(typeof narrative!=='undefined'?narrative:[]).filter(function(n){return n && n.status!=='placeholder' && narrText(n) && (!_since || !n.created_at || String(n.created_at)>=_since);}).slice(-3);
         var _nf=document.createDocumentFragment();
         // (06-11) เว้นช่องระหว่างกรอบบรรยาย + เส้นคั่นจางๆ ให้อ่านง่าย · บทล่าสุดกรอบเด่นขึ้นเล็กน้อย
         _rec.forEach(function(n,i){
@@ -6155,7 +6394,7 @@ async function renderBattleScene(){
           var d=document.createElement('div'); d.className='narr';
           d.style.cssText='margin:0 0 12px;padding:8px 10px;border:1px solid '+(last?'rgba(250,199,117,0.45)':'rgba(255,255,255,0.10)')+';border-radius:6px;background:rgba(255,255,255,'+(last?'0.04':'0.015')+')'+(last?'':';opacity:0.82');
           if(last) d.style.marginBottom='2px';
-          d.innerHTML='<div class="meta">🎲 DM'+(last?' · ล่าสุด':'')+'</div><div class="narrc">'+colorizeNarr(n.content)+'</div>';
+          d.innerHTML='<div class="meta">🎲 DM'+(last?' · ล่าสุด':'')+'</div><div class="narrc">'+narrDraw(n)+'</div>';
           _nf.appendChild(d);
         });
         if(!_nf.childNodes.length){ var _e=document.createElement('div'); _e.className='note'; _e.style.color='#9a9a9a'; _e.textContent='— รอการบรรยายการต่อสู้ —'; _nf.appendChild(_e); }
@@ -6199,6 +6438,7 @@ async function renderBattleInitLog(initEl, logEl){
   }catch(e){}
   if(initEl){
     const _frag=document.createDocumentFragment();
+    const _locHud2=combatLocationLabel(enc); if(_locHud2){ const ld=document.createElement('div'); ld.className='note'; ld.style.cssText='text-align:left;padding:2px 5px;color:#FAC775;font-size:12px'; ld.textContent='📍 '+_locHud2; ld.title='location snapshot '+String(enc.location_snapshot_id||''); _frag.appendChild(ld); }
     ents.filter(e=>e.is_active).forEach(e=>{
       const isParty=e.side==='party'; let hpTxt='', pct=null;
       if(isParty){ const c=characters.find(x=>x.id===e.character_id); const hp=(c&&c.public_status&&c.public_status.hp)||''; hpTxt=hp; if(/^\d+\/\d+/.test(String(hp))){ const m=String(hp).split('/'); pct=Math.max(0,Math.min(1,(+m[0])/(+m[1]||1))); } }
@@ -6250,7 +6490,7 @@ function renderBattleChat(){
   var frag=document.createDocumentFragment();
   (typeof chatMsgs!=='undefined'?chatMsgs:[]).slice(-30).forEach(function(mm){
     var d=document.createElement('div'); d.className='bs-chat-msg';
-    d.innerHTML='<b>'+escapeHtml(_bsChatName(mm.user_id))+'</b>'+escapeHtml(mm.body||'');
+    d.innerHTML='<b>'+escapeHtml(_bsChatName(mm.user_id))+'</b><span data-runtime-origin="user-source">'+escapeHtml(mm.body||'')+'</span>';
     frag.appendChild(d);
   });
   if(!frag.childNodes.length){ var e=document.createElement('div'); e.className='note'; e.style.color='#9a9a9a'; e.textContent='— ยังไม่มีข้อความ —'; frag.appendChild(e); }
@@ -7306,10 +7546,10 @@ async function renderFiles(){
       if(!lg.error){
         const card=document.createElement('div'); card.className='item';
         const errN=(lg.data||[]).filter(x=>x.level==='error').length;
-        card.innerHTML='<div class="sectitle">🛠 SYSTEM LOGS <span class="meta-inline">'+(errN?(errN+' errors ล่าสุด'):'ปกติ')+'</span></div>';
-        if(!(lg.data||[]).length){ const d=document.createElement('div'); d.className='muted'; d.textContent='ยังไม่มีบันทึก — ระบบเดินเรียบ'; card.appendChild(d); }
+        card.innerHTML='<div class="sectitle">🛠 SYSTEM LOGS <span class="meta-inline">'+(errN?(errN+uiCopy(' errors ล่าสุด',' recent errors')):uiCopy('ปกติ','normal'))+'</span></div>';
+        if(!(lg.data||[]).length){ const d=document.createElement('div'); d.className='muted'; d.textContent=uiCopy('ยังไม่มีบันทึก — ระบบเดินเรียบ','No system logs yet — everything is running normally'); card.appendChild(d); }
         else (lg.data||[]).forEach(x=>{ const d=document.createElement('div'); d.className='kv';
-          d.innerHTML='<span class="k" style="color:'+(x.level==='error'?'#ff8a8a':x.level==='warn'?'#FAC775':'#9ad')+'">'+(x.level==='error'?'✕':'•')+' ['+escapeHtml(x.source)+'] '+escapeHtml(String(x.message).slice(0,80))+' <span class="muted" style="font-size:10px">'+new Date(x.created_at).toLocaleTimeString()+'</span></span>'; card.appendChild(d); });
+          d.innerHTML='<span class="k" style="color:'+(x.level==='error'?'#ff8a8a':x.level==='warn'?'#FAC775':'#9ad')+'">'+(x.level==='error'?'✕':'•')+' ['+escapeHtml(x.source)+'] <span class="sysmsg">'+escapeHtml(String(x.message).slice(0,80))+'</span> <span class="muted" style="font-size:10px">'+new Date(x.created_at).toLocaleTimeString()+'</span></span>'; card.appendChild(d); });
         p.appendChild(card);
       }
     }catch(e){}
@@ -7320,7 +7560,7 @@ async function renderFiles(){
   // upload (host/DM only)
   if(isHost){
     const up=document.createElement('div'); up.className='item';
-    up.innerHTML='<div class="sectitle">UPLOAD REFERENCE (DM)</div><div class="note" style="text-align:left;padding:4px 2px 8px">ไฟล์ .md / .txt (กฎ/lore/ตารางสุ่ม) — DM จะค้นมาใช้อัตโนมัติตอนเล่าเรื่องที่เกี่ยวข้อง</div>';
+    up.innerHTML='<div class="sectitle">UPLOAD REFERENCE (DM)</div><div class="note" style="text-align:left;padding:4px 2px 8px">'+uiCopy('ไฟล์ .md / .txt (กฎ/lore/ตารางสุ่ม) — DM จะค้นมาใช้อัตโนมัติตอนเล่าเรื่องที่เกี่ยวข้อง','Upload .md or .txt rules, lore, or random tables. The DM retrieves them automatically when relevant.')+'</div>';
     const row=document.createElement('div'); row.style.cssText='display:flex;gap:8px;flex-wrap:wrap;align-items:center';
     const fi=document.createElement('input'); fi.type='file'; fi.accept='.md,.txt,.markdown,text/plain'; fi.style.cssText='color:#fff;font-size:13px;max-width:190px';
     const sel=document.createElement('select'); sel.style.cssText='background:#000;color:#fff;border:2px solid #fff;font-family:inherit;font-size:15px;padding:3px 4px'; sel.innerHTML='<option value="RULES">RULES</option><option value="LORE">LORE</option><option value="TABLES">TABLES</option>';
@@ -7331,11 +7571,11 @@ async function renderFiles(){
   }
   // indexed list
   const list=document.createElement('div'); list.className='item'; list.innerHTML='<div class="sectitle">INDEXED FILES</div>';
-  if(!files.length){ const e=document.createElement('div'); e.className='kv'; e.innerHTML='<span class="k">— '+(isHost?'ยังไม่มีไฟล์ — อัปด้านบน':'DM ยังไม่ได้เพิ่มไฟล์อ้างอิง')+' —</span>'; list.appendChild(e); }
-  else { const dd=fileDropdown('ไฟล์อ้างอิงทั้งหมด', files.length);
+  if(!files.length){ const e=document.createElement('div'); e.className='kv'; e.innerHTML='<span class="k">— '+(isHost?uiCopy('ยังไม่มีไฟล์ — อัปด้านบน','No files yet — upload one above'):uiCopy('DM ยังไม่ได้เพิ่มไฟล์อ้างอิง','The DM has not added reference files'))+' —</span>'; list.appendChild(e); }
+  else { const dd=fileDropdown(uiCopy('ไฟล์อ้างอิงทั้งหมด','All Reference Files'), files.length);
     files.forEach(f=>{
       const d=document.createElement('div'); d.className='kv';
-      d.innerHTML=`<span class="k">▸ [${escapeHtml(f.kind)}] ${escapeHtml(f.name)} <span class="chip">${f.chunks} chunks</span></span>`;
+      d.innerHTML=`<span class="k">▸ [${escapeHtml(f.kind)}] <span data-runtime-origin="reference-source">${escapeHtml(f.name)}</span> <span class="chip">${f.chunks} chunks</span></span>`;
       if(isHost){ const del=document.createElement('button'); del.className='btn ghost sm'; del.textContent='✕'; del.onclick=()=>deleteRefFile(f.id,f.name); d.appendChild(del); }
       dd._body.appendChild(d);
     });
@@ -7351,35 +7591,35 @@ function mkInput(ph){ const i=document.createElement('input'); i.type='text'; i.
 // MUSIC card (collaborative)
 async function filesMusicCard(p){
   const c=document.createElement('div'); c.className='item';
-  c.innerHTML='<div class="sectitle">MUSIC (situational)</div><div class="note" style="text-align:left;padding:4px 2px 8px">อัปเพลง (.mp3/.ogg/.m4a) ผูกอารมณ์ฉาก — DM เปลี่ยนฉากเพลงจะสลับให้ (ทุกคนเพิ่มได้)</div>';
+  c.innerHTML='<div class="sectitle">MUSIC (situational)</div><div class="note" style="text-align:left;padding:4px 2px 8px">'+uiCopy('อัปเพลง (.mp3/.ogg/.m4a) ผูกอารมณ์ฉาก — DM เปลี่ยนฉากเพลงจะสลับให้ (ทุกคนเพิ่มได้)','Upload .mp3, .ogg, or .m4a tracks by scene mood. Music follows the scene, and everyone may contribute.')+'</div>';
   const row=document.createElement('div'); row.style.cssText='display:flex;gap:8px;flex-wrap:wrap;align-items:center';
   const fi=document.createElement('input'); fi.type='file'; fi.accept='audio/*'; fi.style.cssText='color:#fff;font-size:13px;max-width:160px';
   const sel=moodSelect();
   const btn=document.createElement('button'); btn.className='btn sm'; btn.textContent='Upload'; btn.onclick=()=>uploadMusic(fi,sel,btn);
   row.appendChild(fi); row.appendChild(sel); row.appendChild(btn); c.appendChild(row);
   let tracks=[]; try{ const r=await supa.from('music_tracks').select('*').eq('campaign_id',campaign.id).order('mood'); tracks=r.data||[]; }catch(e){}
-  if(tracks.length){ const dd=fileDropdown('เพลงทั้งหมด', tracks.length);
-    tracks.forEach(t=>{ const d=document.createElement('div'); d.className='kv'; d.innerHTML=`<span class="k">&#9834; <b>${escapeHtml(t.mood)}</b> · ${escapeHtml(t.name||'track')}</span>`; const del=document.createElement('button'); del.className='btn ghost sm'; del.textContent='✕'; del.onclick=()=>deleteMusic(t.id,t.storage_path); d.appendChild(del); dd._body.appendChild(d); });
+  if(tracks.length){ const dd=fileDropdown(uiCopy('เพลงทั้งหมด','All Tracks'), tracks.length);
+    tracks.forEach(t=>{ const d=document.createElement('div'); d.className='kv'; d.innerHTML=`<span class="k">&#9834; <b>${escapeHtml(t.mood)}</b> · <span data-runtime-origin="reference-source">${escapeHtml(t.name||'track')}</span></span>`; const del=document.createElement('button'); del.className='btn ghost sm'; del.textContent='✕'; del.onclick=()=>deleteMusic(t.id,t.storage_path); d.appendChild(del); dd._body.appendChild(d); });
     c.appendChild(dd);
   }
   p.appendChild(c);
 }
 async function uploadMusic(fi,sel,btn){
-  const file=fi.files&&fi.files[0]; if(!file){ toast('เลือกไฟล์เพลงก่อน',true); return; }
-  if(file.size>15000000){ toast('ไฟล์ใหญ่เกิน 15MB',true); return; }
+  const file=fi.files&&fi.files[0]; if(!file){ toast(uiCopy('เลือกไฟล์เพลงก่อน','Choose a music file first'),true); return; }
+  if(file.size>15000000){ toast(uiCopy('ไฟล์ใหญ่เกิน 15MB','The file exceeds 15 MB'),true); return; }
   btn.disabled=true;
   try{
     const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_'); const path=campaign.id+'/'+Date.now()+'_'+safe;
     const up=await supa.storage.from('audio').upload(path,file,{upsert:false}); if(up.error) throw up.error;
     const ins=await supa.from('music_tracks').insert({campaign_id:campaign.id,mood:sel.value,name:file.name,storage_path:path,created_by:me.id}); if(ins.error) throw ins.error;
-    toast('เพิ่มเพลงแล้ว ✓'); await loadMusicLibrary(); renderFiles();
-  }catch(e){ toast(e.message||'อัปเพลงล้มเหลว',true); btn.disabled=false; }
+    toast(uiCopy('เพิ่มเพลงแล้ว ✓','Track added ✓')); await loadMusicLibrary(); renderFiles();
+  }catch(e){ toast(e.message||uiCopy('อัปเพลงล้มเหลว','Track upload failed'),true); btn.disabled=false; }
 }
 async function deleteMusic(id,path){
-  if(!confirm('ลบเพลงนี้?')) return;
+  if(!confirm(uiCopy('ลบเพลงนี้?','Delete this track?'))) return;
   if(path){ try{ await supa.storage.from('audio').remove([path]); }catch(e){} }
   const {error}=await supa.from('music_tracks').delete().eq('id',id); if(error){ toast(error.message,true); return; }
-  toast('ลบแล้ว'); await loadMusicLibrary(); renderFiles();
+  toast(uiCopy('ลบแล้ว','Deleted')); await loadMusicLibrary(); renderFiles();
 }
 // ── v231 Bard Performance: การ์ดในแท็บ Skills (อัปเพลง ≤3 · เลือก · เปิด/หยุดการแสดง) ──
 async function renderPerformanceCard(p){
@@ -7387,15 +7627,15 @@ async function renderPerformanceCard(p){
   const pf=(worldState&&worldState.settings&&worldState.settings.performance)||null;
   const activeMine=pf&&pf.active&&pf.by===me.id;
   const card=document.createElement('details'); card.className='item sk-cardgrp sk-fold'; card.open=true;
-  card.innerHTML='<summary><div class="sk-head">🎵 การแสดง<span class="en">· PERFORMANCE</span><span class="sk-cnt">('+tracks.length+'/3)</span><span class="sk-arw">▸</span></div></summary>';
+  card.innerHTML='<summary><div class="sk-head">🎵 '+uiCopy('การแสดง','Performance')+'<span class="en">· PERFORMANCE</span><span class="sk-cnt">('+tracks.length+'/3)</span><span class="sk-arw">▸</span></div></summary>';
   const body=document.createElement('div'); body.style.cssText='padding:4px 2px';
-  body.innerHTML='<div class="note" style="text-align:left;margin:2px 0 8px">อัปเพลงของตัวละคร (สูงสุด 3 · .mp3/.ogg) → ระหว่างเล่าเรื่องกด "เปิดการแสดง" เพลงจะสลับเป็นเพลงนี้ทั้งปาร์ตี้ จนกว่าจะกดหยุด (เข้าฉากสู้หยุดอัตโนมัติ)</div>';
+  body.innerHTML='<div class="note" style="text-align:left;margin:2px 0 8px">'+uiCopy('อัปเพลงของตัวละคร (สูงสุด 3 · .mp3/.ogg) → ระหว่างเล่าเรื่องกด "เปิดการแสดง" เพลงจะสลับเป็นเพลงนี้ทั้งปาร์ตี้ จนกว่าจะกดหยุด (เข้าฉากสู้หยุดอัตโนมัติ)','Upload up to three character tracks (.mp3/.ogg). Start a performance to play it for the party until stopped; combat stops it automatically.')+'</div>';
   if(!window._perfPick || !tracks.some(t=>t.id===window._perfPick)) window._perfPick=(tracks[0]&&tracks[0].id)||null;
   tracks.forEach(t=>{
     const row=document.createElement('label'); row.style.cssText='display:flex;align-items:center;gap:8px;margin:3px 0;cursor:pointer';
     const rb=document.createElement('input'); rb.type='radio'; rb.name='perfPick'; rb.checked=(window._perfPick===t.id); rb.onchange=()=>{ window._perfPick=t.id; };
-    const nm=document.createElement('span'); nm.style.cssText='flex:1;font-size:14px'; nm.textContent='♪ '+(t.name||'track');
-    const pv=document.createElement('button'); pv.className='btn ghost sm'; pv.type='button'; pv.textContent='▶'; pv.title='ฟังตัวอย่าง'; pv.onclick=(e)=>{ e.preventDefault(); try{ if(window._perfPrev&&window._perfPrev.pause) window._perfPrev.pause(); const a=new Audio(PUBLIC_URL+'audio/'+t.storage_path); a.volume=Math.max(0,Math.min(1,musicVol)); a.play(); window._perfPrev=a; }catch(_e){} };
+    const nm=document.createElement('span'); nm.style.cssText='flex:1;font-size:14px'; nm.setAttribute('data-runtime-origin','reference-source'); nm.textContent='♪ '+(t.name||'track');
+    const pv=document.createElement('button'); pv.className='btn ghost sm'; pv.type='button'; pv.textContent='▶'; pv.title=uiCopy('ฟังตัวอย่าง','Preview'); pv.onclick=(e)=>{ e.preventDefault(); try{ if(window._perfPrev&&window._perfPrev.pause) window._perfPrev.pause(); const a=new Audio(PUBLIC_URL+'audio/'+t.storage_path); a.volume=Math.max(0,Math.min(1,musicVol)); a.play(); window._perfPrev=a; }catch(_e){} };
     const del=document.createElement('button'); del.className='btn ghost sm'; del.type='button'; del.textContent='✕'; del.onclick=(e)=>{ e.preventDefault(); deletePerformTrack(t.id,t.storage_path); };
     row.appendChild(rb); row.appendChild(nm); row.appendChild(pv); row.appendChild(del); body.appendChild(row);
   });
@@ -7452,56 +7692,56 @@ async function stopPerformance(silent){
 // DUNGEON card (collaborative)
 async function filesDungeonCard(p){
   const c=document.createElement('div'); c.className='item';
-  c.innerHTML='<div class="sectitle">DUNGEONS</div><div class="note" style="text-align:left;padding:4px 2px 8px">อัปแผนที่ (รูป) + ตั้งชื่อ — <b>AI จะอ่านแผนที่แยกผังห้อง/ทางเชื่อมให้</b> เพื่อเล่าทีละห้องแม่นขึ้น (ทุกคนเพิ่มได้)</div>';
-  const nm=mkInput('ชื่อดันเจียน'); const th=mkInput('ธีม (optional)');
+  c.innerHTML='<div class="sectitle">DUNGEONS</div><div class="note" style="text-align:left;padding:4px 2px 8px">'+uiCopy('อัปแผนที่ (รูป) + ตั้งชื่อ — <b>AI จะอ่านแผนที่แยกผังห้อง/ทางเชื่อมให้</b> เพื่อเล่าทีละห้องแม่นขึ้น (ทุกคนเพิ่มได้)','Upload and name a map. <b>AI reads its rooms and connections</b> so the DM can narrate each room accurately. Everyone may contribute.')+'</div>';
+  const nm=mkInput(uiCopy('ชื่อดันเจียน','Dungeon name')); const th=mkInput(uiCopy('ธีม (optional)','Theme (optional)'));
   const fi=document.createElement('input'); fi.type='file'; fi.accept='image/*'; fi.style.cssText='color:#fff;font-size:13px;max-width:150px';
   const btn=document.createElement('button'); btn.className='btn sm'; btn.textContent='Add dungeon'; btn.onclick=()=>addDungeon(nm,th,fi,btn);
   const row=document.createElement('div'); row.style.cssText='display:flex;gap:8px;flex-wrap:wrap;align-items:center'; row.appendChild(nm); row.appendChild(th); row.appendChild(fi); row.appendChild(btn); c.appendChild(row);
   let ds=[]; try{ const r=await supa.from('dungeons').select('*').eq('campaign_id',campaign.id).order('created_at',{ascending:false}); ds=r.data||[]; }catch(e){}
-  if(ds.length){ const dd=fileDropdown('แผนที่/ดันเจียนทั้งหมด', ds.length);
-    ds.forEach(x=>{ const aiRead=x.data&&x.data.ai_read; const d=document.createElement('div'); d.className='kv'; d.innerHTML=`<span class="k">▣ ${escapeHtml(x.name)}${x.theme?' · '+escapeHtml(x.theme):''}${x.map_path?' 🗺':''}${aiRead?' 🧠':''}</span>`; if(x.map_path&&x.data&&x.data.graph&&Array.isArray(x.data.graph.rooms)&&x.data.graph.rooms.length){ const pinb=document.createElement('button'); pinb.className='btn ghost sm'; pinb.textContent='📌'; pinb.title='ปักหมุดห้องบนแผนที่ให้ผู้เล่นเห็นตำแหน่ง'; pinb.onclick=()=>openPinEditor(x); d.appendChild(pinb); } const del=document.createElement('button'); del.className='btn ghost sm'; del.textContent='✕'; del.onclick=()=>deleteDungeon(x.id,x.map_path); d.appendChild(del); dd._body.appendChild(d); });
+  if(ds.length){ const dd=fileDropdown(uiCopy('แผนที่/ดันเจียนทั้งหมด','All Maps / Dungeons'), ds.length);
+    ds.forEach(x=>{ const aiRead=x.data&&x.data.ai_read; const d=document.createElement('div'); d.className='kv'; d.innerHTML=`<span class="k">▣ ${escapeHtml(x.name)}${x.theme?' · '+escapeHtml(x.theme):''}${x.map_path?' 🗺':''}${aiRead?' 🧠':''}</span>`; if(x.map_path&&x.data&&x.data.graph&&Array.isArray(x.data.graph.rooms)&&x.data.graph.rooms.length){ const pinb=document.createElement('button'); pinb.className='btn ghost sm'; pinb.textContent='📌'; pinb.title=uiCopy('ปักหมุดห้องบนแผนที่ให้ผู้เล่นเห็นตำแหน่ง','Pin rooms so players can see their location on the map'); pinb.onclick=()=>openPinEditor(x); d.appendChild(pinb); } const del=document.createElement('button'); del.className='btn ghost sm'; del.textContent='✕'; del.onclick=()=>deleteDungeon(x.id,x.map_path); d.appendChild(del); dd._body.appendChild(d); });
     c.appendChild(dd);
   }
   p.appendChild(c);
 }
 async function addDungeon(nm,th,fi,btn){
-  const name=nm.value.trim(); if(!name){ toast('ใส่ชื่อดันเจียน',true); return; }
+  const name=nm.value.trim(); if(!name){ toast(uiCopy('ใส่ชื่อดันเจียน','Enter a dungeon name'),true); return; }
   btn.disabled=true; const orig=btn.textContent;
   try{
     let map_path=null; const file=fi.files&&fi.files[0];
-    if(file){ if(file.size>8000000){ toast('รูปใหญ่เกิน 8MB',true); btn.disabled=false; return; } const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_'); map_path=campaign.id+'/'+Date.now()+'_'+safe; const up=await supa.storage.from('maps').upload(map_path,file,{upsert:false}); if(up.error) throw up.error; }
+    if(file){ if(file.size>8000000){ toast(uiCopy('รูปใหญ่เกิน 8MB','The image exceeds 8 MB'),true); btn.disabled=false; return; } const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_'); map_path=campaign.id+'/'+Date.now()+'_'+safe; const up=await supa.storage.from('maps').upload(map_path,file,{upsert:false}); if(up.error) throw up.error; }
     const ins=await supa.from('dungeons').insert({campaign_id:campaign.id,name,theme:th.value.trim()||null,map_path,created_by:me.id}).select('id').single();
-    if(ins.error){ if(ins.error.code==='23505'){ toast('มีดันเจียนชื่อนี้อยู่แล้วในแคมเปญ — ใช้ชื่ออื่น',true); btn.disabled=false; btn.textContent=orig; return; } throw ins.error; }   /* review #2: unique(campaign_id,name) — ข้อความเป็นมิตรเมื่อชื่อซ้ำ */
+    if(ins.error){ if(ins.error.code==='23505'){ toast(uiCopy('มีดันเจียนชื่อนี้อยู่แล้วในแคมเปญ — ใช้ชื่ออื่น','A dungeon with this name already exists. Choose another name.'),true); btn.disabled=false; btn.textContent=orig; return; } throw ins.error; }   /* review #2: unique(campaign_id,name) — ข้อความเป็นมิตรเมื่อชื่อซ้ำ */
     if(map_path && ins.data){ // ให้ AI อ่านแผนที่ครั้งเดียว → เก็บผังห้องไว้ใช้
-      btn.textContent='AI กำลังอ่านแผนที่…';
+      btn.textContent=uiCopy('AI กำลังอ่านแผนที่…','AI is reading the map…');
       try{
         const token=(await supa.auth.getSession()).data.session?.access_token;
         const r=await fetch(DUNGEON_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({campaign_id:campaign.id,dungeon_id:ins.data.id})});
         const j=await r.json();
-        if(r.ok) toast(`เพิ่มดันเจียน + AI อ่านแผนที่แล้ว ✓ (${j.rooms||0} ห้อง)`);
-        else toast('เพิ่มแล้ว แต่ AI อ่านแผนที่ไม่สำเร็จ: '+((j.error||'')+(j.detail?(' — '+String(j.detail).slice(0,80)):'')),true);
-      }catch(e){ toast('เพิ่มแล้ว แต่ AI อ่านแผนที่ไม่สำเร็จ',true); }
-    } else { toast('เพิ่มดันเจียนแล้ว ✓'); }
+        if(r.ok) toast(uiCopy('เพิ่มดันเจียน + AI อ่านแผนที่แล้ว ✓ (','Dungeon added and map read ✓ (')+(j.rooms||0)+uiCopy(' ห้อง)',' rooms)'));
+        else toast(uiCopy('เพิ่มแล้ว แต่ AI อ่านแผนที่ไม่สำเร็จ: ','Dungeon added, but AI could not read the map: ')+((j.error||'')+(j.detail?(' — '+String(j.detail).slice(0,80)):'')),true);
+      }catch(e){ toast(uiCopy('เพิ่มแล้ว แต่ AI อ่านแผนที่ไม่สำเร็จ','Dungeon added, but AI could not read the map'),true); }
+    } else { toast(uiCopy('เพิ่มดันเจียนแล้ว ✓','Dungeon added ✓')); }
     renderFiles();
-  }catch(e){ toast(e.message||'เพิ่มไม่สำเร็จ',true); btn.disabled=false; btn.textContent=orig; }
+  }catch(e){ toast(e.message||uiCopy('เพิ่มไม่สำเร็จ','Add failed'),true); btn.disabled=false; btn.textContent=orig; }
 }
 async function deleteDungeon(id,mapPath){
-  if(!confirm('ลบดันเจียนนี้?')) return;
+  if(!confirm(uiCopy('ลบดันเจียนนี้?','Delete this dungeon?'))) return;
   if(mapPath){ try{ await supa.storage.from('maps').remove([mapPath]); }catch(e){} }
   const {error}=await supa.from('dungeons').delete().eq('id',id); if(error){ toast(error.message,true); return; }
   // bugfix: ถ้าแผนที่ที่ลบถูกตั้งเป็นฉากปัจจุบัน → เคลียร์ current_map (กันแท็บ Map ชี้ไฟล์ที่หายไปแล้ว)
   try{ if(worldState&&worldState.current_map===mapPath){ await supa.from('campaign_state').update({current_map:null,updated_at:new Date().toISOString()}).eq('campaign_id',campaign.id); await loadState(); renderMap(); } }catch(e){}
-  toast('ลบแล้ว'); renderFiles();
+  toast(uiCopy('ลบแล้ว','Deleted')); renderFiles();
 }
 // ── v253 §9: ปักหมุดห้องบนรูปแผนที่ (host วางครั้งเดียว → ผู้เล่นเห็นตำแหน่งห้อง+ตัวเองบนแผนที่จริง) ──
 function openPinEditor(d){
-  if(!(d.data&&d.data.graph&&Array.isArray(d.data.graph.rooms)&&d.data.graph.rooms.length)){ toast('ดันเจียนนี้ยังไม่มีผังห้อง (ให้ AI อ่านแผนที่ก่อน)',true); return; }
-  if(!d.map_path){ toast('ดันเจียนนี้ไม่มีรูปแผนที่',true); return; }
+  if(!(d.data&&d.data.graph&&Array.isArray(d.data.graph.rooms)&&d.data.graph.rooms.length)){ toast(uiCopy('ดันเจียนนี้ยังไม่มีผังห้อง (ให้ AI อ่านแผนที่ก่อน)','This dungeon has no room graph yet. Let AI read the map first.'),true); return; }
+  if(!d.map_path){ toast(uiCopy('ดันเจียนนี้ไม่มีรูปแผนที่','This dungeon has no map image'),true); return; }
   const rooms=d.data.graph.rooms;
   const pins=Object.assign({}, d.data.pins||{});
   const ov=document.createElement('div'); ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;overflow:auto;padding:16px;display:flex;flex-direction:column;align-items:center';
-  const ttl=document.createElement('div'); ttl.style.cssText='color:#fff;font-size:16px;font-weight:700;margin-bottom:6px;text-align:center'; ttl.textContent='📌 ปักหมุดห้อง: '+d.name; ov.appendChild(ttl);
-  const help=document.createElement('div'); help.style.cssText='color:#bbb;font-size:13px;margin-bottom:8px;text-align:center;max-width:560px'; help.textContent='เลือกห้อง → คลิกบนรูปเพื่อวางหมุด (คลิกใหม่เพื่อย้าย). วางครบแล้วกด “บันทึก” — ผู้เล่นจะเห็นหมุดห้อง+ตำแหน่งปาร์ตี้บนแผนที่นี้'; ov.appendChild(help);
+  const ttl=document.createElement('div'); ttl.style.cssText='color:#fff;font-size:16px;font-weight:700;margin-bottom:6px;text-align:center'; ttl.textContent=uiCopy('📌 ปักหมุดห้อง: ','📌 Pin Rooms: ')+d.name; ov.appendChild(ttl);
+  const help=document.createElement('div'); help.style.cssText='color:#bbb;font-size:13px;margin-bottom:8px;text-align:center;max-width:560px'; help.textContent=uiCopy('เลือกห้อง → คลิกบนรูปเพื่อวางหมุด (คลิกใหม่เพื่อย้าย). วางครบแล้วกด “บันทึก” — ผู้เล่นจะเห็นหมุดห้อง+ตำแหน่งปาร์ตี้บนแผนที่นี้','Choose a room, then click the image to place or move its pin. Save when finished; players will see room pins and the party position.'); ov.appendChild(help);
   const sel=document.createElement('select'); sel.style.cssText='background:#000;color:#fff;border:2px solid #fff;font-size:14px;padding:4px;margin-bottom:8px;max-width:90vw';
   const wrap=document.createElement('div'); wrap.style.cssText='position:relative;max-width:560px;width:100%;border:2px solid #fff;cursor:crosshair';
   const img=document.createElement('img'); img.src=PUBLIC_URL+'maps/'+d.map_path; img.style.cssText='width:100%;display:block'; wrap.appendChild(img);
@@ -7514,45 +7754,45 @@ function openPinEditor(d){
   sel.onchange=redraw;
   ov.appendChild(sel); ov.appendChild(wrap);
   const bar=document.createElement('div'); bar.style.cssText='margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center';
-  const save=document.createElement('button'); save.className='btn sm'; save.textContent='💾 บันทึกหมุด';
-  save.onclick=async function(){ save.disabled=true; try{ const nd=Object.assign({},d.data||{},{pins:pins}); const r=await supa.from('dungeons').update({data:nd}).eq('id',d.id); if(r.error) throw r.error; d.data=nd; toast('บันทึกหมุดแล้ว ✓'); if(ov.parentNode) document.body.removeChild(ov); }catch(e){ toast('บันทึกไม่สำเร็จ: '+(e.message||'RLS?'),true); save.disabled=false; } };
-  const clr=document.createElement('button'); clr.className='btn ghost sm'; clr.textContent='ล้างหมุดห้องนี้'; clr.onclick=function(){ delete pins[sel.value]; refreshSel(); redraw(); };
-  const cancel=document.createElement('button'); cancel.className='btn ghost sm'; cancel.textContent='ปิด'; cancel.onclick=function(){ if(ov.parentNode) document.body.removeChild(ov); };
+  const save=document.createElement('button'); save.className='btn sm'; save.textContent=uiCopy('💾 บันทึกหมุด','💾 Save Pins');
+  save.onclick=async function(){ save.disabled=true; try{ const nd=Object.assign({},d.data||{},{pins:pins}); const r=await supa.from('dungeons').update({data:nd}).eq('id',d.id); if(r.error) throw r.error; d.data=nd; toast(uiCopy('บันทึกหมุดแล้ว ✓','Pins saved ✓')); if(ov.parentNode) document.body.removeChild(ov); }catch(e){ toast(uiCopy('บันทึกไม่สำเร็จ: ','Save failed: ')+(e.message||'RLS?'),true); save.disabled=false; } };
+  const clr=document.createElement('button'); clr.className='btn ghost sm'; clr.textContent=uiCopy('ล้างหมุดห้องนี้','Clear This Room Pin'); clr.onclick=function(){ delete pins[sel.value]; refreshSel(); redraw(); };
+  const cancel=document.createElement('button'); cancel.className='btn ghost sm'; cancel.textContent=uiCopy('ปิด','Close'); cancel.onclick=function(){ if(ov.parentNode) document.body.removeChild(ov); };
   bar.appendChild(save); bar.appendChild(clr); bar.appendChild(cancel); ov.appendChild(bar);
   document.body.appendChild(ov);
 }
 // PUZZLE card (collaborative)
 async function filesPuzzleCard(p){
   const c=document.createElement('div'); c.className='item';
-  c.innerHTML='<div class="sectitle">PUZZLES (คลังลับ)</div><div class="note" style="text-align:left;padding:4px 2px 8px">🔒 เห็นเฉพาะคุณ — DM จะสุ่มมาใช้เซอร์ไพรส์เพื่อน. พิมพ์เอง หรือ <b>อัปไฟล์ (รูป/PDF)</b> ให้ AI อ่านแยกโจทย์/เฉลยให้</div>';
+  c.innerHTML='<div class="sectitle">'+uiCopy('PUZZLES (คลังลับ)','PUZZLES (private vault)')+'</div><div class="note" style="text-align:left;padding:4px 2px 8px">'+uiCopy('🔒 เห็นเฉพาะคุณ — DM จะสุ่มมาใช้เซอร์ไพรส์เพื่อน. พิมพ์เอง หรือ <b>อัปไฟล์ (รูป/PDF)</b> ให้ AI อ่านแยกโจทย์/เฉลยให้','🔒 Visible only to you. The DM may use these to surprise the party. Enter one manually or <b>upload an image/PDF</b> for AI extraction.')+'</div>';
   // (A) พิมพ์เอง
-  const nm=mkInput('ชื่อปริศนา'); const pr=mkInput('โจทย์/คำใบ้'); const so=mkInput('เฉลย');
-  const btn=document.createElement('button'); btn.className='btn sm'; btn.textContent='Add (พิมพ์)'; btn.onclick=()=>addPuzzle(nm,pr,so,btn);
+  const nm=mkInput(uiCopy('ชื่อปริศนา','Puzzle name')); const pr=mkInput(uiCopy('โจทย์/คำใบ้','Prompt / clue')); const so=mkInput(uiCopy('เฉลย','Solution'));
+  const btn=document.createElement('button'); btn.className='btn sm'; btn.textContent=uiCopy('Add (พิมพ์)','Add (manual)'); btn.onclick=()=>addPuzzle(nm,pr,so,btn);
   const row=document.createElement('div'); row.style.cssText='display:flex;gap:8px;flex-wrap:wrap;align-items:center'; row.appendChild(nm); row.appendChild(pr); row.appendChild(so); row.appendChild(btn); c.appendChild(row);
   // (B) อัปไฟล์ → AI อ่าน
   const frow=document.createElement('div'); frow.style.cssText='display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px';
-  const fnm=mkInput('ชื่อ (optional)');
+  const fnm=mkInput(uiCopy('ชื่อ (optional)','Name (optional)'));
   const fi=document.createElement('input'); fi.type='file'; fi.accept='image/*,application/pdf'; fi.style.cssText='color:#fff;font-size:13px;max-width:160px';
-  const fbtn=document.createElement('button'); fbtn.className='btn sm'; fbtn.textContent='Add (ไฟล์ → AI อ่าน)'; fbtn.onclick=()=>addPuzzleFile(fnm,fi,fbtn);
+  const fbtn=document.createElement('button'); fbtn.className='btn sm'; fbtn.textContent=uiCopy('Add (ไฟล์ → AI อ่าน)','Add (file → AI read)'); fbtn.onclick=()=>addPuzzleFile(fnm,fi,fbtn);
   frow.appendChild(fnm); frow.appendChild(fi); frow.appendChild(fbtn); c.appendChild(frow);
   // รายการของฉัน (RLS: เห็นเฉพาะของตัวเอง/host)
   let ps=[]; try{ const r=await supa.from('puzzles').select('id,name,prompt,source').eq('campaign_id',campaign.id).order('created_at',{ascending:false}); ps=r.data||[]; }catch(e){}
-  if(ps.length){ const dd=fileDropdown('ปริศนาทั้งหมด', ps.length);
-    ps.forEach(z=>{ const d=document.createElement('div'); d.className='kv'; d.innerHTML=`<span class="k">🧩 ${escapeHtml(z.name)}${z.source==='file'?' 📎':''}${z.prompt?' · '+escapeHtml(String(z.prompt).slice(0,38)):''}</span>`; const del=document.createElement('button'); del.className='btn ghost sm'; del.textContent='✕'; del.onclick=()=>deletePuzzle(z.id); d.appendChild(del); dd._body.appendChild(d); });
+  if(ps.length){ const dd=fileDropdown(uiCopy('ปริศนาทั้งหมด','All Puzzles'), ps.length);
+    ps.forEach(z=>{ const d=document.createElement('div'); d.className='kv'; d.innerHTML=`<span class="k">🧩 <span data-runtime-origin="user-source">${escapeHtml(z.name)}${z.source==='file'?' 📎':''}${z.prompt?' · '+escapeHtml(String(z.prompt).slice(0,38)):''}</span></span>`; const del=document.createElement('button'); del.className='btn ghost sm'; del.textContent='✕'; del.onclick=()=>deletePuzzle(z.id); d.appendChild(del); dd._body.appendChild(d); });
     c.appendChild(dd);
   }
   p.appendChild(c);
 }
 async function addPuzzle(nm,pr,so,btn){
-  const name=nm.value.trim(); if(!name){ toast('ใส่ชื่อปริศนา',true); return; }
+  const name=nm.value.trim(); if(!name){ toast(uiCopy('ใส่ชื่อปริศนา','Enter a puzzle name'),true); return; }
   btn.disabled=true;
-  try{ const ins=await supa.from('puzzles').insert({campaign_id:campaign.id,name,prompt:pr.value.trim()||null,solution:so.value.trim()||null,source:'manual',created_by:me.id}); if(ins.error) throw ins.error; toast('เพิ่มปริศนาแล้ว ✓'); renderFiles(); }
-  catch(e){ toast(e.message||'เพิ่มไม่สำเร็จ',true); btn.disabled=false; }
+  try{ const ins=await supa.from('puzzles').insert({campaign_id:campaign.id,name,prompt:pr.value.trim()||null,solution:so.value.trim()||null,source:'manual',created_by:me.id}); if(ins.error) throw ins.error; toast(uiCopy('เพิ่มปริศนาแล้ว ✓','Puzzle added ✓')); renderFiles(); }
+  catch(e){ toast(e.message||uiCopy('เพิ่มไม่สำเร็จ','Add failed'),true); btn.disabled=false; }
 }
 async function addPuzzleFile(fnm,fi,btn){
-  const file=fi.files&&fi.files[0]; if(!file){ toast('เลือกไฟล์ปริศนาก่อน',true); return; }
-  if(file.size>12000000){ toast('ไฟล์ใหญ่เกิน 12MB',true); return; }
-  btn.disabled=true; const orig=btn.textContent; btn.textContent='AI กำลังอ่าน…';
+  const file=fi.files&&fi.files[0]; if(!file){ toast(uiCopy('เลือกไฟล์ปริศนาก่อน','Choose a puzzle file first'),true); return; }
+  if(file.size>12000000){ toast(uiCopy('ไฟล์ใหญ่เกิน 12MB','The file exceeds 12 MB'),true); return; }
+  btn.disabled=true; const orig=btn.textContent; btn.textContent=uiCopy('AI กำลังอ่าน…','AI is reading…');
   try{
     const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_'); const path=campaign.id+'/'+Date.now()+'_'+safe;
     const up=await supa.storage.from('puzzlefiles').upload(path,file,{upsert:false}); if(up.error) throw up.error;
@@ -7560,39 +7800,39 @@ async function addPuzzleFile(fnm,fi,btn){
     const r=await fetch(INGEST_PUZZLE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
       body:JSON.stringify({campaign_id:campaign.id, name:fnm.value.trim()||file.name, storage_path:path, mime:file.type})});
     const j=await r.json();
-    if(!r.ok){ try{ await supa.storage.from('puzzlefiles').remove([path]); }catch(_e){} toast('AI อ่านไม่สำเร็จ: '+((j.error||'')+(j.detail?(' — '+String(j.detail).slice(0,100)):'')),true); btn.disabled=false; btn.textContent=orig; return; }   // bugfix: ลบไฟล์กำพร้าเมื่อ AI อ่านพลาด
-    toast('เพิ่มปริศนาจากไฟล์แล้ว ✓ (AI แยกโจทย์/เฉลยให้)'); renderFiles();
-  }catch(e){ toast(e.message||'อัปไฟล์ล้มเหลว',true); btn.disabled=false; btn.textContent=orig; }
+    if(!r.ok){ try{ await supa.storage.from('puzzlefiles').remove([path]); }catch(_e){} toast(uiCopy('AI อ่านไม่สำเร็จ: ','AI read failed: ')+((j.error||'')+(j.detail?(' — '+String(j.detail).slice(0,100)):'')),true); btn.disabled=false; btn.textContent=orig; return; }   // bugfix: ลบไฟล์กำพร้าเมื่อ AI อ่านพลาด
+    toast(uiCopy('เพิ่มปริศนาจากไฟล์แล้ว ✓ (AI แยกโจทย์/เฉลยให้)','Puzzle added from file ✓ (AI extracted the prompt and solution)')); renderFiles();
+  }catch(e){ toast(e.message||uiCopy('อัปไฟล์ล้มเหลว','File upload failed'),true); btn.disabled=false; btn.textContent=orig; }
 }
 async function deletePuzzle(id){
-  if(!confirm('ลบปริศนานี้?')) return;
+  if(!confirm(uiCopy('ลบปริศนานี้?','Delete this puzzle?'))) return;
   const {error}=await supa.from('puzzles').delete().eq('id',id); if(error){ toast(error.message,true); return; }
-  toast('ลบแล้ว'); renderFiles();
+  toast(uiCopy('ลบแล้ว','Deleted')); renderFiles();
 }
 async function uploadRefFile(fi,sel,btn){
   const file=fi.files&&fi.files[0];
-  if(!file){ toast('เลือกไฟล์ก่อน',true); return; }
-  if(file.size>600000){ toast('ไฟล์ใหญ่เกิน 600KB',true); return; }
+  if(!file){ toast(uiCopy('เลือกไฟล์ก่อน','Choose a file first'),true); return; }
+  if(file.size>600000){ toast(uiCopy('ไฟล์ใหญ่เกิน 600KB','The file exceeds 600 KB'),true); return; }
   const status=$('upStatus'); const setS=(t)=>{ if(status){ status.style.display='block'; status.textContent=t; } };
-  btn.disabled=true; setS('กำลังอ่านไฟล์…');
+  btn.disabled=true; setS(uiCopy('กำลังอ่านไฟล์…','Reading file…'));
   try{
     const text=await file.text();
-    if(!text.trim()){ toast('ไฟล์ว่าง',true); btn.disabled=false; setS(''); return; }
-    setS('กำลัง embed + index… (อาจใช้เวลาสักครู่ ขึ้นกับขนาดไฟล์)');
+    if(!text.trim()){ toast(uiCopy('ไฟล์ว่าง','The file is empty'),true); btn.disabled=false; setS(''); return; }
+    setS(uiCopy('กำลัง embed + index… (อาจใช้เวลาสักครู่ ขึ้นกับขนาดไฟล์)','Embedding and indexing… This may take a moment.'));
     const token=(await supa.auth.getSession()).data.session?.access_token;
     const cat=ruleCategory(file.name)||'lore';   // หมวด RAG ตามชื่อไฟล์ (เผื่อแคมเปญเดิมอัปกฎใหม่)
     const r=await fetch(INGEST_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
       body:JSON.stringify({campaign_id:campaign.id, name:file.name, kind:sel.value, text, category:cat})});
     const j=await r.json();
-    if(!r.ok){ const msg=(j.error||'')+(j.detail?(' — '+String(j.detail).slice(0,140)):''); setS('ล้มเหลว: '+msg); toast('Index ล้มเหลว: '+msg,true); btn.disabled=false; return; }
+    if(!r.ok){ const msg=(j.error||'')+(j.detail?(' — '+String(j.detail).slice(0,140)):''); setS(uiCopy('ล้มเหลว: ','Failed: ')+msg); toast(uiCopy('Index ล้มเหลว: ','Index failed: ')+msg,true); btn.disabled=false; return; }
     toast(`Indexed ✓ ${j.chunks} chunks`); fi.value=''; renderFiles();
-  }catch(e){ setS('ผิดพลาด: '+(e.message||e)); toast('อัปโหลดล้มเหลว',true); btn.disabled=false; }
+  }catch(e){ setS(uiCopy('ผิดพลาด: ','Error: ')+(e.message||e)); toast(uiCopy('อัปโหลดล้มเหลว','Upload failed'),true); btn.disabled=false; }
 }
 async function deleteRefFile(id,name){
-  if(!confirm('ลบไฟล์ "'+name+'" และ index ทั้งหมด?')) return;
+  if(!confirm(uiCopy('ลบไฟล์ "','Delete file "')+name+uiCopy('" และ index ทั้งหมด?','" and its full index?'))) return;
   const { error }=await supa.from('references_files').delete().eq('id',id);
-  if(error){ toast(error.message||'ลบไม่สำเร็จ',true); return; }
-  toast('ลบแล้ว ✓'); renderFiles();
+  if(error){ toast(error.message||uiCopy('ลบไม่สำเร็จ','Delete failed'),true); return; }
+  toast(uiCopy('ลบแล้ว ✓','Deleted ✓')); renderFiles();
 }
 
 // ───────── render: chronicle (บทสรุปรวบยอดโดย AI) ─────────
@@ -7633,7 +7873,7 @@ async function renderChronicle(){
     const det=document.createElement('details'); det.className='item'; det.style.cursor='pointer';
     const sm=document.createElement('summary'); sm.textContent='ดูเนื้อเรื่องเต็มทุกตอน ('+narrative.length+')'; sm.style.cssText='font-weight:600;padding:4px 0';
     det.appendChild(sm);
-    narrative.forEach((n,i)=>{ const t=document.createElement('div'); t.className='chron-text'; t.style.marginTop='8px'; t.innerHTML=colorizeNarr(n.content); det.appendChild(t); });
+    narrative.forEach((n,i)=>{ const t=document.createElement('div'); t.className='chron-text'; t.style.marginTop='8px'; t.innerHTML=narrDraw(n); det.appendChild(t); });
     p.appendChild(det);
   }
   // อัลบั้มภาพ + ตัวสร้าง prompt ภาพ (ไป gen ข้างนอกเอง — ไม่เสียค่า API)
@@ -7644,7 +7884,7 @@ async function genScenePrompt(btn,out){
   if(!narrative.length){ toast('ยังไม่มีเนื้อเรื่อง',true); return; }
   btn.disabled=true; btn.textContent='กำลังสร้าง…';
   try{
-    const recent=narrative.slice(-3).map(n=>n.content).join('\n\n').slice(0,3000);
+    const recent=narrative.slice(-3).map(n=>narrText(n)).join('\n\n').slice(0,3000);
     const ask='จากฉากนี้ในเกม D&D แนว pixel art / fantasy ให้เขียน "image generation prompt" ภาษาอังกฤษ 1 ย่อหน้า (บรรยายฉาก ตัวละคร แสง บรรยากาศ สไตล์ภาพ) สำหรับเอาไปสร้างภาพใน AI ภายนอก ตอบเฉพาะตัว prompt เท่านั้น ไม่ต้องมีคำอธิบายอื่น:\n\n'+recent;
     const token=(await supa.auth.getSession()).data.session?.access_token;
     const r=await fetch(DYNAMIC_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
@@ -7713,7 +7953,7 @@ function exportChronicle(){
     ? chroniclesData.map(ch=> ch.kind==='volume'
         ? '<h2 style="border-bottom:2px solid #999;padding-bottom:4px;margin-top:28px">'+escapeHtml(ch.title||'เล่ม')+'</h2><p><em>'+escapeHtml(ch.summary).replace(/\n/g,'<br>')+'</em></p>'
         : '<h3 style="margin-top:20px">บทที่ '+ch.idx+' — '+escapeHtml(ch.title||'')+'</h3><p>'+escapeHtml(ch.summary).replace(/\n/g,'<br>')+'</p>').join('')
-    : narrative.map((n,i)=>'<h3>Entry '+(i+1)+'</h3><p>'+escapeHtml(n.content).replace(/\n/g,'<br>')+'</p>').join('');
+    : narrative.map((n,i)=>'<h3>Entry '+(i+1)+'</h3><p>'+escapeHtml(narrText(n)).replace(/\n/g,'<br>')+'</p>').join('');
   const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>'+escapeHtml(campaign.name)+'</title></head><body style="font-family:sans-serif;max-width:720px;margin:auto;padding:24px;line-height:1.8;background:#fff;color:#111"><h1>'+escapeHtml(campaign.name)+(chroniclesData.length?' — พงศาวดาร':'')+'</h1>'+body+'</body></html>';
   const blob=new Blob([html],{type:'text/html'}); const url=URL.createObjectURL(blob);
   const a=document.createElement('a'); a.href=url; a.download='chronicle.html'; a.click(); URL.revokeObjectURL(url); toast('Saved ✓');
