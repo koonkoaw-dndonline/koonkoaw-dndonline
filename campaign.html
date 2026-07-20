@@ -2026,7 +2026,7 @@ const SUPA_URL = 'https://caxksvqlgrvwnjynbbye.supabase.co';
 const SUPA_ANON = 'sb_publishable_kODadNf7PNUWJr_ZTViABw_IsP6ggJ6';
 // ▲▲▲ key สาธารณะ (publishable) — ปลอดภัยที่จะฝัง ความปลอดภัยจริงอยู่ที่ RLS ▲▲▲
 const RESOLVE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/resolve-round';
-const FRONTEND_BUILD = 202607200716;   // v716 English launch blockers: neutral display wall + silent repair-note defense + asset proof e2
+const FRONTEND_BUILD = 202607200717;   // v717 core playtest closure: daily-prepare language/cap/rerender + transaction-safe retry contract
 const FRONTEND_COMPAT_EPOCH = 2;
 const INGEST_FN  = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-file';
 const INGEST_PUZZLE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-puzzle';
@@ -3475,7 +3475,7 @@ function switchTab(t){
   document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.dataset.tab===t));
   document.body.classList.toggle('tab-story', t==='story');
   // v508: มือถือกลับเข้าแท็บบทบรรยาย → เลื่อนไปบทล่าสุดเสมอ (เดิมค้างตำแหน่งเดิม/หัวฟีด ต้องไถลงเอง — คำสั่ง Koon 07-04)
-  if(t==='story'){ renderStory(); try{ if(matchMedia('(max-width:1023px)').matches){ requestAnimationFrame(()=>{ try{ scrollToLatest(); }catch(e){} }); } }catch(e){} }
+  if(t==='story'){ renderStory(); try{ renderRoundbar(); }catch(e){} try{ if(matchMedia('(max-width:1023px)').matches){ requestAnimationFrame(()=>{ try{ scrollToLatest(); }catch(e){} }); } }catch(e){} }
   else if(t==='me'){ renderMe(); /* v634ui DYN-29: เปิดแท็บ Stat → refetch ชีทถ้าข้อมูลเก่า >15s (recovery หลายเฟสทำ Party/Stat อ่านคนละชุด — self-heal เมื่อเปิดดู) */ try{ if(!window._meFreshTs || Date.now()-window._meFreshTs>15000){ window._meFreshTs=Date.now(); refreshAll().then(function(){ if(activeTab()==='me') renderMe(); }).catch(function(e){}); } }catch(e){} }
   else if(t==='items') renderItems();
   else if(t==='skills') renderSkills();
@@ -4769,7 +4769,7 @@ async function renderSpellPreparePanel(p, sheet){
   const limit=spellsPreparedForFE(ck,lvl,abMod); const maxLv=maxSpellLevelFor(ck,lvl);
   const catByName=new Map(); SPELL_CAT.forEach(sp=>{ if(sp.level>=1) catByName.set(String(sp.name).toLowerCase(), sp); });
   const curPrepared=new Set();
-  try{ const r=await supa.from('skills').select('name').eq('character_id',myChar.id); (r.data||[]).forEach(x=>{ const k=String(x.name).toLowerCase(); if(catByName.has(k)) curPrepared.add(catByName.get(k).slug); }); }catch(e){}
+  try{ const r=await supa.from('skills').select('name,description').eq('character_id',myChar.id); (r.data||[]).forEach(x=>{ const k=String(x.name).toLowerCase(); const always=/\b(?:Oath|Domain)\b[^)]*always prepared|เตรียมเสมอ/i.test(String(x.description||'')); if(catByName.has(k)&&!always) curPrepared.add(catByName.get(k).slug); }); }catch(e){}
   // candidate: wizard = spellbook (เวทที่เรียนรู้) · others = ลิสต์ทั้งคลาส
   let candidates;
   if(isWiz){
@@ -4785,39 +4785,48 @@ async function renderSpellPreparePanel(p, sheet){
   card.open = due || sessionStorage.getItem('skfold_prep')==='1';   // v242: ถึงกำหนดเตรียมเวท = กางอัตโนมัติ (กันผู้เล่นหาไม่เจอ/นึกว่าไม่มีให้เลือก โดยเฉพาะตอนติด gate ในฉากต่อสู้)
   card.addEventListener('toggle',()=>{ try{ sessionStorage.setItem('skfold_prep', card.open?'1':'0'); }catch(e){} });
   const statusBadge = due
-    ? '<span class="sk-due blinkon">ต้องเลือกวันนี้!</span>'
-    : '<span class="sk-cnt">เตรียมไว้ '+curPrepared.size+'/'+limit+'</span>';
-  card.innerHTML='<summary><div class="sk-head">เตรียมเวทประจำวัน<span class="en">· DAILY</span>'+statusBadge+'<span class="sk-arw">▸</span></div></summary>';
+    ? '<span class="sk-due blinkon">'+uiCopy('ต้องเลือกวันนี้!','Choose today!')+'</span>'
+    : '<span class="sk-cnt">'+uiCopy('เตรียมไว้ ','Prepared ')+curPrepared.size+'/'+limit+'</span>';
+  card.innerHTML='<summary><div class="sk-head">'+uiCopy('เตรียมเวทประจำวัน','Daily spell preparation')+'<span class="en">· DAILY</span>'+statusBadge+'<span class="sk-arw">▸</span></div></summary>';
   const renderPicker=(host)=>{
     host.innerHTML='';
-    const picks=new Set(curPrepared);
+    // v717 P3: stale/legacy prepared rows may exceed today's calculated cap.
+    // Preselect only the first canonical candidate rows that fit; never render an
+    // impossible checked state and then let the server choose an arbitrary slice.
+    const seeded=candidates.filter(sp=>curPrepared.has(sp.slug)).slice(0,limit).map(sp=>sp.slug);
+    const picks=new Set(seeded);
+    if(curPrepared.size>seeded.length){
+      const fixed=document.createElement('div'); fixed.className='note'; fixed.style.cssText='text-align:left;color:#f5c542;margin:4px 0';
+      fixed.textContent=uiCopy('(แก้: ชุดเดิมเกินขีดจำกัด ระบบเลือกไว้ล่วงหน้าเฉพาะ '+limit+' เวทแรก กรุณาตรวจแล้วกดยืนยัน)','(Fixed: the previous set exceeded today\'s limit. Only the first '+limit+' spells are preselected; review them before confirming.)');
+      host.appendChild(fixed);
+    }
     const cnt=document.createElement('div'); cnt.className='note'; cnt.style.cssText='text-align:left;color:#f5c542;margin:4px 0';
-    const upd=()=>{ cnt.textContent='เตรียม '+picks.size+'/'+limit+' · '+abKey.toUpperCase()+' '+(abMod>=0?'+':'')+abMod+' + เลเวล '+lvl; };
+    const upd=()=>{ cnt.textContent=uiCopy('เตรียม ','Prepared ')+picks.size+'/'+limit+' · '+abKey.toUpperCase()+' '+(abMod>=0?'+':'')+abMod+' + '+uiCopy('เลเวล ','level ')+lvl; };
     host.appendChild(cnt); upd();
     let any=false;
     [1,2,3,4,5,6,7,8,9].forEach(L=>{ if(L>maxLv) return;
       const grp=candidates.filter(sp=>sp.level===L); if(!grp.length) return; any=true;
-      const hh=document.createElement('div'); hh.className='note'; hh.style.cssText='text-align:left;margin-top:5px;color:#9ad'; hh.textContent='เลเวล '+L; host.appendChild(hh);
+      const hh=document.createElement('div'); hh.className='note'; hh.style.cssText='text-align:left;margin-top:5px;color:#9ad'; hh.textContent=uiCopy('เลเวล ','Level ')+L; host.appendChild(hh);
       grp.forEach(sp=>{ const row=document.createElement('label'); row.className='fld'; row.style.cssText='flex-direction:row;align-items:flex-start;gap:8px;cursor:pointer;margin:1px 0';
         row.innerHTML='<input type="checkbox"'+(picks.has(sp.slug)?' checked':'')+' style="margin-top:3px"><span><b>'+escapeHtml(sp.name)+'</b>'+aoeTag(sp)+(sp.damage?' <span class="muted">('+escapeHtml(sp.damage)+(sp.save?(' '+escapeHtml(sp.save)):'')+')</span>':'')+'<div class="muted" style="font-size:11px;line-height:1.4">'+escapeHtml(sp.effect||'')+'</div></span>';
         const inp=row.querySelector('input');
-        inp.onchange=(e)=>{ if(e.target.checked){ if(picks.size>=limit){ e.target.checked=false; toast('เตรียมได้ '+limit+' เวท',true); return; } picks.add(sp.slug); } else picks.delete(sp.slug); upd(); };
+        inp.onchange=(e)=>{ if(e.target.checked){ if(picks.size>=limit){ e.target.checked=false; toast(uiCopy('เตรียมได้ '+limit+' เวท','You can prepare up to '+limit+' spells.'),true); return; } picks.add(sp.slug); } else picks.delete(sp.slug); upd(); };
         host.appendChild(row); }); });
     if(!any){
-      const m=document.createElement('div'); m.className='muted'; m.textContent=isWiz?'spellbook ว่าง — เรียนเวทตอนเลเวลอัพก่อน':'ยังร่ายเวทมีระดับไม่ได้ในเลเวลนี้';
+      const m=document.createElement('div'); m.className='muted'; m.textContent=isWiz?uiCopy('spellbook ว่าง — เรียนเวทตอนเลเวลอัพก่อน','Your spellbook is empty — learn spells when you level up first.'):uiCopy('ยังร่ายเวทมีระดับไม่ได้ในเลเวลนี้','You cannot cast leveled spells at this level yet.');
       host.appendChild(m);
       // v180: กัน deadlock — เตรียมอะไรไม่ได้ก็ต้องหลุด gate ได้ (ส่งลิสต์ว่าง = server เคลียร์ prepare_due)
-      const ack=document.createElement('button'); ack.className='btn'; ack.style.marginTop='8px'; ack.textContent='✓ รับทราบ (เล่นต่อ)';
+      const ack=document.createElement('button'); ack.className='btn'; ack.style.marginTop='8px'; ack.textContent=uiCopy('✓ รับทราบ (เล่นต่อ)','✓ Continue');
       ack.onclick=()=>submitSpellPrepare([], ack);
       host.appendChild(ack);
       return;
     }
-    const btn=document.createElement('button'); btn.className='btn'; btn.style.marginTop='8px'; btn.textContent='✓ เตรียมเวท';
+    const btn=document.createElement('button'); btn.className='btn'; btn.style.marginTop='8px'; btn.textContent=uiCopy('✓ เตรียมเวท','✓ Prepare spells');
     btn.onclick=()=>submitSpellPrepare([...picks], btn);
     host.appendChild(btn);
     // v180: "ใช้ชุดเดิม" (RAW: ไม่เปลี่ยนชุด = เก็บของเมื่อวาน) — ส่งลิสต์ว่าง server ไม่แตะ skills แค่เคลียร์ due
     if(curPrepared.size){
-      const keep=document.createElement('button'); keep.className='btn ghost'; keep.style.cssText='margin-top:8px;margin-left:8px'; keep.textContent='ใช้ชุดเดิม ('+curPrepared.size+' เวท)';
+      const keep=document.createElement('button'); keep.className='btn ghost'; keep.style.cssText='margin-top:8px;margin-left:8px'; keep.textContent=uiCopy('ใช้ชุดเดิม ('+curPrepared.size+' เวท)','Keep current set ('+curPrepared.size+' spells)');
       keep.onclick=()=>submitSpellPrepare([], keep);
       host.appendChild(keep);
     }
@@ -4827,33 +4836,33 @@ async function renderSpellPreparePanel(p, sheet){
     // v180: นอกกำหนด server ไม่รับเปลี่ยนชุด (RAW: เปลี่ยนหลังพักยาว/วันใหม่เท่านั้น) — โชว์สถานะ
     //   ยกเว้นยังไม่เคยมีชุดเวทเลย (ตั้งต้นครั้งแรก) → server เปิดให้
     const inf=document.createElement('div'); inf.className='note';
-    inf.textContent='เตรียมไว้ '+curPrepared.size+' เวท · '+(myChar.class||'')+' Lv'+lvl+' ('+abKey.toUpperCase()+' '+(abMod>=0?'+':'')+abMod+') → เตรียมได้ '+limit+' · เปลี่ยนชุดได้เมื่อผ่านวันใหม่/พักยาวในเกม';
+    inf.textContent=uiCopy('เตรียมไว้ '+curPrepared.size+' เวท · '+(myChar.class||'')+' Lv'+lvl+' ('+abKey.toUpperCase()+' '+(abMod>=0?'+':'')+abMod+') → เตรียมได้ '+limit+' · เปลี่ยนชุดได้เมื่อผ่านวันใหม่/พักยาวในเกม','Prepared '+curPrepared.size+' spells · '+(myChar.class||'')+' Lv'+lvl+' ('+abKey.toUpperCase()+' '+(abMod>=0?'+':'')+abMod+') → limit '+limit+' · Change the set after a new in-game day or a long rest.');
     body.appendChild(inf);
     if(!curPrepared.size){
-      const host=document.createElement('div'); const b=document.createElement('button'); b.className='btn ghost sm'; b.style.marginTop='6px'; b.textContent='เลือกชุดเวทครั้งแรก';
+      const host=document.createElement('div'); const b=document.createElement('button'); b.className='btn ghost sm'; b.style.marginTop='6px'; b.textContent=uiCopy('เลือกชุดเวทครั้งแรก','Choose your first spell set');
       b.onclick=()=>{ b.style.display='none'; renderPicker(host); };
       body.appendChild(b); body.appendChild(host);
     }
     p.appendChild(card); return;
   }
   const inf=document.createElement('div'); inf.className='note';
-  inf.textContent='ผ่านวันใหม่ในเกม — เลือกเวทที่จะเตรียมวันนี้จาก'+(isWiz?' spellbook (เวทที่เรียนรู้)':'ลิสต์ทั้งคลาส')+' (จำนวน = '+abKey.toUpperCase()+' mod + เลเวล ตามกฎจริง)';
+  inf.textContent=uiCopy('ผ่านวันใหม่ในเกม — เลือกเวทที่จะเตรียมวันนี้จาก'+(isWiz?' spellbook (เวทที่เรียนรู้)':'ลิสต์ทั้งคลาส')+' (จำนวน = '+abKey.toUpperCase()+' mod + เลเวล ตามกฎจริง)','A new in-game day has begun — choose today\'s prepared spells from '+(isWiz?'your spellbook':'your class list')+' (count = '+abKey.toUpperCase()+' modifier + level).');
   body.appendChild(inf);
   const host=document.createElement('div'); body.appendChild(host); p.appendChild(card); renderPicker(host);
 }
 async function submitSpellPrepare(slugs, btn){
-  if(btn){ btn.disabled=true; btn.textContent='กำลังเตรียม…'; }
+  if(btn){ btn.disabled=true; btn.textContent=uiCopy('กำลังเตรียม…','Preparing…'); }
   try{
     const tok=(await supa.auth.getSession()).data.session?.access_token;
     const rr=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id, spell_prepare:{char_id:myChar.id, spell_slugs:slugs}})});
     const jr=await rr.json().catch(()=>({}));
-    if(!rr.ok) throw new Error(jr.error||'เตรียมไม่สำเร็จ');
+    if(!rr.ok) throw new Error(uiCopy(jr.error||'เตรียมไม่สำเร็จ','Could not prepare spells.'));
     if(worldState&&worldState.settings&&worldState.settings.prepare_due&&Array.isArray(worldState.settings.prepare_due.ids)){ worldState.settings.prepare_due.ids=worldState.settings.prepare_due.ids.filter(id=>id!==myChar.id); }
     window._rulesInfo=null;
-    toast(jr.kept?('ใช้ชุดเวทเดิม ✓ ('+((jr.prepared&&jr.prepared.length)||0)+' เวท)'):('เตรียมเวทแล้ว ✓ '+((jr.prepared&&jr.prepared.length)||slugs.length)+' เวท'+(jr.rejected&&jr.rejected.length?(' (ตัด '+jr.rejected.length+')'):'')));
+    toast(jr.kept?uiCopy('ใช้ชุดเวทเดิม ✓ ('+((jr.prepared&&jr.prepared.length)||0)+' เวท)','Kept the current spell set ✓ ('+((jr.prepared&&jr.prepared.length)||0)+' spells)'):uiCopy('เตรียมเวทแล้ว ✓ '+((jr.prepared&&jr.prepared.length)||slugs.length)+' เวท'+(jr.rejected&&jr.rejected.length?(' (ตัด '+jr.rejected.length+')'):''),'Spells prepared ✓ '+((jr.prepared&&jr.prepared.length)||slugs.length)+(jr.rejected&&jr.rejected.length?(' ('+jr.rejected.length+' rejected)'):'')));
     await refreshAll(); renderMe();
-    try{ if(activeTab()==='skills') renderSkills(); refreshSelectionGate(); }catch(e){}   // v182: badge กระพริบดับทันทีหลังเลือก
-  }catch(e){ toast(e.message||'เตรียมไม่สำเร็จ',true); if(btn){ btn.disabled=false; btn.textContent='✓ เตรียมเวท'; } }
+    try{ renderRoundbar(); if(activeTab()==='skills') renderSkills(); refreshSelectionGate(); }catch(e){}   // v717 B5: prepare_due clearing must repaint the story gate even while another tab is active
+  }catch(e){ toast(uiLanguage()==='en'?uiCopy('เตรียมไม่สำเร็จ','Could not prepare spells.'):(e.message||'เตรียมไม่สำเร็จ'),true); if(btn){ btn.disabled=false; btn.textContent=uiCopy('✓ เตรียมเวท','✓ Prepare spells'); } }
 }
 // v320 fix: กัน render ซ้อน (re-entrancy) — realtime ยิงรัว (เคสจริง: เลเวลอัพยกปาร์ตี้ → campaign_state/characters อัปเดตหลายครั้งติด)
 //   ฟังก์ชัน async ที่ทำ innerHTML='' แล้ว await (renderLevelUpPanel→loadCatalogs/fetchRulesInfo / loadChat) รันพร้อมกัน → append แทรกกันหลัง await = การ์ด/สถานะซ้ำ 4 ชุดเวลา scroll

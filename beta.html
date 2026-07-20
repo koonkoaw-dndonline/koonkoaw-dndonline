@@ -2002,7 +2002,7 @@ const SUPA_URL = 'https://caxksvqlgrvwnjynbbye.supabase.co';
 const SUPA_ANON = 'sb_publishable_kODadNf7PNUWJr_ZTViABw_IsP6ggJ6';
 // ▲▲▲ key สาธารณะ (publishable) — ปลอดภัยที่จะฝัง ความปลอดภัยจริงอยู่ที่ RLS ▲▲▲
 const RESOLVE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/resolve-round';
-const FRONTEND_BUILD = 202607200716;   // v716 build parity (beta remains Thai-only; shared narrative-note defense)
+const FRONTEND_BUILD = 202607200717;   // v717 build parity: daily-prepare cap/rerender (beta remains Thai-only)
 const FRONTEND_COMPAT_EPOCH = 2;
 const INGEST_FN  = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-file';
 const INGEST_PUZZLE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-puzzle';
@@ -3307,7 +3307,7 @@ function switchTab(t){
   document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.dataset.tab===t));
   document.body.classList.toggle('tab-story', t==='story');
   // v508: มือถือกลับเข้าแท็บบทบรรยาย → เลื่อนไปบทล่าสุดเสมอ (เดิมค้างตำแหน่งเดิม/หัวฟีด ต้องไถลงเอง — คำสั่ง Koon 07-04)
-  if(t==='story'){ renderStory(); try{ if(matchMedia('(max-width:1023px)').matches){ requestAnimationFrame(()=>{ try{ scrollToLatest(); }catch(e){} }); } }catch(e){} }
+  if(t==='story'){ renderStory(); try{ renderRoundbar(); }catch(e){} try{ if(matchMedia('(max-width:1023px)').matches){ requestAnimationFrame(()=>{ try{ scrollToLatest(); }catch(e){} }); } }catch(e){} }
   else if(t==='me'){ renderMe(); /* v634ui DYN-29: เปิดแท็บ Stat → refetch ชีทถ้าข้อมูลเก่า >15s (recovery หลายเฟสทำ Party/Stat อ่านคนละชุด — self-heal เมื่อเปิดดู) */ try{ if(!window._meFreshTs || Date.now()-window._meFreshTs>15000){ window._meFreshTs=Date.now(); refreshAll().then(function(){ if(activeTab()==='me') renderMe(); }).catch(function(e){}); } }catch(e){} }
   else if(t==='items') renderItems();
   else if(t==='skills') renderSkills();
@@ -4599,7 +4599,7 @@ async function renderSpellPreparePanel(p, sheet){
   const limit=spellsPreparedForFE(ck,lvl,abMod); const maxLv=maxSpellLevelFor(ck,lvl);
   const catByName=new Map(); SPELL_CAT.forEach(sp=>{ if(sp.level>=1) catByName.set(String(sp.name).toLowerCase(), sp); });
   const curPrepared=new Set();
-  try{ const r=await supa.from('skills').select('name').eq('character_id',myChar.id); (r.data||[]).forEach(x=>{ const k=String(x.name).toLowerCase(); if(catByName.has(k)) curPrepared.add(catByName.get(k).slug); }); }catch(e){}
+  try{ const r=await supa.from('skills').select('name,description').eq('character_id',myChar.id); (r.data||[]).forEach(x=>{ const k=String(x.name).toLowerCase(); const always=/\b(?:Oath|Domain)\b[^)]*always prepared|เตรียมเสมอ/i.test(String(x.description||'')); if(catByName.has(k)&&!always) curPrepared.add(catByName.get(k).slug); }); }catch(e){}
   // candidate: wizard = spellbook (เวทที่เรียนรู้) · others = ลิสต์ทั้งคลาส
   let candidates;
   if(isWiz){
@@ -4620,7 +4620,9 @@ async function renderSpellPreparePanel(p, sheet){
   card.innerHTML='<summary><div class="sk-head">เตรียมเวทประจำวัน<span class="en">· DAILY</span>'+statusBadge+'<span class="sk-arw">▸</span></div></summary>';
   const renderPicker=(host)=>{
     host.innerHTML='';
-    const picks=new Set(curPrepared);
+    const seeded=candidates.filter(sp=>curPrepared.has(sp.slug)).slice(0,limit).map(sp=>sp.slug);
+    const picks=new Set(seeded);
+    if(curPrepared.size>seeded.length){ const fixed=document.createElement('div'); fixed.className='note'; fixed.style.cssText='text-align:left;color:#f5c542;margin:4px 0'; fixed.textContent='(แก้: ชุดเดิมเกินขีดจำกัด ระบบเลือกไว้ล่วงหน้าเฉพาะ '+limit+' เวทแรก กรุณาตรวจแล้วกดยืนยัน)'; host.appendChild(fixed); }
     const cnt=document.createElement('div'); cnt.className='note'; cnt.style.cssText='text-align:left;color:#f5c542;margin:4px 0';
     const upd=()=>{ cnt.textContent='เตรียม '+picks.size+'/'+limit+' · '+abKey.toUpperCase()+' '+(abMod>=0?'+':'')+abMod+' + เลเวล '+lvl; };
     host.appendChild(cnt); upd();
@@ -4682,7 +4684,7 @@ async function submitSpellPrepare(slugs, btn){
     window._rulesInfo=null;
     toast(jr.kept?('ใช้ชุดเวทเดิม ✓ ('+((jr.prepared&&jr.prepared.length)||0)+' เวท)'):('เตรียมเวทแล้ว ✓ '+((jr.prepared&&jr.prepared.length)||slugs.length)+' เวท'+(jr.rejected&&jr.rejected.length?(' (ตัด '+jr.rejected.length+')'):'')));
     await refreshAll(); renderMe();
-    try{ if(activeTab()==='skills') renderSkills(); refreshSelectionGate(); }catch(e){}   // v182: badge กระพริบดับทันทีหลังเลือก
+    try{ renderRoundbar(); if(activeTab()==='skills') renderSkills(); refreshSelectionGate(); }catch(e){}   // v717 B5: prepare_due clearing must repaint the story gate even while another tab is active
   }catch(e){ toast(e.message||'เตรียมไม่สำเร็จ',true); if(btn){ btn.disabled=false; btn.textContent='✓ เตรียมเวท'; } }
 }
 // v320 fix: กัน render ซ้อน (re-entrancy) — realtime ยิงรัว (เคสจริง: เลเวลอัพยกปาร์ตี้ → campaign_state/characters อัปเดตหลายครั้งติด)
