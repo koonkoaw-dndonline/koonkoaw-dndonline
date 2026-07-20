@@ -20,7 +20,7 @@
   };
   Object.keys(races).forEach(k=>Object.freeze(races[k]));
   root.TTRPG_CHARACTER_EN=Object.freeze({
-    build:'20260720e1',
+    build:'20260720e2',
     raceFeatures:Object.freeze(races),
     classFeatureDescriptions:Object.freeze({ranger:Object.freeze({'Favored Foe':'Tasha\'s: mark a creature you hit; the first hit each turn deals +1d4 damage (1d6 at level 6; 1d8 at level 14). Uses equal your proficiency bonus per Long Rest. Declare "Use Favored Foe on <enemy>" in combat.'})})
   });

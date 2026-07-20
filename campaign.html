@@ -17,9 +17,9 @@
 <script>/* v610 skin: ตั้งคลาสก่อน CSS paint กันจอกะพริบ — default = paper (กระดาษนิยาย) · classic = ธีมพิกเซลเดิม */
 try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentElement.classList.add('skin-paper'); }catch(e){}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="./runtime-copy-en.js?v=20260720e1"></script>
-<script src="./i18n-runtime.js?v=20260720e1"></script>
-<script src="./character-content-en.js?v=20260720e1"></script>
+<script src="./runtime-copy-en.js?v=20260720e2"></script>
+<script src="./i18n-runtime.js?v=20260720e2"></script>
+<script src="./character-content-en.js?v=20260720e2"></script>
 <style>
 /* ============================================================
    TTRPG CAMPAIGN — Dragon Quest (NES) monochrome re-skin (เฟส 5)
@@ -2026,7 +2026,7 @@ const SUPA_URL = 'https://caxksvqlgrvwnjynbbye.supabase.co';
 const SUPA_ANON = 'sb_publishable_kODadNf7PNUWJr_ZTViABw_IsP6ggJ6';
 // ▲▲▲ key สาธารณะ (publishable) — ปลอดภัยที่จะฝัง ความปลอดภัยจริงอยู่ที่ RLS ▲▲▲
 const RESOLVE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/resolve-round';
-const FRONTEND_BUILD = 202607200715;   // v715 English asset integrity: fail-closed picker/create/JOIN + RPC readiness proof
+const FRONTEND_BUILD = 202607200716;   // v716 English launch blockers: neutral display wall + silent repair-note defense + asset proof e2
 const FRONTEND_COMPAT_EPOCH = 2;
 const INGEST_FN  = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-file';
 const INGEST_PUZZLE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-puzzle';
@@ -2123,7 +2123,7 @@ async function betaAskBackupKeys(tok){
 }
 let campaign=null, members=[], myChar=null, characters=[], curRound=null, narrative=[], mySheet={}, mySheetUpdatedAt=null, worldState=null, chatMsgs=[];
 const ENGLISH_UI_ENABLED=true;   // Slice E: flipped 2026-07-19 — reviewer GO (catalog gate ok=true, 639/639 approved) + server flag english_mode_enabled=true. Needs frontend push + cache-bust to go live.
-const ENGLISH_ASSET_BUILD='20260720e1';
+const ENGLISH_ASSET_BUILD='20260720e2';
 let pendingGameLanguage=null, englishModeAvailable=false, englishModeServerEnabled=false;   // DB world language wins after create/JOIN; pending is pre-world only.
 function inspectEnglishAssets(){
   const rows=[['TTRPG_I18N',globalThis.TTRPG_I18N],['TTRPG_CHARACTER_EN',globalThis.TTRPG_CHARACTER_EN],['TTRPG_RUNTIME_COPY',globalThis.TTRPG_RUNTIME_COPY]];
@@ -2671,11 +2671,20 @@ const NARR_WINDOW=50; let narrMore=false, _skipAutoScroll=false;
 function narrativeProjectionMode(n){
   try{ const key=String((n&&n.projection_wall)||'narrative_claim')==='lethal_projection'?'lethal_projection':'narrative_claim'; const m=String(((((worldState||{}).settings||{}).wall_modes||{})[key])||'shadow').toLowerCase(); return ['off','shadow','enforce'].includes(m)?m:'shadow'; }catch(e){ return 'shadow'; }
 }
+const LANGUAGE_REPAIR_META_LINES=new Set(['(fixed: system output was normalized to english.)','(แก้: ระบบปรับผลลัพธ์ให้เป็นภาษาอังกฤษแล้ว)']);
+function stripLanguageRepairMetaText(value){
+  const fn=globalThis.TTRPG_I18N&&globalThis.TTRPG_I18N.stripLanguageRepairMetaText;
+  if(typeof fn==='function') return fn(value);
+  const src=String(value||''); const lines=src.split(/\r?\n/);
+  const kept=lines.filter(line=>!LANGUAGE_REPAIR_META_LINES.has(line.trim().toLowerCase()));
+  return kept.length===lines.length?src:kept.join('\n').replace(/\n{3,}/g,'\n\n').trim();   // v716b: no note removed → verbatim (Thai byte-transparent)
+}
 function narrText(n){
   if(!n) return '';
   const p=String(n.projection_content||'').trim();
   const legacy=String(n.legacy_content||'').trim();
-  return narrativeProjectionMode(n)==='enforce'&&p?p:(legacy||String(n.content||''));
+  const value=narrativeProjectionMode(n)==='enforce'&&p?p:(legacy||String(n.content||''));
+  return /^(dm|system)$/i.test(String(n.author||'dm'))?stripLanguageRepairMetaText(value):value;
 }
 function narrProjectionNote(n){
   return narrativeProjectionMode(n)==='enforce'&&n&&n.projection_status==='corrected'?String(n.projection_note||'').trim():'';
@@ -4234,7 +4243,7 @@ async function renderRoundbar(){
         dmRenderOptions(opts,cb.options,cb.option_set||null);
         bar.appendChild(opts);
       }
-      const ta=document.createElement('textarea'); ta.id='actInput'; ta.placeholder='จะให้ตัวละครทำอะไร? พิมพ์ได้อิสระ เช่น  •เดินไปคุยกับพ่อค้าเรื่องข่าวลือ  •ตรวจหากับดักรอบประตู  •โจมตีกอบลินตัวซ้ายด้วยดาบ  •ลองโน้มน้าวยามให้ปล่อยผ่าน  •ค้นหีบในมุมห้อง (ใส่เป้าหมาย/รายละเอียดยิ่งเยอะ DM ยิ่งบรรยายตรงใจ)'; if(keepAct) ta.value=keepAct; bar.appendChild(ta);
+      const ta=document.createElement('textarea'); ta.id='actInput'; ta.placeholder=uiCopy('จะให้ตัวละครทำอะไร? พิมพ์ได้อิสระ เช่น  •เดินไปคุยกับพ่อค้าเรื่องข่าวลือ  •ตรวจหากับดักรอบประตู  •โจมตีกอบลินตัวซ้ายด้วยดาบ  •ลองโน้มน้าวยามให้ปล่อยผ่าน  •ค้นหีบในมุมห้อง (ใส่เป้าหมาย/รายละเอียดยิ่งเยอะ DM ยิ่งบรรยายตรงใจ)','What does your character do? Describe any action freely; include a target and useful detail so the DM can resolve it accurately.'); if(keepAct) ta.value=keepAct; bar.appendChild(ta);
     }
     // เต๋า + ปุ่มส่ง (เฉพาะนอกคอมแบต — ในคอมแบตใช้ SUBMIT ในเมนู)
     if(!inCombat){

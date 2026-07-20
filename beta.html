@@ -2002,7 +2002,7 @@ const SUPA_URL = 'https://caxksvqlgrvwnjynbbye.supabase.co';
 const SUPA_ANON = 'sb_publishable_kODadNf7PNUWJr_ZTViABw_IsP6ggJ6';
 // ▲▲▲ key สาธารณะ (publishable) — ปลอดภัยที่จะฝัง ความปลอดภัยจริงอยู่ที่ RLS ▲▲▲
 const RESOLVE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/resolve-round';
-const FRONTEND_BUILD = 202607200715;   // v715 English asset integrity build parity (beta remains Thai-only)
+const FRONTEND_BUILD = 202607200716;   // v716 build parity (beta remains Thai-only; shared narrative-note defense)
 const FRONTEND_COMPAT_EPOCH = 2;
 const INGEST_FN  = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-file';
 const INGEST_PUZZLE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-puzzle';
@@ -2536,11 +2536,20 @@ const NARR_WINDOW=50; let narrMore=false, _skipAutoScroll=false;
 function narrativeProjectionMode(n){
   try{ const key=String((n&&n.projection_wall)||'narrative_claim')==='lethal_projection'?'lethal_projection':'narrative_claim'; const m=String(((((worldState||{}).settings||{}).wall_modes||{})[key])||'enforce').toLowerCase(); return ['off','shadow','enforce'].includes(m)?m:'enforce'; }catch(e){ return 'enforce'; }
 }
+const LANGUAGE_REPAIR_META_LINES=new Set(['(fixed: system output was normalized to english.)','(แก้: ระบบปรับผลลัพธ์ให้เป็นภาษาอังกฤษแล้ว)']);
+function stripLanguageRepairMetaText(value){
+  const fn=globalThis.TTRPG_I18N&&globalThis.TTRPG_I18N.stripLanguageRepairMetaText;
+  if(typeof fn==='function') return fn(value);
+  const src=String(value||''); const lines=src.split(/\r?\n/);
+  const kept=lines.filter(line=>!LANGUAGE_REPAIR_META_LINES.has(line.trim().toLowerCase()));
+  return kept.length===lines.length?src:kept.join('\n').replace(/\n{3,}/g,'\n\n').trim();   // v716b: no note removed → verbatim (Thai byte-transparent)
+}
 function narrText(n){
   if(!n) return '';
   const p=String(n.projection_content||'').trim();
   const legacy=String(n.legacy_content||'').trim();
-  return narrativeProjectionMode(n)==='enforce'&&p?p:(legacy||String(n.content||''));
+  const value=narrativeProjectionMode(n)==='enforce'&&p?p:(legacy||String(n.content||''));
+  return /^(dm|system)$/i.test(String(n.author||'dm'))?stripLanguageRepairMetaText(value):value;
 }
 function narrProjectionNote(n){
   return narrativeProjectionMode(n)==='enforce'&&n&&n.projection_status==='corrected'?String(n.projection_note||'').trim():'';

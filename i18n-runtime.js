@@ -107,11 +107,32 @@
     const owner=el&&el.closest?el.closest('[data-runtime-origin]'):null;
     return owner?owner.getAttribute('data-runtime-origin'):'system';
   }
-  function wallReplacement(kind){return '(Fixed: untranslated '+kind+' was withheld by the English display wall.)';}
+  const wallFallbacks=Object.freeze({
+    'interface text':'—',
+    'placeholder':'Enter text',
+    'title':'More information',
+    'aria-label':'Control',
+    'value':'Continue',
+    'dialog message':'This action could not be completed.',
+    'confirmation message':'Continue?',
+    'prompt message':'Enter a value'
+  });
+  function wallReplacement(kind){return wallFallbacks[kind]||wallFallbacks['interface text'];}
   function safeEnglishSystemText(value,kind){
     const copy=root.TTRPG_RUNTIME_COPY;
     const translated=copy&&copy.translateEnglishSystemText?copy.translateEnglishSystemText(value):null;
     return translated==null?wallReplacement(kind||'interface text'):translated;
+  }
+  const languageRepairMetaLines=new Set([
+    '(fixed: system output was normalized to english.)',
+    '(แก้: ระบบปรับผลลัพธ์ให้เป็นภาษาอังกฤษแล้ว)'
+  ]);
+  function stripLanguageRepairMetaText(value){
+    const src=String(value==null?'':value);
+    const lines=src.split(/\r?\n/);
+    const kept=lines.filter(function(line){return !languageRepairMetaLines.has(line.trim().toLowerCase());});
+    if(kept.length===lines.length) return src;   // v716b: no obsolete meta line → return verbatim (Thai byte-transparent; only normalize whitespace when a note was actually removed)
+    return kept.join('\n').replace(/\n{3,}/g,'\n\n').trim();
   }
   function auditEnglishDom(scope,opts){
     const base=scope&&scope.querySelectorAll?scope:root.document;
@@ -185,5 +206,5 @@
     base.querySelectorAll('[data-i18n-placeholder]').forEach(function(el){el.setAttribute('placeholder',text(lang,el.dataset.i18nPlaceholder));});
     base.setAttribute&&base.setAttribute('lang',lang==='en'?'en':'th');
   }
-  root.TTRPG_I18N=Object.freeze({build:'20260720e1',catalogs:Object.freeze(catalogs),text,errorText,language,latinPublicTextVerdict,catalogRowVisibleForWorld,localizeCatalogRow,displayTextVerdict,safeEnglishSystemText,auditEnglishDom,installDisplayWall,installDialogWall,translateDom});
+  root.TTRPG_I18N=Object.freeze({build:'20260720e2',catalogs:Object.freeze(catalogs),text,errorText,language,latinPublicTextVerdict,catalogRowVisibleForWorld,localizeCatalogRow,displayTextVerdict,safeEnglishSystemText,stripLanguageRepairMetaText,auditEnglishDom,installDisplayWall,installDialogWall,translateDom});
 })(globalThis);
