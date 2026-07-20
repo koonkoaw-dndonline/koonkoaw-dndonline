@@ -103,5 +103,5 @@
     if(out==null){for(const row of patterns){if(row[0].test(body)){out=body.replace(row[0],row[1]);break;}}}
     return out!=null&&!invalidEnglish(out)?lead+out+trail:null;
   }
-  root.TTRPG_RUNTIME_COPY=Object.freeze({build:'20260720e2',exact,patterns,invalidEnglish,translateEnglishSystemText});
+  root.TTRPG_RUNTIME_COPY=Object.freeze({build:'20260720e3',exact,patterns,invalidEnglish,translateEnglishSystemText});
 })(globalThis);

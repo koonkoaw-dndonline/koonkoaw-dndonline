@@ -1909,7 +1909,9 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
       <label class="fld">Sex<select id="cSex"><option value="">— เลือก —</option><option value="ชาย">ชาย (M)</option><option value="หญิง">หญิง (F)</option><option value="อื่นๆ">อื่นๆ/ไม่ระบุ</option></select></label>
       <label class="fld">Age<input type="text" id="cAge" placeholder="e.g. 24"/></label>
     </div>
-    <label class="fld">วันเกิดในปฏิทินโลก (ไม่บังคับ)<input type="text" id="cBirth" placeholder="YYYY-MM-DD · เดือนละ 30 วัน"/></label>
+    <!-- v720: วันเกิดใช้แพทเทิร์นปฏิทินโลกจริง (12 เดือน × 30 วัน) — เลือกวัน+เดือนพอ ไม่ใส่ปี (server อนุมานปีจากอายุ กันสับสน) -->
+    <label class="fld">วันเกิดในปฏิทินโลก (ไม่บังคับ · เดือนละ 30 วัน · ปีละ 12 เดือน · ไม่ใส่ปี)<span style="display:flex;gap:6px;align-items:center;margin-top:4px"><span class="muted" style="font-size:12px">วันที่</span><select id="cBirthDay"><option value="">—</option></select><span class="muted" style="font-size:12px">เดือน</span><select id="cBirthMonth"><option value="">—</option></select></span></label>
+    <script>(function(){const d=document.getElementById('cBirthDay'),m=document.getElementById('cBirthMonth');for(let i=1;i<=30;i++){const o=document.createElement('option');o.value=String(i);o.textContent=String(i);d.appendChild(o);}for(let i=1;i<=12;i++){const o=document.createElement('option');o.value=String(i);o.textContent=String(i);m.appendChild(o);}})();</script>
     <input type="text" id="cRaceCustom" class="hidden" placeholder="ชื่อเผ่านอกกฎ เช่น Aarakocra" style="margin:6px 0"/>
     <div id="cRaceInfo" class="note hidden" style="text-align:left;border-left:3px solid #5B8DEF;padding:4px 8px;margin:2px 0 6px"></div>
     <div id="cDragonElem" class="hidden" style="text-align:left;margin:2px 0 6px;font-size:13px">ธาตุสายมังกร (Dragonborn): <select id="cDragonElemSel" onchange="dragonbornElement=this.value" style="margin-left:4px"><option value="fire">ไฟ Fire (แดง/ทอง/ทองเหลือง)</option><option value="cold">เย็น Cold (ขาว/เงิน)</option><option value="lightning">ไฟฟ้า Lightning (น้ำเงิน/บรอนซ์)</option><option value="acid">กรด Acid (ดำ/ทองแดง)</option><option value="poison">พิษ Poison (เขียว)</option></select> <span class="muted" style="font-size:12px">— ใช้กับลมหายใจ + ความต้านทาน</span></div>
@@ -3254,7 +3256,9 @@ async function createCharacter(){
     // เงินเริ่มต้น (v623 D3/H11 กัน double-dip): ชุดกำหนด gold เอง = ใช้ค่านั้น · ได้ชุดอุปกรณ์เต็ม (items) = เงินติดกระเป๋า 15 gp (PHB: starting wealth ตามคลาส คือทางเลือก "แทนอุปกรณ์" — ห้ามได้ทั้งคู่) · ไม่มี package = เงินคลาสเต็ม
     { const _ck=classKey(); walletp.gp = (selectedPkg && selectedPkg.gold) ? selectedPkg.gold : (selectedPkg && Array.isArray(selectedPkg.items) && selectedPkg.items.length) ? 15 : (CLASS_START_GOLD[_ck]||15); }
     const sheet={
-      race:raceValue(), sex:$('cSex').value.trim(), age:$('cAge').value.trim(), birth_date_game:($('cBirth').value||'').trim(),
+      race:raceValue(), sex:$('cSex').value.trim(), age:$('cAge').value.trim(),
+      // v720: เก็บ "เดือน-วัน" (MM-DD) ตามปฏิทินโลก 12×30 — ไม่มีปี · เลือกไม่ครบคู่ = ไม่บันทึก
+      birth_date_game:(function(){const d=parseInt(($('cBirthDay')||{}).value,10),m=parseInt(($('cBirthMonth')||{}).value,10);return (d>=1&&d<=30&&m>=1&&m<=12)?(m+'-'+d):'';})(),
       dragonborn_element: (raceKey()==='dragonborn') ? dragonbornElement : undefined,   // v291: ธาตุ → resist + Breath Weapon (server ใช้)
       abilities:{ str:finalAb('str'), dex:finalAb('dex'), con:finalAb('con'), int:finalAb('int'), wis:finalAb('wis'), cha:finalAb('cha') },
       skill_proficiencies: chosenSkills.slice(),
@@ -3269,7 +3273,7 @@ async function createCharacter(){
     const { error: _shErr } = await supa.from('character_sheets').insert({ character_id:ch.id, sheet });   // v271 L5: เช็ค error (เดิมไม่เช็ค → ถ้า insert ล้ม ได้ตัวละครไม่มีชีทเงียบๆ)
     if(_shErr && String(_shErr.code)!=='23505') throw _shErr;   // v628 #6: 23505 = ชีทมีอยู่แล้ว (path กู้ตัวละครค้าง) — ใช้ของเดิม ห้ามทับ
     if(sheet.birth_date_game && campaign&&campaign.companion_mode==='v2'){
-      try{ await companionResolve({romance_confirm:{character_id:ch.id,birthday_only:true,birth_date:sheet.birth_date_game}}); }
+      try{ await companionResolve({romance_confirm:{character_id:ch.id,birthday_only:true,birth_date:sheet.birth_date_game,birth_age_years:parseInt(sheet.age,10)||null}}); }
       catch(e){ toast(e.message||'วันเกิดยังไม่ถูกล็อกในปฏิทิน server — ตั้งใหม่ได้ในแท็บ Companion',true); }
     }
     // ความสามารถเริ่มต้นตามคลาส → แท็บ Skills (ไม่พังถ้าตาราง skills ยังไม่ได้ migrate)

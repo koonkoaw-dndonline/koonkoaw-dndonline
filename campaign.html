@@ -17,9 +17,9 @@
 <script>/* v610 skin: ตั้งคลาสก่อน CSS paint กันจอกะพริบ — default = paper (กระดาษนิยาย) · classic = ธีมพิกเซลเดิม */
 try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentElement.classList.add('skin-paper'); }catch(e){}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="./runtime-copy-en.js?v=20260720e2"></script>
-<script src="./i18n-runtime.js?v=20260720e2"></script>
-<script src="./character-content-en.js?v=20260720e2"></script>
+<script src="./runtime-copy-en.js?v=20260720e3"></script>
+<script src="./i18n-runtime.js?v=20260720e3"></script>
+<script src="./character-content-en.js?v=20260720e3"></script>
 <style>
 /* ============================================================
    TTRPG CAMPAIGN — Dragon Quest (NES) monochrome re-skin (เฟส 5)
@@ -1933,7 +1933,9 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
       <label class="fld" data-i18n-prefix="builder.sex">เพศ<select id="cSex"><option value="" data-i18n="builder.select">— เลือก —</option><option value="male" data-i18n="builder.male">ชาย (M)</option><option value="female" data-i18n="builder.female">หญิง (F)</option><option value="other" data-i18n="builder.other">อื่นๆ/ไม่ระบุ</option></select></label>
       <label class="fld" data-i18n-prefix="builder.age">อายุ<input type="text" id="cAge" data-i18n-placeholder="builder.agePlaceholder" placeholder="เช่น 24"/></label>
     </div>
-    <label class="fld" data-i18n-prefix="builder.birth">วันเกิดในปฏิทินโลก (ไม่บังคับ)<input type="text" id="cBirth" data-i18n-placeholder="builder.birthPlaceholder" placeholder="YYYY-MM-DD · เดือนละ 30 วัน"/></label>
+    <!-- v720: วันเกิดใช้แพทเทิร์นปฏิทินโลกจริง (12 เดือน × 30 วัน) — เลือกวัน+เดือนพอ ไม่ใส่ปี (server อนุมานปีจากอายุ กันสับสน) -->
+    <label class="fld" data-i18n-prefix="builder.birth">วันเกิดในปฏิทินโลก (ไม่บังคับ · เดือนละ 30 วัน · ปีละ 12 เดือน · ไม่ใส่ปี)<span style="display:flex;gap:6px;align-items:center;margin-top:4px"><span class="muted" data-i18n="builder.birthDay" style="font-size:12px">วันที่</span><select id="cBirthDay"><option value="">—</option></select><span class="muted" data-i18n="builder.birthMonth" style="font-size:12px">เดือน</span><select id="cBirthMonth"><option value="">—</option></select></span></label>
+    <script>(function(){const d=document.getElementById('cBirthDay'),m=document.getElementById('cBirthMonth');for(let i=1;i<=30;i++){const o=document.createElement('option');o.value=String(i);o.textContent=String(i);d.appendChild(o);}for(let i=1;i<=12;i++){const o=document.createElement('option');o.value=String(i);o.textContent=String(i);m.appendChild(o);}})();</script>
     <input type="text" id="cRaceCustom" class="hidden" data-i18n-placeholder="builder.customRacePlaceholder" placeholder="ชื่อเผ่านอกกฎ เช่น Aarakocra" style="margin:6px 0"/>
     <div id="cRaceInfo" class="note hidden" style="text-align:left;border-left:3px solid #5B8DEF;padding:4px 8px;margin:2px 0 6px"></div>
     <div id="cDragonElem" class="hidden" style="text-align:left;margin:2px 0 6px;font-size:13px"><span data-i18n="builder.dragonElement">ธาตุสายมังกร (Dragonborn):</span> <select id="cDragonElemSel" onchange="dragonbornElement=this.value" style="margin-left:4px"><option value="fire" data-i18n="builder.dragonFire">ไฟ Fire (แดง/ทอง/ทองเหลือง)</option><option value="cold" data-i18n="builder.dragonCold">เย็น Cold (ขาว/เงิน)</option><option value="lightning" data-i18n="builder.dragonLightning">ไฟฟ้า Lightning (น้ำเงิน/บรอนซ์)</option><option value="acid" data-i18n="builder.dragonAcid">กรด Acid (ดำ/ทองแดง)</option><option value="poison" data-i18n="builder.dragonPoison">พิษ Poison (เขียว)</option></select> <span class="muted" style="font-size:12px" data-i18n="builder.dragonNote">— ใช้กับลมหายใจ + ความต้านทาน</span></div>
@@ -2026,7 +2028,7 @@ const SUPA_URL = 'https://caxksvqlgrvwnjynbbye.supabase.co';
 const SUPA_ANON = 'sb_publishable_kODadNf7PNUWJr_ZTViABw_IsP6ggJ6';
 // ▲▲▲ key สาธารณะ (publishable) — ปลอดภัยที่จะฝัง ความปลอดภัยจริงอยู่ที่ RLS ▲▲▲
 const RESOLVE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/resolve-round';
-const FRONTEND_BUILD = 202607200717;   // v717 core playtest closure: daily-prepare language/cap/rerender + transaction-safe retry contract
+const FRONTEND_BUILD = 202607200720;   // v720: wall lifecycle (uninstall on world exit) + key ask for all worlds + birthday day/month + B4 strings
 const FRONTEND_COMPAT_EPOCH = 2;
 const INGEST_FN  = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-file';
 const INGEST_PUZZLE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-puzzle';
@@ -2098,32 +2100,32 @@ async function checkFrontendBuild(){
 // host ใส่/แก้ Gemini key ของโลก (เรียกเองหรือเด้งอัตโนมัติเมื่อ server บอกว่ายังไม่มี key)
 async function betaAskKey(){
   try{
-    if(!campaign||!me||campaign.host_id!==me.id){ alert('โลกนี้ยังไม่มี Gemini key — แจ้ง host ของโลกให้ใส่ key (ขอฟรี: aistudio.google.com → Get API key)'); return; }
-    const k=(prompt('🔑 ใส่ Gemini API key ของคุณ (host ของโลกนี้)\nขอฟรีที่ aistudio.google.com → "Get API key" → สร้าง key แล้วก๊อปมาวาง (ขึ้นต้น AIza...)')||'').trim();
+    if(!campaign||!me||campaign.host_id!==me.id){ alert(uiCopy('โลกนี้ยังไม่มี Gemini key — แจ้ง host ของโลกให้ใส่ key (ขอฟรี: aistudio.google.com → Get API key)','This world has no Gemini key yet — ask the world host to set one (free: aistudio.google.com → Get API key).')); return; }
+    const k=(prompt(uiCopy('🔑 ใส่ Gemini API key ของโลกนี้ (วางคีย์ใหม่ = เปลี่ยนทับคีย์เดิม)\nขอฟรีที่ aistudio.google.com → "Get API key" → สร้าง key แล้วก๊อปมาวาง (ขึ้นต้น AIza...)','🔑 Paste this world\'s Gemini API key (pasting a new key replaces the old one)\nFree at aistudio.google.com → "Get API key" → create a key and paste it here (starts with AIza...)'))||'').trim();
     if(!k) return;
     const tok=(await supa.auth.getSession()).data.session?.access_token;
     const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,set_gemini_key:k})});
     const j=await r.json();
-    if(j&&j.ok){ toast('ตั้ง Gemini key แล้ว ✓ — เล่นต่อได้เลย'); await betaAskBackupKeys(tok); } else { alert((j&&j.message)||'key ไม่ถูกต้อง — ลองใหม่'); }
-  }catch(e){ alert('ตั้ง key ไม่สำเร็จ: '+(e.message||e)); }
+    if(j&&j.ok){ toast(uiCopy('ตั้ง Gemini key แล้ว ✓ — เล่นต่อได้เลย','Gemini key saved ✓ — you can keep playing.')); await betaAskBackupKeys(tok); } else { alert((j&&j.message)||uiCopy('key ไม่ถูกต้อง — ลองใหม่','Invalid key — try again.')); }
+  }catch(e){ alert(uiCopy('ตั้ง key ไม่สำเร็จ: ','Failed to save the key: ')+(e.message||e)); }
 }
 // v499: คีย์สำรอง optional สูงสุด 2 — โควต้าคีย์หลักหมดกลางเกม server สลับให้อัตโนมัติ (ไม่สะดุด)
 // แนะนำเฉพาะคนใช้คีย์ฟรี · ใช้คีย์แบบเสียเงินอยู่แล้วไม่จำเป็น · ต้องสร้างจาก "คนละโปรเจกต์" Google Cloud โควต้าถึงแยกกัน
 async function betaAskBackupKeys(tok){
   try{
     for(const n of [2,3]){
-      const k=(prompt('🔑 (ไม่บังคับ) Gemini key สำรอง #'+n+' — กัน "โควต้าหมด" กลางเซสชัน ระบบจะสลับคีย์ให้อัตโนมัติ\n\n• ใช้คีย์ฟรี: แนะนำให้ใส่ — สร้างจาก Google Cloud "โปรเจกต์ใหม่" (คนละโปรเจกต์กับคีย์หลัก ไม่งั้นโควต้าไม่แยกกัน)\n• ใช้คีย์แบบเสียเงินอยู่แล้ว: ไม่จำเป็น — กด Cancel ข้ามได้เลย')||'').trim();
+      const k=(prompt(uiCopy('🔑 (ไม่บังคับ) Gemini key สำรอง #'+n+' — กัน "โควต้าหมด" กลางเซสชัน ระบบจะสลับคีย์ให้อัตโนมัติ\n\n• ใช้คีย์ฟรี: แนะนำให้ใส่ — สร้างจาก Google Cloud "โปรเจกต์ใหม่" (คนละโปรเจกต์กับคีย์หลัก ไม่งั้นโควต้าไม่แยกกัน)\n• ใช้คีย์แบบเสียเงินอยู่แล้ว: ไม่จำเป็น — กด Cancel ข้ามได้เลย','🔑 (Optional) Backup Gemini key #'+n+' — covers "quota exhausted" mid-session; the server rotates keys automatically.\n\n• Free-tier keys: recommended — create it in a NEW Google Cloud project (quotas are not separate otherwise).\n• Already on a paid key: not needed — press Cancel to skip.'))||'').trim();
       if(!k) return;
       const body={campaign_id:campaign.id}; body['set_gemini_key'+n]=k;
       const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify(body)});
       const j=await r.json();
-      if(j&&j.ok){ toast('คีย์สำรอง #'+n+' พร้อม ✓'); } else { alert((j&&j.message)||'key ไม่ถูกต้อง — ข้ามคีย์สำรองไปก่อน (ใส่ใหม่ทีหลังได้)'); return; }
+      if(j&&j.ok){ toast(uiCopy('คีย์สำรอง #'+n+' พร้อม ✓','Backup key #'+n+' ready ✓')); } else { alert((j&&j.message)||uiCopy('key ไม่ถูกต้อง — ข้ามคีย์สำรองไปก่อน (ใส่ใหม่ทีหลังได้)','Invalid key — skipping backups for now (you can add them later).')); return; }
     }
   }catch(e){}
 }
 let campaign=null, members=[], myChar=null, characters=[], curRound=null, narrative=[], mySheet={}, mySheetUpdatedAt=null, worldState=null, chatMsgs=[];
 const ENGLISH_UI_ENABLED=true;   // Slice E: flipped 2026-07-19 — reviewer GO (catalog gate ok=true, 639/639 approved) + server flag english_mode_enabled=true. Needs frontend push + cache-bust to go live.
-const ENGLISH_ASSET_BUILD='20260720e2';
+const ENGLISH_ASSET_BUILD='20260720e3';
 let pendingGameLanguage=null, englishModeAvailable=false, englishModeServerEnabled=false;   // DB world language wins after create/JOIN; pending is pre-world only.
 function inspectEnglishAssets(){
   const rows=[['TTRPG_I18N',globalThis.TTRPG_I18N],['TTRPG_CHARACTER_EN',globalThis.TTRPG_CHARACTER_EN],['TTRPG_RUNTIME_COPY',globalThis.TTRPG_RUNTIME_COPY]];
@@ -2146,7 +2148,14 @@ const UI18N=globalThis.TTRPG_I18N||{
   catalogRowVisibleForWorld:function(){ return true; },
   localizeCatalogRow:function(l,r){ return r; }
 };
-function uiLanguage(){ return campaign ? UI18N.language(campaign.game_language) : UI18N.language(pendingGameLanguage||'th'); }
+// v720: บนจอ pre-world (เลือกภาษา/HOST-JOIN/สร้างโลก) ภาษาต้องตามที่ผู้ใช้กำลังเลือก ไม่ใช่โลกเก่าที่ค้างใน memory
+// — เดิม campaign โลก EN ค้างอยู่ทำให้ uiLanguage()='en' ทั้งที่ผู้ใช้กดกลับมาสร้างโลกไทย → display wall ทาสี label ไทยเป็น '—' ทั้งจอ
+const PRE_WORLD_SCREEN_IDS=['languageScreen','roleScreen','joinScreen','hostModeScreen','hostCreateScreen','hostOneshotScreen','englishAssetBlockScreen'];
+function preWorldUiActive(){ try{ return PRE_WORLD_SCREEN_IDS.some(id=>{const e=document.getElementById(id);return e&&!e.classList.contains('hidden');}); }catch(_e){ return false; } }
+function uiLanguage(){
+  if(campaign && !preWorldUiActive()) return UI18N.language(campaign.game_language);
+  return UI18N.language(pendingGameLanguage||'th');
+}
 function uiText(key,vars){ return UI18N.text(uiLanguage(),key,vars); }
 function uiCopy(th,en){ return uiLanguage()==='en'?en:th; }
 function applyUiLanguage(lang){ UI18N.translateDom(document,UI18N.language(lang)); if(campaign){ UI18N.installDisplayWall(document,()=>uiLanguage()); UI18N.installDialogWall(()=>uiLanguage()); } document.documentElement.lang=lang==='en'?'en':'th'; }
@@ -2178,6 +2187,7 @@ function syncEnglishLanguageUi(){
 }
 function showLanguagePicker(clearPending){
   if(clearPending){ pendingGameLanguage=null; try{sessionStorage.removeItem('ttrpg_pending_game_language');}catch(e){} }
+  if(UI18N.uninstallDisplayWall) UI18N.uninstallDisplayWall();   // v720: ออกจากโลก = ปลด wall ของโลกเก่า (จะติดตั้งใหม่ตอนเข้าโลกถัดไป)
   applyUiLanguage('th');
   ['englishAssetBlockScreen','roleScreen','joinScreen','hostModeScreen','hostCreateScreen','hostOneshotScreen'].forEach(s=>{const el=$(s);if(el)el.classList.add('hidden');});
   const ls=$('languageScreen'); if(ls) ls.classList.remove('hidden');
@@ -2471,7 +2481,7 @@ async function createCampaign(){
       }
     }
     // (v617: ตัดการอัปเพลงตอนสร้างโลกออก — คำตัดสิน Koon §0.2 · ระบบเพลงครบอยู่แล้วในแท็บ Files: filesMusicCard เพิ่ม/mood/ลบ)
-    // ── v210 BETA wizard: ฝังลอร์ Forgotten Realms อัตโนมัติ (มาร์ค beta_world — ล็อกจนกว่ามี key) → ขอ Gemini key ของ host ──
+    // ── v210 BETA wizard: ฝังลอร์ Forgotten Realms อัตโนมัติ (มาร์ค beta_world — ล็อกจนกว่ามี key) ──
     if(BETA&&betaCode()){
       const tokB=(await supa.auth.getSession()).data.session?.access_token;
       $('createBtn').textContent=UI18N.text(lang,'create.seedingLore');
@@ -2480,15 +2490,21 @@ async function createCampaign(){
         const jL=await rL.json();
         if(jL&&jL.ok) toast(`🌍 ลอร์ Forgotten Realms พร้อม (${jL.chunks||'มีอยู่แล้ว'} ส่วน) ✓`); else toast((jL&&jL.message)||'ฝังลอร์ไม่สำเร็จ (เล่นได้ปกติ)',true);
       }catch(e){}
+    }
+    // ── v720: ทุกโลกใหม่ถามคีย์ Gemini ของตัวเองเสมอ (เดิม gate BETA — โลกปกติไม่มีช่องใส่คีย์เลย ไปกินคีย์กลาง env เงียบๆ) · ข้ามได้ ตั้งทีหลังที่ปุ่ม 🔑 ใน DM TOOLS ──
+    {
+      const tokK=(await supa.auth.getSession()).data.session?.access_token;
       $('createBtn').textContent=UI18N.text(lang,'create.settingKey');
       for(let i=0;i<3;i++){
-        const k=(prompt('🔑 ขั้นสุดท้าย: ใส่ Gemini API key ของคุณ (host)\nขอฟรี 1 นาที: aistudio.google.com → "Get API key" → Create API key → ก๊อปมาวาง (ขึ้นต้น AIza...)\n\nโลกเบต้าใช้ key ของ host เท่านั้น — ไม่ใส่ = ยังเล่นไม่ได้')||'').trim();
-        if(!k){ toast('ยังไม่ได้ใส่ key — ใส่ทีหลังได้ ระบบจะถามอีกครั้งตอนเริ่มเล่น',true); break; }
+        const k=(prompt(lang==='en'
+          ? '🔑 Final step: paste this world\'s Gemini API key (host)\nFree in 1 minute: aistudio.google.com → "Get API key" → Create API key (starts with AIza...)\n\nRecommended: a free-tier key dedicated to this world.\nCancel = skip for now (set it later via 🔑 in DM TOOLS).'
+          : '🔑 ขั้นสุดท้าย: ใส่ Gemini API key ของโลกนี้ (host)\nขอฟรี 1 นาที: aistudio.google.com → "Get API key" → Create API key → ก๊อปมาวาง (ขึ้นต้น AIza...)\n\nแนะนำ: คีย์ฟรีแยกเฉพาะโลกนี้ โควต้าไม่ปนโลกอื่น\nกด Cancel = ข้ามก่อน (ตั้งทีหลังได้ที่ปุ่ม 🔑 ใน DM TOOLS)')||'').trim();
+        if(!k){ toast(lang==='en'?'Key skipped — set it any time via 🔑 in DM TOOLS.':'ยังไม่ได้ใส่ key — ตั้งทีหลังได้ที่ปุ่ม 🔑 ใน DM TOOLS',true); break; }
         try{
-          const rK=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tokB},body:JSON.stringify({campaign_id:campaign.id,set_gemini_key:k})});
+          const rK=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tokK},body:JSON.stringify({campaign_id:campaign.id,set_gemini_key:k})});
           const jK=await rK.json();
-          if(jK&&jK.ok){ toast('Gemini key พร้อม ✓ เริ่มผจญภัยได้เลย!'); await betaAskBackupKeys(tokB); break; }
-          alert((jK&&jK.message)||'key ไม่ถูกต้อง — ลองใหม่');
+          if(jK&&jK.ok){ toast(lang==='en'?'Gemini key ready ✓ — adventure awaits!':'Gemini key พร้อม ✓ เริ่มผจญภัยได้เลย!'); await betaAskBackupKeys(tokK); break; }
+          alert((jK&&jK.message)||(lang==='en'?'Invalid key — try again.':'key ไม่ถูกต้อง — ลองใหม่'));
         }catch(e){ break; }
       }
     }
@@ -3421,7 +3437,9 @@ async function createCharacter(){
     // เงินเริ่มต้น (v623 D3/H11 กัน double-dip): ชุดกำหนด gold เอง = ใช้ค่านั้น · ได้ชุดอุปกรณ์เต็ม (items) = เงินติดกระเป๋า 15 gp (PHB: starting wealth ตามคลาส คือทางเลือก "แทนอุปกรณ์" — ห้ามได้ทั้งคู่) · ไม่มี package = เงินคลาสเต็ม
     { const _ck=classKey(); walletp.gp = (selectedPkg && selectedPkg.gold) ? selectedPkg.gold : (selectedPkg && Array.isArray(selectedPkg.items) && selectedPkg.items.length) ? 15 : (CLASS_START_GOLD[_ck]||15); }
     const sheet={
-      race:raceValue(), sex:$('cSex').value.trim(), age:$('cAge').value.trim(), birth_date_game:($('cBirth').value||'').trim(),
+      race:raceValue(), sex:$('cSex').value.trim(), age:$('cAge').value.trim(),
+      // v720: เก็บ "เดือน-วัน" (MM-DD) ตามปฏิทินโลก 12×30 — ไม่มีปี · เลือกไม่ครบคู่ = ไม่บันทึก
+      birth_date_game:(function(){const d=parseInt(($('cBirthDay')||{}).value,10),m=parseInt(($('cBirthMonth')||{}).value,10);return (d>=1&&d<=30&&m>=1&&m<=12)?(m+'-'+d):'';})(),
       dragonborn_element: (raceKey()==='dragonborn') ? dragonbornElement : undefined,   // v291: ธาตุ → resist + Breath Weapon (server ใช้)
       abilities:{ str:finalAb('str'), dex:finalAb('dex'), con:finalAb('con'), int:finalAb('int'), wis:finalAb('wis'), cha:finalAb('cha') },
       skill_proficiencies: chosenSkills.slice(),
@@ -3436,7 +3454,7 @@ async function createCharacter(){
     const { error: _shErr } = await supa.from('character_sheets').insert({ character_id:ch.id, sheet });   // v271 L5: เช็ค error (เดิมไม่เช็ค → ถ้า insert ล้ม ได้ตัวละครไม่มีชีทเงียบๆ)
     if(_shErr && String(_shErr.code)!=='23505') throw _shErr;   // v628 #6: 23505 = ชีทมีอยู่แล้ว (path กู้ตัวละครค้าง) — ใช้ของเดิม ห้ามทับ
     if(sheet.birth_date_game && campaign&&campaign.companion_mode==='v2'){
-      try{ await companionResolve({romance_confirm:{character_id:ch.id,birthday_only:true,birth_date:sheet.birth_date_game}}); }
+      try{ await companionResolve({romance_confirm:{character_id:ch.id,birthday_only:true,birth_date:sheet.birth_date_game,birth_age_years:parseInt(sheet.age,10)||null}}); }
       catch(e){ toast(e.message||uiText('builder.birthdayFailed'),true); }
     }
     // ความสามารถเริ่มต้นตามคลาส → แท็บ Skills (ไม่พังถ้าตาราง skills ยังไม่ได้ migrate)
@@ -3638,7 +3656,14 @@ async function companionConsent(){
   try{ const v=await companionViewLoad(true),pc=companionOwnedPc(v); if(!pc) return toast('ต้องมีตัวละครของคุณก่อน',true);
     const adult=confirm('กด OK เพื่อยืนยันว่าผู้เล่นตัวจริงมีอายุ 18 ปีขึ้นไป\nกด Cancel เพื่อไม่ยืนยันและปิดสิทธิ์ Romance ของบัญชี');
     const romance=adult&&confirm('เปิดเส้นทาง Romance ให้ '+pc.name+' หรือไม่?\nการเปิดสิทธิ์ไม่บังคับให้ companion ตอบรับ');
-    let birth=''; if(!pc.birthday_known) birth=String(prompt('วันเกิดของ '+pc.name+' ในปฏิทินโลก (จำเป็นเมื่อเปิด Romance · YYYY-MM-DD · เดือนละ 30 วัน)','')||'').trim();
+    // v720: ไม่ใส่ปี — วัน/เดือน ตามปฏิทินโลก 12×30 (server อนุมานปีจากอายุตัวละคร)
+    let birth=null;
+    if(!pc.birthday_known){
+      const rawB=String(prompt(uiCopy('วันเกิดของ '+pc.name+' ในปฏิทินโลก (จำเป็นเมื่อเปิด Romance)\nรูปแบบ วันที่/เดือน เช่น 15/3 — เดือนละ 30 วัน · ปีละ 12 เดือน · ไม่ใส่ปี','Birthday of '+pc.name+' in the world calendar (required for Romance)\nFormat day/month, e.g. 15/3 — 30-day months · 12 months per year · no year'),'')||'').trim();
+      const mB=rawB.match(/^(\d{1,2})\s*[\/\-]\s*(\d{1,2})$/);
+      if(mB) birth={month:+mB[2],day:+mB[1]};
+      else if(rawB) toast(uiCopy('รูปแบบวันเกิดไม่ถูกต้อง — ใช้ วันที่/เดือน เช่น 15/3','Invalid birthday format — use day/month, e.g. 15/3'),true);
+    }
     const needsAgePolicy=romance&&(pc.age_years==null||Number(pc.age_years)<18);
     const underageOk=needsAgePolicy&&confirm('หาก '+pc.name+' มีอายุตัวละคร 13-17 ปี\nยืนยันเปิดเฉพาะเส้นทางความสัมพันธ์แบบ PG-13 ที่ไม่มี adult content หรือไม่?\n(อายุต่ำกว่า 13 จะถูกบล็อกเสมอ; อายุ 18+ ระบบจะไม่ใช้ consent ข้อนี้)');
     const body={character_id:pc.character_id,adult_confirmed:adult,romance_enabled:romance,underage_romance_confirmed:!!underageOk}; if(birth) body.birth_date=birth;
@@ -4723,7 +4748,7 @@ async function renderLevelUpPanel(p){
   card.appendChild(btn); p.appendChild(card);
 }
 async function submitLevelUp(asiState, picks, feats, btn){
-  if(btn){ btn.disabled=true; btn.textContent='กำลังบันทึก…'; }
+  if(btn){ btn.disabled=true; btn.textContent=uiCopy('กำลังบันทึก…','Saving…'); }
   try{
     // v180: ทุกอย่างผ่าน server (levelUpGuard) — ASI/เวท/feat ไม่เขียนฝั่ง client อีก (กติกาเหล็ก: server = กำแพงจริง)
     const cSlugs=(picks&&picks.cantrips)||[], sSlugs=(picks&&picks.spells)||[];
@@ -4739,9 +4764,9 @@ async function submitLevelUp(asiState, picks, feats, btn){
       if(!rr.ok) throw new Error(jr.error||'บันทึกเลเวลอัพไม่สำเร็จ');
       if(jr.rejected && jr.rejected.length){
         const asiRej=jr.rejected.find(x=>x.slug==='asi');
-        toast('บางรายการถูกตัด ('+jr.rejected.length+')'+(asiRej?(' · ASI: '+asiRej.reason):''),true);
+        toast(uiCopy('บางรายการถูกตัด (','Some picks were rejected (')+jr.rejected.length+')'+(asiRej?(' · ASI: '+asiRej.reason):''),true);
       }
-      if(jr.feats && jr.feats.length) toast('ได้ความสามารถคลาสใหม่: '+jr.feats.join(', '));
+      if(jr.feats && jr.feats.length) toast(uiCopy('ได้ความสามารถคลาสใหม่: ','New class features: ')+jr.feats.join(', '));
       window._rulesInfo=null;   // ค่าโควต้า/ASI เปลี่ยนแล้ว — ล้าง cache
     }
     if(false){   // v175: เลิกใช้ — เขียนเวทฝั่ง client (ย้ายไป resolver ด้านบนแล้ว)
@@ -4754,7 +4779,7 @@ async function submitLevelUp(asiState, picks, feats, btn){
     const { data:lu, error }=await supa.rpc('levelup_submit',{p_campaign:campaign.id,p_char:myChar.id});
     if(error) throw error;
     if(lu){ worldState=worldState||{}; worldState.level_up=lu; }
-    toast('เลเวลอัพเสร็จ \u2713 รอเพื่อนให้ครบ'); renderMe();
+    toast(uiCopy('เลเวลอัพเสร็จ\u2713 รอเพื่อนให้ครบ','Level up complete - waiting for the rest of the party.')); renderMe();
   }catch(e){ toast(e.message||'ยืนยันไม่สำเร็จ',true); if(btn){ btn.disabled=false; btn.textContent='\u2713 ยืนยันเลเวลอัพ'; } }
 }
 // Part B: หน้าเตรียมเวทรายวัน (cleric/druid/paladin) — โผล่เมื่อ prepare_due (วันใหม่) หรือกดเลือกเองได้
@@ -6390,6 +6415,11 @@ function buildDmToolsCard(withFrame){
     }catch(e){ toast(uiCopy('ไม่สำเร็จ','Operation failed'),true); }
   };
   r2.appendChild(endB); if(!BETA) r2.appendChild(clB); tools.appendChild(r2);
+  // v720: ตั้ง/เปลี่ยน Gemini key ได้ตลอดจาก DM TOOLS — เดิมตั้งได้แค่ตอนสร้างโลก (gate BETA) หรือตอน server ฟ้อง key หาย = โลกปกติไม่มีทางตั้งคีย์ของตัวเอง
+  const r2k=document.createElement('div'); r2k.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0';
+  const keyB=styleCtl(document.createElement('button')); keyB.className='btn sm'; keyB.textContent=uiCopy('🔑 ตั้ง Gemini API key ของโลกนี้','🔑 Set this world\'s Gemini API key');
+  keyB.onclick=()=>betaAskKey();
+  r2k.appendChild(keyB); tools.appendChild(r2k);
   // v275/v277: ตั้ง/ลด HP มอนสเตอร์ (host) — เปลี่ยนได้หลายครั้ง (ช่วยกู้บั๊ก) · เลือกมอนที่ยังอยู่ในศึก · hp 0 = ออกจากศึก · อยู่ในชุดกู้ภัย (เบต้าเห็นด้วย)
   const rM=document.createElement('div'); rM.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0';
   const mSel=styleCtl(document.createElement('select')); mSel.style.maxWidth='168px';
