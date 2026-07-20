@@ -17,9 +17,9 @@
 <script>/* v610 skin: ตั้งคลาสก่อน CSS paint กันจอกะพริบ — default = paper (กระดาษนิยาย) · classic = ธีมพิกเซลเดิม */
 try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentElement.classList.add('skin-paper'); }catch(e){}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="./runtime-copy-en.js?v=20260719d4"></script>
-<script src="./i18n-runtime.js?v=20260719d4"></script>
-<script src="./character-content-en.js?v=20260719d2"></script>
+<script src="./runtime-copy-en.js?v=20260720e1"></script>
+<script src="./i18n-runtime.js?v=20260720e1"></script>
+<script src="./character-content-en.js?v=20260720e1"></script>
 <style>
 /* ============================================================
    TTRPG CAMPAIGN — Dragon Quest (NES) monochrome re-skin (เฟส 5)
@@ -1805,13 +1805,21 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
   <!-- D1: pre-world bilingual picker. English stays hidden until the server flag is enabled. -->
   <div id="languageScreen">
     <div class="card" style="max-width:560px;text-align:center">
-      <h2 data-i18n="language.title">เลือกภาษาของโลก</h2>
-      <p class="sub" data-i18n="language.sub">ภาษาจะถูกล็อกเมื่อสร้างหรือเข้าร่วมโลกแล้ว และเปลี่ยนภายหลังไม่ได้</p>
+      <h2 data-i18n="language.title">เลือกภาษาของโลก / Choose World Language</h2>
+      <p class="sub" data-i18n="language.sub">ภาษาจะถูกล็อกเมื่อสร้างหรือเข้าร่วมโลกแล้ว และเปลี่ยนภายหลังไม่ได้ / Your chosen language is locked when you create or join a world and cannot be changed later.</p>
       <div class="srow2" style="gap:10px;margin-top:14px">
-        <button type="button" class="btn" onclick="chooseGameLanguage('th')" data-i18n="language.th">ไทย</button>
-        <button type="button" class="btn hidden" id="englishLanguageBtn" onclick="chooseGameLanguage('en')" data-i18n="language.en">ENGLISH</button>
+        <button type="button" class="btn" onclick="chooseGameLanguage('th')" data-i18n="language.th">ไทย / THAI</button>
+        <button type="button" class="btn hidden" id="englishLanguageBtn" onclick="chooseGameLanguage('en')" data-i18n="language.en">ENGLISH / อังกฤษ</button>
       </div>
-      <p class="note hidden" id="englishLanguageDisabled" data-i18n="language.enDisabled">English mode ยังไม่เปิดใช้งาน</p>
+      <p class="note hidden" id="englishLanguageDisabled" data-i18n="language.enDisabled">English mode ยังไม่เปิดใช้งาน / English mode is not enabled yet.</p>
+      <p class="note hidden" id="englishAssetUnavailable" style="color:#a11;white-space:pre-line"></p>
+    </div>
+  </div>
+  <div id="englishAssetBlockScreen" class="hidden">
+    <div class="card" style="max-width:560px;text-align:center">
+      <h2>⚠️ UI ภาษาอังกฤษไม่พร้อม / English UI unavailable</h2>
+      <p class="sub" id="englishAssetBlockMessage" style="white-space:pre-line"></p>
+      <button type="button" class="btn" onclick="location.reload()">รีเฟรชหน้า / Reload</button>
     </div>
   </div>
   <!-- จอ 1: เลือกบทบาท -->
@@ -2018,7 +2026,7 @@ const SUPA_URL = 'https://caxksvqlgrvwnjynbbye.supabase.co';
 const SUPA_ANON = 'sb_publishable_kODadNf7PNUWJr_ZTViABw_IsP6ggJ6';
 // ▲▲▲ key สาธารณะ (publishable) — ปลอดภัยที่จะฝัง ความปลอดภัยจริงอยู่ที่ RLS ▲▲▲
 const RESOLVE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/resolve-round';
-const FRONTEND_BUILD = 202607190712;   // v712 Slowlife atomic closure: NPC entry + queue recovery/poll + main-round pause parity
+const FRONTEND_BUILD = 202607200715;   // v715 English asset integrity: fail-closed picker/create/JOIN + RPC readiness proof
 const FRONTEND_COMPAT_EPOCH = 2;
 const INGEST_FN  = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-file';
 const INGEST_PUZZLE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-puzzle';
@@ -2048,7 +2056,7 @@ if(BETA){
       if(typeof u==='string'&&u.indexOf(RESOLVE_FN)===0&&opt&&typeof opt.body==='string'){
         const b=JSON.parse(opt.body);
         if(BETA&&betaCode()&&b&&typeof b==='object'&&!b.beta_code) b.beta_code=betaCode();
-        if(b&&typeof b==='object'){ if(!b.client_build) b.client_build=FRONTEND_BUILD; if(!b.client_epoch) b.client_epoch=FRONTEND_COMPAT_EPOCH; }
+        if(b&&typeof b==='object'){ if(!b.client_build) b.client_build=FRONTEND_BUILD; if(!b.client_epoch) b.client_epoch=FRONTEND_COMPAT_EPOCH; if(!Object.prototype.hasOwnProperty.call(b,'i18n_asset_build')) b.i18n_asset_build=englishAssetBuildProof(); }
         opt=Object.assign({},opt,{body:JSON.stringify(b)});
       }
     }catch(e){}
@@ -2075,9 +2083,9 @@ function renderFrontendRefreshBanner(){
   let el=document.getElementById('frontendBuildBanner');
   if(!_frontendRequirement){ if(el) el.remove(); return; }
   if(!el){ el=document.createElement('div'); el.id='frontendBuildBanner'; el.style.cssText='position:fixed;left:10px;right:10px;top:10px;z-index:100000;background:#2b1600;color:#fff;border:2px solid #ffbf47;border-radius:8px;padding:10px 12px;font:600 14px/1.5 sans-serif;box-shadow:0 4px 18px #000'; document.body.appendChild(el); }
-  const v=frontendRefreshSafe(), why={draft:'มีข้อความที่ยังไม่ได้ส่ง',resolving:'DM กำลังประมวลผล',combat:'ยังอยู่กลางการต่อสู้',victory_transaction:'กำลังปิดธุรกรรมหลังศึก'};
-  el.innerHTML='<div>⚠️ หน้าเกมรุ่นนี้เก่ากว่ารุ่นที่ server รองรับ'+(v.safe?' — พร้อมรีเฟรชอย่างปลอดภัย':' — ระบบจะไม่รีเฟรชกลางงาน')+'</div><div style="font-weight:400;opacity:.85">'+(v.safe?'กดปุ่มเมื่อพร้อม ข้อมูลเกมอยู่บน server แล้ว':'รอ: '+v.blockers.map(x=>why[x]||x).join(' · '))+'</div>';
-  const b=document.createElement('button'); b.type='button'; b.textContent=v.safe?'รีเฟรชเพื่อใช้รุ่นล่าสุด':'ยังรีเฟรชไม่ได้'; b.disabled=!v.safe; b.style.cssText='margin-top:7px;padding:7px 12px'; b.onclick=()=>{ if(frontendRefreshSafe().safe) window.location.reload(); }; el.appendChild(b);
+  const v=frontendRefreshSafe(), why={draft:uiCopy('มีข้อความที่ยังไม่ได้ส่ง','an unsent draft'),resolving:uiCopy('DM กำลังประมวลผล','the DM is resolving'),combat:uiCopy('ยังอยู่กลางการต่อสู้','combat is active'),victory_transaction:uiCopy('กำลังปิดธุรกรรมหลังศึก','the victory transaction is active')};
+  el.innerHTML='<div>'+uiCopy('⚠️ หน้าเกมรุ่นนี้เก่ากว่ารุ่นที่ server รองรับ','⚠️ This game page is older than the server requires')+(v.safe?uiCopy(' — พร้อมรีเฟรชอย่างปลอดภัย',' — safe to reload'):uiCopy(' — ระบบจะไม่รีเฟรชกลางงาน',' — reload is paused during active work'))+'</div><div style="font-weight:400;opacity:.85">'+(v.safe?uiCopy('กดปุ่มเมื่อพร้อม ข้อมูลเกมอยู่บน server แล้ว','Reload when ready; game data is already on the server'):uiCopy('รอ: ','Waiting for: ')+v.blockers.map(x=>why[x]||x).join(' · '))+'</div>';
+  const b=document.createElement('button'); b.type='button'; b.textContent=v.safe?uiCopy('รีเฟรชเพื่อใช้รุ่นล่าสุด','Reload latest version'):uiCopy('ยังรีเฟรชไม่ได้','Reload not safe yet'); b.disabled=!v.safe; b.style.cssText='margin-top:7px;padding:7px 12px'; b.onclick=()=>{ if(frontendRefreshSafe().safe) window.location.reload(); }; el.appendChild(b);
 }
 function frontendRequirementSeen(minBuild,minEpoch){
   const mb=Number(minBuild), mep=Number(minEpoch); if(!(mb>FRONTEND_BUILD||mep>FRONTEND_COMPAT_EPOCH)) return;
@@ -2115,9 +2123,18 @@ async function betaAskBackupKeys(tok){
 }
 let campaign=null, members=[], myChar=null, characters=[], curRound=null, narrative=[], mySheet={}, mySheetUpdatedAt=null, worldState=null, chatMsgs=[];
 const ENGLISH_UI_ENABLED=true;   // Slice E: flipped 2026-07-19 — reviewer GO (catalog gate ok=true, 639/639 approved) + server flag english_mode_enabled=true. Needs frontend push + cache-bust to go live.
-let pendingGameLanguage=null, englishModeAvailable=false;   // D1: DB world language wins after create/JOIN; pending is pre-world only.
-const _I18N_ASSETS_OK=!!(globalThis.TTRPG_I18N&&globalThis.TTRPG_CHARACTER_EN&&globalThis.TTRPG_RUNTIME_COPY);   // v713h: are the external EN runtime files loaded? (i18n-runtime.js / character-content-en.js / runtime-copy-en.js)
-if(!_I18N_ASSETS_OK){ try{ console.error('[assets] English runtime JS did not load (missing globalThis.TTRPG_I18N/TTRPG_CHARACTER_EN/TTRPG_RUNTIME_COPY) — re-upload frontend/*.js next to campaign.html + hard-refresh (Ctrl+Shift+R). Running Thai-only fallback so sign-in still works.'); }catch(e){} }
+const ENGLISH_ASSET_BUILD='20260720e1';
+let pendingGameLanguage=null, englishModeAvailable=false, englishModeServerEnabled=false;   // DB world language wins after create/JOIN; pending is pre-world only.
+function inspectEnglishAssets(){
+  const rows=[['TTRPG_I18N',globalThis.TTRPG_I18N],['TTRPG_CHARACTER_EN',globalThis.TTRPG_CHARACTER_EN],['TTRPG_RUNTIME_COPY',globalThis.TTRPG_RUNTIME_COPY]];
+  const missing=rows.filter(([,v])=>!v).map(([k])=>k);
+  const mismatched=rows.filter(([,v])=>v&&v.build!==ENGLISH_ASSET_BUILD).map(([k,v])=>k+':'+String(v.build||'missing-build'));
+  return Object.freeze({ok:missing.length===0&&mismatched.length===0,missing:Object.freeze(missing),mismatched:Object.freeze(mismatched)});
+}
+const _I18N_ASSET_STATE=inspectEnglishAssets();
+const _I18N_ASSETS_OK=_I18N_ASSET_STATE.ok;   // v715: all three files must exist AND carry the same release build; a mixed cache is not English-ready.
+const _I18N_ASSET_VETO_NOTE='⚠️ ไฟล์ภาษาอังกฤษโหลดไม่ครบหรือเป็นคนละรุ่น — ระบบหยุดการสร้าง/เข้าร่วมโลกอังกฤษอย่างปลอดภัย กรุณารีเฟรชหน้าเว็บ\n⚠️ English language files are missing or from mixed builds. English create/join was safely stopped; please refresh.';
+if(!_I18N_ASSETS_OK){ try{ console.error('[i18nAssetGuard] English runtime assets are not ready',_I18N_ASSET_STATE); }catch(e){} }
 // v713h SYSTEMIC GUARD: a missing/late external JS file must NEVER brick sign-in (root of "Cannot read properties of undefined (reading 'language')"). Shim is used ONLY when the real runtime is absent; when present, TTRPG_I18N wins verbatim.
 const UI18N=globalThis.TTRPG_I18N||{
   language:function(l){ return String(l||'').toLowerCase()==='en'?'en':'th'; },
@@ -2133,20 +2150,50 @@ function uiLanguage(){ return campaign ? UI18N.language(campaign.game_language) 
 function uiText(key,vars){ return UI18N.text(uiLanguage(),key,vars); }
 function uiCopy(th,en){ return uiLanguage()==='en'?en:th; }
 function applyUiLanguage(lang){ UI18N.translateDom(document,UI18N.language(lang)); if(campaign){ UI18N.installDisplayWall(document,()=>uiLanguage()); UI18N.installDialogWall(()=>uiLanguage()); } document.documentElement.lang=lang==='en'?'en':'th'; }
+let _i18nAssetReportSent=false;
+function englishAssetBuildProof(){return _I18N_ASSETS_OK?ENGLISH_ASSET_BUILD:null;}
+async function reportI18nAssetFailure(surface){
+  if(_I18N_ASSETS_OK||_i18nAssetReportSent||!supa)return;
+  _i18nAssetReportSent=true;
+  try{
+    const {error}=await supa.rpc('report_i18n_asset_failure',{p_client_build:FRONTEND_BUILD,p_expected_build:ENGLISH_ASSET_BUILD,p_observed:{surface:String(surface||'unknown').slice(0,40),missing:_I18N_ASSET_STATE.missing,mismatched:_I18N_ASSET_STATE.mismatched,path:location.pathname}});
+    if(error)console.warn('[i18nAssetGuard] telemetry unavailable',error.message||error);
+  }catch(e){console.warn('[i18nAssetGuard] telemetry failed',e);}
+}
+function englishAssetVeto(surface){
+  if(_I18N_ASSETS_OK)return false;
+  pendingGameLanguage=null; try{sessionStorage.removeItem('ttrpg_pending_game_language');}catch(e){}
+  const note=$('englishAssetUnavailable'); if(note){note.textContent=_I18N_ASSET_VETO_NOTE;note.classList.remove('hidden');}
+  toast(_I18N_ASSET_VETO_NOTE,true); void reportI18nAssetFailure(surface);
+  return true;
+}
+function showEnglishAssetBlock(surface){
+  englishAssetVeto(surface);
+  const msg=$('englishAssetBlockMessage'); if(msg)msg.textContent=_I18N_ASSET_VETO_NOTE;
+  show('lobbyScreen'); lobbyGo('englishAssetBlockScreen');
+}
+function syncEnglishLanguageUi(){
+  const eb=$('englishLanguageBtn'); if(eb)eb.classList.toggle('hidden',!englishModeAvailable);
+  const note=$('englishAssetUnavailable'); if(note){const show=ENGLISH_UI_ENABLED&&englishModeServerEnabled&&!_I18N_ASSETS_OK;note.textContent=show?_I18N_ASSET_VETO_NOTE:'';note.classList.toggle('hidden',!show);}
+}
 function showLanguagePicker(clearPending){
   if(clearPending){ pendingGameLanguage=null; try{sessionStorage.removeItem('ttrpg_pending_game_language');}catch(e){} }
   applyUiLanguage('th');
-  ['roleScreen','joinScreen','hostModeScreen','hostCreateScreen','hostOneshotScreen'].forEach(s=>{const el=$(s);if(el)el.classList.add('hidden');});
+  ['englishAssetBlockScreen','roleScreen','joinScreen','hostModeScreen','hostCreateScreen','hostOneshotScreen'].forEach(s=>{const el=$(s);if(el)el.classList.add('hidden');});
   const ls=$('languageScreen'); if(ls) ls.classList.remove('hidden');
-  const eb=$('englishLanguageBtn'); if(eb) eb.classList.toggle('hidden',!englishModeAvailable);
+  syncEnglishLanguageUi();
 }
 async function refreshEnglishModeAvailability(){
-  englishModeAvailable=false;
-  try{const r=await supa.rpc('english_mode_enabled'); englishModeAvailable=ENGLISH_UI_ENABLED&&!r.error&&r.data===true;}catch(e){}
-  const eb=$('englishLanguageBtn'); if(eb) eb.classList.toggle('hidden',!englishModeAvailable);
+  englishModeAvailable=false; englishModeServerEnabled=false;
+  try{const r=await supa.rpc('english_mode_enabled'); englishModeServerEnabled=!r.error&&r.data===true;}catch(e){}
+  englishModeAvailable=ENGLISH_UI_ENABLED&&englishModeServerEnabled&&_I18N_ASSETS_OK;
+  syncEnglishLanguageUi();
+  if(englishModeServerEnabled&&!_I18N_ASSETS_OK)void reportI18nAssetFailure('language-availability');
 }
 function chooseGameLanguage(lang){
-  lang=UI18N.language(lang);
+  const requested=String(lang||'').toLowerCase();
+  if(requested==='en'&&englishAssetVeto('language-picker'))return;
+  lang=UI18N.language(requested);
   if(lang==='en'&&!englishModeAvailable){toast(UI18N.text('en','create.languageDisabled'),true);return;}
   pendingGameLanguage=lang; try{sessionStorage.setItem('ttrpg_pending_game_language',lang);}catch(e){}
   applyUiLanguage(lang); lobbyGo('roleScreen');
@@ -2203,7 +2250,7 @@ function pruneOtherCampaignCache(curId){
   else { initClient(anon); }
   try{ const _le=localStorage.getItem('lastEmail'); const _ef=$('email'); if(_le&&_ef&&!_ef.value) _ef.value=_le; }catch(e){}   // v281: จำอีเมลล่าสุด — ไม่ต้องพิมพ์ใหม่ทุกครั้ง
   _loginPersistHints();   // v281: เตือนถ้าเบราว์เซอร์ไม่เก็บ session (in-app browser / โหมดส่วนตัว = หลุดทุกครั้ง)
-  if(!_I18N_ASSETS_OK){ try{ const el=$('loginHint'); if(el){ el.textContent='⚠️ โหลดไฟล์ภาษา (i18n) ไม่ครบ — ใช้ไทยชั่วคราว · ถ้าหน้าจอเพี้ยนให้กด Ctrl+Shift+R'; el.style.color='#f59'; } }catch(e){} }   // v713h: surface missing-asset state instead of a silent crash
+  if(!_I18N_ASSETS_OK){ try{ const el=$('loginHint'); if(el){ el.textContent='⚠️ โหลดไฟล์ภาษาไม่ครบ — ใช้ไทยชั่วคราวและกด Ctrl+Shift+R / English language files are incomplete — Thai fallback is active; press Ctrl+Shift+R'; el.style.color='#f59'; } }catch(e){} }   // v715: paired visible evidence; sign-in survives but English create/JOIN stays fail-closed
   // ถ้ามี key แล้ว เช็ค session (รวมถึง magic-link ที่เพิ่งกลับมา)
   if(supa){ await afterAuthChange(); }
 })();
@@ -2318,6 +2365,7 @@ async function loadMyCampaign(){
     return;
   }
   campaign = active[0] || _endedC[0];
+  if(campaign.game_language==='en'&&!_I18N_ASSETS_OK){showEnglishAssetBlock('enter-existing-world');return;}
   UI18N.language(campaign.game_language);   // D1 fail closed: never infer a world language from browser state.
   pendingGameLanguage=null; try{sessionStorage.removeItem('ttrpg_pending_game_language');}catch(e){}
   applyUiLanguage(campaign.game_language);
@@ -2360,7 +2408,7 @@ function onMusicFiles(files){
 // ── v617 PLAY MODES: lobby flow state + สลับจอย่อย (roleScreen → join / hostMode → hostCreate / hostOneshot) ──
 let pendingMode='open', pendingStyle='journey', pendingLevel=5;
 function lobbyGo(id){
-  ['languageScreen','roleScreen','joinScreen','hostModeScreen','hostCreateScreen','hostOneshotScreen'].forEach(s=>{ const el=$(s); if(el) el.classList.toggle('hidden', s!==id); });
+  ['languageScreen','englishAssetBlockScreen','roleScreen','joinScreen','hostModeScreen','hostCreateScreen','hostOneshotScreen'].forEach(s=>{ const el=$(s); if(el) el.classList.toggle('hidden', s!==id); });
 }
 function pickMode(el,m){ pendingMode=m; document.querySelectorAll('#hostModeScreen .modepick').forEach(x=>x.style.outline=''); el.style.outline='2px solid currentColor'; }
 function modeNext(){
@@ -2370,7 +2418,10 @@ function modeNext(){
 function pickStyle(el,s,scope){ pendingStyle=s; document.querySelectorAll('#'+scope+' .stylepick').forEach(x=>x.style.outline=''); el.style.outline='2px solid currentColor'; }
 function pickLevel(el,n){ pendingLevel=n; document.querySelectorAll('#hostOneshotScreen .lvlpick').forEach(x=>x.style.outline=''); el.style.outline='2px solid currentColor'; }
 async function createCampaign(){
-  const lang=UI18N.language(pendingGameLanguage);
+  const requested=String(pendingGameLanguage||'th').toLowerCase();
+  if(requested==='en'&&englishAssetVeto('create-campaign'))return;
+  const lang=UI18N.language(requested);
+  if(lang==='en'&&!englishModeAvailable){toast(UI18N.text('en','create.languageDisabled'),true);return;}
   if(!OWNER_EMAILS.includes((me.email||'').toLowerCase())&&!(BETA&&betaCode())){ toast(UI18N.text(lang,'create.ownerOnly'),true); return; }   // v210: เบต้า+รหัส = สร้างได้ (server เช็ครหัสซ้ำใน migration 0056)
   const _oneshot=pendingMode==='oneshot';   // v617: ONE SHOT ใช้ฟอร์มย่อ (osName/osPremise + เลเวลเริ่ม 3/5/8)
   const name=(_oneshot?$('osName'):$('newName')).value.trim(); if(!name){toast(UI18N.text(lang,'create.nameRequired'),true);return;}
@@ -2379,7 +2430,7 @@ async function createCampaign(){
   try{
     const manual=(_oneshot?$('osPremise'):$('newRules')).value.trim();
     const combined=[rulesFromFiles, manual].filter(Boolean).join('\n\n').trim();
-    const { data, error } = await supa.rpc('create_campaign_language',{p_name:name,p_rules:combined,p_beta_code:(BETA&&betaCode())?betaCode():null,p_game_language:lang});
+    const { data, error } = await supa.rpc('create_campaign_language_v2',{p_name:name,p_rules:combined,p_beta_code:(BETA&&betaCode())?betaCode():null,p_game_language:lang,p_client_build:FRONTEND_BUILD,p_i18n_asset_build:englishAssetBuildProof()});
     if(error) throw error;
     const created=Array.isArray(data)?data[0]:data;
     if(!created||created.ok!==true) throw new Error((created&&created.error)||'campaign-create-rejected');
@@ -2454,11 +2505,14 @@ async function createCampaign(){
   finally{ $('createBtn').disabled=false; $('createBtn').textContent=UI18N.text(lang,'create.button'); if($('createOsBtn')){ $('createOsBtn').disabled=false; $('createOsBtn').textContent=UI18N.text(lang,'oneshot.button'); } }
 }
 async function joinCampaign(){
-  const lang=UI18N.language(pendingGameLanguage);
+  const requested=String(pendingGameLanguage||'th').toLowerCase();
+  if(requested==='en'&&englishAssetVeto('join-campaign'))return;
+  const lang=UI18N.language(requested);
+  if(lang==='en'&&!englishModeAvailable){toast(UI18N.text('en','create.languageDisabled'),true);return;}
   const code=$('joinCode').value.trim().toUpperCase(); if(!code){toast(UI18N.text(lang,'join.codeRequired'),true);return;}
   $('joinBtn').disabled=true;
   try{
-    const { data:joined, error } = await supa.rpc('join_campaign_language',{p_code:code,p_game_language:lang});
+    const { data:joined, error } = await supa.rpc('join_campaign_language_v2',{p_code:code,p_game_language:lang,p_client_build:FRONTEND_BUILD,p_i18n_asset_build:englishAssetBuildProof()});
     if(error) throw error;
     const result=Array.isArray(joined)?joined[0]:joined;
     if(!result||result.ok!==true) throw new Error((result&&result.error)||'join-failed');
@@ -2472,6 +2526,7 @@ async function joinCampaign(){
 
 // ───────── enter campaign ─────────
 async function enterCampaign(){
+  if(campaign&&campaign.game_language==='en'&&!_I18N_ASSETS_OK){showEnglishAssetBlock('enter-campaign');return;}
   UI18N.language(campaign&&campaign.game_language); applyUiLanguage(campaign.game_language);
   $('hdTitle').textContent = campaign.name;
   if(campaign.host_id===me.id && campaign.join_code){
