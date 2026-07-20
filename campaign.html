@@ -17,9 +17,9 @@
 <script>/* v610 skin: ตั้งคลาสก่อน CSS paint กันจอกะพริบ — default = paper (กระดาษนิยาย) · classic = ธีมพิกเซลเดิม */
 try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentElement.classList.add('skin-paper'); }catch(e){}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="./runtime-copy-en.js?v=20260720e3"></script>
-<script src="./i18n-runtime.js?v=20260720e3"></script>
-<script src="./character-content-en.js?v=20260720e3"></script>
+<script src="./runtime-copy-en.js?v=20260720e4"></script>
+<script src="./i18n-runtime.js?v=20260720e4"></script>
+<script src="./character-content-en.js?v=20260720e4"></script>
 <style>
 /* ============================================================
    TTRPG CAMPAIGN — Dragon Quest (NES) monochrome re-skin (เฟส 5)
@@ -1888,6 +1888,14 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
       </div>
       <!-- (ตัดช่องอัปไฟล์กฎ/อ้างอิงออก — กลไก DM อยู่ในโค้ดกลางแล้ว; ลอร์เฉพาะโลกใช้เครื่องมือ ingest แทน) -->
       <p class="note" data-i18n="create.musicNote">🎵 เพลงประกอบ — เพิ่มภายหลังได้ที่แท็บ Files ในเกม</p>
+      <!-- v721: ฟอร์มคีย์ 3 ช่องในหน้าสร้างโลก (คำสั่ง Koon 07-20 — prompt เดิมตายตอนสลับจอไป copy คีย์) -->
+      <div class="fld" style="margin-bottom:4px;font-size:13px;color:var(--gray);line-height:1.6" data-i18n="create.keys">🔑 Gemini API Keys ของโลกนี้ — สลับจอไป copy มาวางได้ตามสบาย ค่าไม่หาย</div>
+      <label class="fld" data-i18n-prefix="create.keyMain">คีย์หลัก<input type="text" id="gKeyMain" autocomplete="off" spellcheck="false" data-i18n-placeholder="create.keyMainPh" placeholder="AIza... (เว้นว่าง = ตั้งทีหลังใน DM TOOLS)"/></label>
+      <div class="srow2" style="gap:8px">
+        <label class="fld" data-i18n-prefix="create.key2">คีย์สำรอง #2 (ไม่บังคับ)<input type="text" id="gKey2" autocomplete="off" spellcheck="false" placeholder="AIza..."/></label>
+        <label class="fld" data-i18n-prefix="create.key3">คีย์สำรอง #3 (ไม่บังคับ)<input type="text" id="gKey3" autocomplete="off" spellcheck="false" placeholder="AIza..."/></label>
+      </div>
+      <p class="note" data-i18n="create.keysHint">ขอฟรี 1 นาที: aistudio.google.com → "Get API key" · คีย์สำรองต้องสร้างจาก "คนละโปรเจกต์" Google Cloud โควต้าถึงแยกกัน</p>
       <button class="btn" id="createBtn" onclick="createCampaign()" data-i18n="create.button">สร้างแคมเปญ</button>
     </div>
   </div>
@@ -1916,6 +1924,14 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
         <div class="card lvlpick" data-lv="8" onclick="pickLevel(this,8)" style="cursor:pointer;text-align:center;padding:8px 4px"><b data-i18n="oneshot.level8">เลเวล 8</b><div class="note" data-i18n="oneshot.level8Note">สายบู๊จัดเต็ม</div></div>
       </div>
       <p class="note" style="margin-top:8px" data-i18n="oneshot.omitted">ตัดออกจากฟอร์มย่อ: เพลง · โทนเรื่องแยกช่อง · ลอร์ ingest</p>
+      <!-- v721: ฟอร์มคีย์ 3 ช่อง (มิเรอร์หน้าสร้างแคมเปญ — ids แยก O กัน id ซ้ำ) -->
+      <div class="fld" style="margin-bottom:4px;font-size:13px;color:var(--gray);line-height:1.6" data-i18n="create.keys">🔑 Gemini API Keys ของโลกนี้ — สลับจอไป copy มาวางได้ตามสบาย ค่าไม่หาย</div>
+      <label class="fld" data-i18n-prefix="create.keyMain">คีย์หลัก<input type="text" id="gKeyMainO" autocomplete="off" spellcheck="false" data-i18n-placeholder="create.keyMainPh" placeholder="AIza... (เว้นว่าง = ตั้งทีหลังใน DM TOOLS)"/></label>
+      <div class="srow2" style="gap:8px">
+        <label class="fld" data-i18n-prefix="create.key2">คีย์สำรอง #2 (ไม่บังคับ)<input type="text" id="gKey2O" autocomplete="off" spellcheck="false" placeholder="AIza..."/></label>
+        <label class="fld" data-i18n-prefix="create.key3">คีย์สำรอง #3 (ไม่บังคับ)<input type="text" id="gKey3O" autocomplete="off" spellcheck="false" placeholder="AIza..."/></label>
+      </div>
+      <p class="note" data-i18n="create.keysHint">ขอฟรี 1 นาที: aistudio.google.com → "Get API key" · คีย์สำรองต้องสร้างจาก "คนละโปรเจกต์" Google Cloud โควต้าถึงแยกกัน</p>
       <button class="btn" id="createOsBtn" onclick="createCampaign()" data-i18n="oneshot.button">เริ่มเรื่อง ⚡</button>
     </div>
   </div>
@@ -2028,7 +2044,7 @@ const SUPA_URL = 'https://caxksvqlgrvwnjynbbye.supabase.co';
 const SUPA_ANON = 'sb_publishable_kODadNf7PNUWJr_ZTViABw_IsP6ggJ6';
 // ▲▲▲ key สาธารณะ (publishable) — ปลอดภัยที่จะฝัง ความปลอดภัยจริงอยู่ที่ RLS ▲▲▲
 const RESOLVE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/resolve-round';
-const FRONTEND_BUILD = 202607200720;   // v720: wall lifecycle (uninstall on world exit) + key ask for all worlds + birthday day/month + B4 strings
+const FRONTEND_BUILD = 202607200721;   // v721: Gemini key 3-field forms in create screens + DM TOOLS (prompt() chain retired — died on window switch)
 const FRONTEND_COMPAT_EPOCH = 2;
 const INGEST_FN  = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-file';
 const INGEST_PUZZLE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-puzzle';
@@ -2125,7 +2141,7 @@ async function betaAskBackupKeys(tok){
 }
 let campaign=null, members=[], myChar=null, characters=[], curRound=null, narrative=[], mySheet={}, mySheetUpdatedAt=null, worldState=null, chatMsgs=[];
 const ENGLISH_UI_ENABLED=true;   // Slice E: flipped 2026-07-19 — reviewer GO (catalog gate ok=true, 639/639 approved) + server flag english_mode_enabled=true. Needs frontend push + cache-bust to go live.
-const ENGLISH_ASSET_BUILD='20260720e3';
+const ENGLISH_ASSET_BUILD='20260720e4';
 let pendingGameLanguage=null, englishModeAvailable=false, englishModeServerEnabled=false;   // DB world language wins after create/JOIN; pending is pre-world only.
 function inspectEnglishAssets(){
   const rows=[['TTRPG_I18N',globalThis.TTRPG_I18N],['TTRPG_CHARACTER_EN',globalThis.TTRPG_CHARACTER_EN],['TTRPG_RUNTIME_COPY',globalThis.TTRPG_RUNTIME_COPY]];
@@ -2491,21 +2507,23 @@ async function createCampaign(){
         if(jL&&jL.ok) toast(`🌍 ลอร์ Forgotten Realms พร้อม (${jL.chunks||'มีอยู่แล้ว'} ส่วน) ✓`); else toast((jL&&jL.message)||'ฝังลอร์ไม่สำเร็จ (เล่นได้ปกติ)',true);
       }catch(e){}
     }
-    // ── v720: ทุกโลกใหม่ถามคีย์ Gemini ของตัวเองเสมอ (เดิม gate BETA — โลกปกติไม่มีช่องใส่คีย์เลย ไปกินคีย์กลาง env เงียบๆ) · ข้ามได้ ตั้งทีหลังที่ปุ่ม 🔑 ใน DM TOOLS ──
+    // ── v721: อ่านคีย์จากฟอร์ม 3 ช่องในหน้าสร้างโลก (v720 ใช้ prompt() — ตายทันทีที่ผู้ใช้สลับจอไป copy คีย์ = เคสจริง Koon 07-20) ──
     {
-      const tokK=(await supa.auth.getSession()).data.session?.access_token;
-      $('createBtn').textContent=UI18N.text(lang,'create.settingKey');
-      for(let i=0;i<3;i++){
-        const k=(prompt(lang==='en'
-          ? '🔑 Final step: paste this world\'s Gemini API key (host)\nFree in 1 minute: aistudio.google.com → "Get API key" → Create API key (starts with AIza...)\n\nRecommended: a free-tier key dedicated to this world.\nCancel = skip for now (set it later via 🔑 in DM TOOLS).'
-          : '🔑 ขั้นสุดท้าย: ใส่ Gemini API key ของโลกนี้ (host)\nขอฟรี 1 นาที: aistudio.google.com → "Get API key" → Create API key → ก๊อปมาวาง (ขึ้นต้น AIza...)\n\nแนะนำ: คีย์ฟรีแยกเฉพาะโลกนี้ โควต้าไม่ปนโลกอื่น\nกด Cancel = ข้ามก่อน (ตั้งทีหลังได้ที่ปุ่ม 🔑 ใน DM TOOLS)')||'').trim();
-        if(!k){ toast(lang==='en'?'Key skipped — set it any time via 🔑 in DM TOOLS.':'ยังไม่ได้ใส่ key — ตั้งทีหลังได้ที่ปุ่ม 🔑 ใน DM TOOLS',true); break; }
-        try{
-          const rK=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tokK},body:JSON.stringify({campaign_id:campaign.id,set_gemini_key:k})});
-          const jK=await rK.json();
-          if(jK&&jK.ok){ toast(lang==='en'?'Gemini key ready ✓ — adventure awaits!':'Gemini key พร้อม ✓ เริ่มผจญภัยได้เลย!'); await betaAskBackupKeys(tokK); break; }
-          alert((jK&&jK.message)||(lang==='en'?'Invalid key — try again.':'key ไม่ถูกต้อง — ลองใหม่'));
-        }catch(e){ break; }
+      const _kv=(id)=>{const e=$(id);return e&&e.value?e.value.trim():'';};
+      const pairs=[['set_gemini_key',_kv('gKeyMain')||_kv('gKeyMainO')],['set_gemini_key2',_kv('gKey2')||_kv('gKey2O')],['set_gemini_key3',_kv('gKey3')||_kv('gKey3O')]].filter(p=>p[1]);
+      if(pairs.length){
+        $('createBtn').textContent=UI18N.text(lang,'create.settingKey');
+        const tokK=(await supa.auth.getSession()).data.session?.access_token;
+        for(const [field,val] of pairs){
+          try{
+            const rK=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tokK},body:JSON.stringify({campaign_id:campaign.id,[field]:val})});
+            const jK=await rK.json();
+            if(jK&&jK.ok) toast(field==='set_gemini_key'?(lang==='en'?'Gemini key ready ✓':'Gemini key พร้อม ✓'):(lang==='en'?'Backup key #'+field.slice(-1)+' ready ✓':'คีย์สำรอง #'+field.slice(-1)+' พร้อม ✓'));
+            else alert((jK&&jK.message)||(lang==='en'?'Invalid key ('+field+') — fix it later in DM TOOLS.':'คีย์ไม่ถูกต้อง ('+field+') — แก้ทีหลังได้ใน DM TOOLS'));
+          }catch(e){}
+        }
+      } else {
+        toast(lang==='en'?'No Gemini key set — add keys any time in DM TOOLS.':'ยังไม่ได้ใส่คีย์ Gemini — ตั้งทีหลังได้ใน DM TOOLS',true);
       }
     }
     await enterCampaign();
@@ -6415,11 +6433,30 @@ function buildDmToolsCard(withFrame){
     }catch(e){ toast(uiCopy('ไม่สำเร็จ','Operation failed'),true); }
   };
   r2.appendChild(endB); if(!BETA) r2.appendChild(clB); tools.appendChild(r2);
-  // v720: ตั้ง/เปลี่ยน Gemini key ได้ตลอดจาก DM TOOLS — เดิมตั้งได้แค่ตอนสร้างโลก (gate BETA) หรือตอน server ฟ้อง key หาย = โลกปกติไม่มีทางตั้งคีย์ของตัวเอง
-  const r2k=document.createElement('div'); r2k.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0';
-  const keyB=styleCtl(document.createElement('button')); keyB.className='btn sm'; keyB.textContent=uiCopy('🔑 ตั้ง Gemini API key ของโลกนี้','🔑 Set this world\'s Gemini API key');
-  keyB.onclick=()=>betaAskKey();
-  r2k.appendChild(keyB); tools.appendChild(r2k);
+  // v721: ฟอร์มคีย์ 3 ช่องใน DM TOOLS (v720 ใช้ prompt() ต่อเนื่อง — ตายตอนสลับจอไป copy + กดใหม่ต้องเริ่มจากคีย์แรกซ้ำ = เคสจริง Koon 07-20)
+  const rK=document.createElement('div'); rK.style.cssText='display:flex;flex-direction:column;gap:4px;margin:6px 0';
+  const kLbl=document.createElement('div'); kLbl.style.cssText=DMF+';color:#9a9a9a'; kLbl.textContent=uiCopy('🔑 Gemini API keys — วางเฉพาะช่องที่ต้องการตั้ง/เปลี่ยน (เว้นว่าง = คงคีย์เดิม)','🔑 Gemini API keys — fill only the fields you want to set or replace (blank = keep current)');
+  const _mkKeyIn=(ph)=>{const i=styleCtl(document.createElement('input'));i.type='text';i.autocomplete='off';i.spellcheck=false;i.placeholder=ph;i.style.width='100%';i.style.boxSizing='border-box';return i;};
+  const kIn1=_mkKeyIn(uiCopy('คีย์หลัก (AIza...)','Main key (AIza...)'));
+  const kIn2=_mkKeyIn(uiCopy('คีย์สำรอง #2 (ไม่บังคับ · คนละโปรเจกต์ Google Cloud)','Backup key #2 (optional · separate Google Cloud project)'));
+  const kIn3=_mkKeyIn(uiCopy('คีย์สำรอง #3 (ไม่บังคับ)','Backup key #3 (optional)'));
+  const kSave=styleCtl(document.createElement('button')); kSave.className='btn sm'; kSave.textContent=uiCopy('💾 บันทึกคีย์','💾 Save keys');
+  kSave.onclick=async()=>{
+    const pairs=[['set_gemini_key',kIn1.value.trim()],['set_gemini_key2',kIn2.value.trim()],['set_gemini_key3',kIn3.value.trim()]].filter(p=>p[1]);
+    if(!pairs.length){ toast(uiCopy('ยังไม่ได้วางคีย์ในช่องไหนเลย','No key entered in any field.'),true); return; }
+    kSave.disabled=true;
+    try{
+      const tok=(await supa.auth.getSession()).data.session?.access_token;
+      for(const [field,val] of pairs){
+        const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,[field]:val})});
+        const j=await r.json();
+        if(j&&j.ok){ toast(field==='set_gemini_key'?uiCopy('คีย์หลักพร้อม ✓','Main key saved ✓'):uiCopy('คีย์สำรอง #','Backup key #')+field.slice(-1)+' ✓'); if(field==='set_gemini_key')kIn1.value='';if(field==='set_gemini_key2')kIn2.value='';if(field==='set_gemini_key3')kIn3.value=''; }
+        else { toast((j&&j.message)||uiCopy('คีย์ไม่ถูกต้อง: ','Invalid key: ')+field,true); }
+      }
+    }catch(e){ toast(uiCopy('บันทึกคีย์ไม่สำเร็จ','Failed to save keys.'),true); }
+    kSave.disabled=false;
+  };
+  rK.appendChild(kLbl); rK.appendChild(kIn1); rK.appendChild(kIn2); rK.appendChild(kIn3); rK.appendChild(kSave); tools.appendChild(rK);
   // v275/v277: ตั้ง/ลด HP มอนสเตอร์ (host) — เปลี่ยนได้หลายครั้ง (ช่วยกู้บั๊ก) · เลือกมอนที่ยังอยู่ในศึก · hp 0 = ออกจากศึก · อยู่ในชุดกู้ภัย (เบต้าเห็นด้วย)
   const rM=document.createElement('div'); rM.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0';
   const mSel=styleCtl(document.createElement('select')); mSel.style.maxWidth='168px';
