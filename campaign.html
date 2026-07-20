@@ -2044,7 +2044,7 @@ const SUPA_URL = 'https://caxksvqlgrvwnjynbbye.supabase.co';
 const SUPA_ANON = 'sb_publishable_kODadNf7PNUWJr_ZTViABw_IsP6ggJ6';
 // ▲▲▲ key สาธารณะ (publishable) — ปลอดภัยที่จะฝัง ความปลอดภัยจริงอยู่ที่ RLS ▲▲▲
 const RESOLVE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/resolve-round';
-const FRONTEND_BUILD = 202607200721;   // v721: Gemini key 3-field forms in create screens + DM TOOLS (prompt() chain retired — died on window switch)
+const FRONTEND_BUILD = 202607210729;   // v729: v728 resolver ownership/backoff + visible ingest vision guard receipts
 const FRONTEND_COMPAT_EPOCH = 2;
 const INGEST_FN  = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-file';
 const INGEST_PUZZLE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-puzzle';
@@ -4325,8 +4325,12 @@ async function renderRoundbar(){
     const w=document.createElement('div'); w.className='note'; w.style.cssText='text-align:left;padding:8px 2px;line-height:1.6';
     if(curRound.phase==='resolving') w.innerHTML='⏳ DM กำลังดำเนินเรื่อง…';
     else if(pending.length) w.innerHTML='✓ คุณส่งแล้ว — กำลังรอคำตอบจากสมาชิกในปาร์ตี้ <b>'+escapeHtml(pending.join(', '))+'</b><br><span class="muted">DM จะดำเนินเรื่องเมื่อได้คำตอบครบ (host กด Force Resolve เพื่อไปต่อได้)</span>';
-    else w.innerHTML='กำลังรอคำตอบจากสมาชิกในปาร์ตี้ — DM จะดำเนินเรื่องเมื่อได้คำตอบครบ';
+    else w.innerHTML=uiCopy('✓ ส่งครบแล้ว — พร้อมประมวลผลรอบนี้อีกครั้งหาก DM หยุดก่อนจบ<br><span class="muted">(แก้: ระบบจะไม่ยิง retry ซ้ำเอง เพื่อไม่เผาโควต้า API ฟรี)</span>','✓ All actions are submitted — this round is ready for a deliberate retry if the DM stopped early.<br><span class="muted">(Fixed: the client will not multiply retries and burn free API quota.)</span>');
     bar.appendChild(w);
+    if(!pending.length && curRound.phase==='awaiting_actions'){
+      const rb=document.createElement('button'); rb.className='btn ghost sm'; rb.textContent=uiCopy('↻ ลองประมวลผลรอบนี้','↻ Retry this round');
+      rb.disabled=!!resolving; rb.onclick=()=>resolveRound(false); bar.appendChild(rb);
+    }
   }
   if(isHost){ const f=document.createElement('button'); f.className='btn warn sm'; f.textContent=resolving?'Resolving…':'⚡ Force Resolve'; f.disabled=resolving; f.onclick=()=>forceResolveConfirm(); bar.appendChild(f); }
 }
@@ -4482,11 +4486,11 @@ async function startFirstScene(){ resolveRound(false); }
 function setMyThinking(on){
   try { if (typeof rtChannel !== 'undefined' && rtChannel && typeof rtChannel.track === 'function') rtChannel.track({ thinking: !!on, uid: (me && me.id) || 'anon', at: Date.now() }); } catch(e){}
 }
-var _autoChain=0, _retryChain=0;
+var _autoChain=0, _waitRetryChain=0;
 async function resolveRound(force, mode){
   if(slowlifeState&&slowlifeState.active){ toast(uiCopy('(แก้: ปิด Slowlife และรวมปาร์ตี้ก่อนดำเนินรอบหลัก)','(Fixed: close Slowlife and regroup before continuing the main round)'),true); switchTab('companion'); return; }
   if(resolving) return; resolving=true; renderRoundbar();
-  var _again=false, _retry=false, _waitRetry=false;
+  var _again=false, _waitRetry=false;
   var afterSubmit=!!window._afterSubmit; window._afterSubmit=false;   // เพิ่งกดส่ง → ถ้าเจอ "รอ" ให้ลองซ้ำ (กัน race)
   // บอกผู้เล่นคนอื่นว่า DM กำลังทำงาน (presence broadcast)
   setMyThinking(true);
@@ -4497,18 +4501,17 @@ async function resolveRound(force, mode){
     const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
       body:JSON.stringify(body)});
     const j=await r.json();
-    if(!r.ok){ if(r.status>=500){ _retry=true; } toast((j.error||'Resolve failed')+(j.detail?(' — '+String(j.detail).slice(0,140)):''),true); }
+    if(!r.ok){ toast((j.error||uiCopy('ประมวลผลรอบไม่สำเร็จ','Resolve failed'))+(j.detail?(' — '+String(j.detail).slice(0,220)):''),true); }
     else if(j.status==='waiting'){ if(afterSubmit) _waitRetry=true; var _wS=(j.submitted!=null?j.submitted:0), _wT=(j.total!=null?j.total:(members&&members.length)||'?'); toast(j.turn?`ถึงตา ${j.turn}`:`Waiting for everyone (${_wS}/${_wT})`); }   /* v634ui DYN-20: backend ตอบ waiting ไม่มี counts (เช่นรอเทิร์นในศึก) → เดิมโชว์ undefined/undefined · fallback 0/N หรือชื่อคนที่ถึงตา */
     else if(j.status==='busy'){ /* someone else is resolving */ }
     else if(j.status==='intro'){ toast('โลกถูกสร้างแล้ว — สร้างตัวละครได้เลย!'); }
     else if(j.status==='opened'||j.status==='resolved'){ if(j.auto_next){ _again=true; } else { toast(j.status==='opened'?'Scene opened!':'The DM continued the story!'); } }
-  }catch(e){ _retry=true; toast('Could not reach the resolver',true); }
+  }catch(e){ toast(uiCopy('เชื่อมต่อ resolver ไม่สำเร็จ — ตรวจเครือข่ายแล้วกดลองใหม่เอง','Could not reach the resolver — check the network and retry manually'),true); }
   finally{
     resolving=false; setMyThinking(false); await refreshAll(); renderStory();
-    if(_again && _autoChain<24){ _autoChain++; _retryChain=0; setTimeout(function(){ resolveRound(false); }, 600); }
-    else if(_retry && _retryChain<2){ _retryChain++; setTimeout(function(){ resolveRound(false); }, 2500); }
-    else if(_waitRetry && _retryChain<3){ _retryChain++; window._afterSubmit=true; setTimeout(function(){ resolveRound(false); }, 1800); }
-    else { _autoChain=0; _retryChain=0; }
+    if(_again && _autoChain<24){ _autoChain++; _waitRetryChain=0; setTimeout(function(){ resolveRound(false); }, 600); }
+    else if(_waitRetry && _waitRetryChain<3){ _waitRetryChain++; window._afterSubmit=true; setTimeout(function(){ resolveRound(false); }, 1800); }
+    else { _autoChain=0; _waitRetryChain=0; }
   }
 }
 
@@ -6436,6 +6439,18 @@ function buildDmToolsCard(withFrame){
   // v721: ฟอร์มคีย์ 3 ช่องใน DM TOOLS (v720 ใช้ prompt() ต่อเนื่อง — ตายตอนสลับจอไป copy + กดใหม่ต้องเริ่มจากคีย์แรกซ้ำ = เคสจริง Koon 07-20)
   const rK=document.createElement('div'); rK.style.cssText='display:flex;flex-direction:column;gap:4px;margin:6px 0';
   const kLbl=document.createElement('div'); kLbl.style.cssText=DMF+';color:#9a9a9a'; kLbl.textContent=uiCopy('🔑 Gemini API keys — วางเฉพาะช่องที่ต้องการตั้ง/เปลี่ยน (เว้นว่าง = คงคีย์เดิม)','🔑 Gemini API keys — fill only the fields you want to set or replace (blank = keep current)');
+  // v727 (เคสจริง Koon 07-21): กลับมาเติมคีย์ #3 แต่ฟอร์มว่างหมด — ไม่รู้ว่าช่องไหนตั้งแล้ว เสี่ยงเติมทับ/ผิดช่อง → โหลดสถานะจริงจาก server (4 ตัวท้ายเท่านั้น)
+  const kStat=document.createElement('div'); kStat.style.cssText=DMF+';color:#9a9a9a;font-size:12px'; kStat.textContent=uiCopy('สถานะ: กำลังตรวจ…','Status: checking…');
+  const _loadKeyStat=async()=>{ try{
+    const tok=(await supa.auth.getSession()).data.session?.access_token;
+    const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,key_status:true})});
+    const j=await r.json();
+    if(j&&j.ok){
+      const nv=uiCopy('— ยังไม่ตั้ง','— not set');
+      kStat.textContent=uiCopy('สถานะ: ','Status: ')+uiCopy('หลัก ','main ')+(j.key1?('✓ '+j.key1):nv)+' · #2 '+(j.key2?('✓ '+j.key2):nv)+' · #3 '+(j.key3?('✓ '+j.key3):nv);
+    } else kStat.textContent=uiCopy('สถานะ: ตรวจไม่ได้ (host เท่านั้น)','Status: unavailable (host only)');
+  }catch(e){ kStat.textContent=uiCopy('สถานะ: ตรวจไม่สำเร็จ','Status: check failed'); } };
+  _loadKeyStat();
   const _mkKeyIn=(ph)=>{const i=styleCtl(document.createElement('input'));i.type='text';i.autocomplete='off';i.spellcheck=false;i.placeholder=ph;i.style.width='100%';i.style.boxSizing='border-box';return i;};
   const kIn1=_mkKeyIn(uiCopy('คีย์หลัก (AIza...)','Main key (AIza...)'));
   const kIn2=_mkKeyIn(uiCopy('คีย์สำรอง #2 (ไม่บังคับ · คนละโปรเจกต์ Google Cloud)','Backup key #2 (optional · separate Google Cloud project)'));
@@ -6455,8 +6470,9 @@ function buildDmToolsCard(withFrame){
       }
     }catch(e){ toast(uiCopy('บันทึกคีย์ไม่สำเร็จ','Failed to save keys.'),true); }
     kSave.disabled=false;
+    _loadKeyStat();   // v727: บันทึกแล้วรีเฟรชสถานะทันที — เห็นผลว่าช่องไหนติด ✓ แล้ว
   };
-  rK.appendChild(kLbl); rK.appendChild(kIn1); rK.appendChild(kIn2); rK.appendChild(kIn3); rK.appendChild(kSave); tools.appendChild(rK);
+  rK.appendChild(kLbl); rK.appendChild(kStat); rK.appendChild(kIn1); rK.appendChild(kIn2); rK.appendChild(kIn3); rK.appendChild(kSave); tools.appendChild(rK);
   // v275/v277: ตั้ง/ลด HP มอนสเตอร์ (host) — เปลี่ยนได้หลายครั้ง (ช่วยกู้บั๊ก) · เลือกมอนที่ยังอยู่ในศึก · hp 0 = ออกจากศึก · อยู่ในชุดกู้ภัย (เบต้าเห็นด้วย)
   const rM=document.createElement('div'); rM.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0';
   const mSel=styleCtl(document.createElement('select')); mSel.style.maxWidth='168px';
@@ -8066,8 +8082,8 @@ async function addDungeon(nm,th,fi,btn){
         const token=(await supa.auth.getSession()).data.session?.access_token;
         const r=await fetch(DUNGEON_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({campaign_id:campaign.id,dungeon_id:ins.data.id})});
         const j=await r.json();
-        if(r.ok) toast(uiCopy('เพิ่มดันเจียน + AI อ่านแผนที่แล้ว ✓ (','Dungeon added and map read ✓ (')+(j.rooms||0)+uiCopy(' ห้อง)',' rooms)'));
-        else toast(uiCopy('เพิ่มแล้ว แต่ AI อ่านแผนที่ไม่สำเร็จ: ','Dungeon added, but AI could not read the map: ')+((j.error||'')+(j.detail?(' — '+String(j.detail).slice(0,80)):'')),true);
+        if(r.ok) toast(uiCopy('เพิ่มดันเจียน + AI อ่านแผนที่แล้ว ✓ (','Dungeon added and map read ✓ (')+(j.rooms||0)+uiCopy(' ห้อง)',' rooms)')+(j.note?' '+j.note:''));
+        else toast(uiCopy('เพิ่มแล้ว แต่ AI อ่านแผนที่ไม่สำเร็จ: ','Dungeon added, but AI could not read the map: ')+((j.error||'')+(j.detail?(' — '+String(j.detail).slice(0,80)):(j.note?(' — '+String(j.note).slice(0,180)):''))),true);
       }catch(e){ toast(uiCopy('เพิ่มแล้ว แต่ AI อ่านแผนที่ไม่สำเร็จ','Dungeon added, but AI could not read the map'),true); }
     } else { toast(uiCopy('เพิ่มดันเจียนแล้ว ✓','Dungeon added ✓')); }
     renderFiles();
@@ -8148,8 +8164,8 @@ async function addPuzzleFile(fnm,fi,btn){
     const r=await fetch(INGEST_PUZZLE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
       body:JSON.stringify({campaign_id:campaign.id, name:fnm.value.trim()||file.name, storage_path:path, mime:file.type})});
     const j=await r.json();
-    if(!r.ok){ try{ await supa.storage.from('puzzlefiles').remove([path]); }catch(_e){} toast(uiCopy('AI อ่านไม่สำเร็จ: ','AI read failed: ')+((j.error||'')+(j.detail?(' — '+String(j.detail).slice(0,100)):'')),true); btn.disabled=false; btn.textContent=orig; return; }   // bugfix: ลบไฟล์กำพร้าเมื่อ AI อ่านพลาด
-    toast(uiCopy('เพิ่มปริศนาจากไฟล์แล้ว ✓ (AI แยกโจทย์/เฉลยให้)','Puzzle added from file ✓ (AI extracted the prompt and solution)')); renderFiles();
+    if(!r.ok){ try{ await supa.storage.from('puzzlefiles').remove([path]); }catch(_e){} toast(uiCopy('AI อ่านไม่สำเร็จ: ','AI read failed: ')+((j.error||'')+(j.detail?(' — '+String(j.detail).slice(0,100)):(j.note?(' — '+String(j.note).slice(0,180)):''))),true); btn.disabled=false; btn.textContent=orig; return; }   // bugfix: ลบไฟล์กำพร้าเมื่อ AI อ่านพลาด
+    toast(uiCopy('เพิ่มปริศนาจากไฟล์แล้ว ✓ (AI แยกโจทย์/เฉลยให้)','Puzzle added from file ✓ (AI extracted the prompt and solution)')+(j.note?' '+j.note:'')); renderFiles();
   }catch(e){ toast(e.message||uiCopy('อัปไฟล์ล้มเหลว','File upload failed'),true); btn.disabled=false; btn.textContent=orig; }
 }
 async function deletePuzzle(id){
@@ -8236,7 +8252,7 @@ async function genScenePrompt(btn,out){
     const ask='จากฉากนี้ในเกม D&D แนว pixel art / fantasy ให้เขียน "image generation prompt" ภาษาอังกฤษ 1 ย่อหน้า (บรรยายฉาก ตัวละคร แสง บรรยากาศ สไตล์ภาพ) สำหรับเอาไปสร้างภาพใน AI ภายนอก ตอบเฉพาะตัว prompt เท่านั้น ไม่ต้องมีคำอธิบายอื่น:\n\n'+recent;
     const token=(await supa.auth.getSession()).data.session?.access_token;
     const r=await fetch(DYNAMIC_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-      body:JSON.stringify({campaign_id:campaign.id, model:'gemini-2.5-flash', stream:false, body:{contents:[{role:'user',parts:[{text:ask}]}],generationConfig:{temperature:0.8,maxOutputTokens:400}}})});
+      body:JSON.stringify({campaign_id:campaign.id, model:'gemini-flash-latest', stream:false, body:{contents:[{role:'user',parts:[{text:ask}]}],generationConfig:{temperature:0.8,maxOutputTokens:400}}})});
     const j=await r.json();
     const txt=j?.candidates?.[0]?.content?.parts?.[0]?.text || '';
     if(!txt){ toast('สร้างไม่สำเร็จ (โควต้า?)',true); btn.disabled=false; btn.textContent='🖼 สร้าง prompt ภาพ'; return; }
@@ -8407,8 +8423,8 @@ function startRtFallback(){
   if(_rtPoll) return;
   // v618 B6 freeze detector: heartbeat 1s — main thread ถูกบล็อกเกิน 4s = เก็บหลักฐานลง localStorage._freezeLog (ring 20 แถว) + console.warn (จอค้าง playtest 07-13 ยัง reproduce ไม่ได้ — ครั้งหน้าเปิด DevTools/localStorage ดู เวลา·ความยาว·อยู่ฉากรบไหม·render ล่าสุดกี่ ms) · แท็บพับ/เครื่องหลับ = รีเซ็ตฐาน ไม่นับ
   (function(){ var _hb=Date.now(); document.addEventListener('visibilitychange',function(){ _hb=Date.now(); }); setInterval(function(){ var now=Date.now(), gap=now-_hb; _hb=now; if(document.hidden) return; if(gap>4000 && gap<120000){ try{ var lg=JSON.parse(localStorage.getItem('_freezeLog')||'[]'); lg.push({t:new Date().toISOString(), blockedMs:gap, battle:!!window._bsShown, lastRenderMs:window._bsLastDur||0}); localStorage.setItem('_freezeLog', JSON.stringify(lg.slice(-20))); console.warn('[freezeDetect] main thread ถูกบล็อก ~'+gap+'ms (battle='+(!!window._bsShown)+')'); }catch(e){} } }, 1000); })();
-  // โพลทุก 8 วิ: ถ้าไม่ได้ event จาก realtime เกิน 7 วิ ให้ดึงสถานะมาเอง (กัน socket ตายเงียบบนมือถือ)
-  _rtPoll=setInterval(()=>{ if(document.hidden) return; if(Date.now()-rtLastSyncTs>7000) resyncAll(false); }, 8000);
+  // v728 free-tier: ช่อง joined ที่ "ไม่มี event" คือสภาวะปกติ ไม่ใช่ socket ตาย — full resync สูงสุดนาทีละครั้ง; disconnected ยัง recovery เร็ว
+  _rtPoll=setInterval(()=>{ if(document.hidden) return; const joined=!!(rtChannel&&rtChannel.state==='joined'); const stale=Date.now()-rtLastSyncTs; if(stale>(joined?60000:7000)) resyncAll(false); }, 10000);
   document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ ensureRtAlive(); resyncAll(true); } });
   window.addEventListener('online',()=>{ ensureRtAlive(); resyncAll(true); });
   window.addEventListener('pageshow',()=>{ ensureRtAlive(); resyncAll(true); });
