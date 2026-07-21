@@ -2044,7 +2044,7 @@ const SUPA_URL = 'https://caxksvqlgrvwnjynbbye.supabase.co';
 const SUPA_ANON = 'sb_publishable_kODadNf7PNUWJr_ZTViABw_IsP6ggJ6';
 // ▲▲▲ key สาธารณะ (publishable) — ปลอดภัยที่จะฝัง ความปลอดภัยจริงอยู่ที่ RLS ▲▲▲
 const RESOLVE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/resolve-round';
-const FRONTEND_BUILD = 202607210735;   // v735: legacy/V2 companion UI gate + localized safe error
+const FRONTEND_BUILD = 202607210738;   // v738: write-block ครบทุก resolver UI path + scene transition review closure
 const FRONTEND_COMPAT_EPOCH = 2;
 const INGEST_FN  = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-file';
 const INGEST_PUZZLE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-puzzle';
@@ -2081,7 +2081,10 @@ if(BETA){
     const p=_F(u,opt);
     try{
       if(typeof u==='string'&&u.indexOf(RESOLVE_FN)===0){
-        p.then(r=>{ try{ frontendRequirementSeen(r.headers.get('X-Min-Frontend-Build'),r.headers.get('X-Min-Frontend-Epoch')); }catch(e){} if(BETA&&r&&r.status===403){ r.clone().json().then(j=>{
+        p.then(r=>{ try{ frontendRequirementSeen(r.headers.get('X-Min-Frontend-Build'),r.headers.get('X-Min-Frontend-Epoch')); }catch(e){}
+          // v737 P0-A: server 426 wall — โชว์เหตุผลคู่ภาษา + ตรึง write-block (แยกจาก english_i18n_assets_required ซึ่งมี handler ของตัวเอง)
+          if(r&&r.status===426){ r.clone().json().then(j=>{ if(j&&j.error==='frontend_update_required'){ window.frontendWriteBlocked=true; try{ frontendRequirementSeen(j.min_frontend_build,j.min_frontend_epoch); }catch(e){} toast(uiCopy(j.note_th||'(แก้: หน้าเกมรุ่นเก่าถูกหยุดก่อน resolver เปลี่ยนสถานะหลักของโลก — รีเฟรชหน้า)', j.note_en||'(Fixed: stale page blocked before the resolver changed canonical world state — reload.)'),true); } }).catch(()=>{}); }
+          if(BETA&&r&&r.status===403){ r.clone().json().then(j=>{
           if(j&&j.error==='beta_code_required'){ try{localStorage.removeItem('betaCode');}catch(e){} alert('รหัสเบต้าไม่ถูกต้อง/หมดอายุ — รีเฟรชหน้าแล้วใส่รหัสใหม่ (ขอจากผู้ดูแล)'); }
           else if(j&&j.error==='gemini_key_required'){ betaAskKey(); }
         }).catch(()=>{}); } return r; }).catch(()=>{});
@@ -2094,21 +2097,38 @@ let _frontendRequirement=null, _frontendBuildCheckBusy=false;
 function frontendDraftPending(){
   try{ for(const id of ['actInput','petActInput','ccNarr']){ const e=document.getElementById(id); if(e&&String(e.value||'').trim()) return true; } if(window._actSubmitting||window._quickBusy) return true; if(window.cc&&window.cc.isBusy&&window.cc.isBusy()) return true; }catch(e){} return false;
 }
+function frontendWriteBusy(){ try{ return !!(window._actSubmitting||window._quickBusy||window._vaSubmitting||(window.cc&&window.cc.isBusy&&window.cc.isBusy())); }catch(e){ return false; } }   // v738b P3-4: +_vaSubmitting (victory ack กำลังยิง)
+function frontendDraftStoreKey(){ return 'frontendStaleDrafts_'+((campaign&&campaign.id)||'unknown'); }
+function frontendStashDrafts(){
+  // v738b P3-4: คืนผลจริง — sessionStorage ใช้ไม่ได้ (private mode/เต็ม) ต้องไม่สัญญาว่าเก็บ draft แล้ว reload ทิ้งเงียบ
+  try{ const d={}; for(const id of ['actInput','petActInput','ccNarr']){ const e=document.getElementById(id); if(e&&String(e.value||'').trim()) d[id]=String(e.value); } if(!Object.keys(d).length) return true; sessionStorage.setItem(frontendDraftStoreKey(),JSON.stringify(d)); return sessionStorage.getItem(frontendDraftStoreKey())!==null; }catch(e){ return false; }
+}
+function frontendRestoreDrafts(){
+  try{ const k=frontendDraftStoreKey(),raw=sessionStorage.getItem(k); if(!raw) return; const d=JSON.parse(raw)||{}; let left=false; for(const id of Object.keys(d)){ const e=document.getElementById(id),saved=String(d[id]||''); if(!e){ left=true; continue; } const current=String(e.value||''); if(!current.trim()){ e.value=saved; delete d[id]; } else if(current===saved){ delete d[id]; } else left=true; } if(left&&Object.keys(d).length) sessionStorage.setItem(k,JSON.stringify(d)); else sessionStorage.removeItem(k); }catch(e){}
+}
 function frontendRefreshSafe(){
-  const blockers=[]; if(frontendDraftPending()) blockers.push('draft'); if(resolving||(curRound&&curRound.phase==='resolving')) blockers.push('resolving'); if(window._combatActive) blockers.push('combat'); if(worldState&&worldState.settings&&worldState.settings.victory_ack&&worldState.settings.victory_ack.active) blockers.push('victory_transaction'); return {safe:blockers.length===0,blockers};
+  const blockers=[];
+  // v738 review: เมื่อ server ปิด write แล้ว combat/resolving/gate ไม่มีวันคลี่จากหน้าเก่า — reload ปลอดภัยเพราะ state อยู่ server; รอเพียง request local ที่กำลังเขียนและ stash draft ก่อนเปลี่ยนหน้า
+  if(window.frontendWriteBlocked){ if(frontendWriteBusy()) blockers.push('local_write'); return {safe:blockers.length===0,blockers,stashed:frontendDraftPending()}; }
+  if(frontendDraftPending()) blockers.push('draft'); if(resolving||(curRound&&curRound.phase==='resolving')) blockers.push('resolving'); if(window._combatActive) blockers.push('combat'); if(worldState&&worldState.settings&&worldState.settings.victory_ack&&worldState.settings.victory_ack.active) blockers.push('victory_transaction'); return {safe:blockers.length===0,blockers};
 }
 function renderFrontendRefreshBanner(){
   let el=document.getElementById('frontendBuildBanner');
   if(!_frontendRequirement){ if(el) el.remove(); return; }
-  if(!el){ el=document.createElement('div'); el.id='frontendBuildBanner'; el.style.cssText='position:fixed;left:10px;right:10px;top:10px;z-index:100000;background:#2b1600;color:#fff;border:2px solid #ffbf47;border-radius:8px;padding:10px 12px;font:600 14px/1.5 sans-serif;box-shadow:0 4px 18px #000'; document.body.appendChild(el); }
-  const v=frontendRefreshSafe(), why={draft:uiCopy('มีข้อความที่ยังไม่ได้ส่ง','an unsent draft'),resolving:uiCopy('DM กำลังประมวลผล','the DM is resolving'),combat:uiCopy('ยังอยู่กลางการต่อสู้','combat is active'),victory_transaction:uiCopy('กำลังปิดธุรกรรมหลังศึก','the victory transaction is active')};
-  el.innerHTML='<div>'+uiCopy('⚠️ หน้าเกมรุ่นนี้เก่ากว่ารุ่นที่ server รองรับ','⚠️ This game page is older than the server requires')+(v.safe?uiCopy(' — พร้อมรีเฟรชอย่างปลอดภัย',' — safe to reload'):uiCopy(' — ระบบจะไม่รีเฟรชกลางงาน',' — reload is paused during active work'))+'</div><div style="font-weight:400;opacity:.85">'+(v.safe?uiCopy('กดปุ่มเมื่อพร้อม ข้อมูลเกมอยู่บน server แล้ว','Reload when ready; game data is already on the server'):uiCopy('รอ: ','Waiting for: ')+v.blockers.map(x=>why[x]||x).join(' · '))+'</div>';
-  const b=document.createElement('button'); b.type='button'; b.textContent=v.safe?uiCopy('รีเฟรชเพื่อใช้รุ่นล่าสุด','Reload latest version'):uiCopy('ยังรีเฟรชไม่ได้','Reload not safe yet'); b.disabled=!v.safe; b.style.cssText='margin-top:7px;padding:7px 12px'; b.onclick=()=>{ if(frontendRefreshSafe().safe) window.location.reload(); }; el.appendChild(b);
+  // v737 P0-A (B4): ย้าย banner ลงล่างจอ — เดิม top:10px ทับแถบแท็บ (Party/DM TOOLS คลิกไม่ได้) ระหว่างที่ฟอร์มส่ง action ด้านล่างยังกดได้ = สภาพกึ่งกลางต้องห้าม
+  if(!el){ el=document.createElement('div'); el.id='frontendBuildBanner'; el.style.cssText='position:fixed;left:10px;right:10px;bottom:10px;z-index:100000;background:#2b1600;color:#fff;border:2px solid #ffbf47;border-radius:8px;padding:10px 12px;font:600 14px/1.5 sans-serif;box-shadow:0 4px 18px #000'; document.body.appendChild(el); }
+  const v=frontendRefreshSafe(), why={draft:uiCopy('มีข้อความที่ยังไม่ได้ส่ง','an unsent draft'),local_write:uiCopy('คำขอในเครื่องกำลังจบ','a local request is finishing'),resolving:uiCopy('DM กำลังประมวลผล','the DM is resolving'),combat:uiCopy('ยังอยู่กลางการต่อสู้','combat is active'),victory_transaction:uiCopy('กำลังปิดธุรกรรมหลังศึก','the victory transaction is active')};
+  el.innerHTML='<div>'+uiCopy('⚠️ หน้าเกมรุ่นนี้เก่ากว่ารุ่นที่ server รองรับ','⚠️ This game page is older than the server requires')+(v.safe?uiCopy(' — พร้อมรีเฟรชอย่างปลอดภัย',' — safe to reload'):uiCopy(' — รอคำขอในเครื่องให้จบ',' — waiting for the local request'))+'</div><div style="font-weight:400;opacity:.85">'+(v.safe?(v.stashed?uiCopy('ข้อความร่างจะถูกเก็บในเครื่องและคืนหลังโหลดหน้าใหม่','Your draft will be saved locally and restored after reload'):uiCopy('กดปุ่มเมื่อพร้อม ข้อมูลเกมอยู่บน server แล้ว','Reload when ready; game data is already on the server')):uiCopy('รอ: ','Waiting for: ')+v.blockers.map(x=>why[x]||x).join(' · '))+'</div>';
+  // v737 P0-A: reload พร้อม cache-buster จาก min build (GitHub Pages เสิร์ฟ HTML แคชได้ — reload() เปล่าอาจได้ไฟล์เก่าซ้ำ) · คง query เดิมทั้งหมด (id/code) แก้เฉพาะ v
+  const b=document.createElement('button'); b.type='button'; b.textContent=v.safe?uiCopy('รีเฟรชเพื่อใช้รุ่นล่าสุด','Reload latest version'):uiCopy('ยังรีเฟรชไม่ได้','Reload not safe yet'); b.disabled=!v.safe; b.style.cssText='margin-top:7px;padding:7px 12px'; b.onclick=()=>{ if(!frontendRefreshSafe().safe) return; if(!frontendStashDrafts()&&frontendDraftPending()){ if(!confirm(uiCopy('บันทึกฉบับร่างไม่สำเร็จ (เบราว์เซอร์ไม่ให้เก็บข้อมูล) — รีเฟรชแล้วข้อความที่พิมพ์ไว้จะหาย ยืนยันรีเฟรช?','Draft could not be saved (browser storage unavailable) — reloading will lose the typed text. Reload anyway?'))) return; } try{ const u=new URL(window.location.href); u.searchParams.set('v', String((_frontendRequirement&&_frontendRequirement.minBuild)||FRONTEND_BUILD)); window.location.replace(u.toString()); }catch(e){ window.location.reload(); } }; el.appendChild(b);   // v738b P3-4: stash ล้ม + มี draft = ต้อง confirm ก่อนทิ้ง
 }
 function frontendRequirementSeen(minBuild,minEpoch){
   const mb=Number(minBuild), mep=Number(minEpoch); if(!(mb>FRONTEND_BUILD||mep>FRONTEND_COMPAT_EPOCH)) return;
+  // v737 P0-A: build เก่า = write-block ทันที (server มี 426 wall คู่กัน) — disable Submit/Force/options ผ่าน gateBeforePlay + ปุ่มต่างๆ เช็ค flag นี้
+  window.frontendWriteBlocked=true;
   _frontendRequirement={minBuild:mb,minEpoch:mep}; renderFrontendRefreshBanner(); if(!window._frontendSafeRefreshT) window._frontendSafeRefreshT=setInterval(renderFrontendRefreshBanner,5000);
 }
+setInterval(frontendRestoreDrafts,1000);
 async function checkFrontendBuild(){
   if(_frontendBuildCheckBusy) return; _frontendBuildCheckBusy=true;
   try{ const tok=(await supa.auth.getSession()).data.session?.access_token; if(!tok) return; const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({ping:true,client_build:FRONTEND_BUILD,client_epoch:FRONTEND_COMPAT_EPOCH})}); const j=await r.json(); frontendRequirementSeen(j.min_frontend_build,j.min_frontend_epoch); }catch(e){} finally{_frontendBuildCheckBusy=false;}
@@ -3920,6 +3940,7 @@ function persOptsWidget(){
   const renderList=(list,setRec,note)=>{ pw.querySelectorAll('.dmopt-note').forEach(x=>x.remove()); if(note){ const n=document.createElement('div'); n.className='note dmopt-note'; n.textContent=String(note); pw.appendChild(n); } dmRenderOptions(pw,list,setRec); };
   const pb=document.createElement('button'); pb.type='button'; pb.textContent=uiCopy('🎲 ขอตัวเลือกเฉพาะตัว (DM เสนอให้ ','🎲 Request personal options (for ')+(myChar?myChar.name:'')+')';
   pb.onclick=async()=>{
+    if(gateBeforePlay()) return;
     pb.disabled=true; const _t=pb.textContent; pb.textContent=uiCopy('🎲 DM กำลังคิดตัวเลือกให้คุณ…','🎲 The DM is preparing options…');
     try{
       const tok=(await supa.auth.getSession()).data.session?.access_token;
@@ -3942,6 +3963,7 @@ function persOptsWidget(){
 }
 // v287: ผู้เล่นกด "ไปต่อ" หลังอ่านบทปิดท้ายศึก → server เพิ่ม done · ครบทุกคน (หรือ host force) → finalize → VICTORY
 async function forceLevelup(){   // v538 H5: host บังคับปิด level_up gate (คนออฟไลน์ค้าง)
+  if(gateBeforePlay()) return;
   if(!campaign||!me||campaign.host_id!==me.id) return;
   if(!confirm('ข้ามการรอผู้เล่นที่ยังไม่เลือกสกิลเลเวลอัพ แล้วเล่นต่อ?\n(XP/เลเวลของคนที่ยังไม่กดจะไม่หาย — ระบบเลื่อนให้รอบหน้า)')) return;
   try{
@@ -3953,6 +3975,7 @@ async function forceLevelup(){   // v538 H5: host บังคับปิด le
   }catch(e){ toast('ข้าม level_up ล้มเหลว: '+((e&&e.message)||e),true); }
 }
 async function submitVictoryAck(force){
+  if(gateBeforePlay()) return;
   if(window._vaSubmitting) return;   // v418: กันกดซ้ำ/ยิงซ้อน → server finalize ซ้ำ → ป้าย VICTORY เด้ง 2 รอบ
   window._vaSubmitting=true;
   try{
@@ -3965,6 +3988,7 @@ async function submitVictoryAck(force){
     if(j.status==='victory_finalized'){ toast('🏆 ชัยชนะ!'); try{ await refreshAll(); if(activeTab()==='me') renderMe(); }catch(e){} }   /* v559: refreshAll (ไม่ใช่แค่ loadState) — finalize เขียน XP/loot/เงินลง character_sheets → reload mySheet ให้แท็บ Stat อัปเดต */
     else if(j.status==='defeat_finalized'){ toast('💀 พ่ายแพ้… แต่เรื่องราวยังไม่จบ'); try{ await refreshAll(); if(activeTab()==='me') renderMe(); }catch(e){} }   /* v531b: defeat gate (v506) จบ — ห้ามใช้ข้อความชัยชนะ · v559: refreshAll → reload mySheet ให้ 🩸 scar/HP ฟื้น/เงินหาย โผล่ในแท็บ Stat ทันที (เดิม loadState ไม่แตะ mySheet → ต้อง reload หน้า) */
     else if(j.status==='no_victory_pending'){ /* จบไปแล้ว */ }
+    else if(j.status==='victory_ack_retry'||j.status==='defeat_retry'){ toast(j.note||uiCopy('(แก้: ธุรกรรมหลังศึกยังไม่ครบ — กรุณาลองอีกครั้ง)','(Fixed: the post-combat transaction is incomplete — try again.)'),true); }
     else toast('✓ พร้อมแล้ว ('+(j.done||0)+'/'+(j.total||0)+')');
     try{ await renderRoundbar(); }catch(e){}
     try{ scheduleBattleScene(); }catch(e){}
@@ -4191,6 +4215,7 @@ async function renderRoundbar(){
       rb.textContent=_rolled?'⏳ ทอยรอบนี้แล้ว — รอรอบถัดไป':'🎲 ทอย DEATH SAVE (รอบละครั้ง)';
       rb.disabled=_rolled;
       rb.onclick=async()=>{
+        if(gateBeforePlay()) return;   // v738b P3-3: stale build = server 426 อยู่แล้ว แต่ต้องไม่โชว์ raw error — gate ชั้น UX เหมือนปุ่มอื่น
         rb.disabled=true; rb.textContent='🎲 กำลังทอย…';
         try{
           const tok=(await supa.auth.getSession()).data.session?.access_token;
@@ -4445,6 +4470,8 @@ function refreshSelectionGate(){
   }catch(e){}
 }
 function gateBeforePlay(){
+  // v737 P0-A: build เก่ากว่า min ของ server = write-block ทั้งหน้า (server มี 426 wall จริงคู่กัน — นี่คือ UX ชั้นแรก ไม่ใช่กำแพง)
+  if(window.frontendWriteBlocked){ toast(uiCopy('(แก้: หน้าเกมรุ่นเก่าถูกหยุดก่อน resolver เปลี่ยนสถานะหลักของโลก — รีเฟรชหน้าเพื่อใช้รุ่นล่าสุด)','(Fixed: this older game page was stopped before the resolver changed canonical world state — reload to get the latest version.)'),true); renderFrontendRefreshBanner(); return true; }
   const pend=selectionPending(); if(!pend) return false;
   toast(pend==='levelup'?'เลือกสกิล/เวทเลเวลอัพในแท็บ Me ก่อน':'เตรียมเวทประจำวันในแท็บ Skills ก่อนถึงจะเล่นต่อได้',true);
   switchTab(pend==='levelup'?'me':'skills'); refreshSelectionGate(); return true;
@@ -4502,6 +4529,7 @@ function setMyThinking(on){
 }
 var _autoChain=0, _waitRetryChain=0;
 async function resolveRound(force, mode){
+  if(gateBeforePlay()) return;
   if(slowlifeState&&slowlifeState.active){ toast(uiCopy('(แก้: ปิด Slowlife และรวมปาร์ตี้ก่อนดำเนินรอบหลัก)','(Fixed: close Slowlife and regroup before continuing the main round)'),true); switchTab('companion'); return; }
   if(resolving) return; resolving=true; renderRoundbar();
   var _again=false, _waitRetry=false;
@@ -4510,7 +4538,7 @@ async function resolveRound(force, mode){
   setMyThinking(true);
   try{
     const token=(await supa.auth.getSession()).data.session?.access_token;
-    const body={campaign_id:campaign.id, force:!!force}; if(mode) body.mode=mode;
+    const body={campaign_id:campaign.id, force:!!force, group_no:Math.max(1,Math.min(2,Math.floor(Number((myChar&&myChar.group_no)||(curRound&&curRound.group_no))||1)))}; if(mode) body.mode=mode;   // v738: resolver/scene directives must bind to this player's split group
     if(mode==='intro'){ const ck=document.getElementById('loreFirstCk'); if(ck) body.lore_first=!!ck.checked; }   // v198
     const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
       body:JSON.stringify(body)});
