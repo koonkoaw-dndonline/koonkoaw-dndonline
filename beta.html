@@ -2588,6 +2588,8 @@ async function loadState(){
   try{ const r=await supa.from('campaign_state').select('*').eq('campaign_id',campaign.id).maybeSingle();
     if(r.error) throw r.error; worldState=r.data; cacheSave('state',worldState);
   }catch(e){ const c=cacheLoad('state'); if(c!==null) worldState=c; }
+  /* v732 E17: ทุกการโหลด state วาดนาฬิกาใหม่เสมอ (mirror campaign.html — กัน WORLD panel ค้างเมื่อ realtime channel ตาย) */
+  try{ if(typeof renderClock==='function') renderClock(); }catch(e){}
 }
 // ───────── audio: situational music (Batch C) ─────────
 // ใช้ <audio> ตัวเดียวซ้ำ → ปลดล็อกด้วยการแตะครั้งเดียว แล้วเปลี่ยนเพลงต่อได้บน iOS/มือถือ
@@ -3593,13 +3595,15 @@ function renderVoteCard(){
     card.appendChild(f);
   }
 }
+/* v733fix: top-level scope — renderBattleScene ใช้ label นี้ด้วย (เดิมประกาศใน renderStory = ReferenceError ตอน render battle narration feed) */
+const narrAuthorLabel = n => String(n&&n.author||'').toLowerCase()==='system' ? uiCopy('⚙ ระบบ','⚙ System') : '🎲 DM';
 async function renderStory(){
   renderClock();
   try{ renderVoteCard(); }catch(e){}
   const isStreaming = n => n.status==='placeholder' && n.content && !/^_/.test(String(n.content).trim());
   const shown = narrative.filter(n => n.status !== 'placeholder' || isStreaming(n));
   const feed=$('narrFeed');
-  const isig = n => (n.status||'')+':'+narrText(n).length+':'+(n.projection_status||'')+':'+(n.projection_note||'');
+  const isig = n => (n.status||'')+':'+(n.author||'')+':'+narrText(n).length+':'+(n.projection_status||'')+':'+(n.projection_note||'');
   const cdraw = n => isStreaming(n) ? (colorizeNarr(n.content)+'<span class="dots">▌</span>') : narrDraw(n);
   const existing=[...feed.querySelectorAll('.narr')];
   const sameStruct = shown.length>0 && existing.length===shown.length && shown.every((n,i)=> existing[i] && existing[i].dataset.nid===String(n.id));
@@ -3618,7 +3622,7 @@ async function renderStory(){
   if(!shown.length){ feed.innerHTML='<div class="muted">No story yet '+(campaign.host_id===me.id?'— press "Begin Adventure" below':'— waiting for the host to begin')+'</div>'; }
   shown.forEach((n,i)=>{
     const d=document.createElement('div'); d.className='narr'; d.dataset.nid=String(n.id); d.dataset.sig=isig(n);
-    d.innerHTML='<div class="meta">🎲 DM</div>';
+    d.innerHTML='<div class="meta">'+narrAuthorLabel(n)+'</div>';
     const c=document.createElement('div'); c.className='narrc'; c.innerHTML=cdraw(n);
     d.appendChild(c); feed.appendChild(d);
   });
@@ -3654,12 +3658,16 @@ function makeSkipBtn(){
 // v708-fix (reviewer P0-2): malformed/partial envelope ต้องไม่ถูกทิ้ง — คืน card ข้อความดิบ (ยังกดได้/แก้ได้) แทน null
 function dmRawOption(s){ const t=String(s==null?'':s).trim(); return {legacy:true,title:t.length>72?t.slice(0,69)+'…':t,action:t,target:'',expected:'',cost:'',risk:'',range:'',roll:'',why:'',raw:t}; }
 function dmParseOption(raw){
-  const s=String(raw==null?'':raw).trim(); if(!s) return null;
+  let s=String(raw==null?'':raw).trim(); if(!s) return null;
+  /* v732 E16 (run2 จอจริง): โมเดล 3.x คืน envelope เป็น JSON-style ("TITLE": "เก็บเหรียญ...") — regex เดิมบังคับ TAG= → ตกทั้งก้อนเข้า legacy = ปุ่มโชว์ raw 'TITLE": ...' · normalize รูป "TAG": เป็น TAG= ก่อน แล้วล้างเศษ JSON */
+  if(/["']?(TITLE|ACTION|TARGET|EXPECTED|COST|RISK|RANGE|ROLL|WHY)["']?\s*:/i.test(s)&&!/\b(TITLE|ACTION|TARGET|EXPECTED|COST|RISK|RANGE|ROLL|WHY)\s*=/i.test(s)){
+    s=s.replace(/["']?(TITLE|ACTION|TARGET|EXPECTED|COST|RISK|RANGE|ROLL|WHY)["']?\s*:\s*/gi,function(_,t){return ' '+t.toUpperCase()+'= ';}).replace(/[{}\[\]"]+/g,' ').replace(/\s{2,}/g,' ').trim();
+  }
   const re=/\b(TITLE|ACTION|TARGET|EXPECTED|COST|RISK|RANGE|ROLL|WHY)\s*=/gi, marks=[]; let m;
   while((m=re.exec(s))) marks.push({tag:m[1].toLowerCase(),at:m.index,end:m.index+m[0].length});
   if(!marks.length) return {legacy:true,title:s,action:s,target:'',expected:'',cost:'',risk:'',range:'',roll:'',why:'',raw:s};
   const out={legacy:false,title:'',action:'',target:'',expected:'',cost:'',risk:'',range:'',roll:'',why:'',raw:s}, seen={};
-  for(let i=0;i<marks.length;i++){ const x=marks[i]; if(seen[x.tag]) return dmRawOption(s); seen[x.tag]=1; out[x.tag]=s.slice(x.end,i+1<marks.length?marks[i+1].at:s.length).replace(/\s*::\s*$/,'').trim(); }
+  for(let i=0;i<marks.length;i++){ const x=marks[i]; if(seen[x.tag]) return dmRawOption(s); seen[x.tag]=1; out[x.tag]=s.slice(x.end,i+1<marks.length?marks[i+1].at:s.length).replace(/\s*(?:::|,)\s*$/,'').trim(); }
   // v708-fix: partial/malformed envelope ต้องไม่ถูกทิ้งเงียบ (จะทำ combat โชว์ <3/0 การ์ดตอน shadow) — render เท่าที่ parse ได้
   if(!out.title&&!out.action) return dmRawOption(s);
   if(!out.title) out.title=out.action.length>60?out.action.slice(0,57)+'…':out.action;
@@ -6482,7 +6490,7 @@ async function renderBattleScene(){
           var d=document.createElement('div'); d.className='narr';
           d.style.cssText='margin:0 0 12px;padding:8px 10px;border:1px solid '+(last?'rgba(250,199,117,0.45)':'rgba(255,255,255,0.10)')+';border-radius:6px;background:rgba(255,255,255,'+(last?'0.04':'0.015')+')'+(last?'':';opacity:0.82');
           if(last) d.style.marginBottom='2px';
-          d.innerHTML='<div class="meta">🎲 DM'+(last?' · ล่าสุด':'')+'</div><div class="narrc">'+narrDraw(n)+'</div>';
+          d.innerHTML='<div class="meta">'+narrAuthorLabel(n)+(last?uiCopy(' · ล่าสุด',' · Latest'):'')+'</div><div class="narrc">'+narrDraw(n)+'</div>';
           _nf.appendChild(d);
         });
         if(!_nf.childNodes.length){ var _e=document.createElement('div'); _e.className='note'; _e.style.color='#9a9a9a'; _e.textContent='— รอการบรรยายการต่อสู้ —'; _nf.appendChild(_e); }
