@@ -2004,7 +2004,7 @@ const SUPA_URL = 'https://caxksvqlgrvwnjynbbye.supabase.co';
 const SUPA_ANON = 'sb_publishable_kODadNf7PNUWJr_ZTViABw_IsP6ggJ6';
 // ▲▲▲ key สาธารณะ (publishable) — ปลอดภัยที่จะฝัง ความปลอดภัยจริงอยู่ที่ RLS ▲▲▲
 const RESOLVE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/resolve-round';
-const FRONTEND_BUILD = 202607210729;   // v729 build parity: + visible ingest vision guard receipts
+const FRONTEND_BUILD = 202607210735;   // v735: legacy/V2 companion UI gate + localized safe error
 const FRONTEND_COMPAT_EPOCH = 2;
 const INGEST_FN  = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-file';
 const INGEST_PUZZLE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-puzzle';
@@ -2584,6 +2584,9 @@ function mergeNarrative(row){
   else { narrative.push(row); narrative.sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)); }
   cacheSave('narrative',narrative);
 }
+/* v735fix B1: beta.html ไม่เคยมีนิยาม uiCopy (campaign.html มี) แต่ถูกเรียก 71 จุด — เดิมพังเงียบเฉพาะ slowlife click-handler,
+   v735 เพิ่มการเรียกใน render path หลักแท็บ Companion = ReferenceError แท็บค้าง · beta ไม่มี English mode → คืน th เสมอ */
+function uiCopy(th,en){ return th; }
 async function loadState(){
   try{ const r=await supa.from('campaign_state').select('*').eq('campaign_id',campaign.id).maybeSingle();
     if(r.error) throw r.error; worldState=r.data; cacheSave('state',worldState);
@@ -3328,7 +3331,10 @@ function switchTab(t){
 }
 // ───────── Companion v2 roster (C2) ─────────
 let _companionViewCache=null,_companionViewTs=0,_slowlifePollT=null;
+function companionV2UiEnabled(){ return !!campaign&&String(campaign.companion_mode||'').toLowerCase()==='v2'; }
+function companionLegacyUiMessage(){ return uiCopy('โลกนี้ยังใช้ระบบคอมพาเนี่ยนแบบเดิม จึงไม่มี Roster/ความสัมพันธ์ส่วนตัวแบบ V2 ข้อมูลสมาชิกปาร์ตี้เดิมยังอยู่ครบ — Host สามารถเปิด V2 ภายหลังตามขั้นตอนอัปเกรดได้','This world still uses the legacy companion system, so V2 roster and private relationship tools are unavailable. Existing party companions are unchanged; the Host can enable V2 through the upgrade flow later.'); }
 async function companionResolve(payload){
+  if(!companionV2UiEnabled()) throw new Error(companionLegacyUiMessage());
   const tok=(await supa.auth.getSession()).data.session?.access_token; if(!tok) throw new Error('กรุณาเข้าสู่ระบบใหม่');
   const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify(Object.assign({campaign_id:campaign.id},payload))});
   const j=await r.json(); if(!r.ok||j.error){ const e=new Error(j.note||j.message||j.error||'ทำรายการไม่สำเร็จ'); e.payload=j; throw e; } return j;
@@ -3448,7 +3454,9 @@ function companionCard(c,isHost,view){
   return `<div class="item" style="margin:8px 0"><div class="nm">${escapeHtml(c.name)} <span class="tag">${escapeHtml(c.status)}</span></div><div class="sub">${escapeHtml(c.race||'')} ${escapeHtml(c.class||'')} · Lv ${c.level||1}${age}${c.active_slot?' · Slot '+c.active_slot:''}</div><div class="note" style="text-align:left;margin:7px 0">${rel}</div><div class="note" style="text-align:left;margin:7px 0">🎒 ${bag}<br>💰 ${w.gp||0} gp · ${w.sp||0} sp · ${w.cp||0} cp</div><div class="srow2" style="flex-wrap:wrap"><button class="btn ghost sm" onclick="companionInteract('${c.character_id}','talk')">คุยส่วนตัว</button><button class="btn ghost sm" onclick="companionInteract('${c.character_id}','spend')">ใช้เวลาด้วยกัน</button>${romance}<button class="btn ghost sm" onclick="companionGive('${c.character_id}')">มอบของ/เงิน</button><button class="btn ghost sm" onclick="companionRequest('${c.character_id}')">ขอของ</button><button class="btn ghost sm" onclick="toast('กระเป๋าที่เปิดเผยแสดงอยู่บนการ์ดแล้ว')">ดูกระเป๋า</button>${swap}</div></div>`;
 }
 async function renderCompanion(){
-  const p=$('panel-companion'); if(!p) return; p.innerHTML='<div class="muted">กำลังโหลด Companion roster…</div>';
+  const p=$('panel-companion'); if(!p) return;
+  if(!companionV2UiEnabled()){ p.innerHTML=`<div class="item"><div class="nm">Companion</div><div class="note">${escapeHtml(companionLegacyUiMessage())}</div></div>`; return; }
+  p.innerHTML='<div class="muted">กำลังโหลด Companion roster…</div>';
   try{ const pair=await Promise.all([companionViewLoad(false),loadSlowlifeState(true)]),v=pair[0],sl=pair[1], all=v.companions||[], active=all.filter(c=>c.status==='active'), reserve=all.filter(c=>c.status==='reserve'), memorial=all.filter(c=>['dead','former'].includes(c.status)); const host=campaign.host_id===me.id;
     if(_slowlifePollT){ clearTimeout(_slowlifePollT); _slowlifePollT=null; }
     if((sl.turns||[]).some(t=>['queued','processing'].includes(String(t.status)))) _slowlifePollT=setTimeout(()=>{ if(activeTab()==='companion') renderCompanion(); },3500);
@@ -3460,7 +3468,7 @@ async function renderCompanion(){
       `<h3>Reserve</h3>${reserve.map(c=>companionCard(c,host,v)).join('')||'<div class="muted">กองสำรองว่าง</div>'}`+
       (memorial.length?`<h3>Memorial / History</h3>${memorial.map(c=>companionCard(c,false,v)).join('')}`:'')+
       `<h3>Private relationship feed</h3><div class="note" style="text-align:left">เห็นได้เฉพาะบัญชีผู้รับผ่าน RLS</div>${feedHtml}`;
-  }catch(e){ p.innerHTML='<div class="item"><div class="nm">Companion</div><div class="note">'+escapeHtml(e.message||'โหลดไม่ได้')+'</div></div>'; }
+  }catch(e){ const msg=(e&&e.payload&&e.payload.error==='companion_v2_not_enabled')?companionLegacyUiMessage():uiCopy('โหลดข้อมูลคอมพาเนี่ยนไม่สำเร็จ กรุณาลองใหม่','Could not load companion data. Please try again.'); p.innerHTML='<div class="item"><div class="nm">Companion</div><div class="note">'+escapeHtml(msg)+'</div></div>'; }
 }
 function companionSoon(label){ toast(label+' จะเปิดในเฟส Privacy/Interaction'); }
 async function companionInteract(companionId,kind){
