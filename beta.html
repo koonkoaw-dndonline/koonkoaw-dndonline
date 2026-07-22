@@ -2004,7 +2004,7 @@ const SUPA_URL = 'https://caxksvqlgrvwnjynbbye.supabase.co';
 const SUPA_ANON = 'sb_publishable_kODadNf7PNUWJr_ZTViABw_IsP6ggJ6';
 // ▲▲▲ key สาธารณะ (publishable) — ปลอดภัยที่จะฝัง ความปลอดภัยจริงอยู่ที่ RLS ▲▲▲
 const RESOLVE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/resolve-round';
-const FRONTEND_BUILD = 202607210739;   // v739 FZ-1/FZ-2: RPC-only action ingress + grouped terminal gates
+const FRONTEND_BUILD = 202607220741;   // v741: scoped action edit/retract recovery for typed encounter walls
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2039,6 +2039,16 @@ async function submitActionV2(round, characterId, text, structured){
   if(!rpc.data||rpc.data.ok!==true) throw new Error(actionIngressError(rpc.data&&rpc.data.error,rpc.data&&rpc.data.detail));
   try{ sessionStorage.removeItem(req.slot); }catch(e){}
   return rpc.data;
+}
+async function retractActionForEdit(actionId, draftText){
+  if(!curRound||!actionId) return;
+  try{
+    var rpc=await supa.rpc('retract_action_v2',{p_cid:campaign.id,p_round:curRound.id,p_group:actionIngressGroup(curRound,myChar&&myChar.id),p_action:actionId});
+    if(rpc.error||!rpc.data||rpc.data.ok!==true) throw new Error(actionIngressError(rpc.data&&rpc.data.error,rpc.error&&rpc.error.message));
+    window._actionEditDraft=String(draftText||''); window._actionRepair=null;
+    toast(uiCopy('(แก้: ปลด action ที่ค้างแล้ว — แก้ข้อความและส่งใหม่ได้)','(Fixed: the stuck action was released — edit it and submit again.)'));
+    await loadRound(); renderRoundbar();
+  }catch(e){ toast(e.message||uiCopy('ปลด action ไม่สำเร็จ','Could not release the action'),true); }
 }
 function terminalGroupForUi(){ var n=Number((myChar&&myChar.group_no)||1); return Math.floor(n)===2?2:1; }
 function terminalGateForUi(settings,groupNo){
@@ -3968,7 +3978,7 @@ async function renderRoundbar(){
   }
   if(worldState&&worldState.level_up&&worldState.level_up.active){ const dn=(worldState.level_up.done||[]).length; const tot=characters.filter(c=>!c.is_companion&&c.controller!=='left').length||1;   /* v538 H5: นับ controller!=='left' ให้ตรง server RPC (เดิมค้าง "2/3" เมื่อมีคนออกปาร์ตี้) */ bar.innerHTML='<div class="statusline"><span class="pill wait">\u2b50 เลเวลอัพ '+dn+'/'+tot+' \u2014 เลือกสกิลในแท็บ Stat ก่อน</span></div>'; if(campaign&&me&&campaign.host_id===me.id){ const _fb=document.createElement('button'); _fb.className='btn'; _fb.style.marginTop='6px'; _fb.textContent='⚡ ข้ามรอทุกคน (host)'; _fb.onclick=forceLevelup; var _sl=bar.querySelector('.statusline'); if(_sl) _sl.appendChild(_fb); }   /* v538 H5: host ข้ามคนออฟไลน์ */ return; }
   // ดึงข้อมูลให้ครบ "ก่อน" สร้าง DOM (await อยู่ก่อน guard เท่านั้น → ไม่เกิด append ซ้อน)
-  const { data:acts } = await supa.from('actions').select('user_id, action_text, character_id').eq('round_id',curRound.id).order('submitted_at',{ascending:true});
+  const { data:acts } = await supa.from('actions').select('id, user_id, action_text, character_id').eq('round_id',curRound.id).order('submitted_at',{ascending:true});
   // total = เฉพาะสมาชิกที่ 'มีตัวละครแล้ว' (คนเพิ่ง join ที่ยังไม่สร้างตัวละครไม่นับ → รอบไม่ค้าง)
   let submitted=0, total=members.filter(m=>characters.some(c=>c.user_id===m.user_id&&Number(c.group_no||1)===terminalGroupForUi())).length;
   try{ const { data:prog } = await supa.rpc('round_progress',{p_round:curRound.id}); const row=Array.isArray(prog)?prog[0]:prog; if(row){ submitted=row.submitted; total=row.total; } }catch(e){}
@@ -3991,7 +4001,7 @@ async function renderRoundbar(){
     return;
   }
   _lastRoundbarKey=rbKey;
-  const keepAct=(document.getElementById('actInput')||{}).value||'';   // กันข้อความที่พิมพ์ค้างหายตอน re-render (placeholder/realtime)
+  const keepAct=(document.getElementById('actInput')||{}).value||window._actionEditDraft||'';   // v741: restore exact draft after scoped retract
   const _cbS=(curRound.meta||{}).combat||{}; const _incS=_cbS.active||!!window._combatActive; const _rng=_incS?`<span class="cs">${escapeHtml((typeof _cbS.range==='string'&&_cbS.range)?_cbS.range:'COMBAT')}</span>`:'';   /* v621 B7: range อาจเป็น object จาก meta เก่า → "[object Object]" */
   let html=`<div class="cstat"><span class="cs">Round ${curRound.round_number}</span><span class="cs ${submitted>=total?'done':'wait'}">Submitted ${submitted}/${total}</span>${_rng}</div>`;
   list.forEach(a=>{ html+=`<div class="actionlog"><b>${escapeHtml(nameFor(a))}</b> ${escapeHtml(a.action_text)}</div>`; });
@@ -4228,7 +4238,14 @@ async function renderRoundbar(){
     else if(pending.length) w.innerHTML='✓ คุณส่งแล้ว — กำลังรอคำตอบจากสมาชิกในปาร์ตี้ <b>'+escapeHtml(pending.join(', '))+'</b><br><span class="muted">DM จะดำเนินเรื่องเมื่อได้คำตอบครบ (host กด Force Resolve เพื่อไปต่อได้)</span>';
     else w.innerHTML=uiCopy('✓ ส่งครบแล้ว — พร้อมประมวลผลรอบนี้อีกครั้งหาก DM หยุดก่อนจบ<br><span class="muted">(แก้: ระบบจะไม่ยิง retry ซ้ำเอง เพื่อไม่เผาโควต้า API ฟรี)</span>','✓ All actions are submitted — this round is ready for a deliberate retry if the DM stopped early.<br><span class="muted">(Fixed: the client will not multiply retries and burn free API quota.)</span>');
     bar.appendChild(w);
-    if(!pending.length && curRound.phase==='awaiting_actions'){
+    const _wedge=(worldState&&worldState.settings&&worldState.settings.enc_action_wedge)||null;
+    const _repair=window._actionRepair&&window._actionRepair.round_id===curRound.id?window._actionRepair:(_wedge&&String(_wedge.round_id)===String(curRound.id)?_wedge:null);
+    const _stuckAction=_repair?list.find(a=>String(a.id)===String(_repair.action_id)):null;
+    const _canRepair=!!_stuckAction&&(isHost||String(_stuckAction.user_id)===String(me&&me.id));
+    if(_repair&&_canRepair&&curRound.phase==='awaiting_actions'){
+      const eb=document.createElement('button'); eb.className='btn warn sm'; eb.textContent=isHost?uiCopy('✎ ปลด action ที่ค้าง','✎ Release stuck action'):uiCopy('✎ แก้ action ของคุณ','✎ Edit your action');
+      eb.disabled=!!resolving; eb.onclick=()=>retractActionForEdit(_repair.action_id,String(_stuckAction.user_id)===String(me&&me.id)?(_stuckAction.action_text||''):''); bar.appendChild(eb);
+    }else if(!pending.length && curRound.phase==='awaiting_actions'){
       const rb=document.createElement('button'); rb.className='btn ghost sm'; rb.textContent=uiCopy('↻ ลองประมวลผลรอบนี้','↻ Retry this round');
       rb.disabled=!!resolving; rb.onclick=()=>resolveRound(false); bar.appendChild(rb);
     }
@@ -4362,6 +4379,7 @@ async function submitAction(charIdOverride){
       await submitActionV2(curRound,cid,txt,null);
     }
     if(!isPet) pendingAoE=null;
+    if(!isPet){ window._actionEditDraft=''; window._actionRepair=null; }
     toast(uiCopy('ส่งการกระทำแล้ว ✓','Action submitted ✓'));
     await loadRound(); renderRoundbar();
     window._afterSubmit=true; resolveRound(false);   // ลองประมวลผล — backend ตอบ waiting ถ้ายังไม่ครบ
@@ -4376,6 +4394,7 @@ async function quickSubmit(text){
   if(window._quickBusy) return; window._quickBusy=true;
   try{
     await submitActionV2(curRound,myChar?.id||null,text,null);
+    window._actionEditDraft=''; window._actionRepair=null;
     toast('ส่งแล้ว ✓'); await loadRound(); renderRoundbar(); window._afterSubmit=true; resolveRound(false);
   }catch(e){ toast(e.message||'ส่งไม่สำเร็จ',true); }
   finally{ window._quickBusy=false; }
@@ -4403,7 +4422,15 @@ async function resolveRound(force, mode){
     const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
       body:JSON.stringify(body)});
     const j=await r.json();
-    if(!r.ok){ toast((j.error||uiCopy('ประมวลผลรอบไม่สำเร็จ','Resolve failed'))+(j.detail?(' — '+String(j.detail).slice(0,220)):''),true); }
+    if(!r.ok){
+      const _repairReasons=['atk_narr_damage_blocked','encounter_redo_claim_blocked','attack_claim_without_mechanics'];
+      if(_repairReasons.includes(j.reason_code)&&j.action_preserved===true&&j.action_id){
+        window._actionRepair={round_id:curRound&&curRound.id,action_id:j.action_id,reason_code:j.reason_code};
+        toast((j.detail||uiCopy('(แก้: action เดิมถูกเก็บไว้ — กด “แก้ action ของคุณ” เพื่อปลดและเขียนใหม่)','(Fixed: the original action was preserved — choose “Edit your action” to release and rewrite it.)')),true);
+      }else if(j.reason_code==='action_auto_voided'){
+        window._actionRepair=null; window._actionEditDraft=''; toast(j.note||uiCopy('(แก้: ระบบปลด action ที่ค้างแล้ว กรุณาส่ง action ใหม่)','(Fixed: the stuck action was released; submit a new action.)'),true);
+      }else toast((j.error||uiCopy('ประมวลผลรอบไม่สำเร็จ','Resolve failed'))+(j.detail?(' — '+String(j.detail).slice(0,220)):''),true);
+    }
     else if(j.status==='waiting'){ if(afterSubmit) _waitRetry=true; var _wS=(j.submitted!=null?j.submitted:0), _wT=(j.total!=null?j.total:(members&&members.length)||'?'); toast(j.turn?`ถึงตา ${j.turn}`:`Waiting for everyone (${_wS}/${_wT})`); }   /* v634ui DYN-20: backend ตอบ waiting ไม่มี counts (เช่นรอเทิร์นในศึก) → เดิมโชว์ undefined/undefined · fallback 0/N หรือชื่อคนที่ถึงตา */
     else if(j.status==='busy'){ /* someone else is resolving */ }
     else if(j.status==='intro'){ toast('โลกถูกสร้างแล้ว — สร้างตัวละครได้เลย!'); }
