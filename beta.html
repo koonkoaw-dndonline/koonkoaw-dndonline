@@ -2004,7 +2004,7 @@ const SUPA_URL = 'https://caxksvqlgrvwnjynbbye.supabase.co';
 const SUPA_ANON = 'sb_publishable_kODadNf7PNUWJr_ZTViABw_IsP6ggJ6';
 // ▲▲▲ key สาธารณะ (publishable) — ปลอดภัยที่จะฝัง ความปลอดภัยจริงอยู่ที่ RLS ▲▲▲
 const RESOLVE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/resolve-round';
-const FRONTEND_BUILD = 202607220743;   // v743: action lifecycle + KO-aware turn UI + mandatory mechanical truth projection
+const FRONTEND_BUILD = 202607220744;   // v744: bounded resolve watchdog + exact retract truth
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2045,6 +2045,7 @@ async function retractActionForEdit(actionId, draftText){
   try{
     var rpc=await supa.rpc('retract_action_v2',{p_cid:campaign.id,p_round:curRound.id,p_group:actionIngressGroup(curRound,myChar&&myChar.id),p_action:actionId});
     if(rpc.error||!rpc.data||rpc.data.ok!==true) throw new Error(actionIngressError(rpc.data&&rpc.data.error,rpc.error&&rpc.error.message));
+    if(rpc.data.status==='not_found') throw new Error(uiCopy('(แก้: ไม่พบ action รายการนี้ในรอบปัจจุบัน — ระบบเก็บฉบับร่างไว้และไม่เคลียร์สถานะใด กรุณาโหลดรอบล่าสุด)','(Fixed: that action was not found in the current round. The draft and repair state were preserved; load the latest round.)'));
     window._actionEditDraft=String(draftText||''); window._actionRepair=null;
     toast(uiCopy('(แก้: ปลด action ที่ค้างแล้ว — แก้ข้อความและส่งใหม่ได้)','(Fixed: the stuck action was released — edit it and submit again.)'));
     await loadRound(); renderRoundbar();
@@ -8223,20 +8224,33 @@ function exportChronicle(){
 // ───────── realtime ─────────
 function subscribeRealtime(){
   if(rtChannel) return;
-  // watchdog: ถ้ารอบค้าง "resolving" นานเกิน ~100 วิ → เรียก resolve เพื่อกระตุ้นการกู้ฝั่ง server (กันค้างถาวร)
+  // v744 FIX-0 watchdog: bounded typed-recovery trigger. One visible/current tab
+  // owns a short lease; stale builds stop; retries back off and circuit-break.
   if(!window._combatWatchdog){
+    try{ window._wdTabId=sessionStorage.getItem('ttrpg_wd_tab')||crypto.randomUUID(); sessionStorage.setItem('ttrpg_wd_tab',window._wdTabId); }catch(e){ window._wdTabId=window._wdTabId||String(Math.random()); }
     window._combatWatchdog = setInterval(async function(){
       try{
-        if(typeof campaign==='undefined'||!campaign) return;
+        if(typeof campaign==='undefined'||!campaign||document.hidden||window.frontendWriteBlocked) return;
         if(typeof resolving!=='undefined' && resolving) return;
-        const r=await supa.from('rounds').select('id,phase').eq('campaign_id',campaign.id).eq('group_no',terminalGroupForUi()).order('round_number',{ascending:false}).limit(1).maybeSingle();
-        if(!r.data || r.data.phase!=='resolving'){ window._wdNoPh=0; return; }
+        const grp=terminalGroupForUi(), leaseKey='ttrpg_wd_leader_'+campaign.id+'_g'+grp, now=Date.now();
+        let lease=null; try{ lease=JSON.parse(localStorage.getItem(leaseKey)||'null'); }catch(e){}
+        if(lease&&lease.id!==window._wdTabId&&Number(lease.until)>now) return;
+        try{ localStorage.setItem(leaseKey,JSON.stringify({id:window._wdTabId,until:now+45000})); }catch(e){}
+        const r=await supa.from('rounds').select('id,phase').eq('campaign_id',campaign.id).eq('group_no',grp).order('round_number',{ascending:false}).limit(1).maybeSingle();
+        if(!r.data || r.data.phase!=='resolving'){ window._wdNoPh=0; window._wdRound=''; window._wdAttempts=0; window._wdNextAt=0; return; }
+        if(window._wdRound!==r.data.id){ window._wdRound=r.data.id; window._wdNoPh=0; window._wdAttempts=0; window._wdNextAt=0; }
         const pp=await supa.from('narrative').select('created_at').eq('round_id',r.data.id).eq('status','placeholder').order('created_at',{ascending:false}).limit(1).maybeSingle();
         /* v663 X4-08 (BUGROOTS 07-18): ไม่มี placeholder ≠ ค้างแน่นอน (อาจ promote เป็น final แล้ว/postDM ยังทำงาน/realtime คนละเฟส) — ต้องเห็นต่อเนื่อง ≥3 tick (~90s) ก่อนถือว่า stale (เดิม age=999999 ทันที → recovery ยิงซ้ำ = เคสสด 08:53-08:59 tail 381s) */
         let age;
         if(pp.data){ age=Date.now()-new Date(pp.data.created_at).getTime(); window._wdNoPh=0; }
         else { window._wdNoPh=(window._wdNoPh||0)+1; age=(window._wdNoPh>=3)?999999:0; }
-        if(age>100000 && Date.now()-(window._wdLast||0)>90000){ window._wdLast=Date.now(); console.log('[watchdog] รอบค้าง resolving → กระตุ้นกู้'); if(typeof resolveRound==='function') resolveRound(false); }
+        if(age>100000 && now>=Number(window._wdNextAt||0)){
+          if(Number(window._wdAttempts||0)>=3){ window._wdNextAt=now+600000; console.warn('[watchdog] recovery circuit open for 10m'); return; }
+          window._wdAttempts=Number(window._wdAttempts||0)+1;
+          window._wdNextAt=now+90000*Math.pow(2,window._wdAttempts-1);
+          console.log('[watchdog] typed recovery attempt '+window._wdAttempts+'/3');
+          if(typeof resolveRound==='function') await resolveRound(false);
+        }
       }catch(e){}
     }, 30000);
   }
