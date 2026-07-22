@@ -2044,7 +2044,7 @@ const SUPA_URL = 'https://caxksvqlgrvwnjynbbye.supabase.co';
 const SUPA_ANON = 'sb_publishable_kODadNf7PNUWJr_ZTViABw_IsP6ggJ6';
 // ▲▲▲ key สาธารณะ (publishable) — ปลอดภัยที่จะฝัง ความปลอดภัยจริงอยู่ที่ RLS ▲▲▲
 const RESOLVE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/resolve-round';
-const FRONTEND_BUILD = 202607220741;   // v741: scoped action edit/retract recovery for typed encounter walls
+const FRONTEND_BUILD = 202607220743;   // v743: action lifecycle + KO-aware turn UI + mandatory mechanical truth projection
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2301,7 +2301,19 @@ let rtChannel=null, resolving=false;
 let rtPollTimer=null;          // safety poll (กลับมาเช็คเอง ถ้า realtime หลุดเงียบๆ)
 let rtLastSyncTs=0;            // เวลาที่ได้ event ล่าสุดจากช่อง realtime
 let rtAnyThinking=false;       // มีผู้เล่นไหนกำลังให้ DM คิดอยู่ไหม (presence broadcast)
-let gCombat={active:false,activeCharId:null,activeName:null};  // v2: สถานะ "ถึงตาใคร" ในคอมแบต
+let gCombat={active:false,activeCharId:null,activeName:null,activeEntry:null};  // v743: active entry carries is_active/conditions for KO-aware UI
+async function reloadMySheet(){
+  if(!myChar||!myChar.id) return false;
+  try{ const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle(); if(r.error) throw r.error; mySheet=r.data?.sheet||{}; mySheetUpdatedAt=r.data?.updated_at||null; cacheSave('sheet_'+myChar.id,mySheet); return true; }catch(e){ return false; }
+}
+function playerCombatUiState(){
+  if(!gCombat||!gCombat.active) return 'inactive';
+  if(!myChar||!gCombat.activeCharId||String(gCombat.activeCharId)!==String(myChar.id)) return 'wait';
+  const entry=gCombat.activeEntry||{}, conds=(Array.isArray(entry.conditions)?entry.conditions:[]).map(x=>String(x||'').toLowerCase());
+  const hp=Number(mySheet&&mySheet.combat&&mySheet.combat.hp);
+  const ko=entry.is_active===false||(Number.isFinite(hp)&&hp<=0)||conds.some(c=>/unconscious|incapacitated|dead|dying|death.?save|หมดสติ|สลบ|เสียชีวิต/.test(c));
+  return ko?'death_save':'act';
+}
 let aoeMode=null, aoeCenter=null, pendingAoE=null, aoePickOpen=false, _lastGrid=null;  // เล็งเวทแบบพื้นที่บน Map
 let moveMode=null, moveSel=null;  // โหมดแตะกริดเลือกช่องเดินเอง
 let _gridCache=null, _gridUseCache=false;  // (06-10) cache ข้อมูลสนามรบ — แตะเลือกช่องวาดใหม่ทันทีไม่ยิง query (แก้หน่วง)
@@ -2793,7 +2805,7 @@ const NARR_WINDOW=50; let narrMore=false, _skipAutoScroll=false;
 // v699: content remains the backward-compatible corrected rendering. Raw forensic
 // prose lives in source_content; projection is opt-in until the rollout gate is proven.
 function narrativeProjectionMode(n){
-  try{ const key=String((n&&n.projection_wall)||'narrative_claim')==='lethal_projection'?'lethal_projection':'narrative_claim'; const m=String(((((worldState||{}).settings||{}).wall_modes||{})[key])||'shadow').toLowerCase(); return ['off','shadow','enforce'].includes(m)?m:'shadow'; }catch(e){ return 'shadow'; }
+  try{ const wall=String((n&&n.projection_wall)||'narrative_claim'); if(wall==='terminal_truth'||wall==='mechanical_truth') return 'enforce'; const key=wall==='lethal_projection'?'lethal_projection':'narrative_claim'; const m=String(((((worldState||{}).settings||{}).wall_modes||{})[key])||'shadow').toLowerCase(); return ['off','shadow','enforce'].includes(m)?m:'shadow'; }catch(e){ return 'shadow'; }
 }
 const LANGUAGE_REPAIR_META_LINES=new Set(['(fixed: system output was normalized to english.)','(แก้: ระบบปรับผลลัพธ์ให้เป็นภาษาอังกฤษแล้ว)']);
 function stripLanguageRepairMetaText(value){
@@ -3847,15 +3859,16 @@ function scheduleCombatRender(){ clearTimeout(_combatRenderT); _combatRenderT=se
 async function refreshCombatTurn(){
   try{
     const er=await supa.from('combat_encounters').select('id,active_entry_id,status,combat_round').eq('campaign_id',campaign.id).eq('group_no',terminalGroupForUi()).eq('status','active').maybeSingle();   // v739 FZ-2 group-scoped
-    if(!er.data){ gCombat={active:false,activeCharId:null,activeName:null}; window._combatRound=null; return; }
+    if(!er.data){ gCombat={active:false,activeCharId:null,activeName:null,activeEntry:null}; window._combatRound=null; return; }
     window._combatRound=er.data.combat_round;   // ใช้ล็อกปุ่ม death save ตามรอบ
-    let charId=null,name=null;
-    if(er.data.active_entry_id){ const e2=await supa.from('initiative_entries').select('character_id,display_name').eq('id',er.data.active_entry_id).maybeSingle(); if(e2.data){ charId=e2.data.character_id; name=e2.data.display_name; } }
-    const wasMine=gCombat.active&&myChar&&gCombat.activeCharId===myChar.id;
-    gCombat={active:true,activeCharId:charId,activeName:name};
+    let charId=null,name=null,activeEntry=null;
+    if(er.data.active_entry_id){ const e2=await supa.from('initiative_entries').select('character_id,display_name,is_active,conditions').eq('id',er.data.active_entry_id).maybeSingle(); if(e2.data){ activeEntry=e2.data; charId=e2.data.character_id; name=e2.data.display_name; } }
+    const wasAct=playerCombatUiState()==='act';
+    gCombat={active:true,activeCharId:charId,activeName:name,activeEntry};
+    if(charId&&myChar&&String(charId)===String(myChar.id)) await reloadMySheet();
     if(charId!==window._turnWaitChar){ window._turnWaitChar=charId; window._turnWaitSince=Date.now(); }   // จับเวลาเทิร์นนี้เริ่มรอเมื่อไหร่ (ใช้คุมปุ่ม skip)
-    const nowMine=charId&&myChar&&charId===myChar.id;
-    if(nowMine&&!wasMine) notifyMyTurn();
+    const nowAct=playerCombatUiState()==='act';
+    if(nowAct&&!wasAct) notifyMyTurn();
   }catch(e){}
 }
 function notifyMyTurn(){
@@ -4185,7 +4198,7 @@ async function renderRoundbar(){
   }
   if(worldState&&worldState.level_up&&worldState.level_up.active){ const dn=(worldState.level_up.done||[]).length; const tot=characters.filter(c=>!c.is_companion&&c.controller!=='left').length||1;   /* v538 H5: นับ controller!=='left' ให้ตรง server RPC (เดิมค้าง "2/3" เมื่อมีคนออกปาร์ตี้) */ bar.innerHTML='<div class="statusline"><span class="pill wait">\u2b50 เลเวลอัพ '+dn+'/'+tot+' \u2014 เลือกสกิลในแท็บ Stat ก่อน</span></div>'; if(campaign&&me&&campaign.host_id===me.id){ const _fb=document.createElement('button'); _fb.className='btn'; _fb.style.marginTop='6px'; _fb.textContent='⚡ ข้ามรอทุกคน (host)'; _fb.onclick=forceLevelup; var _sl=bar.querySelector('.statusline'); if(_sl) _sl.appendChild(_fb); }   /* v538 H5: host ข้ามคนออฟไลน์ */ return; }
   // ดึงข้อมูลให้ครบ "ก่อน" สร้าง DOM (await อยู่ก่อน guard เท่านั้น → ไม่เกิด append ซ้อน)
-  const { data:acts } = await supa.from('actions').select('id, user_id, action_text, character_id').eq('round_id',curRound.id).order('submitted_at',{ascending:true});
+  const { data:acts } = await supa.from('actions').select('id, user_id, action_text, character_id, lifecycle_state').eq('round_id',curRound.id).eq('lifecycle_state','active').order('submitted_at',{ascending:true});
   // total = เฉพาะสมาชิกที่ 'มีตัวละครแล้ว' (คนเพิ่ง join ที่ยังไม่สร้างตัวละครไม่นับ → รอบไม่ค้าง)
   let submitted=0, total=members.filter(m=>characters.some(c=>c.user_id===m.user_id&&Number(c.group_no||1)===terminalGroupForUi())).length;
   try{ const { data:prog } = await supa.rpc('round_progress',{p_round:curRound.id}); const row=Array.isArray(prog)?prog[0]:prog; if(row){ submitted=row.submitted; total=row.total; } }catch(e){}
@@ -4282,7 +4295,7 @@ async function renderRoundbar(){
     return;
   }
   // หมดสติ (HP 0) ระหว่างคอมแบต → ห้ามสั่งการ แสดงสถานะ Death Save แทน (server ทอยให้รอบละครั้ง)
-  if(myChar && mySheet && mySheet.combat && Number.isFinite(+mySheet.combat.hp) && +mySheet.combat.hp<=0 && (window._combatActive || (typeof gCombat!=='undefined' && gCombat && gCombat.active))){
+  if(myChar && playerCombatUiState()==='death_save'){
     const ds=(mySheet.death_saves||{});
     const w=document.createElement('div'); w.className='note'; w.style.cssText='text-align:left;padding:10px 4px;line-height:1.8;color:#ff8a8a;font-weight:600;border:1px solid #d32f2f;border-radius:8px';
     w.innerHTML = ds.dead ? '💀 ตัวละครสิ้นใจแล้ว…'
@@ -4316,7 +4329,7 @@ async function renderRoundbar(){
     }
     bar.appendChild(w); return;
   }
-  if(gCombat.active && gCombat.activeCharId && myChar && gCombat.activeCharId!==myChar.id){
+  if(playerCombatUiState()==='wait'){
     const w=document.createElement('div'); w.className='note'; w.style.cssText='text-align:left;padding:8px 2px;line-height:1.6';
     w.innerHTML='⏳ ถึงตา <b>'+escapeHtml(gCombat.activeName||'...')+'</b> — รอเทิร์นของคุณ (ระบบจะแจ้งเตือนเมื่อถึงตา)';
     bar.appendChild(w);
@@ -4324,7 +4337,7 @@ async function renderRoundbar(){
     if(isHost){ bar.appendChild(makeSkipBtn()); }
     return;
   }
-  if(gCombat.active && myChar && gCombat.activeCharId===myChar.id){
+  if(playerCombatUiState()==='act'){
     const w=document.createElement('div'); w.className='note'; w.style.cssText='text-align:left;padding:6px 2px;color:#FAC775;font-weight:600';
     w.textContent='⚔️ ถึงตาคุณแล้ว — สั่งการได้เลย'; bar.appendChild(w);
   }
@@ -4341,7 +4354,7 @@ async function renderRoundbar(){
       // ── (06-08) turn-lock ชั้นสอง: กัน gCombat ค้าง → ใช้ meta.combat.for_char_id (server ระบุเจ้าของตาถัดไป) เป็นตัวชี้ขาด ──
       //   ถ้า 'รู้ว่าถึงตาคนอื่น' (จาก gCombat หรือ for_char_id) → ห้ามโชว์เมนูสั่งการ (ไม่งั้นกดส่งข้ามตาได้ = คำสั่งถูก carry ดูเหมือนออกก่อน)
       const _turnKnown = (gCombat.active && gCombat.activeCharId) || cb.for_char_id;
-      const _myTurn = !_turnKnown ? true
+      const _myTurn = playerCombatUiState()==='death_save' ? false : !_turnKnown ? true
         : (gCombat.active && gCombat.activeCharId) ? !!(myChar && gCombat.activeCharId===myChar.id)
         : !!(myChar && cb.for_char_id===myChar.id);
       if(!_myTurn){
@@ -4564,6 +4577,7 @@ function gateBeforePlay(){
 }
 async function submitAction(charIdOverride){
   if(gateBeforePlay()) return;
+  if(gCombat&&gCombat.active&&typeof charIdOverride!=='string'&&playerCombatUiState()!=='act'){ toast(uiCopy('(แก้: ส่งคำสั่งไม่ได้ เพราะยังไม่ถึงตาหรือผู้กระทำหมดสติ)','(Fixed: the action was not submitted because it is not your turn or the actor is unconscious.)'),true); await reloadMySheet(); return; }
   if(slowlifeState&&slowlifeState.active){ toast(uiCopy('(แก้: รอบหลักถูกพัก — ใช้เลน Slowlife หรือรวมปาร์ตี้ก่อน)','(Fixed: the main round is paused — use a Slowlife lane or regroup first)'),true); switchTab('companion'); return; }
   if(window._actSubmitting) return;   // v538: กัน double-click (มิเรอร์ _quickBusy/_vaSubmitting) — เดิมไม่มี guard → 2 insert ชน unique(round_id,user_id) = toast error ดิบ
   const isPet=(typeof charIdOverride==='string');
@@ -4597,6 +4611,7 @@ async function submitAction(charIdOverride){
 async function quickSubmit(text){
   if(!curRound || !text) return;
   if(gateBeforePlay()) return;
+  if(gCombat&&gCombat.active&&playerCombatUiState()!=='act'){ toast(uiCopy('(แก้: ส่งคำสั่งไม่ได้ เพราะยังไม่ถึงตาหรือผู้กระทำหมดสติ)','(Fixed: the action was not submitted because it is not your turn or the actor is unconscious.)'),true); await reloadMySheet(); return; }
   if(slowlifeState&&slowlifeState.active){ toast(uiCopy('(แก้: รอบหลักถูกพัก — ใช้เลน Slowlife หรือรวมปาร์ตี้ก่อน)','(Fixed: the main round is paused — use a Slowlife lane or regroup first)'),true); switchTab('companion'); return; }
   if(window._quickBusy) return; window._quickBusy=true;
   try{
@@ -5231,10 +5246,10 @@ async function _renderPartyInner(){
   const _lastSeen={};
   try{
     const [ar,cr2]=await Promise.all([
-      supa.from('actions').select('user_id,created_at').eq('campaign_id',campaign.id).order('created_at',{ascending:false}).limit(60),
+      supa.from('actions').select('user_id,submitted_at').eq('campaign_id',campaign.id).order('submitted_at',{ascending:false}).limit(60),
       supa.from('chat_messages').select('user_id,created_at').eq('campaign_id',campaign.id).order('created_at',{ascending:false}).limit(60),
     ]);
-    [...(ar.data||[]),...(cr2.data||[])].forEach(x=>{ const t=new Date(x.created_at).getTime(); if(!_lastSeen[x.user_id]||t>_lastSeen[x.user_id]) _lastSeen[x.user_id]=t; });
+    [...(ar.data||[]),...(cr2.data||[])].forEach(x=>{ const t=new Date(x.created_at||x.submitted_at).getTime(); if(!_lastSeen[x.user_id]||t>_lastSeen[x.user_id]) _lastSeen[x.user_id]=t; });
   }catch(e){}
   all.forEach(c=>{
     const mine=c.user_id===me.id;
@@ -6890,7 +6905,7 @@ async function renderBattleScene(){
     try{ await refreshCombatTurn(); }catch(e){}
     var _cmdSheet=(function(){ var c=document.getElementById('bsCmdWrap'); return c && c.classList.contains('bs-sheet-open'); })();
     if(!_cmdSheet && _aid!=='ccNarr' && _aid!=='actInput' && _aid!=='petActInput'){ try{ await renderRoundbar(); }catch(e){} }
-    try{ var _cb=document.querySelector('#bsMobBar button[data-sheet="cmd"]'); if(_cb) _cb.classList.toggle('bs-myturn', !!(gCombat&&gCombat.active&&myChar&&gCombat.activeCharId===myChar.id)); }catch(e){}
+    try{ var _cb=document.querySelector('#bsMobBar button[data-sheet="cmd"]'); if(_cb){ var _canAct=playerCombatUiState()==='act'; _cb.classList.toggle('bs-myturn',_canAct); _cb.disabled=!!(gCombat&&gCombat.active&&!_canAct); } }catch(e){}
   } finally { _bsRendering=false; }
 }
 async function renderBattleInitLog(initEl, logEl){
@@ -7207,7 +7222,7 @@ async function renderBattleGrid(p){
         supa.from('grid_tokens').select('*').eq('grid_id',grid.id),
         supa.from('combat_state').select('id,cur_hp,monsters(max_hp)').eq('campaign_id',campaign.id),
         supa.from('combat_encounters').select('active_entry_id').eq('campaign_id',campaign.id).eq('group_no',terminalGroupForUi()).neq('status','ended').maybeSingle(),
-        (typeof curRound!=='undefined'&&curRound&&curRound.id)?supa.from('actions').select('character_id,structured_turn').eq('round_id',curRound.id):Promise.resolve({data:null})
+        (typeof curRound!=='undefined'&&curRound&&curRound.id)?supa.from('actions').select('character_id,structured_turn,lifecycle_state').eq('round_id',curRound.id).eq('lifecycle_state','active'):Promise.resolve({data:null})
       ]);
       toks=(rT&&rT.data)||[];
       ((rC&&rC.data)||[]).forEach(x=>csMap[x.id]=x);   // HP: party จาก characters.public_status · monster จาก combat_state
@@ -8484,13 +8499,14 @@ function subscribeRealtime(){
     .on('postgres_changes',{event:'*',schema:'public',table:'quests',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='quest') renderQuest(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'rounds',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); await loadRound(); if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'actions',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); if(activeTab()==='story') renderRoundbar(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'character_sheets',filter:'character_id=eq.'+((myChar&&myChar.id)||'00000000-0000-0000-0000-000000000000')}, async()=>{ rtLastSyncTs=Date.now(); await reloadMySheet(); await refreshCombatTurn(); if(activeTab()==='story') renderRoundbar(); if(activeTab()==='me') renderMe(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'characters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ var _oldGroup=terminalGroupForUi(); await loadCharacters(); myChar=characters.find(c=>c.user_id===me.id)||null; if(_oldGroup!==terminalGroupForUi()){ window._combatActive=undefined; window.gEncId=null; await Promise.all([loadRound(),loadNarrative(),updateCombatBadge(),refreshCombatTurn()]); } if(activeTab()==='party') renderParty(); if(typeof scheduleBattleScene==='function') scheduleBattleScene(); })   // v739 FZ-2: group move rebinds scoped round/story/combat before render
     .on('postgres_changes',{event:'*',schema:'public',table:'campaign_state',filter:'campaign_id=eq.'+campaign.id}, async()=>{ var _vaWasFin=!!(currentTerminalGate()&&currentTerminalGate().active); await loadState(); /* v739 FZ-2: reload sheet only when this character's group gate clears */ if(_vaWasFin && !(currentTerminalGate()&&currentTerminalGate().active) && myChar){ try{ var _sr=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle(); if(!_sr.error){ mySheet=_sr.data?.sheet||{}; mySheetUpdatedAt=_sr.data?.updated_at||null; cacheSave('sheet_'+myChar.id, mySheet); } }catch(e){} } applyMood(); refreshSelectionGate(); if(activeTab()==='story'){ renderClock(); renderRoundbar(); } if(activeTab()==='map') renderMap(); const _lu=worldState&&worldState.level_up; if(activeTab()==='me'){ const md=_lu&&_lu.active&&(_lu.done||[]).includes(myChar&&myChar.id); if(!_lu||!_lu.active||md) renderMe(); } else if(worldState&&worldState.settings&&worldState.settings.prepare_due&&Array.isArray(worldState.settings.prepare_due.ids)&&worldState.settings.prepare_due.ids.includes(myChar&&myChar.id)){ /* เตรียมเวทค้าง: ปล่อยให้ blink เตือน */ } })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_messages',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ const row=payload.new; if(row&&row.id&&!chatMsgs.some(m=>m.id===row.id)){ chatMsgs.push(row); if(chatMsgs.length>300) chatMsgs=chatMsgs.slice(-300); cacheSave('chat',chatMsgs); } if(_bsShown){ try{ renderBattleChat(); }catch(e){} } if(activeTab()==='party'){ renderChatList(); } else if(row && row.user_id!==me.id){ const t=document.querySelector('.tab[data-tab="party"]'); if(t) t.classList.add('blink'); if(_bsShown){ const mb=document.querySelector('#bsMobBar button[data-sheet="chat"]'); if(mb) mb.classList.add('blink'); } } })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'chronicles',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='chron'){ renderChronicle(); } else { const t=document.querySelector('.tab[data-tab="chron"]'); if(t) t.classList.add('blink'); } })
     .on('postgres_changes',{event:'*',schema:'public',table:'music_tracks',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadMusicLibrary(); if(activeTab()==='files') renderFiles(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'combat_encounters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await updateCombatBadge(); await refreshCombatTurn(); scheduleBattleScene(); if(activeTab()==='story') renderRoundbar(); })   /* v271 H4: refresh _combatActive จาก realtime (กันโหมด input คอมแบต/เรื่อง desync ตอนคนอื่นเปิด/ปิดศึก) */
-    .on('postgres_changes',{event:'*',schema:'public',table:'initiative_entries',filter:'campaign_id=eq.'+campaign.id}, async()=>{ scheduleBattleScene(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'initiative_entries',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await refreshCombatTurn(); scheduleBattleScene(); if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'combat_log',filter:'campaign_id=eq.'+campaign.id}, async()=>{ scheduleBattleScene(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'battle_grids',filter:'campaign_id=eq.'+campaign.id}, async()=>{ scheduleBattleScene(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'grid_tokens',filter:'campaign_id=eq.'+campaign.id}, async()=>{ scheduleBattleScene(); })
@@ -8523,6 +8539,7 @@ async function resyncAll(force){
     var _groupBeforeResync=terminalGroupForUi();
     await Promise.all([loadCharacters(), loadState()]);
     myChar=characters.find(c=>c.user_id===me.id)||null;
+    await reloadMySheet();
     if(_groupBeforeResync!==terminalGroupForUi()){ window._combatActive=undefined; window.gEncId=null; }
     await Promise.all([loadRound(), loadNarrative()]);
     if(typeof updateCombatBadge==='function'){ try{ await updateCombatBadge(); }catch(e){} }   /* v271 H4: poll/visibility/online ดึง _combatActive ใหม่ (กัน input-mode ค้างหลังศึกจบ) */
@@ -9187,6 +9204,11 @@ window.cc = (function(){
       var uid = (typeof me!=='undefined' && me) ? me.id : null;
       if (!cid || !uid) {
         if (typeof toast==='function') toast('ยังไม่มีตัวละคร', true);
+        return false;
+      }
+      if (gCombat&&gCombat.active&&playerCombatUiState()!=='act') {
+        if (typeof toast==='function') toast(uiCopy('(แก้: ส่งคำสั่งไม่ได้ เพราะยังไม่ถึงตาหรือผู้กระทำหมดสติ)','(Fixed: the action was not submitted because it is not your turn or the actor is unconscious.)'),true);
+        await reloadMySheet();
         return false;
       }
       // v739 FZ-1: one RPC owns validation+idempotency+insert. No direct/fallback table write.
