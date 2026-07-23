@@ -2045,7 +2045,7 @@ const SUPA_URL = 'https://caxksvqlgrvwnjynbbye.supabase.co';
 const SUPA_ANON = 'sb_publishable_kODadNf7PNUWJr_ZTViABw_IsP6ggJ6';
 // ▲▲▲ key สาธารณะ (publishable) — ปลอดภัยที่จะฝัง ความปลอดภัยจริงอยู่ที่ RLS ▲▲▲
 const RESOLVE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/resolve-round';
-const FRONTEND_BUILD = 202607230755;   // v755: authoritative combat range + completed level-up UI state
+const FRONTEND_BUILD = 202607240756;   // v756: terminal battle teardown + condition-label dedupe
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -4088,6 +4088,7 @@ async function submitVictoryAck(force,groupOverride){
   if(gateBeforePlay()) return;
   if(window._vaSubmitting) return;   // v418: กันกดซ้ำ/ยิงซ้อน → server finalize ซ้ำ → ป้าย VICTORY เด้ง 2 รอบ
   window._vaSubmitting=true;
+  var _terminalFinalized=false;
   try{
     var sess=(await supa.auth.getSession()).data.session; var tok=sess&&sess.access_token;
     var r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,group_no:groupOverride==null?terminalGroupForUi():Number(groupOverride),victory_ack:true,force:!!force})});
@@ -4095,15 +4096,16 @@ async function submitVictoryAck(force,groupOverride){
     if(j.error){ toast(j.error,true); return; }
     // reload worldState (victory_ack.done อัปเดต หรือถูกเคลียร์เมื่อ finalized)
     try{ var rs=await supa.from('campaign_state').select('*').eq('campaign_id',campaign.id).maybeSingle(); if(!rs.error&&rs.data){ worldState=rs.data; cacheSave('state',worldState); } }catch(e){}
-    if(j.status==='victory_finalized'){ toast('🏆 ชัยชนะ!'); try{ await refreshAll(); if(activeTab()==='me') renderMe(); }catch(e){} }   /* v559: refreshAll (ไม่ใช่แค่ loadState) — finalize เขียน XP/loot/เงินลง character_sheets → reload mySheet ให้แท็บ Stat อัปเดต */
-    else if(j.status==='defeat_finalized'){ toast('💀 พ่ายแพ้… แต่เรื่องราวยังไม่จบ'); try{ await refreshAll(); if(activeTab()==='me') renderMe(); }catch(e){} }   /* v531b: defeat gate (v506) จบ — ห้ามใช้ข้อความชัยชนะ · v559: refreshAll → reload mySheet ให้ 🩸 scar/HP ฟื้น/เงินหาย โผล่ในแท็บ Stat ทันที (เดิม loadState ไม่แตะ mySheet → ต้อง reload หน้า) */
+    if(j.status==='victory_finalized'){ _terminalFinalized=true; window._terminalExitPending=true; try{ await renderRoundbar(); }catch(e){} toast('🏆 ชัยชนะ!'); try{ await refreshAll(); if(activeTab()==='me') renderMe(); }catch(e){} }   /* v756: terminalExitPending hides stale battle actions until the explicit outro finishes · v559: refreshAll (ไม่ใช่แค่ loadState) — finalize เขียน XP/loot/เงินลง character_sheets → reload mySheet ให้แท็บ Stat อัปเดต */
+    else if(j.status==='defeat_finalized'){ _terminalFinalized=true; window._terminalExitPending=true; try{ await renderRoundbar(); }catch(e){} toast('💀 พ่ายแพ้… แต่เรื่องราวยังไม่จบ'); try{ await refreshAll(); if(activeTab()==='me') renderMe(); }catch(e){} }   /* v756 live playtest: กัน Battle Scene ค้าง HP/initiative ศึกเก่าระหว่าง outro · v531b: defeat gate (v506) จบ — ห้ามใช้ข้อความชัยชนะ */
     else if(j.status==='no_victory_pending'){ /* จบไปแล้ว */ }
     else if(j.status==='victory_ack_retry'||j.status==='defeat_retry'){ toast(j.note||uiCopy('(แก้: ธุรกรรมหลังศึกยังไม่ครบ — กรุณาลองอีกครั้ง)','(Fixed: the post-combat transaction is incomplete — try again.)'),true); }
     else toast('✓ พร้อมแล้ว ('+(j.done||0)+'/'+(j.total||0)+')');
     try{ await renderRoundbar(); }catch(e){}
-    try{ scheduleBattleScene(); }catch(e){}
+    if(_terminalFinalized&&typeof exitBattleSceneWithOutro==='function'&&window._bsShown){ try{ await exitBattleSceneWithOutro(); }catch(e){} }
+    else try{ scheduleBattleScene(); }catch(e){}
   }catch(e){ toast('ส่งไม่สำเร็จ ลองใหม่',true); }
-  finally{ window._vaSubmitting=false; }
+  finally{ window._vaSubmitting=false; if(_terminalFinalized){ window._terminalExitPending=false; try{ await renderRoundbar(); }catch(e){} } }
 }
 // ── v617 SESSION: host เริ่มตอนถัดไป (จาก interlude) — มิเรอร์ submitVictoryAck ──
 async function submitSessionNext(){
@@ -4148,6 +4150,10 @@ async function renderRoundbar(){
   // v617 ONE SHOT soft-end: โลกจบถาวร — แบนเนอร์ read-only แทนช่องสั่งการทั้งหมด (resolver ปฏิเสธทุก action อยู่แล้ว)
   if(campaign.status==='ended'){
     bar.innerHTML='<div class="note" style="text-align:left;padding:9px 8px;line-height:1.6;border:1px solid rgba(250,199,117,0.5);border-radius:8px;background:rgba(250,199,117,0.06)">⚡ <b>เรื่องนี้จบบริบูรณ์แล้ว</b><br><span class="muted">โลกนี้ปิดถาวร — เลื่อนอ่านเนื้อเรื่องทั้งหมดย้อนหลังได้'+(isHost?' · ปุ่ม "✕ End World" มุมบนใช้ลบโลกถาวรเมื่อไม่ต้องการเก็บแล้ว':'')+'</span></div>';
+    return;
+  }
+  if(window._terminalExitPending){
+    bar.innerHTML='<div class="note" style="text-align:left;padding:9px 8px;line-height:1.6">'+uiCopy('🧭 <b>กำลังยืนยันผลหลังศึกและเปลี่ยนฉาก…</b><br><span class="muted">ระบบซ่อนคำสั่งของศึกเดิมไว้จนกว่าสถานะ HP ฉาก และลำดับเทิร์นชุดใหม่จะโหลดครบ</span>','🧭 <b>Finalizing the post-combat outcome and changing scenes…</b><br><span class="muted">Actions from the ended encounter stay hidden until the new HP, scene, and turn state are fully loaded.</span>')+'</div>';
     return;
   }
   if(slowlifeState&&slowlifeState.active){
@@ -4608,6 +4614,7 @@ function gateBeforePlay(){
 }
 async function submitAction(charIdOverride){
   if(gateBeforePlay()) return;
+  if(window._vaSubmitting||window._terminalExitPending){ toast(uiCopy('(แก้: ยังส่งคำสั่งไม่ได้ระหว่างระบบกำลังเปลี่ยนจากศึกที่จบแล้วไปยังฉากใหม่)','(Fixed: actions cannot be submitted while the ended encounter is transitioning to the new scene.)'),true); return; }
   if(gCombat&&gCombat.active&&typeof charIdOverride!=='string'&&playerCombatUiState()!=='act'){ toast(uiCopy('(แก้: ส่งคำสั่งไม่ได้ เพราะยังไม่ถึงตาหรือผู้กระทำหมดสติ)','(Fixed: the action was not submitted because it is not your turn or the actor is unconscious.)'),true); await reloadMySheet(); return; }
   if(slowlifeState&&slowlifeState.active){ toast(uiCopy('(แก้: รอบหลักถูกพัก — ใช้เลน Slowlife หรือรวมปาร์ตี้ก่อน)','(Fixed: the main round is paused — use a Slowlife lane or regroup first)'),true); switchTab('companion'); return; }
   if(window._actSubmitting) return;   // v538: กัน double-click (มิเรอร์ _quickBusy/_vaSubmitting) — เดิมไม่มี guard → 2 insert ชน unique(round_id,user_id) = toast error ดิบ
@@ -4642,6 +4649,7 @@ async function submitAction(charIdOverride){
 async function quickSubmit(text){
   if(!curRound || !text) return;
   if(gateBeforePlay()) return;
+  if(window._vaSubmitting||window._terminalExitPending){ toast(uiCopy('(แก้: ยังส่งคำสั่งไม่ได้ระหว่างระบบกำลังเปลี่ยนจากศึกที่จบแล้วไปยังฉากใหม่)','(Fixed: actions cannot be submitted while the ended encounter is transitioning to the new scene.)'),true); return; }
   if(gCombat&&gCombat.active&&playerCombatUiState()!=='act'){ toast(uiCopy('(แก้: ส่งคำสั่งไม่ได้ เพราะยังไม่ถึงตาหรือผู้กระทำหมดสติ)','(Fixed: the action was not submitted because it is not your turn or the actor is unconscious.)'),true); await reloadMySheet(); return; }
   if(slowlifeState&&slowlifeState.active){ toast(uiCopy('(แก้: รอบหลักถูกพัก — ใช้เลน Slowlife หรือรวมปาร์ตี้ก่อน)','(Fixed: the main round is paused — use a Slowlife lane or regroup first)'),true); switchTab('companion'); return; }
   if(window._quickBusy) return; window._quickBusy=true;
@@ -6970,7 +6978,7 @@ async function renderBattleInitLog(initEl, logEl){
       if(isParty){ const c=characters.find(x=>x.id===e.character_id); const hp=(c&&c.public_status&&c.public_status.hp)||''; hpTxt=hp; if(/^\d+\/\d+/.test(String(hp))){ const m=String(hp).split('/'); pct=Math.max(0,Math.min(1,(+m[0])/(+m[1]||1))); } }
       else { const cs=csMap[e.combat_state_id]; if(cs){ const mx=cs.monsters&&cs.monsters.max_hp; hpTxt=cs.cur_hp+(mx?('/'+mx):''); if(mx) pct=Math.max(0,Math.min(1,cs.cur_hp/mx)); } }
       const mine=isParty&&myChar&&e.character_id===myChar.id; const col=isParty?'#5cc8ff':'#ff6b6b';
-      const _cpc=(Array.isArray(e.conditions)?e.conditions:[]).map(prettyCond).filter(Boolean); const conds=_cpc.length?(' ['+_cpc.map(escapeHtml).join(',')+']'):'';
+      const _cpc=[...new Set((Array.isArray(e.conditions)?e.conditions:[]).map(prettyCond).filter(Boolean))]; const conds=_cpc.length?(' ['+_cpc.map(escapeHtml).join(',')+']'):'';   // v756: TH/EN aliases may map to one visible label; never render duplicates
       const row=document.createElement('div'); row.className='bs-initrow'+(mine?' me':'');
       row.innerHTML='<span class="bs-ini">'+(e.initiative==null?'?':e.initiative)+'</span><span class="bs-iname" style="color:'+col+'">'+escapeHtml(e.display_name)+(mine?' (คุณ)':'')+(conds?('<span class="muted" style="font-size:11px">'+escapeHtml(conds)+'</span>'):'')+'</span><span class="bs-ihp">'+escapeHtml(hpTxt||'')+'</span>';
       _frag.appendChild(row);
