@@ -2005,7 +2005,7 @@ const SUPA_URL = 'https://caxksvqlgrvwnjynbbye.supabase.co';
 const SUPA_ANON = 'sb_publishable_kODadNf7PNUWJr_ZTViABw_IsP6ggJ6';
 // ▲▲▲ key สาธารณะ (publishable) — ปลอดภัยที่จะฝัง ความปลอดภัยจริงอยู่ที่ RLS ▲▲▲
 const RESOLVE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/resolve-round';
-const FRONTEND_BUILD = 202607230752;   // v752: hide stale combat-class roll requests without an active encounter
+const FRONTEND_BUILD = 202607230755;   // v755: authoritative combat range + completed level-up UI state
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2695,6 +2695,22 @@ function mergeNarrative(row){
 /* v735fix B1: beta.html ไม่เคยมีนิยาม uiCopy (campaign.html มี) แต่ถูกเรียก 71 จุด — เดิมพังเงียบเฉพาะ slowlife click-handler,
    v735 เพิ่มการเรียกใน render path หลักแท็บ Companion = ReferenceError แท็บค้าง · beta ไม่มี English mode → คืน th เสมอ */
 function uiCopy(th,en){ return th; }
+function combatRangeUi(raw,source){
+  if(source!=='server_grid_v1') return uiCopy('การต่อสู้','Combat');
+  const s=typeof raw==='string'?raw.trim():'';
+  if(/^(?:close|melee|ประชิด)$/i.test(s)) return uiCopy('ประชิด','Melee');
+  const m=s.match(/^(\d+)\s*(?:ft|feet|ฟุต)?$/i);
+  if(m) return uiCopy(m[1]+' ฟุต',m[1]+' ft');
+  return uiCopy('การต่อสู้','Combat');
+}
+function levelUpUiState(){
+  const lu=worldState&&worldState.level_up;
+  if(!lu||lu.active!==true) return {pending:false,done:0,total:0,mineDone:false};
+  const activeIds=new Set((characters||[]).filter(c=>!c.is_companion&&c.controller!=='left').map(c=>String(c.id)));
+  const doneIds=new Set((Array.isArray(lu.done)?lu.done:[]).map(String).filter(id=>activeIds.has(id)));
+  const total=activeIds.size||1, done=doneIds.size;
+  return {pending:done<total,done,total,mineDone:!!(myChar&&doneIds.has(String(myChar.id)))};
+}
 async function loadState(){
   try{ const r=await supa.from('campaign_state').select('*').eq('campaign_id',campaign.id).maybeSingle();
     if(r.error) throw r.error; worldState=r.data; cacheSave('state',worldState);
@@ -3992,7 +4008,8 @@ async function renderRoundbar(){
   if(myChar && worldState&&worldState.settings&&worldState.settings.prepare_due&&Array.isArray(worldState.settings.prepare_due.ids)&&worldState.settings.prepare_due.ids.includes(myChar.id)){
     bar.innerHTML='<div class="statusline"><span class="pill wait">วันใหม่ — เตรียมเวทในแท็บ Skills ก่อน ถึงจะสั่งการต่อได้</span></div>'; return;
   }
-  if(worldState&&worldState.level_up&&worldState.level_up.active){ const dn=(worldState.level_up.done||[]).length; const tot=characters.filter(c=>!c.is_companion&&c.controller!=='left').length||1;   /* v538 H5: นับ controller!=='left' ให้ตรง server RPC (เดิมค้าง "2/3" เมื่อมีคนออกปาร์ตี้) */ bar.innerHTML='<div class="statusline"><span class="pill wait">\u2b50 เลเวลอัพ '+dn+'/'+tot+' \u2014 เลือกสกิลในแท็บ Stat ก่อน</span></div>'; if(campaign&&me&&campaign.host_id===me.id){ const _fb=document.createElement('button'); _fb.className='btn'; _fb.style.marginTop='6px'; _fb.textContent='⚡ ข้ามรอทุกคน (host)'; _fb.onclick=forceLevelup; var _sl=bar.querySelector('.statusline'); if(_sl) _sl.appendChild(_fb); }   /* v538 H5: host ข้ามคนออฟไลน์ */ return; }
+  const _luUi=levelUpUiState();
+  if(_luUi.pending){ const _luHint=_luUi.mineDone?' \u2014 คุณเลือกเสร็จแล้ว กำลังรอสมาชิกที่เหลือ':' \u2014 เลือกสกิลในแท็บ Stat ก่อน'; bar.innerHTML='<div class="statusline"><span class="pill wait">\u2b50 เลเวลอัพ '+_luUi.done+'/'+_luUi.total+_luHint+'</span></div>'; if(campaign&&me&&campaign.host_id===me.id){ const _fb=document.createElement('button'); _fb.className='btn'; _fb.style.marginTop='6px'; _fb.textContent='⚡ ข้ามรอทุกคน (host)'; _fb.onclick=forceLevelup; var _sl=bar.querySelector('.statusline'); if(_sl) _sl.appendChild(_fb); } return; }
   // ดึงข้อมูลให้ครบ "ก่อน" สร้าง DOM (await อยู่ก่อน guard เท่านั้น → ไม่เกิด append ซ้อน)
   const { data:acts } = await supa.from('actions').select('id, user_id, action_text, character_id, lifecycle_state').eq('round_id',curRound.id).eq('lifecycle_state','active').order('submitted_at',{ascending:true});
   // total = เฉพาะสมาชิกที่ 'มีตัวละครแล้ว' (คนเพิ่ง join ที่ยังไม่สร้างตัวละครไม่นับ → รอบไม่ค้าง)
@@ -4012,13 +4029,13 @@ async function renderRoundbar(){
   const typingNow=_aidNow==='actInput'||_aidNow==='petActInput';   // v538 M19: ครอบ petActInput ด้วย (เดิมเฉพาะ actInput → คำสั่ง pet หายตอน realtime rebuild)
   if(typingNow && rbKey===_lastRoundbarKey){
     const sl=bar.querySelector('.statusline');
-    const _cbq=(curRound.meta||{}).combat||{}; const _incq=_cbq.active||!!window._combatActive; const _rngq=_incq?`<span class="cs">${escapeHtml((typeof _cbq.range==='string'&&_cbq.range)?_cbq.range:'COMBAT')}</span>`:'';   /* v621 B7: range อาจเป็น object จาก meta เก่า → "[object Object]" */
+    const _cbq=(curRound.meta||{}).combat||{}; const _incq=_cbq.active||!!window._combatActive; const _rngq=_incq?`<span class="cs">${escapeHtml(combatRangeUi(_cbq.range,_cbq.range_source))}</span>`:'';
     if(sl) sl.innerHTML=`<div class="cstat"><span class="cs">Round ${curRound.round_number}</span><span class="cs ${submitted>=total?'done':'wait'}">Submitted ${submitted}/${total}</span>${_rngq}</div>`;
     return;
   }
   _lastRoundbarKey=rbKey;
   const keepAct=(document.getElementById('actInput')||{}).value||window._actionEditDraft||'';   // v741: restore exact draft after scoped retract
-  const _cbS=(curRound.meta||{}).combat||{}; const _incS=_cbS.active||!!window._combatActive; const _rng=_incS?`<span class="cs">${escapeHtml((typeof _cbS.range==='string'&&_cbS.range)?_cbS.range:'COMBAT')}</span>`:'';   /* v621 B7: range อาจเป็น object จาก meta เก่า → "[object Object]" */
+  const _cbS=(curRound.meta||{}).combat||{}; const _incS=_cbS.active||!!window._combatActive; const _rng=_incS?`<span class="cs">${escapeHtml(combatRangeUi(_cbS.range,_cbS.range_source))}</span>`:'';
   let html=`<div class="cstat"><span class="cs">Round ${curRound.round_number}</span><span class="cs ${submitted>=total?'done':'wait'}">Submitted ${submitted}/${total}</span>${_rng}</div>`;
   list.forEach(a=>{ html+=`<div class="actionlog"><b>${escapeHtml(nameFor(a))}</b> ${escapeHtml(a.action_text)}</div>`; });
   bar.innerHTML=html;   // สร้างทีเดียว (synchronous ต่อจากนี้ ไม่มี await)
@@ -4754,7 +4771,10 @@ async function submitLevelUp(asiState, picks, feats, btn){
     const { data:lu, error }=await supa.rpc('levelup_submit',{p_campaign:campaign.id,p_char:myChar.id});
     if(error) throw error;
     if(lu){ worldState=worldState||{}; worldState.level_up=lu; }
-    toast('เลเวลอัพเสร็จ \u2713 รอเพื่อนให้ครบ'); renderMe();
+    const _luAfter=levelUpUiState();
+    if(lu&&!_luAfter.pending) worldState.level_up={...lu,active:false};
+    toast(_luAfter.pending?'เลเวลอัพเสร็จ ✓ รอเพื่อนอีก '+Math.max(0,_luAfter.total-_luAfter.done)+' คน':'เลเวลอัพเสร็จ ✓ พร้อมเล่นต่อ');
+    renderMe(); renderRoundbar();
   }catch(e){ toast(e.message||'ยืนยันไม่สำเร็จ',true); if(btn){ btn.disabled=false; btn.textContent='\u2713 ยืนยันเลเวลอัพ'; } }
 }
 // Part B: หน้าเตรียมเวทรายวัน (cleric/druid/paladin) — โผล่เมื่อ prepare_due (วันใหม่) หรือกดเลือกเองได้
@@ -4876,7 +4896,8 @@ async function _renderMeInner(){
   /* ใช้ mySheet ที่ refreshAll/realtime โหลดไว้แล้ว — ไม่ refetch ทุกครั้งที่ render (ลด round-trip) */
   const sheet=mySheet||{};
   const ab=sheet.abilities||{}, cb=sheet.combat||{}, w=sheet.wallet||{}, ex=sheet.exp||{};
-  if(worldState&&worldState.level_up&&worldState.level_up.active){ try{ await renderLevelUpPanel(p); }catch(e){ console.error('renderLevelUpPanel:',e); try{ const _luErr=document.createElement('div'); _luErr.className='item'; _luErr.style.cssText='border:2px solid #f5c542'; _luErr.innerHTML='<div class="sectitle" style="color:#f5c542">⭐ LEVEL UP</div><div class="note">แผงเลือกโหลดไม่สำเร็จ — รีเฟรชหน้า หรือให้ host กด "ข้ามรอทุกคน"</div>'; p.appendChild(_luErr); }catch(e2){} } }   /* v621 B16: เลิก catch เงียบ — throw = picker หายทั้ง card ผู้เล่นติด gate โดยไม่รู้สาเหตุ */
+  const _luMe=levelUpUiState();
+  if(_luMe.pending&&!_luMe.mineDone){ try{ await renderLevelUpPanel(p); }catch(e){ console.error('renderLevelUpPanel:',e); try{ const _luErr=document.createElement('div'); _luErr.className='item'; _luErr.style.cssText='border:2px solid #f5c542'; _luErr.innerHTML='<div class="sectitle" style="color:#f5c542">⭐ LEVEL UP</div><div class="note">แผงเลือกโหลดไม่สำเร็จ — รีเฟรชหน้า หรือให้ host กด "ข้ามรอทุกคน"</div>'; p.appendChild(_luErr); }catch(e2){} } }
   // v181: การ์ดเตรียมเวทประจำวันย้ายไปแท็บ Skills (renderSkills) ตามคำขอ — แท็บ Me เหลือเลเวลอัพอย่างเดียว
   if(sheet.wildshape&&sheet.wildshape.active){ try{ renderWildShapeCard(p, sheet.wildshape); }catch(e){} }
   const esc=v=>escapeHtml(String(v)); const dash='—';
