@@ -2045,7 +2045,7 @@ const SUPA_URL = 'https://caxksvqlgrvwnjynbbye.supabase.co';
 const SUPA_ANON = 'sb_publishable_kODadNf7PNUWJr_ZTViABw_IsP6ggJ6';
 // ▲▲▲ key สาธารณะ (publishable) — ปลอดภัยที่จะฝัง ความปลอดภัยจริงอยู่ที่ RLS ▲▲▲
 const RESOLVE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/resolve-round';
-const FRONTEND_BUILD = 202607220750;   // v750: death/options terminal truth + retryable scene lease UI
+const FRONTEND_BUILD = 202607230752;   // v752: hide stale combat-class roll requests without an active encounter
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -4347,12 +4347,19 @@ async function renderRoundbar(){
   }
   if(!mine){
     const meta=curRound.meta||{};
-    const cb=meta.combat||{}, rr=meta.roll_request||{}, inter=meta.interactables||[];
+    const cb=meta.combat||{}, inter=meta.interactables||[]; let rr=meta.roll_request||{};
     window._gridLight=(cb.light==='dim'||cb.light==='dark')?cb.light:null;   // v518 P5: ระดับแสงจริงจาก server (meta.combat.light) → renderBattleGrid วาดม่านมืด
     // v252: โหมด UI (คำสั่งคอมแบต vs ช่องเนื้อเรื่อง) ผูกกับ 'encounter active จริง' (_combatActive จาก combat_state) เท่านั้น —
     //   เดิมใช้ cb.active (meta จาก DM) เป็น fallback → ฉาก offer ที่ DM ตั้ง active แต่ encGuard บล็อกเปิดจริง = โชว์คำสั่งคอมแบตในฉาก story (ราก desync Cockatrice)
     //   ราก: combat command ต้องไม่โผล่ในเนื้อเรื่อง + ไม่ถามเนื้อเรื่องในศึก → ความจริงเดียว = มีศัตรู active จริงไหม
     const inCombat = !!window._combatActive;
+    // v752 B7: safe-forward old rounds (including r135) without a DB rewrite.
+    // Initiative/attack/damage requests are invalid when no authoritative encounter
+    // is active; ordinary story skill/check/save requests remain untouched.
+    if(!inCombat && rr && rr.needed===true){
+      const _rrCombatBlob=[rr.type,rr.reason].concat(Array.isArray(rr.items)?rr.items.map(x=>(x&&x.label||'')+' '+(x&&x.formula||'')):[]).join(' ');
+      if(/initiative|โจมตี|attack(?: roll)?|damage|ดาเมจ|combat|เริ่ม(?:การ)?ต่อสู้|เข้าสู่การต่อสู้/i.test(_rrCombatBlob)) rr={};
+    }
     if(econUsedRound!==curRound.id){ econUsed={}; econUsedRound=curRound.id; }  // รีเซ็ตมาร์กทุกรอบ
     if(inCombat){
       // ── (06-08) turn-lock ชั้นสอง: กัน gCombat ค้าง → ใช้ meta.combat.for_char_id (server ระบุเจ้าของตาถัดไป) เป็นตัวชี้ขาด ──
