@@ -2005,7 +2005,7 @@ const SUPA_URL = 'https://caxksvqlgrvwnjynbbye.supabase.co';
 const SUPA_ANON = 'sb_publishable_kODadNf7PNUWJr_ZTViABw_IsP6ggJ6';
 // ▲▲▲ key สาธารณะ (publishable) — ปลอดภัยที่จะฝัง ความปลอดภัยจริงอยู่ที่ RLS ▲▲▲
 const RESOLVE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/resolve-round';
-const FRONTEND_BUILD = 202607240756;   // v756: terminal battle teardown + condition-label dedupe
+const FRONTEND_BUILD = 202607240759;   // v759: derived Hit Dice/Speed facts + canonical resource inputs
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -3173,7 +3173,7 @@ function calcAC(sheet, klass){
 }
 function itemBonusStr(bon){ const x=[]; const g=(lab,v)=>{ if(v) x.push(lab+' '+(v>=0?'+':'')+v); };
   g('atk',bon.add.attack); g('dmg',bon.add.damage); g('save',bon.add.save); g('check',bon.add.ability_check); g('spellAtk',bon.add.spell_attack); g('spellDC',bon.add.spell_dc); if(bon.add.speed)x.push('speed +'+bon.add.speed); return x.join(', '); }
-function equipBonusNumeric(bon){ const add=(bon&&bon.add)||{}; const KEYS=['attack','damage','spell_attack','spell_dc','save','ability_check']; const cl=v=>Math.max(-2,Math.min(3,Math.floor(+v))); const out={}; for(const k of KEYS){ const v=add[k]; if(v==null||isNaN(+v)) continue; const n=cl(v); if(n) out[k]=n; } return out; }   /* v333 item-bonus: bake ตัวเลข (ไม่รวม ac=bake ใน .ac แล้ว / set_*=effAbility / speed) · clamp [-2,3] ตรง clampItemBonuses server */
+function equipBonusNumeric(bon){ const add=(bon&&bon.add)||{}; const KEYS=['attack','damage','spell_attack','spell_dc','save','ability_check','speed']; const cl=(k,v)=>k==='speed'?Math.max(-10,Math.min(30,Math.floor(+v))):Math.max(-2,Math.min(3,Math.floor(+v))); const out={}; for(const k of KEYS){ const v=add[k]; if(v==null||isNaN(+v)) continue; const n=cl(k,v); if(n) out[k]=n; } return out; }   /* v759: speed joins the numeric equipment receipt used by effectiveSpeed; ac remains baked separately */
 function persistCombatStats(sheet, klass){ try{ const r=calcAC(sheet,klass); sheet.combat=sheet.combat||{}; sheet.combat.ac=r.ac; sheet.combat.attune=r.bon.attune; sheet.combat.item_bonus=itemBonusStr(r.bon); sheet.combat.equip_bonus=equipBonusNumeric(r.bon); }catch(e){} return sheet; }
 function suggestHP(){
   const hpEl=$('cHp'); if(!hpEl) return;
@@ -3276,6 +3276,7 @@ const RACE_FEATURES={
        {name:'Relentless Endurance',description:'เมื่อ HP จะเหลือ 0 ให้คงเหลือ 1 HP แทน (1/long rest)',max_uses:1,recharge:'long'}],
 };
 function raceKey(){ const r=(raceValue()||'').toLowerCase(); if(/drow|dark.?elf/.test(r)) return 'drow'; if(/half.?elf/.test(r)) return 'halfelf'; if(/half.?orc/.test(r)) return 'halforc'; for(const k in RACE_FEATURES){ if(r.includes(k)) return k; } return null; }
+function baseSpeedForRaceValue(value){const r=String(value||'').toLowerCase().replace(/[^a-z]/g,'');if(!r)return null;if(r.includes('woodelf'))return 35;if(r.includes('dwarf'))return 25;if(new Set(['human','elf','drow','drowdarkelf','darkelf','halfling','halfelf','halforc','tiefling','dragonborn','gnome','aasimar','goliath','orc']).has(r))return 30;return null;}
 function classKey(){ const c=(classValue()||'').toLowerCase(); for(const k in CLASS_SKILLS){ if(c.includes(k)) return k; } return null; }
 // เงินเริ่มต้นตาม PHB (class starting wealth, เฉลี่ย gp) — monk = 5d4 gp
 const CLASS_START_GOLD={barbarian:50,bard:125,cleric:125,druid:50,fighter:125,monk:13,paladin:125,ranger:125,rogue:100,sorcerer:75,warlock:100,wizard:100,artificer:125};
@@ -3384,6 +3385,7 @@ async function createCharacter(){
     }
     // เงินเริ่มต้น (v623 D3/H11 กัน double-dip): ชุดกำหนด gold เอง = ใช้ค่านั้น · ได้ชุดอุปกรณ์เต็ม (items) = เงินติดกระเป๋า 15 gp (PHB: starting wealth ตามคลาส คือทางเลือก "แทนอุปกรณ์" — ห้ามได้ทั้งคู่) · ไม่มี package = เงินคลาสเต็ม
     { const _ck=classKey(); walletp.gp = (selectedPkg && selectedPkg.gold) ? selectedPkg.gold : (selectedPkg && Array.isArray(selectedPkg.items) && selectedPkg.items.length) ? 15 : (CLASS_START_GOLD[_ck]||15); }
+    const _baseSpeed759=baseSpeedForRaceValue(raceValue());
     const sheet={
       race:raceValue(), sex:$('cSex').value.trim(), age:$('cAge').value.trim(),
       // v720: เก็บ "เดือน-วัน" (MM-DD) ตามปฏิทินโลก 12×30 — ไม่มีปี · เลือกไม่ครบคู่ = ไม่บันทึก
@@ -3391,7 +3393,7 @@ async function createCharacter(){
       dragonborn_element: (raceKey()==='dragonborn') ? dragonbornElement : undefined,   // v291: ธาตุ → resist + Breath Weapon (server ใช้)
       abilities:{ str:finalAb('str'), dex:finalAb('dex'), con:finalAb('con'), int:finalAb('int'), wis:finalAb('wis'), cha:finalAb('cha') },
       skill_proficiencies: chosenSkills.slice(),
-      combat:{ hp:maxhp, maxhp:maxhp, hitdice:'' },
+      combat:{ hp:maxhp, maxhp:maxhp, hd_used:0, ...(_baseSpeed759!=null?{speed:_baseSpeed759}:{}) },
       equipment:eqp,
       inventory:invp, wallet:walletp, exp:{current:0,next:300},
       conditions:[], resistances:{resist:[],immune:[],vulnerable:[]}, effects:[],
@@ -4897,6 +4899,23 @@ function reentrantGuard(fn){ let running=false, rerun=false, gen=0, startedAt=0;
 }; }
 const renderMe = reentrantGuard(_renderMeInner);
 const renderParty = reentrantGuard(_renderPartyInner);
+const _SHEET_HIT_DIE={barbarian:12,fighter:10,paladin:10,ranger:10,bard:8,cleric:8,druid:8,monk:8,rogue:8,warlock:8,artificer:8,sorcerer:6,wizard:6};
+function derivedSheetCombatFacts(ch,sheet){
+  const cb=(sheet&&sheet.combat)||{}, cls=String((ch&&ch.class)||'').toLowerCase();
+  let die=8; for(const k in _SHEET_HIT_DIE){if(cls.includes(k)){die=_SHEET_HIT_DIE[k];break;}}
+  const total=Math.max(1,Math.floor(+((ch&&ch.level)||1)||1));
+  const used=Math.max(0,Math.min(total,Number.isFinite(+cb.hd_used)?Math.floor(+cb.hd_used):0));
+  const hitDice=uiCopy(`${total-used}d${die} เหลือ / ${total}d${die}`,`${total-used}d${die} left / ${total}d${die}`);
+  const ws=sheet&&sheet.wildshape;
+  if(ws&&ws.active===true){const m=String(ws.speed||'').match(/(\d+)\s*ft/i);if(m)return {hitDice,speed:Math.max(5,Math.floor(+m[1])||30)};}
+  const raceBase=baseSpeedForRaceValue(sheet&&sheet.race);
+  const parsed=Math.floor(parseInt(String(cb.speed==null?(raceBase==null?30:raceBase):cb.speed),10));
+  const base=(!Number.isFinite(parsed)||parsed===0)?(raceBase==null?30:raceBase):Math.max(5,parsed);
+  const feats=Array.isArray(sheet&&sheet.feats)?sheet.feats:[];
+  const mobile=feats.some(f=>/\bmobile\b/i.test(String(typeof f==='string'?f:(f&&f.name)||'')))?10:0;
+  const rawEquip=cb&&cb.equip_bonus&&cb.equip_bonus.speed, equip=Number.isFinite(+rawEquip)?Math.max(-10,Math.min(30,Math.floor(+rawEquip))):0;
+  return {hitDice,speed:Math.max(5,base+mobile+equip)};
+}
 async function _renderMeInner(){
   const p=$('panel-me'); p.innerHTML='';
   if(!myChar){ p.innerHTML='<div class="muted">No character yet</div>'; return; }
@@ -4957,7 +4976,7 @@ async function _renderMeInner(){
   const _thp=(cb&&Number.isFinite(+cb.temp_hp)&&+cb.temp_hp>0)?+cb.temp_hp:0;   // v446: temp HP (Heroism/False Life/Aid) — โชว์ให้ผู้เล่นเห็น
   const hp=((cb.maxhp!=null)?`${cb.hp??cb.maxhp}/${cb.maxhp}`:((myChar.public_status||{}).hp||dash))+(_thp?` (+${_thp} ชั่วคราว)`:'');
   const sub=[sheet.race, sheet.sex, sheet.age?('อายุ '+sheet.age):'', myChar.class||'Adventurer', sheet.subclass||'', 'Lv.'+myChar.level].filter(Boolean).join(' · ');   // v183: โชว์ subclass (Oath)
-  const spd=(cb.speed!=null)?(cb.speed+(bon.add.speed||0)):(bon.add.speed?('+'+bon.add.speed):null);
+  const _derivedCombat759=derivedSheetCombatFacts(myChar,sheet);
   const bsum=[]; if(bon.add.attack) bsum.push('โจมตี '+sign(bon.add.attack)); if(bon.add.damage) bsum.push('ดาเมจ '+sign(bon.add.damage)); if(bon.add.save) bsum.push('save '+sign(bon.add.save)); if(bon.add.ability_check) bsum.push('ability check '+sign(bon.add.ability_check)); if(bon.add.spell_attack) bsum.push('spell atk '+sign(bon.add.spell_attack)); if(bon.add.spell_dc) bsum.push('spell DC '+sign(bon.add.spell_dc));
   const abil2=(lab,key)=>{ const sc=eAb[key]; const m=sign(mod(sc)); const boosted=(sc!=null && ab[key]!=null && sc!==ab[key]); const v=(sc==null?dash:`${sc}`)+(m?`  (${m})`:'')+(boosted?' ✦':''); return num(lab,v); };
   // window 1: abilities + combat
@@ -4966,7 +4985,7 @@ async function _renderMeInner(){
     `<div class="sectitle">ABILITY SCORES</div><div class="grid2">`+abil2('STR','str')+abil2('DEX','dex')+abil2('CON','con')+abil2('INT','int')+abil2('WIS','wis')+abil2('CHA','cha')+`</div>`+
     `<div class="sectitle">COMBAT</div>`+num('Armor Class (AC)',acRes.ac)+
     `<div class="note" style="margin:-2px 0 4px;">AC = ${esc(acRes.label)}</div>`+
-    num('Hit Points (HP)',hp)+num('Hit Dice',cb.hitdice)+num('Initiative',initv)+num('Speed (ft)',spd==null?dash:spd)+num('Proficiency',sign(prof))+num('Attunement (เวท)',bon.attune+'/3')+
+    num('Hit Points (HP)',hp)+num('Hit Dice',_derivedCombat759.hitDice)+num('Initiative',initv)+num('Speed (ft)',_derivedCombat759.speed)+num('Proficiency',sign(prof))+num('Attunement (เวท)',bon.attune+'/3')+
     slotPillsHtml(sheet)+
     (bon.attune>3?'<div class="note" style="color:#FAC775">⚠ attunement เกิน 3 (กฎ 5e สูงสุด 3 ชิ้น)</div>':'')+
     (bsum.length?`<div class="note" style="margin:2px 0">โบนัสไอเทม: ${esc(bsum.join(' · '))}</div>`:'')+
