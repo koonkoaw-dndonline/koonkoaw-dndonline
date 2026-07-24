@@ -2045,7 +2045,7 @@ const SUPA_URL = 'https://caxksvqlgrvwnjynbbye.supabase.co';
 const SUPA_ANON = 'sb_publishable_kODadNf7PNUWJr_ZTViABw_IsP6ggJ6';
 // ▲▲▲ key สาธารณะ (publishable) — ปลอดภัยที่จะฝัง ความปลอดภัยจริงอยู่ที่ RLS ▲▲▲
 const RESOLVE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/resolve-round';
-const FRONTEND_BUILD = 202607240763;   // v763: personal-options single-flight survives roundbar replacement
+const FRONTEND_BUILD = 202607240764;   // v764: option envelope/language guard + stale-cache display belt
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -4026,10 +4026,13 @@ function dmFillOption(opt,setRec,idx){
 }
 function dmOptionCard(raw,setRec,idx){
   const fallbackRaw=String(raw==null?'':raw).trim(); if(!fallbackRaw) return null;
-  // v709 P0: malformed tagged envelopes stay usable in shadow/off. The
-  // authoritative validator may reject them in enforce, but the renderer must
-  // never turn three server suggestions into zero cards.
+  // v764 display belt: tagged protocol fragments are never actionable advice.
+  // The resolver logs/quarantines this class; the client additionally refuses
+  // stale cached payloads from an older resolver during a rolling deploy.
   const opt=dmParseOption(raw)||{legacy:true,title:fallbackRaw,action:fallbackRaw,target:'',expected:'',cost:'',risk:'',range:'',roll:'',why:'',raw:fallbackRaw};
+  const tagged=/\b(?:TITLE|ACTION|TARGET|EXPECTED|COST|RISK|RANGE|ROLL|WHY)\s*=/i.test(fallbackRaw);
+  const missingRequired=[opt.title,opt.action,opt.target,opt.expected].some(v=>!v||v==='-'||v==='—');
+  if(tagged&&(opt.legacy||missingRequired)) return null;
   const d=document.createElement('details'); d.className='dmopt'; d.style.cssText='margin:5px 0;border:1px solid #555;padding:5px 7px;text-align:left';
   const s=document.createElement('summary'); s.style.cssText='cursor:pointer;font-weight:700'; s.textContent=opt.title; d.appendChild(s);
   const body=document.createElement('div'); body.style.cssText='padding:6px 2px;line-height:1.45';
@@ -4039,8 +4042,10 @@ function dmOptionCard(raw,setRec,idx){
   d.appendChild(body); return d;
 }
 function dmRenderOptions(host,list,setRec){
-  host.querySelectorAll('.dmopt').forEach(x=>x.remove());
-  (Array.isArray(list)?list:[]).slice(0,6).forEach((raw,i)=>{ const card=dmOptionCard(raw,setRec,i); if(card) host.appendChild(card); });
+  host.querySelectorAll('.dmopt,.dmopt-format-note').forEach(x=>x.remove());
+  let blocked=0;
+  (Array.isArray(list)?list:[]).slice(0,6).forEach((raw,i)=>{ const card=dmOptionCard(raw,setRec,i); if(card) host.appendChild(card); else blocked++; });
+  if(blocked){ const n=document.createElement('div'); n.className='note dmopt-note dmopt-format-note'; n.textContent=uiCopy('(แก้: ซ่อนแท็กตัวเลือกที่ไม่ครบ เพราะยังไม่ใช่คำแนะนำที่กดใช้ได้)','(Fixed: incomplete option tags were hidden because they are not actionable suggestions.)'); host.appendChild(n); }
 }
 // v763: personal-options UI state is round/character scoped, never DOM-node
 // scoped. renderRoundbar replaces this widget during a 30s model request, so a
