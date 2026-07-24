@@ -2045,7 +2045,7 @@ const SUPA_URL = 'https://caxksvqlgrvwnjynbbye.supabase.co';
 const SUPA_ANON = 'sb_publishable_kODadNf7PNUWJr_ZTViABw_IsP6ggJ6';
 // ▲▲▲ key สาธารณะ (publishable) — ปลอดภัยที่จะฝัง ความปลอดภัยจริงอยู่ที่ RLS ▲▲▲
 const RESOLVE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/resolve-round';
-const FRONTEND_BUILD = 202607240764;   // v764: option envelope/language guard + stale-cache display belt
+const FRONTEND_BUILD = 202607240772;   // v772: durable quest-reward status/replay + always-fresh Stat sheet
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -3644,7 +3644,7 @@ function switchTab(t){
   document.body.classList.toggle('tab-story', t==='story');
   // v508: มือถือกลับเข้าแท็บบทบรรยาย → เลื่อนไปบทล่าสุดเสมอ (เดิมค้างตำแหน่งเดิม/หัวฟีด ต้องไถลงเอง — คำสั่ง Koon 07-04)
   if(t==='story'){ renderStory(); try{ renderRoundbar(); }catch(e){} try{ if(matchMedia('(max-width:1023px)').matches){ requestAnimationFrame(()=>{ try{ scrollToLatest(); }catch(e){} }); } }catch(e){} }
-  else if(t==='me'){ renderMe(); /* v634ui DYN-29: เปิดแท็บ Stat → refetch ชีทถ้าข้อมูลเก่า >15s (recovery หลายเฟสทำ Party/Stat อ่านคนละชุด — self-heal เมื่อเปิดดู) */ try{ if(!window._meFreshTs || Date.now()-window._meFreshTs>15000){ window._meFreshTs=Date.now(); refreshAll().then(function(){ if(activeTab()==='me') renderMe(); }).catch(function(e){}); } }catch(e){} }
+  else if(t==='me'){ renderMe(); /* v772: Stat always re-reads its authoritative sheet on open; the former 15s cache showed pre-reward XP after a successful commit. */ try{ window._meFreshTs=Date.now(); refreshAll().then(function(){ if(activeTab()==='me') renderMe(); }).catch(function(e){}); }catch(e){} }
   else if(t==='items') renderItems();
   else if(t==='skills') renderSkills();
   else if(t==='party'){ renderParty(); /* v634ui DYN-29: มิเรอร์ฝั่ง Party */ try{ if(!window._meFreshTs || Date.now()-window._meFreshTs>15000){ window._meFreshTs=Date.now(); refreshAll().then(function(){ if(activeTab()==='party') renderParty(); }).catch(function(e){}); } }catch(e){} }
@@ -5441,13 +5441,51 @@ async function _renderPartyInner(){
   await loadChat(); renderChatList();
   if(_ciSave){ const ne=document.getElementById('chatInput'); if(ne){ ne.value=_ciSave.v; if(_ciSave.foc){ try{ ne.focus(); ne.setSelectionRange(_ciSave.s,_ciSave.e); }catch(e){} } } }
 }
+async function retryQuestRewards(btn){
+  if(campaign.host_id!==me.id) return;
+  if(btn) btn.disabled=true;
+  try{
+    const tok=(await supa.auth.getSession()).data.session?.access_token; if(!tok) throw new Error(uiCopy('กรุณาเข้าสู่ระบบใหม่','Please sign in again'));
+    const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,replay_quest_rewards:true})});
+    const j=await r.json(); if(!r.ok||j.error) throw new Error(j.message||j.error||uiCopy('เล่นรางวัลซ้ำไม่สำเร็จ','Reward replay failed'));
+    const x=j.quest_reward_replay||{};
+    toast(uiCopy('ตรวจและเล่นรางวัลค้างแล้ว: สำเร็จ '+Number(x.entriesApplied||0)+' · ยังล้ม '+Number(x.entriesFailed||0),'Pending rewards checked: applied '+Number(x.entriesApplied||0)+' · failed '+Number(x.entriesFailed||0)));
+    await refreshAll(); if(activeTab()==='quest') renderQuest();
+  }catch(e){ toast(e.message||uiCopy('เล่นรางวัลซ้ำไม่สำเร็จ','Reward replay failed'),true); }
+  finally{ if(btn) btn.disabled=false; }
+}
 async function renderQuest(){
   // v87: แท็บ Quest ใช้งานจริง — เควส active พร้อม hint ที่ทยอยได้ (จาก clues ผูกชื่อเควส) + เควสที่จบแล้ว + เบาะแสอื่น
   const _hostQ=$('panel-quest'); _hostQ.innerHTML='<div class="sk-cols"></div>'; const p=_hostQ.firstElementChild;   /* v531c: multicol บน wrapper (มิเรอร์ skills) */
   const FONT="font-family:inherit";   /* v610f: inherit — classic ได้ IBM Plex จาก body เท่าเดิม · สกิน paper cascade Trirong ได้ (เดิม inline ทับทุกสกิน) */
-  let quests=[], cls=[];
+  let quests=[], cls=[], rewardJobs=[];
   try{ const r=await supa.from('quests').select('*').eq('campaign_id',campaign.id).order('created_at',{ascending:false}); quests=r.data||[]; }catch(e){}
   try{ const r=await supa.from('clues').select('mystery,clue,created_at').eq('campaign_id',campaign.id).order('created_at',{ascending:true}).limit(120); cls=r.data||[]; }catch(e){}
+  try{ const r=await supa.from('quest_reward_jobs').select('id,quest_id,quest_title,state,xp_per_character,gold_per_character,loot_name,planned_recipients,attempt_count,updated_at,completed_at').eq('campaign_id',campaign.id).order('created_at',{ascending:false}).limit(40); if(!r.error) rewardJobs=r.data||[]; }catch(e){}
+  // v772 G4: durable reward state is visible independently from narration.
+  // No raw database error is shown; the host gets an explicit idempotent replay action.
+  if(rewardJobs.length){
+    const pending=rewardJobs.filter(j=>j.state==='pending');
+    const blocked=rewardJobs.filter(j=>j.state==='blocked');
+    const paid=rewardJobs.filter(j=>j.state==='applied');
+    const card=document.createElement('div'); card.className='item';
+    const head=document.createElement('div'); head.style.cssText=FONT+';font-size:15px;font-weight:700;text-align:left;padding:2px 0 6px;border-bottom:1px solid #444;margin-bottom:6px';
+    head.textContent=uiCopy('🎁 บัญชีรางวัลเควสต์','🎁 Quest reward ledger');
+    card.appendChild(head);
+    rewardJobs.slice(0,8).forEach(j=>{
+      const row=document.createElement('div'); row.style.cssText=FONT+';font-size:12px;text-align:left;margin:5px 0;display:flex;justify-content:space-between;gap:10px';
+      const ok=j.state==='applied', needsReview=j.state==='blocked';
+      const detail='XP +'+Number(j.xp_per_character||0)+uiCopy('/คน',' each')+' · '+Number(j.gold_per_character||0)+' gp'+(j.loot_name?' · '+String(j.loot_name):'');
+      row.innerHTML='<span><b>'+escapeHtml(String(j.quest_title||''))+'</b><br><span class="muted">'+escapeHtml(detail)+'</span></span><span style="white-space:nowrap;color:'+(ok?'#97C459':'#FAC775')+'">'+(ok?uiCopy('✓ จ่ายแล้ว','✓ Paid'):(needsReview?uiCopy('⚠ ไม่มีผู้รับตอนปิดเควสต์','⚠ No recipient at completion'):uiCopy('⏳ ค้างจ่ายปลอดภัย','⏳ Safely pending')))+'</span>';
+      card.appendChild(row);
+    });
+    if(pending.length&&campaign.host_id===me.id){
+      const b=document.createElement('button'); b.className='btn sm'; b.textContent=uiCopy('↻ ลองจ่ายรายการค้างอีกครั้ง','↻ Replay pending rewards'); b.onclick=()=>retryQuestRewards(b); card.appendChild(b);
+    }
+    const foot=document.createElement('div'); foot.className='muted'; foot.style.cssText=FONT+';font-size:11px;text-align:left;margin-top:5px';
+    foot.textContent=uiCopy('จ่ายครบ '+paid.length+' · ค้าง '+pending.length+' · ต้องตรวจ '+blocked.length+' — รายการค้างไม่สูญหายและเล่นซ้ำไม่จ่ายซ้ำ','Paid '+paid.length+' · pending '+pending.length+' · review '+blocked.length+' — pending entries are retained and replay is idempotent');
+    card.appendChild(foot); p.appendChild(card);
+  }
   // ── v261b: ถอดมิเตอร์ "งบกำกับเรื่อง" (เดิม v253 §13c) ออกจากจอเล่น ──
   //   งบแชท/บอส+CR/จำนวนฉาก-เบาะแส = ความลับผู้กำกับ (server/Gemini คุมเอง) — โชว์บนจอ = สปอยล์ผู้เล่น (host ในเกมนี้ก็คือผู้เล่น เพราะ DM คือ Gemini)
   //   ผู้เล่นเห็นเฉพาะ "ป้ายความยาก ⭐/💀 + คำใบ้สาธารณะ (hint)" ด้านล่าง = เปิดเผยแค่บางส่วนตามดีไซน์
@@ -8650,6 +8688,7 @@ function subscribeRealtime(){
       try{ var _c634=String((payload&&payload.new&&payload.new.content)||''); if(/^(🛏|💰|⚠️|💀|💤)/.test(_c634) && (!window._shReloadTs || Date.now()-window._shReloadTs>15000)){ window._shReloadTs=Date.now(); refreshAll().then(function(){ if(activeTab()==='me') renderMe(); if(activeTab()==='party') renderParty(); }).catch(function(e){}); } }catch(e){}
       if(activeTab()==='story') renderStory(); if(activeTab()==='quest') renderQuest(); if(typeof scheduleBattleScene==='function') scheduleBattleScene(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'quests',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='quest') renderQuest(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'quest_reward_jobs',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='quest') renderQuest(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'rounds',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); await loadRound(); if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'actions',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'character_sheets',filter:'character_id=eq.'+((myChar&&myChar.id)||'00000000-0000-0000-0000-000000000000')}, async()=>{ rtLastSyncTs=Date.now(); await reloadMySheet(); await refreshCombatTurn(); if(activeTab()==='story') renderRoundbar(); if(activeTab()==='me') renderMe(); })
