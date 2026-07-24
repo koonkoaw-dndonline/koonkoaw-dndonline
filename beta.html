@@ -2005,7 +2005,7 @@ const SUPA_URL = 'https://caxksvqlgrvwnjynbbye.supabase.co';
 const SUPA_ANON = 'sb_publishable_kODadNf7PNUWJr_ZTViABw_IsP6ggJ6';
 // ▲▲▲ key สาธารณะ (publishable) — ปลอดภัยที่จะฝัง ความปลอดภัยจริงอยู่ที่ RLS ▲▲▲
 const RESOLVE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/resolve-round';
-const FRONTEND_BUILD = 202607240760;   // v760: generic preserved-action edit/retract recovery
+const FRONTEND_BUILD = 202607240763;   // v763: personal-options single-flight survives roundbar replacement
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -3832,34 +3832,103 @@ function dmRenderOptions(host,list,setRec){
   host.querySelectorAll('.dmopt').forEach(x=>x.remove());
   (Array.isArray(list)?list:[]).slice(0,6).forEach((raw,i)=>{ const card=dmOptionCard(raw,setRec,i); if(card) host.appendChild(card); });
 }
-// D: ปุ่มขอตัวเลือกเฉพาะตัว — ใช้ทั้ง story mode และคอมแบตที่ DM ลืมส่ง options (เรียก personal_options endpoint)
-//   ตัวเลือกที่ได้ถูกแคชต่อรอบ (window._persOpts) — roundbar re-render บ่อยจาก realtime จะวาดกลับให้ ไม่หาย
+// v763: personal-options UI state is round/character scoped, never DOM-node
+// scoped. renderRoundbar replaces this widget during a 30s model request, so a
+// closure over the old button/node cannot be the request or rendering authority.
+function persOptsContextKey(){
+  return [campaign&&campaign.id,myChar&&myChar.id,curRound&&curRound.id||'no-round'].map(x=>String(x||'')).join(':');
+}
+function persOptsCurrentCache(){
+  const c=window._persOpts;
+  return c&&Array.isArray(c.list)&&String(c.contextKey||'')===persOptsContextKey()?c:null;
+}
+function persOptsRenderInto(host,cache){
+  host.querySelectorAll('.dmopt-note').forEach(x=>x.remove());
+  if(cache&&cache.note){ const n=document.createElement('div'); n.className='note dmopt-note'; n.textContent=String(cache.note); host.appendChild(n); }
+  dmRenderOptions(host,cache&&cache.list,cache&&cache.set||null);
+}
+function persOptsRequestId(){
+  try{ if(crypto&&typeof crypto.randomUUID==='function') return 'po_'+crypto.randomUUID(); }catch(e){}
+  return 'po_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2);
+}
+async function requestPersonalOptions(forceRefresh){
+  if(gateBeforePlay()) return;
+  const contextKey=persOptsContextKey();
+  const joined=window._persOptsFlight;
+  if(joined&&joined.contextKey===contextKey&&joined.promise){
+    toast(uiCopy('(แก้: คำขอนี้กำลังทำอยู่แล้ว ระบบจะไม่เรียก DM ซ้ำ)','(Fixed: this request is already running; the DM will not be called twice.)'));
+    return joined.promise;
+  }
+  const requestId=persOptsRequestId();
+  const requestRound=(curRound&&curRound.id)||null;
+  const requestActor=(myChar&&myChar.id)||null;
+  const flight={contextKey,requestId,startedAt:Date.now(),promise:null};
+  window._persOptsFlight=flight;
+  flight.promise=(async()=>{
+    let last=null;
+    try{
+      for(let poll=0;poll<20;poll++){
+        const tok=(await supa.auth.getSession()).data.session?.access_token;
+        if(!tok) throw new Error('auth_session_missing');
+        const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({
+          campaign_id:campaign.id,personal_options:true,personal_options_request_id:requestId,personal_options_refresh:forceRefresh===true&&poll===0
+        })});
+        let j={}; try{ j=await r.json(); }catch(e){}
+        last={r,j};
+        if(r.status===409&&j&&j.code==='personal_options_in_flight'){
+          if(poll===0) toast(j.note||uiCopy('(แก้: รอชุดที่กำลังสร้างอยู่ โดยไม่ยิง DM ซ้ำ)','(Fixed: waiting for the active set without calling the DM twice.)'));
+          const waitMs=Math.min(4000,Math.max(1000,Number(j.retry_after_ms)||4000));
+          await new Promise(resolve=>setTimeout(resolve,waitMs));
+          continue;
+        }
+        break;
+      }
+      if(!last) throw new Error('personal_options_no_response');
+      const r=last.r,j=last.j||{};
+      const list2=Array.isArray(j.options)?j.options:[];
+      if(r.status===409&&j.retryable){
+        toast(j.note||j.error||uiCopy('พักตัวเลือกชั่วคราว — เดินเรื่องต่อก่อน','Options paused — continue the story first'),true);
+        return;
+      }
+      if(!r.ok||!list2.length){
+        toast((j.note||j.error||uiCopy('ยังไม่ได้ตัวเลือก ลองอีกครั้ง','No options yet — try again'))+(j.detail?(' — '+String(j.detail).slice(0,80)):''),true);
+        return;
+      }
+      if(persOptsContextKey()!==contextKey){
+        toast(uiCopy('(แก้: สถานการณ์เปลี่ยนระหว่างรอ จึงไม่แสดงตัวเลือกของฉากเก่า)','(Fixed: the situation changed while waiting, so options from the old scene were not shown.)'),true);
+        return;
+      }
+      window._dmOptionStale=null;
+      window._persOpts={rid:requestRound,actorId:requestActor,contextKey,list:list2,set:j.option_set||null,note:j.note||null,surface:j.surface||'personal',requestId:j.request_id||requestId};
+    }catch(e){
+      toast(uiCopy('ขอตัวเลือกไม่สำเร็จ','Could not request options'),true);
+    }finally{
+      if(window._persOptsFlight===flight){
+        window._persOptsFlight=null;
+        try{ await renderRoundbar(); }catch(e){}
+      }
+    }
+  })();
+  return flight.promise;
+}
 function persOptsWidget(){
   const pw=document.createElement('div'); pw.className='copt'; pw.id='persOpts';
   if(window._dmOptionStale){ const sn=document.createElement('div'); sn.className='note'; sn.textContent=window._dmOptionStale; pw.appendChild(sn); }
-  const renderList=(list,setRec,note)=>{ pw.querySelectorAll('.dmopt-note').forEach(x=>x.remove()); if(note){ const n=document.createElement('div'); n.className='note dmopt-note'; n.textContent=String(note); pw.appendChild(n); } dmRenderOptions(pw,list,setRec); };
-  const pb=document.createElement('button'); pb.type='button'; pb.textContent=uiCopy('🎲 ขอตัวเลือกเฉพาะตัว (DM เสนอให้ ','🎲 Request personal options (for ')+(myChar?myChar.name:'')+')';
-  pb.onclick=async()=>{
+  const cache=persOptsCurrentCache();
+  const busy=!!(window._persOptsFlight&&window._persOptsFlight.contextKey===persOptsContextKey());
+  const pb=document.createElement('button'); pb.type='button'; pb.disabled=busy;
+  pb.textContent=busy
+    ? uiCopy('🎲 DM กำลังคิดตัวเลือกให้คุณ…','🎲 The DM is preparing options…')
+    : (cache
+      ? uiCopy('🎲 ขอชุดใหม่จาก DM (สำหรับ ','🎲 Request another set (for ')+(myChar?myChar.name:'')+')'
+      : uiCopy('🎲 ขอตัวเลือกเฉพาะตัว (DM เสนอให้ ','🎲 Request personal options (for ')+(myChar?myChar.name:'')+')');
+  pb.onclick=()=>{
     if(gateBeforePlay()) return;
-    pb.disabled=true; const _t=pb.textContent; pb.textContent=uiCopy('🎲 DM กำลังคิดตัวเลือกให้คุณ…','🎲 The DM is preparing options…');
-    try{
-      const tok=(await supa.auth.getSession()).data.session?.access_token;
-      const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id, personal_options:true})});
-      const j=await r.json();
-      const list2=Array.isArray(j.options)?j.options:[];
-      if(r.status===409 && j.retryable){ toast(j.note||j.error||uiCopy('พักตัวเลือกชั่วคราว — เดินเรื่องต่อก่อน','Options paused — continue the story first'),true); pb.textContent=uiCopy('⏳ ฉากกำลังเปลี่ยนผ่าน — ลองใหม่ได้ในอีกครู่','⏳ Scene settling — retry shortly'); setTimeout(()=>{ if(pb&&pb.isConnected){ pb.disabled=false; pb.textContent=_t; } },j.blocked_until==='terminal_ack'?2500:1500); return; }
-      if(!list2.length){ toast((j.note||j.error||uiCopy('ยังไม่ได้ตัวเลือก ลองอีกครั้ง','No options yet — try again'))+(j.detail?(' — '+String(j.detail).slice(0,80)):''),true); }
-      else{
-        window._dmOptionStale=null;
-        window._persOpts={ rid:(curRound&&curRound.id)||null, list:list2, set:j.option_set||null, note:j.note||null, surface:j.surface||'personal' };   // cache is round/context-bound; server receipt exists only in enforce
-        renderList(list2,j.option_set||null,j.note||null);
-      }
-    }catch(e){ toast(uiCopy('ขอตัวเลือกไม่สำเร็จ','Could not request options'),true); }
-    pb.disabled=false; pb.textContent=_t;
+    pb.disabled=true; pb.textContent=uiCopy('🎲 DM กำลังคิดตัวเลือกให้คุณ…','🎲 The DM is preparing options…');
+    return requestPersonalOptions(!!persOptsCurrentCache());
   };
   pw.appendChild(pb);
-  // มีตัวเลือกแคชของรอบนี้อยู่แล้ว → วาดกลับทันที (หลัง re-render)
-  try{ if(window._persOpts && curRound && window._persOpts.rid===curRound.id && Array.isArray(window._persOpts.list)) renderList(window._persOpts.list,window._persOpts.set||null,window._persOpts.note||null); }catch(e){}
+  if(cache) persOptsRenderInto(pw,cache);
   return pw;
 }
 // v287: ผู้เล่นกด "ไปต่อ" หลังอ่านบทปิดท้ายศึก → server เพิ่ม done · ครบทุกคน (หรือ host force) → finalize → VICTORY
