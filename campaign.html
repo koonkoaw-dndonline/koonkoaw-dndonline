@@ -2045,7 +2045,7 @@ const SUPA_URL = 'https://caxksvqlgrvwnjynbbye.supabase.co';
 const SUPA_ANON = 'sb_publishable_kODadNf7PNUWJr_ZTViABw_IsP6ggJ6';
 // ▲▲▲ key สาธารณะ (publishable) — ปลอดภัยที่จะฝัง ความปลอดภัยจริงอยู่ที่ RLS ▲▲▲
 const RESOLVE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/resolve-round';
-const FRONTEND_BUILD = 202607240759;   // v759: derived Hit Dice/Speed facts + canonical resource inputs
+const FRONTEND_BUILD = 202607240760;   // v760: generic preserved-action edit/retract recovery
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -4499,11 +4499,11 @@ async function renderRoundbar(){
     bar.appendChild(w);
     const _wedge=(worldState&&worldState.settings&&worldState.settings.enc_action_wedge)||null;
     const _repair=window._actionRepair&&window._actionRepair.round_id===curRound.id?window._actionRepair:(_wedge&&String(_wedge.round_id)===String(curRound.id)?_wedge:null);
-    const _stuckAction=_repair?list.find(a=>String(a.id)===String(_repair.action_id)):null;
+    const _stuckAction=_repair?(_repair.action_id?list.find(a=>String(a.id)===String(_repair.action_id)):list.find(a=>String(a.user_id)===String(me&&me.id))):null;
     const _canRepair=!!_stuckAction&&(isHost||String(_stuckAction.user_id)===String(me&&me.id));
     if(_repair&&_canRepair&&curRound.phase==='awaiting_actions'){
-      const eb=document.createElement('button'); eb.className='btn warn sm'; eb.textContent=isHost?uiCopy('✎ ปลด action ที่ค้าง','✎ Release stuck action'):uiCopy('✎ แก้ action ของคุณ','✎ Edit your action');
-      eb.disabled=!!resolving; eb.onclick=()=>retractActionForEdit(_repair.action_id,String(_stuckAction.user_id)===String(me&&me.id)?(_stuckAction.action_text||''):''); bar.appendChild(eb);
+      const eb=document.createElement('button'); eb.className='btn warn sm'; eb.textContent=_repair.generic?uiCopy('✎ แก้ action ก่อนลองใหม่','✎ Edit action before retry'):(isHost?uiCopy('✎ ปลด action ที่ค้าง','✎ Release stuck action'):uiCopy('✎ แก้ action ของคุณ','✎ Edit your action'));
+      eb.disabled=!!resolving; eb.onclick=()=>retractActionForEdit(_stuckAction.id,String(_stuckAction.user_id)===String(me&&me.id)?(_stuckAction.action_text||''):''); bar.appendChild(eb);
     }else if(!pending.length && curRound.phase==='awaiting_actions'){
       const rb=document.createElement('button'); rb.className='btn ghost sm'; rb.textContent=uiCopy('↻ ลองประมวลผลรอบนี้','↻ Retry this round');
       rb.disabled=!!resolving; rb.onclick=()=>resolveRound(false); bar.appendChild(rb);
@@ -4690,6 +4690,9 @@ async function resolveRound(force, mode){
       if(_repairReasons.includes(j.reason_code)&&j.action_preserved===true&&j.action_id){
         window._actionRepair={round_id:curRound&&curRound.id,action_id:j.action_id,reason_code:j.reason_code};
         toast((j.detail||uiCopy('(แก้: action เดิมถูกเก็บไว้ — กด “แก้ action ของคุณ” เพื่อปลดและเขียนใหม่)','(Fixed: the original action was preserved — choose “Edit your action” to release and rewrite it.)')),true);
+      }else if(j.action_preserved===true&&j.retryable!==false){
+        window._actionRepair={round_id:curRound&&curRound.id,action_id:j.action_id||null,reason_code:j.reason_code||'action_preserved_retryable',generic:true};
+        toast((j.detail||uiCopy('(แก้: action เดิมยังอยู่ — จะลองใหม่หรือกด “แก้ action ก่อนลองใหม่” ก็ได้)','(Fixed: the original action is preserved — retry it or choose “Edit action before retry.”)')),true);
       }else if(j.reason_code==='action_auto_voided'){
         window._actionRepair=null; window._actionEditDraft=''; toast(j.note||uiCopy('(แก้: ระบบปลด action ที่ค้างแล้ว กรุณาส่ง action ใหม่)','(Fixed: the stuck action was released; submit a new action.)'),true);
       }else toast((j.error||uiCopy('ประมวลผลรอบไม่สำเร็จ','Resolve failed'))+(j.detail?(' — '+String(j.detail).slice(0,220)):''),true);
