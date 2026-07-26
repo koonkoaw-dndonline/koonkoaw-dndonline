@@ -2004,8 +2004,18 @@ const SUPA_URL = 'https://caxksvqlgrvwnjynbbye.supabase.co';
 //   หาได้ที่ Supabase Dashboard → Project Settings → API → "anon public" หรือ "publishable key"
 const SUPA_ANON = 'sb_publishable_kODadNf7PNUWJr_ZTViABw_IsP6ggJ6';
 // ▲▲▲ key สาธารณะ (publishable) — ปลอดภัยที่จะฝัง ความปลอดภัยจริงอยู่ที่ RLS ▲▲▲
-const RESOLVE_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/resolve-round';
-const FRONTEND_BUILD = 202607240772;   // v772: durable quest-reward status/replay + always-fresh Stat sheet
+const EDGE_REGION_DEFAULT='ap-southeast-2';
+const EDGE_FUNCTION_BASE=SUPA_URL.replace(/\/$/,'') + '/functions/v1/resolve-round';
+function edgeFunctionRegionValue(value){
+  return value==='ap-southeast-1'||value==='ap-southeast-2'?value:'';
+}
+function edgeFunctionResolverUrl(region){
+  const safe=edgeFunctionRegionValue(region);
+  return EDGE_FUNCTION_BASE+(safe?'?forceFunctionRegion='+encodeURIComponent(safe):'');
+}
+let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
+let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
+const FRONTEND_BUILD = 202607260776;   // S1.5d: server-controlled Edge region canary
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2273,11 +2283,23 @@ async function afterAuthChange(){
   session = s;
   if(!session){ $('hdDot').className='dot'; $('hdLogout').classList.add('hidden'); show('authScreen'); return; }
   me = session.user;
+  await refreshEdgeFunctionRegion();
   try{ const _own=OWNER_EMAILS.includes((me.email||'').toLowerCase())||(BETA&&!!betaCode()); const _cc=$('createCard'); if(_cc) _cc.style.display=_own?'':'none'; }catch(e){}   // v210: เบต้าเทสเตอร์ (มีรหัส) สร้างโลกได้
   $('hdDot').className='dot ok'; $('hdLogout').classList.remove('hidden');
   $('hdWho').textContent = me.email || '';
   await ensureProfile();
   await loadMyCampaign();
+}
+
+async function refreshEdgeFunctionRegion(){
+  let next=EDGE_REGION_DEFAULT;
+  try{
+    const r=await supa.rpc('edge_function_region');
+    if(!r.error) next=edgeFunctionRegionValue(r.data);
+  }catch(e){}
+  activeEdgeFunctionRegion=next;
+  RESOLVE_FN=edgeFunctionResolverUrl(next);
+  return next;
 }
 
 async function ensureProfile(){
