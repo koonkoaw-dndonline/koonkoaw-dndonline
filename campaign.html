@@ -2055,7 +2055,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202607260776;   // S1.5d: server-controlled Edge region canary
+const FRONTEND_BUILD = 202607270777;   // S2 Slice A: typed inventory-affordance retry buttons
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2101,6 +2101,36 @@ async function retractActionForEdit(actionId, draftText){
     toast(uiCopy('(แก้: ปลด action ที่ค้างแล้ว — แก้ข้อความและส่งใหม่ได้)','(Fixed: the stuck action was released — edit it and submit again.)'));
     await loadRound(); renderRoundbar();
   }catch(e){ toast(e.message||uiCopy('ปลด action ไม่สำเร็จ','Could not release the action'),true); }
+}
+async function resolveInventoryAffordance(actionId, affordance){
+  if(resolving||!curRound||!actionId||!affordance||!affordance.payload) return;
+  resolving=true; renderRoundbar(); setMyThinking(true);
+  try{
+    const token=(await supa.auth.getSession()).data.session?.access_token;
+    const body={
+      campaign_id:campaign.id,
+      group_no:Math.max(1,Math.min(2,Math.floor(Number((myChar&&myChar.group_no)||(curRound&&curRound.group_no))||1))),
+      client_build:FRONTEND_BUILD,
+      client_epoch:FRONTEND_COMPAT_EPOCH,
+      i18n_asset_build:typeof englishAssetBuildProof==='function'?englishAssetBuildProof():null,
+      inventory_affordance_choice:{action_id:String(actionId),payload:affordance.payload}
+    };
+    const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
+    const j=await r.json();
+    if(!r.ok){
+      if(j.action_preserved===true){
+        window._actionRepair={round_id:curRound.id,action_id:j.action_id||String(actionId),reason_code:j.reason_code||'player_inventory_action_preserved',generic:true,affordances:Array.isArray(j.affordances)?j.affordances:[]};
+      }
+      toast(j.detail||uiCopy('(แก้: ยังยืนยันตัวเลือกคลังไม่ได้ — action เดิมยังอยู่และลองใหม่ได้)','(Fixed: the inventory choice could not be confirmed — the original action is preserved and can be retried.)'),true);
+    }else{
+      window._actionRepair=null;
+      toast(j.status==='resolved'?uiCopy('เลือกของและดำเนินเรื่องแล้ว ✓','Item selected and story resolved ✓'):uiCopy('ส่งตัวเลือกแล้ว ✓','Choice submitted ✓'));
+    }
+  }catch(e){
+    toast(uiCopy('เชื่อมต่อ resolver ไม่สำเร็จ — action เดิมยังอยู่','Could not reach the resolver — the original action is preserved'),true);
+  }finally{
+    resolving=false; setMyThinking(false); await refreshAll(); renderStory(); renderRoundbar();
+  }
 }
 function terminalGroupForUi(){ var n=Number((myChar&&myChar.group_no)||1); return Math.floor(n)===2?2:1; }
 function terminalGateForUi(settings,groupNo){
@@ -4599,6 +4629,12 @@ async function renderRoundbar(){
     if(_repair&&_canRepair&&curRound.phase==='awaiting_actions'){
       const eb=document.createElement('button'); eb.className='btn warn sm'; eb.textContent=_repair.generic?uiCopy('✎ แก้ action ก่อนลองใหม่','✎ Edit action before retry'):(isHost?uiCopy('✎ ปลด action ที่ค้าง','✎ Release stuck action'):uiCopy('✎ แก้ action ของคุณ','✎ Edit your action'));
       eb.disabled=!!resolving; eb.onclick=()=>retractActionForEdit(_stuckAction.id,String(_stuckAction.user_id)===String(me&&me.id)?(_stuckAction.action_text||''):''); bar.appendChild(eb);
+      const _inventoryAffordances=Array.isArray(_repair.affordances)?_repair.affordances:[];
+      const _inventoryChoiceOwner=String(_stuckAction.user_id)===String(me&&me.id);
+      if(_inventoryAffordances.length&&_inventoryChoiceOwner){
+        const ah=document.createElement('div'); ah.className='note'; ah.textContent=uiCopy('🎒 เลือกของที่อยู่ในฉากจริง — action เดิมจะยังอยู่จนกว่าระบบยืนยันตัวเลือก','🎒 Choose an item that is actually in the scene — the original action remains until the choice is confirmed.'); bar.appendChild(ah);
+        _inventoryAffordances.slice(0,6).forEach(aff=>{ const ab=document.createElement('button'); ab.type='button'; ab.className='btn ghost sm'; ab.textContent=uiCopy(String(aff&&aff.label_th||'เลือกของ'),String(aff&&aff.label_en||'Choose item')); ab.disabled=!!resolving; ab.onclick=()=>resolveInventoryAffordance(_stuckAction.id,aff); bar.appendChild(ab); });
+      }
     }else if(!pending.length && curRound.phase==='awaiting_actions'){
       const rb=document.createElement('button'); rb.className='btn ghost sm'; rb.textContent=uiCopy('↻ ลองประมวลผลรอบนี้','↻ Retry this round');
       rb.disabled=!!resolving; rb.onclick=()=>resolveRound(false); bar.appendChild(rb);
@@ -4786,7 +4822,7 @@ async function resolveRound(force, mode){
         window._actionRepair={round_id:curRound&&curRound.id,action_id:j.action_id,reason_code:j.reason_code};
         toast((j.detail||uiCopy('(แก้: action เดิมถูกเก็บไว้ — กด “แก้ action ของคุณ” เพื่อปลดและเขียนใหม่)','(Fixed: the original action was preserved — choose “Edit your action” to release and rewrite it.)')),true);
       }else if(j.action_preserved===true&&j.retryable!==false){
-        window._actionRepair={round_id:curRound&&curRound.id,action_id:j.action_id||null,reason_code:j.reason_code||'action_preserved_retryable',generic:true};
+        window._actionRepair={round_id:curRound&&curRound.id,action_id:j.action_id||null,reason_code:j.reason_code||'action_preserved_retryable',generic:true,affordances:Array.isArray(j.affordances)?j.affordances:[]};
         toast((j.detail||uiCopy('(แก้: action เดิมยังอยู่ — จะลองใหม่หรือกด “แก้ action ก่อนลองใหม่” ก็ได้)','(Fixed: the original action is preserved — retry it or choose “Edit action before retry.”)')),true);
       }else if(j.reason_code==='action_auto_voided'){
         window._actionRepair=null; window._actionEditDraft=''; toast(j.note||uiCopy('(แก้: ระบบปลด action ที่ค้างแล้ว กรุณาส่ง action ใหม่)','(Fixed: the stuck action was released; submit a new action.)'),true);
