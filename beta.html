@@ -2016,7 +2016,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202607280782;   // S3 Slice B: normal sale/offer affordances + receipt-first mount
+const FRONTEND_BUILD = 202607280788;   // S4 Phase C: current-round committed receipts use the receipt-first mount
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -3797,11 +3797,29 @@ function renderVoteCard(){
 }
 /* v733fix: top-level scope — renderBattleScene ใช้ label นี้ด้วย (เดิมประกาศใน renderStory = ReferenceError ตอน render battle narration feed) */
 const narrAuthorLabel = n => String(n&&n.author||'').toLowerCase()==='system' ? uiCopy('⚙ ระบบ','⚙ System') : '🎲 DM';
+function isProgressiveReceiptNarrative(n){
+  const source=String((n&&n.source_content)||'');
+  return source.startsWith('system:inventory-action:')||source.startsWith('system:story-check:');
+}
+function renderProgressiveReceipts(rows){
+  const box=$('inventoryReceiptFirst'); if(!box) return;
+  box.innerHTML='';
+  if(!rows.length){ box.style.display='none'; return; }
+  box.style.cssText='display:grid;gap:7px;margin:0 0 10px;padding:10px;border:1px solid rgba(250,199,117,.55);border-radius:10px;background:rgba(250,199,117,.08)';
+  const title=document.createElement('div'); title.className='sectitle'; title.textContent=uiCopy('สิ่งที่เกิดขึ้นแล้ว','What has happened'); box.appendChild(title);
+  rows.forEach(n=>{
+    const item=document.createElement('div'); item.className='note'; item.dataset.nid=String(n.id||'');
+    item.innerHTML=narrDraw(n); box.appendChild(item);
+  });
+}
 async function renderStory(){
   renderClock();
   try{ renderVoteCard(); }catch(e){}
   const isStreaming = n => n.status==='placeholder' && n.content && !/^_/.test(String(n.content).trim());
-  const shown = narrative.filter(n => n.status !== 'placeholder' || isStreaming(n));
+  const receiptRows=narrative.filter(n=>n.status!=='placeholder'&&isProgressiveReceiptNarrative(n)&&String(n.round_id||'')===String((curRound&&curRound.id)||''));
+  renderProgressiveReceipts(receiptRows);
+  const receiptIds=new Set(receiptRows.map(n=>String(n.id)));
+  const shown = narrative.filter(n => (n.status !== 'placeholder' || isStreaming(n))&&!receiptIds.has(String(n.id)));
   const feed=$('narrFeed');
   const isig = n => (n.status||'')+':'+(n.author||'')+':'+narrText(n).length+':'+(n.projection_status||'')+':'+(n.projection_note||'');
   const cdraw = n => isStreaming(n) ? (colorizeNarr(n.content)+'<span class="dots">▌</span>') : narrDraw(n);
@@ -3816,7 +3834,7 @@ async function renderStory(){
   }
   // โครงสร้างเปลี่ยน (entry ใหม่/ลบ/โหลดเก่า) → rebuild ทั้งก้อน
   _lastFeedSig=shown.map(n=>`${n.id}:${isig(n)}`).join('|');
-  // ── v432: Dice Log ย้ายไปฝั่ง server — server แทรกบท "🎲 ผลทอย" (created_at ก่อนบทเรื่องของรอบ) → เรียงเหนือบท DM อัตโนมัติ · เลิกใช้กล่องลอย+จับคู่ timestamp ฝั่ง frontend ──
+  // v788: current-round committed facts stay in receipt-first; older receipts return to chronological history.
   feed.innerHTML='';
   if(narrMore){ const lb=document.createElement('button'); lb.className='btn ghost sm'; lb.style.cssText='align-self:center;margin:2px 0 8px'; lb.textContent='▲ โหลดบทก่อนหน้า'; lb.title='บทเก่ากว่านี้ดูสรุปได้ในแท็บ Chronicle'; lb.onclick=loadOlderNarrative; feed.appendChild(lb); }
   if(!shown.length){ feed.innerHTML='<div class="muted">No story yet '+(campaign.host_id===me.id?'— press "Begin Adventure" below':'— waiting for the host to begin')+'</div>'; }
@@ -8514,7 +8532,7 @@ function subscribeRealtime(){
       if(activeTab()==='story') renderStory(); if(activeTab()==='quest') renderQuest(); if(typeof scheduleBattleScene==='function') scheduleBattleScene(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'quests',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='quest') renderQuest(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'quest_reward_jobs',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='quest') renderQuest(); })
-    .on('postgres_changes',{event:'*',schema:'public',table:'rounds',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); await loadRound(); if(activeTab()==='story') renderRoundbar(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'rounds',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); await loadRound(); if(activeTab()==='story') renderStory(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'actions',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'character_sheets',filter:'character_id=eq.'+((myChar&&myChar.id)||'00000000-0000-0000-0000-000000000000')}, async()=>{ rtLastSyncTs=Date.now(); await reloadMySheet(); await refreshCombatTurn(); if(activeTab()==='story') renderRoundbar(); if(activeTab()==='me') renderMe(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'characters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ var _oldGroup=terminalGroupForUi(); await loadCharacters(); myChar=characters.find(c=>c.user_id===me.id)||null; if(_oldGroup!==terminalGroupForUi()){ window._combatActive=undefined; window.gEncId=null; await Promise.all([loadRound(),loadNarrative(),updateCombatBadge(),refreshCombatTurn()]); } if(activeTab()==='party') renderParty(); if(typeof scheduleBattleScene==='function') scheduleBattleScene(); })   // v739 FZ-2: group move rebinds scoped round/story/combat before render
