@@ -1979,6 +1979,7 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
 <!-- CAMPAIGN -->
 <div class="panel" id="panel-story" data-tab="story">
   <div id="worldClock" class="worldhud hidden"></div>
+  <div id="inventoryReceiptFirst" role="status" aria-live="polite" style="display:none;"></div><!-- v782: S4 receipt-first mount above narration -->
   <div id="narrFeed" style="display:flex;flex-direction:column;gap:12px;"></div>
   <div class="roundbar" id="roundbar"></div>
 </div>
@@ -2015,7 +2016,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202607270777;   // S2 Slice A: typed inventory-affordance retry buttons
+const FRONTEND_BUILD = 202607280782;   // S3 Slice B: normal sale/offer affordances + receipt-first mount
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2090,6 +2091,18 @@ async function resolveInventoryAffordance(actionId, affordance){
     toast(uiCopy('เชื่อมต่อ resolver ไม่สำเร็จ — action เดิมยังอยู่','Could not reach the resolver — the original action is preserved'),true);
   }finally{
     resolving=false; setMyThinking(false); await refreshAll(); renderStory(); renderRoundbar();
+  }
+}
+async function submitInventoryAffordance(affordance){
+  if(resolving||!curRound||!myChar||!affordance||!affordance.payload) return;
+  const actionText=uiCopy(String(affordance.label_th||'เลือกของจากคลัง'),String(affordance.label_en||'Choose inventory action'));
+  try{
+    const saved=await submitActionV2(curRound,myChar.id,actionText,{inventory_affordance:affordance.payload});
+    if(!saved||!saved.action_id) throw new Error(uiCopy('(แก้: server ไม่คืนหลักฐาน action จึงยังไม่ดำเนินรายการคลัง)','(Fixed: the server returned no action receipt, so the inventory action was not processed.)'));
+    await resolveInventoryAffordance(String(saved.action_id),affordance);
+  }catch(e){
+    toast(e.message||uiCopy('(แก้: ส่งตัวเลือกคลังไม่สำเร็จ — ยังไม่มี state ถูกเปลี่ยน)','(Fixed: the inventory option could not be submitted; no state changed.)'),true);
+    await refreshAll(); renderStory(); renderRoundbar();
   }
 }
 function terminalGroupForUi(){ var n=Number((myChar&&myChar.group_no)||1); return Math.floor(n)===2?2:1; }
@@ -4358,18 +4371,28 @@ async function renderRoundbar(){
       // v512: ตัวเลือกนอกคอมแบต (เช่น standoff เจรจา/ข่มขู่/ถอย/สู้ จาก parleyGuard v501) — server ส่งผ่าน meta.combat.options แม้ active=false
       //   กดแล้วเติมช่องพิมพ์ (แก้ไขต่อได้ก่อนส่ง — ไม่ยิงทันทีแบบในศึก)
       // v587 optOwner + v638 ownerWall: ผู้รับ options แบบรวม 2 แท็ก (for_char_id||opt_for) — กัน combat option หลุดเมื่อ render สาขานี้
+      const _inventoryAllS=Array.isArray(meta.inventory_affordances)?meta.inventory_affordances:[];
+      const _inventoryMineS=_inventoryAllS.filter(aff=>aff&&aff.payload&&myChar&&(!aff.character_id||String(aff.character_id)===String(myChar.id))&&(!aff.payload.actor_character_id||String(aff.payload.actor_character_id)===String(myChar.id)));
+      const _inventoryLabelsS=new Set(_inventoryAllS.flatMap(aff=>[String(aff&&aff.label_th||''),String(aff&&aff.label_en||'')]).filter(Boolean));
+      const _storyOptionsS=(Array.isArray(cb.options)?cb.options:[]).filter(raw=>!_inventoryLabelsS.has(String(raw)));
       const _optsMineS = _optIsMine(cb);
       if(cb.options_note && _optsMineS){ const on=document.createElement('div'); on.className='note'; on.style.cssText='text-align:left;padding:6px 2px;color:#FAC775'; on.textContent=String(cb.options_note); bar.appendChild(on); }
-      if(Array.isArray(cb.options) && cb.options.length && !_optsMineS){
+      if(_storyOptionsS.length && !_optsMineS){
         const w=document.createElement('div'); w.className='note'; w.style.cssText='text-align:left;padding:6px 2px;line-height:1.5';
         w.innerHTML=uiCopy('💬 ทางเลือกนี้เป็นของ <b>','💬 These suggestions belong to <b>')+escapeHtml(_optOwner(cb).name||uiCopy('เพื่อนร่วมทีม','a teammate'))+uiCopy('</b> — คุณยังพิมพ์การกระทำของตัวเองด้านล่างได้','</b> — you can still type your own action below');
         bar.appendChild(w);
       }
-      if(Array.isArray(cb.options) && cb.options.length && _optsMineS){
+      if(_storyOptionsS.length && _optsMineS){
         const opts=document.createElement('div'); opts.className='copt';
         const oh=document.createElement('div'); oh.className='copt-h'; oh.textContent=uiCopy('— ทางเลือกในจังหวะนี้ (เลือกเป็น draft แล้วแก้ได้) —','— Suggestions for this moment (use as an editable draft) —'); opts.appendChild(oh);
-        dmRenderOptions(opts,cb.options,cb.option_set||null);
+        dmRenderOptions(opts,_storyOptionsS,cb.option_set||null);
         bar.appendChild(opts);
+      }
+      if(_inventoryMineS.length){
+        const invOpts=document.createElement('div'); invOpts.className='copt inventory-affordance-options';
+        const invHead=document.createElement('div'); invHead.className='copt-h'; invHead.textContent=uiCopy('— รายการคลังที่ server ยืนยันแล้ว —','— Server-verified inventory actions —'); invOpts.appendChild(invHead);
+        _inventoryMineS.slice(0,8).forEach(aff=>{ const ib=document.createElement('button'); ib.type='button'; ib.className='btn ghost sm'; ib.textContent=uiCopy(String(aff.label_th||'เลือกของ'),String(aff.label_en||'Choose item')); ib.disabled=!!resolving; ib.onclick=()=>submitInventoryAffordance(aff); invOpts.appendChild(ib); });
+        bar.appendChild(invOpts);
       }
       const ta=document.createElement('textarea'); ta.id='actInput'; ta.placeholder='จะให้ตัวละครทำอะไร? พิมพ์ได้อิสระ เช่น  •เดินไปคุยกับพ่อค้าเรื่องข่าวลือ  •ตรวจหากับดักรอบประตู  •โจมตีกอบลินตัวซ้ายด้วยดาบ  •ลองโน้มน้าวยามให้ปล่อยผ่าน  •ค้นหีบในมุมห้อง (ใส่เป้าหมาย/รายละเอียดยิ่งเยอะ DM ยิ่งบรรยายตรงใจ)'; if(keepAct) ta.value=keepAct; bar.appendChild(ta);
     }
