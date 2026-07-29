@@ -780,6 +780,9 @@ body.role-player .dm-only{display:none!important;}
 .copt{display:flex;flex-direction:column;gap:6px;margin:2px 0;}
 .copt button{font-family:'Noto Sans Thai',sans-serif;font-size:13px;font-weight:600;text-align:left;border:2px dashed #fff;border-radius:6px;padding:9px 12px;background:#000;color:#fff;line-height:1.4;cursor:pointer;}
 .copt button:hover{background:#fff;color:#000;border-style:solid;}
+.dmopt{margin:5px 0;border:1px solid var(--gray-dim);padding:5px 7px;text-align:left;background:var(--black);color:var(--white);}
+.dmopt.dmopt-selected{background:var(--white);border-color:var(--white);color:var(--black);box-shadow:inset 5px 0 0 var(--black);}
+.dmopt-selected-label{font-weight:700;}
 .whbox{border:2px solid #fff;border-radius:6px;padding:6px 9px;display:flex;flex-direction:column;gap:4px;}
 #bsHud .whbox+.whbox{margin-top:5px;}   /* v453/v455: แยกกล่อง WORLD/LOCATION (ลด gap เล็กน้อย → location ขยับขึ้น) */
 #bsHud .whbox:first-child{padding-left:120px;display:grid;grid-template-columns:1fr 1fr;gap:4px 8px;align-content:start;}   /* v454/v455: ปุ่มซ้าย + จัด noon/summer/clear/waning เป็น 2×2 (กรอบเตี้ยลง) */
@@ -1157,6 +1160,8 @@ html.skin-paper .skbtn,html.skin-paper .pbrow,html.skin-paper .pbbtn,html.skin-p
 html.skin-paper .filedd,html.skin-paper #panel-skills .sk-prep,html.skin-paper .bc-toggle,html.skin-paper .wcard,
 html.skin-paper .capframe,html.skin-paper .mapbox{background:#efe4ca;border-color:#b49a6a;}
 html.skin-paper .copt button:hover,html.skin-paper .bc-toggle:hover{background:#e6d8b9;color:#3a2e20;}
+html.skin-paper .dmopt{background:var(--black);border-color:var(--gray-dim);color:var(--white);}
+html.skin-paper .dmopt.dmopt-selected{background:var(--white);border-color:var(--white);color:var(--black);box-shadow:inset 5px 0 0 var(--black);}
 html.skin-paper .skbtn.on{background:#7a1f1f;color:#f6edd9;}
 html.skin-paper .bar{background:#d8c7a2;}
 html.skin-paper .pip.spent{background:#b49a6a;}
@@ -2056,7 +2061,9 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202607280788;   // S4 Phase C: current-round committed receipts use the receipt-first mount
+// Previous telemetry contract (v788): const FRONTEND_BUILD = 202607280788;
+// Previous telemetry contract (F26): const FRONTEND_BUILD = 202607280789;
+const FRONTEND_BUILD = 202607290796;   // W4: round/character/option-set scoped DM selection display
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -4106,6 +4113,24 @@ function dmFillOption(opt,setRec,idx){
   const t=$('actInput'); if(!t) return;
   t.value=opt.action||opt.title||''; t.focus();
   window._dmOptionDraftRef=(setRec&&setRec.set_id)?{set_id:String(setRec.set_id),index:idx,character_id:(myChar&&myChar.id)||null,rid:(curRound&&curRound.id)||null}:null;
+  const contextKey=dmOptionSelectionContext(setRec);
+  window._dmOptionSelection={contextKey,index:Number(idx)};
+  dmApplyOptionSelection();
+}
+function dmOptionSelectionContext(setRec){
+  return persOptsContextKey(setRec&&setRec.set_id?String(setRec.set_id):'no-option-set');
+}
+function dmOptionIsSelected(setRec,idx){
+  const state=window._dmOptionSelection;
+  return !!state&&state.contextKey===dmOptionSelectionContext(setRec)&&Number(state.index)===Number(idx);
+}
+function dmApplyOptionSelection(root){
+  const state=window._dmOptionSelection;
+  (root||document).querySelectorAll('.dmopt[data-option-context]').forEach(card=>{
+    const selected=!!state&&card.dataset.optionContext===state.contextKey&&Number(card.dataset.optionIndex)===Number(state.index);
+    card.classList.toggle('dmopt-selected',selected);
+    const label=card.querySelector('.dmopt-selected-label'); if(label) label.hidden=!selected;
+  });
 }
 function dmOptionCard(raw,setRec,idx){
   const fallbackRaw=String(raw==null?'':raw).trim(); if(!fallbackRaw) return null;
@@ -4116,8 +4141,10 @@ function dmOptionCard(raw,setRec,idx){
   const tagged=/\b(?:TITLE|ACTION|TARGET|EXPECTED|COST|RISK|RANGE|ROLL|WHY)\s*=/i.test(fallbackRaw);
   const missingRequired=[opt.title,opt.action,opt.target,opt.expected].some(v=>!v||v==='-'||v==='—');
   if(tagged&&(opt.legacy||missingRequired)) return null;
-  const d=document.createElement('details'); d.className='dmopt'; d.style.cssText='margin:5px 0;border:1px solid #555;padding:5px 7px;text-align:left';
-  const s=document.createElement('summary'); s.style.cssText='cursor:pointer;font-weight:700'; s.textContent=opt.title; d.appendChild(s);
+  const contextKey=dmOptionSelectionContext(setRec), selected=dmOptionIsSelected(setRec,idx);
+  const d=document.createElement('details'); d.className='dmopt'+(selected?' dmopt-selected':''); d.dataset.optionContext=contextKey; d.dataset.optionIndex=String(idx);
+  const s=document.createElement('summary'); s.style.cssText='cursor:pointer;font-weight:700';
+  const selectedLabel=document.createElement('span'); selectedLabel.className='dmopt-selected-label'; selectedLabel.textContent=uiCopy('✓ เลือกแล้ว — ','✓ Selected — '); selectedLabel.hidden=!selected; s.appendChild(selectedLabel); s.appendChild(document.createTextNode(opt.title)); d.appendChild(s);
   const body=document.createElement('div'); body.style.cssText='padding:6px 2px;line-height:1.45';
   const rows=[[uiCopy('การกระทำ','Action'),opt.action],[uiCopy('เป้าหมาย','Target'),opt.target],[uiCopy('ผลที่คาด','Expected'),opt.expected],[uiCopy('ต้นทุน','Cost'),opt.cost],[uiCopy('ความเสี่ยง','Risk'),opt.risk],[uiCopy('ระยะ','Range'),opt.range],[uiCopy('ทอย','Roll'),opt.roll],[uiCopy('เหตุผล','Why'),opt.why]];
   rows.forEach(r=>{ if(!r[1]||r[1]==='-'||r[1]==='—') return; const x=document.createElement('div'); x.innerHTML='<b>'+escapeHtml(r[0])+':</b> '+escapeHtml(r[1]); body.appendChild(x); });
@@ -4128,13 +4155,16 @@ function dmRenderOptions(host,list,setRec){
   host.querySelectorAll('.dmopt,.dmopt-format-note').forEach(x=>x.remove());
   let blocked=0;
   (Array.isArray(list)?list:[]).slice(0,6).forEach((raw,i)=>{ const card=dmOptionCard(raw,setRec,i); if(card) host.appendChild(card); else blocked++; });
+  dmApplyOptionSelection(host);
   if(blocked){ const n=document.createElement('div'); n.className='note dmopt-note dmopt-format-note'; n.textContent=uiCopy('(แก้: ซ่อนแท็กตัวเลือกที่ไม่ครบ เพราะยังไม่ใช่คำแนะนำที่กดใช้ได้)','(Fixed: incomplete option tags were hidden because they are not actionable suggestions.)'); host.appendChild(n); }
 }
 // v763: personal-options UI state is round/character scoped, never DOM-node
 // scoped. renderRoundbar replaces this widget during a 30s model request, so a
 // closure over the old button/node cannot be the request or rendering authority.
-function persOptsContextKey(){
-  return [campaign&&campaign.id,myChar&&myChar.id,curRound&&curRound.id||'no-round'].map(x=>String(x||'')).join(':');
+function persOptsContextKey(optionSetId){
+  const parts=[campaign&&campaign.id,myChar&&myChar.id,curRound&&curRound.id||'no-round'];
+  if(arguments.length) parts.push(optionSetId||'no-option-set');
+  return parts.map(x=>String(x||'')).join(':');
 }
 function persOptsCurrentCache(){
   const c=window._persOpts;
@@ -8899,7 +8929,9 @@ function prettyCond(c){
 function _ccCastAbbr(t){ const x=String(t||'').toLowerCase(); if(x.includes('bonus'))return '1B'; if(x.includes('reaction'))return '1R'; return '1A'; }
 function _ccTarget(sp){ const sh=sp.area_shape, sz=sp.area_size; if(sh==='sphere'||sh==='cylinder')return 'sphere_'+(sz||20); if(sh==='cube'||sh==='square')return 'sphere_'+(sz||15); if(sh==='cone')return 'cone_'+(sz||15); if(sh==='line')return 'line_'+(sz||30); const r=String(sp.range_||'').toLowerCase(); if(r==='self')return 'self'; if(r==='touch'||r.includes('ft')||r.includes('feet'))return sp.save?'creatures_3':'creature'; return 'creature'; }
 async function prepCommandContext(){
-  const ctx={enemies:[], character:null};
+  const ctx={enemies:[], character:null, loadError:null, slotsKnown:false, attacks:[], inventory:[]};
+  // F26: mySheet is not realtime-authoritative while this menu is open. Refresh before deriving inventory or slot quota.
+  const sheetRefreshOk=await reloadMySheet();
   // ศัตรูจริงจากสนามรบ (label A/B เมื่อชื่อซ้ำ)
   try{
     const r=await uiCombatStateRows('id,cur_hp,monsters(name)',true);
@@ -8907,40 +8939,64 @@ async function prepCommandContext(){
     rows.forEach(x=>{ const n=(x.monsters&&x.monsters.name)||'ศัตรู'; (grp[n]=grp[n]||[]).push(x); });
     rows.forEach(x=>{ const n=(x.monsters&&x.monsters.name)||'ศัตรู'; const g=grp[n]; const lbl=g.length>1?(n+' '+String.fromCharCode(65+g.indexOf(x))):n; ctx.enemies.push({id:x.id,name:lbl}); });
   }catch(e){}
-  // เวท/สกิลจริงของผู้เล่น (skills ∩ SPELL_CAT) — รูปแบบเดียวกับ sample เพื่อให้เมนูทำงานเหมือนเดิม
+  // ของจริงในกระเป๋า — ใช้ร่วมกับ Attack / Use Object / FREE (qty<=0 ไม่ใช่ของที่ใช้ได้)
   try{
+    const _inv=(mySheet&&Array.isArray(mySheet.inventory))?mySheet.inventory:[];
+    ctx.inventory=_inv.map(function(it){
+      const name=(it&&typeof it==='object'&&it.name)||String(it||'');
+      const qty=(it&&typeof it==='object'&&it.qty!=null)?Math.max(0,Math.floor(+it.qty||0)):1;
+      return {name:name,qty:qty};
+    }).filter(function(x){return x.name&&x.qty>0;});
+  }catch(e){ ctx.inventory=[]; }
+  // เวท/สกิลจริงของผู้เล่น (skills ∩ SPELL_CAT) — query/catalog ล้มต้อง fail closed ห้ามคืน wizard ตัวอย่าง
+  try{
+    if(!myChar||!myChar.id) throw new Error('character_unavailable');
     if(!SPELL_CAT.length) await loadCatalogs();
+    if(!Array.isArray(SPELL_CAT)||!SPELL_CAT.length) throw new Error('spell_catalog_unavailable');
     const kr=await supa.from('skills').select('*').eq('character_id',myChar.id);
+    if(kr.error) throw kr.error;
     const known=kr.data||[]; const spells=[], fb=[], fr=[]; const byName={}; (SPELL_CAT||[]).forEach(x=>byName[String(x.name).toLowerCase()]=x);
     known.forEach(sk=>{
       const sp=byName[String(sk.name).toLowerCase()];
-      if(sp){ spells.push({ id:sp.slug, _skillId:sk.id, name:sp.name, level:sp.level||0, cast:_ccCastAbbr(sp.casting_time), range:sp.range_||'', desc:sp.effect||sp.damage||'', target:_ccTarget(sp), concentration:!!sp.concentration, dice:sp.damage||null, maxUses:sk.max_uses||0, used:sk.used||0 }); }
+      if(sp){ spells.push({ id:sp.slug, _skillId:sk.id, name:sp.name, level:sp.level||0, cast:_ccCastAbbr(sp.casting_time), range:sp.range_||'', desc:sp.effect||sp.damage||'', target:_ccTarget(sp), concentration:!!sp.concentration, dice:sp.damage||null, maxUses:(+sk.max_uses>0?Math.floor(+sk.max_uses):null), used:Math.max(0,Math.floor(+sk.used||0)) }); }
       else { const usesTxt=(sk.max_uses>0)?((sk.max_uses-(sk.used||0))+'/'+sk.max_uses):(sk.recharge||'passive'); const f={id:sk.id,name:sk.name,uses:usesTxt}; if(/reaction|ตอบโต้|สวนกลับ|riposte|parry/i.test(sk.description||'')) fr.push(f); else fb.push(f); }
     });
     spells.sort((a,b)=>a.level-b.level);
-    ctx.character={ speed_ft:(mySheet&&mySheet.combat&&mySheet.combat.speed)||30, slots:{}, spells, features:{bonus:fb, reaction:fr} };
-  }catch(e){}
-  // ค่าโจมตีจริงจากอาวุธ + สถิติ + โปรฯ (แทนค่าฮาร์ดโค้ด)
+    const _ledger=mySheet&&mySheet.slots; const _lvMax=_ledger&&_ledger.lv_max; const _lvUsed=(_ledger&&_ledger.lv_used&&typeof _ledger.lv_used==='object')?_ledger.lv_used:{};
+    const slots={}; const _slotLedgerLoaded=Array.isArray(_lvMax)&&_lvMax.length>1;
+    // A successful authoritative read with no lv_max means the character truly has no slots; only a failed read stays unknown.
+    ctx.slotsKnown=_slotLedgerLoaded||sheetRefreshOk;
+    ctx.slotQuotaState=_slotLedgerLoaded?'loaded':(sheetRefreshOk?'none':'loading');
+    if(ctx.slotsKnown){ for(let L=1;L<=9;L++){ slots[L]=[Math.max(0,Math.floor(+_lvUsed[String(L)]||0)),Math.max(0,Math.floor(+_lvMax[L]||0))]; } }
+    ctx.character={ speed_ft:(mySheet&&mySheet.combat&&mySheet.combat.speed)||30, slots:slots, slotsKnown:ctx.slotsKnown, slotQuotaState:ctx.slotQuotaState, spells, features:{bonus:fb, reaction:fr} };
+  }catch(e){
+    ctx.character=null;
+    ctx.loadError={kind:'skills',detail:String((e&&e.message)||e||'skills_unavailable').slice(0,160)};
+  }
+  // ค่าโจมตีจริงของอาวุธที่ถือ + มือรอง + อาวุธทุกชิ้นในกระเป๋า + มือเปล่า
   try{
     const _lvl=myChar.level||1; const _prof=Math.ceil(_lvl/4)+1;
     const _ab=(mySheet&&mySheet.abilities)||{}; const _mod=k=>Math.floor(((+_ab[k]||10)-10)/2);
-    const _wn=(mySheet&&mySheet.equipment&&mySheet.equipment.weapon)||'';
-    const _wnBase=String(_wn).replace(/\s*\([^)]*\)\s*$/,'').trim();   // v570: ตัด '(1d8 piercing)' ก่อน lookup (itemByName คีย์ด้วยชื่อ catalog ล้วน — เดิม miss → STR+1d6)
-    const _wi=(typeof itemByName==='function')?(itemByName(_wn)||itemByName(_wnBase)):null;
-    const _fin=_wi&&Array.isArray(_wi.properties)&&_wi.properties.some(x=>/finesse/i.test(x));
-    const _rangedAbil=(_wi&&Array.isArray(_wi.properties)&&_wi.properties.some(x=>/ammunition/i.test(x)))||/bow|crossbow|sling|ธนู|หน้าไม้/i.test(_wn);   // v570: ยิง→DEX
-    const _am=_rangedAbil?_mod('dex'):(_fin?Math.max(_mod('str'),_mod('dex')):_mod('str'));   // v570: ranged→DEX · finesse→max · else STR (เดิมยิงใช้ STR ผิด)
-    const _dd=(_wi&&_wi.damage_dice)||(String(_wn).match(/(\d+d\d+)/)||[])[1]||'1d6';   // v570: parse die จากชื่ออาวุธเมื่อไม่เจอ catalog
     const _sg=n=>(n>=0?'+'+n:''+n);
-    // v296 fix: range_ft ในคลังเป็น string "20/60"/"80/320" (ไม่ใช่ตัวเลข — +range_ft=NaN) → ดึงเลขแรก
-    //   เฉพาะอาวุธ "ยิงแท้" (มี property ammunition: ธนู/หน้าไม้/สลิง) จึงใช้ระยะยิง · อาวุธ thrown (หอก/มีด/ขวาน) ยังนับ melee
-    //   (ค่าเริ่มต้นของ Attack = แทง/ฟันประชิด — ขว้างเป็นเคสพิเศษ ไม่ควรทำให้เป้าไกลกดได้)
-    const _isRanged=_wi&&Array.isArray(_wi.properties)&&_wi.properties.some(x=>/ammunition/i.test(x));
-    const _rm=String((_wi&&_wi.range_ft)||'').match(/\d+/);
-    const _rangeFt=(_isRanged&&_rm)?(+_rm[0]):0;   // ยิงแท้ = ระยะปกติ (ฟุต) · melee/thrown = 0 (ใช้ reach)
-    const _reachFt=(_wi&&Array.isArray(_wi.properties)&&_wi.properties.some(x=>/reach/i.test(x)))?10:5;   // อาวุธด้ามยาว = เอื้อม 10ft
-    ctx.attack={ name:_wn||'อาวุธ', line:`1d20${_sg(_prof+_am)} atk, ${_dd}${_sg(_am)} dmg`, range_ft:_rangeFt, reach_ft:_reachFt };
-  }catch(e){ ctx.attack={name:'อาวุธ',line:'1d20 atk',range_ft:0,reach_ft:5}; }
+    const _names=[]; const _eq=(mySheet&&mySheet.equipment)||{};
+    [_eq.weapon,_eq.offhand].forEach(function(n){if(n)_names.push(String(n));});
+    ctx.inventory.forEach(function(it){ try{ if(typeof equipSlotFor==='function'&&equipSlotFor(it.name)==='weapon') _names.push(it.name); }catch(e){} });
+    const _seen={};
+    _names.forEach(function(_wn){
+      const _wnBase=String(_wn).replace(/\s*\([^)]*\)\s*$/,'').trim();
+      const _key=_wnBase.toLowerCase(); if(!_key||_seen[_key]) return; _seen[_key]=true;
+      const _wi=(typeof itemByName==='function')?(itemByName(_wn)||itemByName(_wnBase)):null;
+      const _props=(_wi&&Array.isArray(_wi.properties))?_wi.properties:[];
+      const _fin=_props.some(x=>/finesse/i.test(x));
+      const _rangedAbil=_props.some(x=>/ammunition/i.test(x))||/bow|crossbow|sling|ธนู|หน้าไม้/i.test(_wn);
+      const _am=_rangedAbil?_mod('dex'):(_fin?Math.max(_mod('str'),_mod('dex')):_mod('str'));
+      const _dd=(_wi&&_wi.damage_dice)||(String(_wn).match(/(\d+d\d+)/)||[])[1]||'1d6';
+      const _rm=String((_wi&&_wi.range_ft)||'').match(/\d+/); const _isRanged=_props.some(x=>/ammunition/i.test(x));
+      ctx.attacks.push({name:String(_wn),weapon:String(_wn),line:`1d20${_sg(_prof+_am)} atk, ${_dd}${_sg(_am)} dmg`,range_ft:(_isRanged&&_rm)?(+_rm[0]):0,reach_ft:_props.some(x=>/reach/i.test(x))?10:5});
+    });
+    const _uaMod=_mod('str'); const _uaName=uiCopy('มือเปล่า','Unarmed Strike');
+    ctx.attacks.push({name:_uaName,weapon:_uaName,line:`1d20${_sg(_prof+_uaMod)} atk, 1d1${_sg(_uaMod)} dmg`,range_ft:0,reach_ft:5,unarmed:true});
+  }catch(e){ ctx.attacks=[]; }
   // v295 targetReach: ตำแหน่ง token บนกริด → กรองเป้าหมายตามระยะโจมตีจริง (ผู้เล่น + ศัตรูแต่ละตัว)
   try{
     const gr=await supa.from('battle_grids').select('id,cell_ft').eq('campaign_id',campaign.id).eq('group_no',terminalGroupForUi()).eq('active',true).maybeSingle();
@@ -8954,41 +9010,15 @@ async function prepCommandContext(){
     }
   }catch(e){}
   try{ ctx.interactables=(typeof curRound!=='undefined'&&curRound&&curRound.meta&&Array.isArray(curRound.meta.interactables))?curRound.meta.interactables:[]; }catch(e){ ctx.interactables=[]; }
-  try{ const _inv=(mySheet&&Array.isArray(mySheet.inventory))?mySheet.inventory:[]; ctx.inventory=_inv.map(function(it){ return {name:(it&&it.name)||String(it||''), qty:(it&&it.qty)||1}; }).filter(function(x){return x.name;}); }catch(e){ ctx.inventory=[]; }
   window.__ccCtx=ctx;
 }
 window.cc = (function(){
   'use strict';
 
-  /* ---------- DATA (Phase 1: hardcoded sample — TODO move to DB) ---------- */
-  // Default = Wizard L5 (Eliot template from prototype). Phase 2 reads from characters.spellbook.
-  function defaultLoadout(){
-    return {
-      speed_ft: 30,
-      slots: {1:[1,4], 2:[1,3], 3:[1,2]},
-      spells: [
-        {id:'fire_bolt',     name:'Fire Bolt',        level:0, cast:'1A', range:'120ft', desc:'1d10 fire',           target:'creature',    dice:'1d20+5 atk, 1d10 fire'},
-        {id:'mage_hand',     name:'Mage Hand',        level:0, cast:'1A', range:'30ft',  desc:'invisible hand',      target:'point',       dice:null},
-        {id:'prestidig',     name:'Prestidigitation', level:0, cast:'1A', range:'10ft',  desc:'minor magic',         target:'point',       dice:null},
-        {id:'magic_missile', name:'Magic Missile',    level:1, cast:'1A', range:'120ft', desc:'3 darts d4+1 (auto)', target:'creatures_3', dice:'3d4+3'},
-        {id:'shield',        name:'Shield',           level:1, cast:'1R', range:'Self',  desc:'+5 AC vs hit',        target:'self',        dice:null},
-        {id:'mage_armor',    name:'Mage Armor',       level:1, cast:'1A', range:'Touch', desc:'AC=13+Dex (Conc)',    target:'creature',    concentration:true, dice:null},
-        {id:'scorching_ray', name:'Scorching Ray',    level:2, cast:'1A', range:'120ft', desc:'3 rays 2d6 fire',     target:'creatures_3', dice:'3x(1d20+5), 2d6 ea'},
-        {id:'misty_step',    name:'Misty Step',       level:2, cast:'1B', range:'30ft',  desc:'teleport',            target:'point',       dice:null},
-        {id:'fireball',      name:'Fireball',         level:3, cast:'1A', range:'150ft', desc:'8d6 fire 20ft sphr',  target:'sphere_20',   dice:'8d6'},
-        {id:'counterspell',  name:'Counterspell',     level:3, cast:'1R', range:'60ft',  desc:'interrupt spell',     target:'creature',    dice:'1d20+3 check'}
-      ],
-      features: {
-        bonus:    [{id:'arcane_recovery', name:'Arcane Recovery', uses:'1/day'}],
-        reaction: [{id:'sculpt_spells',   name:'Sculpt Spells',   note:'passive'}]
-      }
-    };
-  }
-
   function getCharacter(){
-    // ใช้ข้อมูลจริงถ้ามี (prepCommandContext เตรียมไว้ตอนกดเปิดเมนู) — ไม่งั้น fallback sample
-    try{ if(window.__ccCtx && window.__ccCtx.character && Array.isArray(window.__ccCtx.character.spells)) return window.__ccCtx.character; }catch(e){}
-    return defaultLoadout();
+    // ข้อมูลจริงเท่านั้น — ถ้า query skills/catalog ล้มให้ render fail-closed + retry
+    try{ if(window.__ccCtx && !window.__ccCtx.loadError && window.__ccCtx.character && Array.isArray(window.__ccCtx.character.spells)) return window.__ccCtx.character; }catch(e){}
+    return null;
   }
   function getEnemies(){
     // ใช้ศัตรูจริงจากสนามรบถ้ามี (prepCommandContext) — ไม่งั้น fallback generic
@@ -9005,7 +9035,6 @@ window.cc = (function(){
         });
       }
     } catch(e){}
-    if (!out.length) out = [{id:'ally_a', name:'พันธมิตร'}];
     return out;
   }
 
@@ -9041,6 +9070,7 @@ window.cc = (function(){
   var rollResults = [];
   var isOpen = false;
   var submitting = false;
+  var contextRetrying = false;
 
   function resetTurn(){
     turn = { action:null, bonus:null, reaction:null, movement:null, free:null, narrate:'', _seq:[] };
@@ -9062,15 +9092,34 @@ window.cc = (function(){
     'Use Object':'ใช้สิ่งของในฉาก (คันโยก ดื่มยา ฯลฯ)',
     'Grapple/Shove':'จับล็อกหรือผลักศัตรู — ทอย Athletics แข่งกับเป้าหมาย'
   };
+  // F20/F19 contract: Ready requires an observable trigger, not a label-only promise.
+  var READY_TRIGGER_OPTIONS = [
+    {value:'creature_moves', th:'สิ่งมีชีวิตเคลื่อนที่', en:'A creature moves'},
+    {value:'creature_attacks', th:'สิ่งมีชีวิตโจมตี', en:'A creature attacks'},
+    {value:'creature_casts', th:'สิ่งมีชีวิตร่ายเวท', en:'A creature casts a spell'},
+    {value:'creature_enters_reach', th:'สิ่งมีชีวิตเข้าระยะ', en:'A creature enters reach'},
+    {value:'ally_acts', th:'พันธมิตรลงมือ', en:'An ally acts'},
+    {value:'custom_observable', th:'เหตุการณ์อื่นที่สังเกตได้', en:'Another observable event'}
+  ];
 
   function slotsLeft(level){
     var s = character && character.slots && character.slots[level];
-    return s ? (s[1]-s[0]) : 0;
+    return s ? Math.max(0,(+s[1]||0)-(+s[0]||0)) : 0;
   }
-  // เวทใช้ได้กี่ครั้ง: ข้อมูลจริงใช้ maxUses/used (max_uses=0 = ไม่จำกัด); sample ใช้ slot table เดิม
+  // max_uses>0 = ทรัพยากรเฉพาะสกิล · cantrip = ไม่จำกัด · เวท L1+ ต้องอิง sheet.slots.lv_max/lv_used เท่านั้น
   function spellLeft(s){
-    if(s && s.maxUses!=null){ return s.maxUses>0 ? (s.maxUses-(s.used||0)) : Infinity; }
-    return (s && s.level===0) ? Infinity : slotsLeft(s ? s.level : 0);
+    if(!s) return 0;
+    if(s.maxUses!=null&&s.maxUses>0) return Math.max(0,s.maxUses-(s.used||0));
+    if(s.level===0) return Infinity;
+    if(!character||character.slotsKnown!==true) return null;
+    var left=0; for(var L=Math.max(1,+s.level||1);L<=9;L++) left+=slotsLeft(L);
+    return left;
+  }
+  function spellQuotaText(left){
+    if(left===null) return uiCopy('โควตาสล็อตยังโหลดไม่เสร็จ — ลองใหม่','slot quota is still loading — retry');
+    if(left===Infinity) return uiCopy('ไม่จำกัด','unlimited');
+    if(left<=0) return uiCopy('ไม่มีสล็อตที่ใช้ได้','no spell slots available');
+    return uiCopy('เหลือ '+left+' ครั้ง',left+' remaining');
   }
 
   function fakeMapPick(targetType){
@@ -9108,7 +9157,7 @@ window.cc = (function(){
 
     if(last && last.indexOf('filled_')===0){
       var slot = last.substr(7);
-      var current = (slot==='narrate' ? (turn.narrate ? '"'+turn.narrate+'"' : '(empty)') : ((turn[slot] && turn[slot].label) || '(empty)'));
+      var current = (slot==='narrate' ? (turn.narrate ? '"'+turn.narrate+'"' : '(empty)') : ((turn[slot] && (turn[slot].displayLabel||turn[slot].label)) || '(empty)'));
       return { items:[
         {label:'CURRENT', meta: current, dim: true},
         {label:'EDIT', editSlot: slot},
@@ -9131,11 +9180,18 @@ window.cc = (function(){
     ]};
 
     if(last==='attack'){
-      var atk=(window.__ccCtx&&window.__ccCtx.attack)||{name:'อาวุธ',line:'1d20 atk'};
+      var atks=(window.__ccCtx&&Array.isArray(window.__ccCtx.attacks))?window.__ccCtx.attacks:[];
+      if(!atks.length) return {items:[{label:uiCopy('(โหลดรายการอาวุธไม่สำเร็จ)','(Weapon list unavailable)'),dim:true}]};
+      return {items:atks.map(function(atk,idx){return {label:atk.name,meta:atk.line,drill:'attack_weapon_'+idx};})};
+    }
+
+    if(last&&last.indexOf('attack_weapon_')===0){
+      var _atkIdx=Math.floor(+last.substr('attack_weapon_'.length)); var _atks=(window.__ccCtx&&Array.isArray(window.__ccCtx.attacks))?window.__ccCtx.attacks:[];
+      var atk=_atks[_atkIdx]; if(!atk) return {items:[]};
       var atkRangeFt=(atk.range_ft>0)?atk.range_ft:(atk.reach_ft||5);   // v295: ยิง/ขว้าง = ระยะอาวุธ · melee = เอื้อม (เดิน+1 ช่อง)
       return { items: enemies.map(function(e){
         var rr=ccTargetReach(e, atkRangeFt);
-        if(rr.ok) return { label: e.name, meta: atk.line, commit:{slot:'action', label:'โจมตี '+e.name+' ('+atk.name+')', dice: atk.line} };
+        if(rr.ok) return { label: e.name, meta: atk.line, commit:{slot:'action', label:'โจมตี '+e.name+' ('+atk.name+')', dice: atk.line, weapon:atk.weapon||atk.name} };
         return { label: e.name, meta:'⚠ ไกลเกินระยะโจมตี ('+rr.dist+' ช่อง · ตีถึง '+rr.max+') — เดินเข้าใกล้ก่อน', dim:true };
       })};
     }
@@ -9143,11 +9199,11 @@ window.cc = (function(){
     if(last==='cast_action'){
       return { items: character.spells.filter(function(s){return s.cast==='1A';}).map(function(s){
         var left = spellLeft(s);
-        var dim = left<=0;
+        var dim = left===null||left<=0;
         var tag = (s.level===0?'CANT':'L'+s.level) + (s.concentration?' [C]':'');
         return {
           label: s.name,
-          meta: tag + ' · ' + s.range + ' · ' + s.desc,
+          meta: tag + ' · ' + spellQuotaText(left) + ' · ' + s.range + ' · ' + s.desc,
           drill: dim ? null : 'spell_'+s.id+'_action',
           dim: dim
         };
@@ -9157,10 +9213,10 @@ window.cc = (function(){
     if(last==='cast_bonus'){
       return { items: character.spells.filter(function(s){return s.cast==='1B';}).map(function(s){
         var left = spellLeft(s);
-        var dim = left<=0;
+        var dim = left===null||left<=0;
         return {
           label: s.name,
-          meta: 'L'+s.level+' [B] · '+s.range+' · '+s.desc,
+          meta: 'L'+s.level+' [B] · '+spellQuotaText(left)+' · '+s.range+' · '+s.desc,
           drill: dim ? null : 'spell_'+s.id+'_bonus',
           dim: dim
         };
@@ -9170,10 +9226,10 @@ window.cc = (function(){
     if(last==='cast_reaction'){
       return { items: character.spells.filter(function(s){return s.cast==='1R';}).map(function(s){
         var left = spellLeft(s);
-        var dim = left<=0;
+        var dim = left===null||left<=0;
         return {
           label: s.name,
-          meta: 'L'+s.level+' [R] · '+s.range+' · '+s.desc,
+          meta: 'L'+s.level+' [R] · '+spellQuotaText(left)+' · '+s.range+' · '+s.desc,
           drill: dim ? null : 'spell_'+s.id+'_reaction',
           dim: dim
         };
@@ -9207,8 +9263,8 @@ window.cc = (function(){
     }
 
     if(last==='ready') return { items:[
-      {label:'Ready Attack (if X)', commit:{slot:'action', label:'Ready Attack'}},
-      {label:'Ready Cast (if X)',   commit:{slot:'action', label:'Ready Cast'}}
+      {label:uiCopy('เตรียมโจมตี','Ready Attack'), drill:'ready_attack'},
+      {label:uiCopy('เตรียมร่ายเวท','Ready Cast'), drill:'ready_cast'}
     ]};
 
     if(last==='use_object'){
@@ -9248,10 +9304,9 @@ window.cc = (function(){
     }
 
     if(last==='reaction'){
-      var ritems = [
-        {label:'Ready Reaction Spell', drill:'cast_reaction'},
-        {label:'Opportunity Attack', meta:'auto', commit:{slot:'reaction', label:'OpAttack (auto)', dice:'1d20+5 atk, 1d8+3 dmg if triggered'}}
-      ];
+      var ritems = [];
+      if((character.spells||[]).some(function(s){return s.cast==='1R';})) ritems.push({label:'Ready Reaction Spell',drill:'cast_reaction'});
+      ritems.push({label:uiCopy('Opportunity Attack ทำงานอัตโนมัติ','Opportunity Attacks are automatic'),meta:uiCopy('ระบบจะตรวจเงื่อนไขและทอยให้เอง — ไม่ต้องใส่เป็น Reaction','The server checks the trigger and rolls it automatically — do not add it as your Reaction'),dim:true});
       ((character.features&&character.features.reaction)||[]).forEach(function(f){
         ritems.push({label:f.name, meta:'passive', dim:true});
       });
@@ -9272,11 +9327,33 @@ window.cc = (function(){
     }
 
     if(last==='free') return { items:[
-      {label:'Draw Weapon', commit:{slot:'free', label:'Draw shortbow'}},
-      {label:'Open Door',   commit:{slot:'free', label:'Open door'}},
-      {label:'Pick Up',     commit:{slot:'free', label:'Pick up torch'}},
-      {label:'Hand Item',   commit:{slot:'free', label:'Hand item'}}
+      {label:uiCopy('ชักอาวุธ','Draw Weapon'),drill:'free_draw'},
+      {label:uiCopy('เปิดประตู','Open Door'),drill:'free_open'},
+      {label:uiCopy('หยิบของ','Pick Up'),drill:'free_pickup'},
+      {label:uiCopy('ส่งของให้เพื่อน','Hand Item'),drill:'free_hand'}
     ]};
+    if(last==='free_draw'){
+      var _draw=((window.__ccCtx&&window.__ccCtx.inventory)||[]).filter(function(it){try{return typeof equipSlotFor==='function'&&equipSlotFor(it.name)==='weapon';}catch(e){return false;}});
+      return {items:_draw.length?_draw.map(function(it){return {label:it.name+(it.qty>1?' x'+it.qty:''),commit:{slot:'free',label:'ชัก '+it.name,displayLabel:uiCopy('ชัก '+it.name,'Draw '+it.name)}};}):[{label:uiCopy('(ไม่มีอาวุธในกระเป๋า)','(No weapon in inventory)'),dim:true}]};
+    }
+    if(last==='free_open'){
+      var _doors=((window.__ccCtx&&window.__ccCtx.interactables)||[]).filter(function(it){return it&&it.label&&/door|gate|hatch|portcullis|ประตู|ทวาร|รั้ว|ฝา/i.test(String(it.label));});
+      return {items:_doors.length?_doors.map(function(it){return {label:it.label,meta:it.desc||uiCopy('วัตถุในฉาก','scene object'),commit:{slot:'free',label:'เปิด '+it.label,displayLabel:uiCopy('เปิด '+it.label,'Open '+it.label)}};}):[{label:uiCopy('(ไม่มีประตูในฉากที่ระบบยืนยัน)','(No verified door in this scene)'),dim:true}]};
+    }
+    if(last==='free_pickup'){
+      var _pickups=((window.__ccCtx&&window.__ccCtx.interactables)||[]).filter(function(it){return it&&it.label&&!/door|gate|hatch|portcullis|ประตู|ทวาร|รั้ว|ฝา/i.test(String(it.label));});
+      return {items:_pickups.length?_pickups.map(function(it){return {label:it.label,meta:it.desc||uiCopy('วัตถุในฉาก','scene object'),commit:{slot:'free',label:'หยิบ '+it.label,displayLabel:uiCopy('หยิบ '+it.label,'Pick up '+it.label)}};}):[{label:uiCopy('(ไม่มีของในฉากที่ระบบยืนยันให้หยิบ)','(No verified scene item to pick up)'),dim:true}]};
+    }
+    if(last==='free_hand'){
+      var _hand=(window.__ccCtx&&window.__ccCtx.inventory)||[];
+      return {items:_hand.length?_hand.map(function(it,idx){return {label:it.name+(it.qty>1?' x'+it.qty:''),drill:'free_hand_item_'+idx};}):[{label:uiCopy('(ไม่มีของในกระเป๋า)','(Inventory is empty)'),dim:true}]};
+    }
+    if(last&&last.indexOf('free_hand_item_')===0){
+      var _hi=Math.floor(+last.substr('free_hand_item_'.length)); var _invH=(window.__ccCtx&&window.__ccCtx.inventory)||[]; var _itemH=_invH[_hi];
+      if(!_itemH) return {items:[]};
+      if(!allies.length) return {items:[{label:uiCopy('(ไม่มีผู้รับจริงในปาร์ตี้)','(No real party recipient available)'),dim:true}]};
+      return {items:allies.map(function(a){return {label:a.name,meta:_itemH.name,commit:{slot:'free',label:'มอบ '+_itemH.name+' ให้ '+a.name,displayLabel:uiCopy('มอบ '+_itemH.name+' ให้ '+a.name,'Hand '+_itemH.name+' to '+a.name)}};})};
+    }
 
     if(last==='narrate') return { items:[
       {label:'TYPE NARRATION ...', narrate:true}
@@ -9294,7 +9371,7 @@ window.cc = (function(){
       if(slot==='narrate'){
         var t = turn.narrate;
         summary = '"' + t.slice(0,16) + (t.length>16 ? '..."' : '"');
-      } else summary = turn[slot].label;
+      } else summary = turn[slot].displayLabel||turn[slot].label;
     }
     return {
       label: label,
@@ -9361,6 +9438,12 @@ window.cc = (function(){
       var t = turn[slot]; if (!t) return;
       n++;
       var label = n+') '+slotNames[slot]+': '+t.label;
+      if(slot==='action' && t.intent==='ready' && t.ready){
+        var readyActionText=String(t.ready.action_text||'').trim();
+        var readyTriggerText=String((t.ready.trigger&&t.ready.trigger.text)||'').trim();
+        if(readyActionText) label+=' — '+readyActionText;
+        if(readyTriggerText) label+=' (trigger: '+readyTriggerText+')';
+      }
       var rr = (results && results.length) ? results.filter(function(x){return x.slot===slot;})[0] : null;
       if (rr) {
         var dicebits = rr.parts.map(function(p){
@@ -9433,7 +9516,7 @@ window.cc = (function(){
     }
     if(it.drill){ stack.push(it.drill); renderAll(); return; }
     if(it.commit){
-      turn[it.commit.slot] = { label: it.commit.label, dice: it.commit.dice || null, skillId: it.commit.skillId || null };
+      turn[it.commit.slot] = { label: it.commit.label, displayLabel:it.commit.displayLabel||null, dice: it.commit.dice || null, skillId: it.commit.skillId || null, weapon:it.commit.weapon||null };
       seqAdd(it.commit.slot);
       stack = ['root']; renderAll(); return;
     }
@@ -9468,14 +9551,21 @@ window.cc = (function(){
       var narrative = compileNarrative(results);
       // Mark the action_text so the DM/log can tell this came from the structured menu
       var narrativeTagged = '[CMD] '+narrative;
+      function protocolSlot(slot){
+        if(!slot) return null;
+        var payload=Object.assign({},slot);
+        delete payload.displayLabel;
+        return payload;
+      }
       var structured = {
-        version: 1,
+        version: 2,
+        _synthWeapon: (turn.action&&turn.action.weapon)||null,
         turn: {
-          action:   turn.action   || null,
-          bonus:    turn.bonus    || null,
-          reaction: turn.reaction || null,
-          movement: turn.movement || null,
-          free:     turn.free     || null,
+          action:   protocolSlot(turn.action),
+          bonus:    protocolSlot(turn.bonus),
+          reaction: protocolSlot(turn.reaction),
+          movement: protocolSlot(turn.movement),
+          free:     protocolSlot(turn.free),
           narrate:  turn.narrate  || ''
         },
         order: (turn._seq||[]).slice(),
@@ -9550,6 +9640,59 @@ window.cc = (function(){
       crumbHtml += '<a data-idx="'+i+'">'+esc(lab)+'</a>';
     }
 
+    // READY — collect the prepared action and an observable trigger required by F19.
+    if(lastNode==='ready_attack' || lastNode==='ready_cast'){
+      var actionKind = lastNode==='ready_attack' ? 'attack' : 'cast_spell';
+      var actionLabel = actionKind==='attack' ? 'Ready Attack' : 'Ready Cast';
+      var triggerOptionsHtml = '';
+      for(var ri=0;ri<READY_TRIGGER_OPTIONS.length;ri++){
+        var ro=READY_TRIGGER_OPTIONS[ri];
+        triggerOptionsHtml += '<option value="'+esc(ro.value)+'">'+esc(uiCopy(ro.th,ro.en))+'</option>';
+      }
+      frame.innerHTML =
+        '<div class="cc-crumb" id="ccCrumb">'+crumbHtml+'</div>' +
+        '<div class="cc-narr-wrap">' +
+          '<label class="cc-meta" for="ccReadyAction">'+esc(uiCopy('แอคชันที่เตรียม (ระบุเป้าหมาย/อาวุธหรือเวท)','Prepared action (include target and weapon or spell)'))+'</label>' +
+          '<textarea class="cc-narr" id="ccReadyAction" maxlength="80" placeholder="'+esc(uiCopy('เช่น โจมตี Goblin ด้วย Longbow','e.g. Attack the Goblin with a Longbow'))+'"></textarea>' +
+          '<label class="cc-meta" for="ccReadyTriggerKind">'+esc(uiCopy('ชนิดของ trigger ที่สังเกตได้','Observable trigger type'))+'</label>' +
+          '<select class="cc-narr" id="ccReadyTriggerKind" style="min-height:42px;height:auto">'+triggerOptionsHtml+'</select>' +
+          '<label class="cc-meta" for="ccReadyTrigger">'+esc(uiCopy('เหตุการณ์ที่จะทำให้ลงมือ','Event that releases the action'))+'</label>' +
+          '<textarea class="cc-narr" id="ccReadyTrigger" maxlength="80" placeholder="'+esc(uiCopy('เช่น เมื่อ Goblin เข้ามาในระยะยิง','e.g. When the Goblin enters bow range'))+'"></textarea>' +
+          '<div class="cc-meta" id="ccReadyError" style="color:#ff9b9b"></div>' +
+          '<div class="cc-btn-row">' +
+            '<button class="cc-btn" id="ccReadySave">'+esc(uiCopy('บันทึก Ready','Save Ready'))+'</button>' +
+            '<button class="cc-btn cc-alt" id="ccReadyCancel">'+esc(uiCopy('ยกเลิก','Cancel'))+'</button>' +
+          '</div>' +
+        '</div>';
+      frame.querySelector('#ccCloseBtn').addEventListener('click', close);
+      var readyCrumbs = frame.querySelectorAll('#ccCrumb a');
+      for(var rci=0;rci<readyCrumbs.length;rci++){ readyCrumbs[rci].addEventListener('click', function(ev){ var idx=parseInt(ev.target.getAttribute('data-idx'),10); stack=stack.slice(0,idx+1); renderAll(); }); }
+      frame.querySelector('#ccReadySave').addEventListener('click', function(){
+        var actionText=(frame.querySelector('#ccReadyAction').value||'').trim().slice(0,80);
+        var triggerKind=frame.querySelector('#ccReadyTriggerKind').value;
+        var triggerText=(frame.querySelector('#ccReadyTrigger').value||'').trim().slice(0,80);
+        var triggerAllowed=READY_TRIGGER_OPTIONS.some(function(o){ return o.value===triggerKind; });
+        if(!actionText || !triggerText || !triggerAllowed){
+          frame.querySelector('#ccReadyError').textContent=uiCopy('กรอกแอคชันและเหตุการณ์ที่สังเกตได้ให้ครบ','Enter both the prepared action and its observable trigger.');
+          return;
+        }
+        turn.action={
+          label:actionLabel,
+          intent:'ready',
+          ready:{
+            action_kind:actionKind,
+            action_text:actionText,
+            trigger:{kind:triggerKind,text:triggerText}
+          }
+        };
+        seqAdd('action');
+        stack=['root'];
+        renderAll();
+      });
+      frame.querySelector('#ccReadyCancel').addEventListener('click', function(){ stack=['root','action','ready']; renderAll(); });
+      return;
+    }
+
     // NARRATE — กล่องพิมพ์บรรยายธีม DQ (แทน prompt เดิม)
     if(lastNode==='narrate'){
       frame.innerHTML =
@@ -9584,7 +9727,7 @@ window.cc = (function(){
       var sr='';
       for(var q=0;q<turn._seq.length;q++){
         var slot=turn._seq[q];
-        var lab2 = (slot==='narrate') ? ('บรรยาย: "'+String(turn.narrate||'').slice(0,22)+'"') : ((SLOTN[slot]||slot)+': '+((turn[slot]&&turn[slot].label)||''));
+        var lab2 = (slot==='narrate') ? ('บรรยาย: "'+String(turn.narrate||'').slice(0,22)+'"') : ((SLOTN[slot]||slot)+': '+((turn[slot]&&(turn[slot].displayLabel||turn[slot].label))||''));
         sr += '<div class="cc-seq-row"><span class="cc-seq-n">'+(q+1)+'</span><span class="cc-seq-lab">'+esc(lab2)+'</span>'+
               '<span class="cc-seq-ctl">'+
                 '<button data-act="up" data-slot="'+slot+'"'+(q===0?' disabled':'')+'>\u25B2</button>'+
@@ -9734,7 +9877,24 @@ window.cc = (function(){
       fr.style.left=''; fr.style.top=''; fr.style.width=''; fr.style.transform='';
     }
   }
+  function renderContextFailure(){
+    var frame=document.getElementById('ccFrame'); if(!frame) return;
+    frame.innerHTML='<div class="cc-crumb">'+esc(uiCopy('COMBAT COMMAND — โหลดไม่สำเร็จ','COMBAT COMMAND — load failed'))+'</div>'+
+      '<div class="cc-dice-row">'+esc(uiCopy('โหลดสกิลหรือชีทตัวละครไม่สำเร็จ ระบบจึงซ่อนคำสั่งที่ยังยืนยันไม่ได้','Could not load character skills or sheet data, so unverified commands are hidden.'))+'</div>'+
+      '<div class="cc-btn-row"><button class="cc-btn" id="ccRetryLoad"'+(contextRetrying?' disabled':'')+'>'+esc(contextRetrying?uiCopy('กำลังโหลด…','Loading…'):uiCopy('ลองใหม่','Retry'))+'</button></div>';
+    var btn=frame.querySelector('#ccRetryLoad'); if(btn&&!contextRetrying) btn.addEventListener('click',retryContextLoad);
+  }
+  async function retryContextLoad(){
+    if(contextRetrying) return; contextRetrying=true; renderContextFailure();
+    try{ await prepCommandContext(); }catch(e){}
+    character=getCharacter(); enemies=getEnemies(); allies=getAllies(); contextRetrying=false; stack=['root']; renderAll();
+  }
   function renderAll(){
+    if(!character){
+      renderContextFailure();
+      try{ ccApplyWindow(); }catch(e){}
+      return;
+    }
     try {
       if(phase==='building') renderBuilding();
       else if(phase==='rolling') renderRolling();
