@@ -2021,9 +2021,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-// Previous telemetry contract (v788): const FRONTEND_BUILD = 202607280788;
-// Previous telemetry contract (F26): const FRONTEND_BUILD = 202607280789;
-const FRONTEND_BUILD = 202607290796;   // W4: round/character/option-set scoped DM selection display
+const FRONTEND_BUILD = 202607290797;   // F36: spell menu reads catalog contract and fails closed
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -3169,7 +3167,7 @@ async function loadCatalogs(){
     const [ic,cc,sc,kc]=await Promise.all([
       supa.from('item_catalog').select('slug,name,category,subtype,damage_dice,damage_type,properties,range_ft,armor_base,dex_cap,str_req,stealth_disadv,is_magic,rarity,requires_attunement,bonuses,effect,cost_gp,source,catalog_scope,origin_campaign_id,game_language').or(_catalogScopeFilter()),
       supa.from('class_catalog').select('slug,name,hit_die,armor_prof,weapon_prof,saving_throws,starting_packages'),
-      supa.from('spell_catalog').select('slug,name,level,school,classes,casting_time,range_,components,duration,concentration,ritual,save,damage,effect,area_shape,area_size'),
+      supa.from('spell_catalog').select('slug,name,level,school,classes,casting_time,range_,components,duration,concentration,ritual,save,damage,effect,area_shape,area_size,menu_cast_economy,menu_cast_status,menu_cast_blocked_primitive,menu_target_kind,menu_target_count_base,menu_target_count_per_slot,menu_target_filter,menu_area_origin,menu_area_width_ft,menu_area_height_ft,menu_target_status,menu_target_blocked_primitive'),
       supa.from('skill_catalog').select('slug,name,classes,level,max_uses,recharge,effect,is_dm,source,catalog_scope,origin_campaign_id,game_language').or(_catalogScopeFilter())
     ]);
     if(!ic.error&&ic.data){ const ir=_catalogRowsForWorld(ic.data); ITEM_CAT={}; ir.forEach(r=>ITEM_CAT[r.slug]=r); _catSet(_catalogCacheKey('itemcat'),ir); }
@@ -8670,8 +8668,123 @@ function prettyCond(c){
    - TODO Phase 2: spell slot / resource enforcement (currently display-only)
    ============================================================ */
 // ── ป้อนข้อมูลจริงให้ Command Menu (ศัตรูจาก combat_state + เวท/สกิลจากคลังของผู้เล่น) ──
-function _ccCastAbbr(t){ const x=String(t||'').toLowerCase(); if(x.includes('bonus'))return '1B'; if(x.includes('reaction'))return '1R'; return '1A'; }
-function _ccTarget(sp){ const sh=sp.area_shape, sz=sp.area_size; if(sh==='sphere'||sh==='cylinder')return 'sphere_'+(sz||20); if(sh==='cube'||sh==='square')return 'sphere_'+(sz||15); if(sh==='cone')return 'cone_'+(sz||15); if(sh==='line')return 'line_'+(sz||30); const r=String(sp.range_||'').toLowerCase(); if(r==='self')return 'self'; if(r==='touch'||r.includes('ft')||r.includes('feet'))return sp.save?'creatures_3':'creature'; return 'creature'; }
+ const CC_SPELL_CAST_ABBR={action:'1A',bonus_action:'1B',reaction:'1R'};
+ function _ccBlockedDecision(reasonCode,family){
+   const code=String(reasonCode||(family==='cast'?'catalog_cast_review':'catalog_target_review')).trim();
+   return {availability:'blocked',reasonCode:code,messageKeyTh:code,messageKeyEn:code,blockedFamily:family};
+ }
+ function _ccCastAbbr(sp,inCombat){
+   const row=(sp&&typeof sp==='object')?sp:{};
+   const status=String(row.menu_cast_status||'').trim();
+   const economy=String(row.menu_cast_economy||'').trim();
+   const ritualAvailable=row.ritual===true;
+   if(status==='binding'&&CC_SPELL_CAST_ABBR[economy]){
+     return {availability:'available',cast:{economy:economy},castAbbr:CC_SPELL_CAST_ABBR[economy],menuSlot:CC_SPELL_CAST_ABBR[economy],ritualAvailable:ritualAvailable};
+   }
+   if(status==='blocked'&&economy==='long_cast'&&!inCombat){
+     return {availability:'available',cast:{economy:'long_cast'},castAbbr:null,menuSlot:null,ritualAvailable:ritualAvailable};
+   }
+   const blocked=_ccBlockedDecision(row.menu_cast_blocked_primitive||(economy==='long_cast'?'long_cast_flow':'catalog_cast_review'),'cast');
+   blocked.cast={economy:economy||'unknown'};
+   blocked.castAbbr=null;
+   blocked.menuSlot=CC_SPELL_CAST_ABBR[economy]||'1A';
+   blocked.ritualAvailable=ritualAvailable;
+   return blocked;
+ }
+ function _ccPositiveInt(v){ const n=Number(v); return Number.isInteger(n)&&n>0?n:null; }
+ function _ccTarget(sp){
+   const row=(sp&&typeof sp==='object')?sp:{};
+   const status=String(row.menu_target_status||'').trim();
+   const reason=String(row.menu_target_blocked_primitive||'').trim();
+   if(status!=='binding') return _ccBlockedDecision(reason||'catalog_target_review','target');
+   const kind=String(row.menu_target_kind||'').trim();
+   const filter=String(row.menu_target_filter||'').trim();
+   if(kind==='self') return {availability:'available',target:{kind:'self'}};
+   if(kind==='single_creature'){
+     if(!filter) return _ccBlockedDecision(reason||'catalog_target_review','target');
+     return {availability:'available',target:{kind:'single_creature',filter:filter}};
+   }
+   if(kind==='discrete_multi'){
+     const baseCount=_ccPositiveInt(row.menu_target_count_base);
+     const perSlot=row.menu_target_count_per_slot==null?null:Math.max(0,Math.floor(Number(row.menu_target_count_per_slot)));
+     if(!baseCount||!filter||perSlot!=null&&!Number.isFinite(perSlot)) return _ccBlockedDecision(reason||'multi_target_picker+exact_cardinality+server_target_legality','target');
+     const target={kind:'discrete_multi',baseCount:baseCount,filter:filter};
+     if(perSlot!=null) target.perSlot=perSlot;
+     return {availability:'available',target:target};
+   }
+   if(kind==='point'||kind==='object'||kind==='hybrid'){
+     if(!filter) return _ccBlockedDecision(reason||'point_object_or_hybrid_picker+server_target_legality','target');
+     return {availability:'available',target:{kind:kind,filter:filter}};
+   }
+   if(kind==='area'){
+     const shape=String(row.area_shape||'').trim();
+     const origin=String(row.menu_area_origin||'').trim();
+     const sizeFt=_ccPositiveInt(row.area_size);
+     const widthFt=_ccPositiveInt(row.menu_area_width_ft);
+     const heightFt=_ccPositiveInt(row.menu_area_height_ft);
+     const shapeOk=/^(sphere|cube|cone|line|cylinder|square|wall)$/.test(shape);
+     const originOk=/^(self|point|target)$/.test(origin);
+     const dimensionsOk=!!sizeFt&&(
+       /^(sphere|cube|cone|square)$/.test(shape)||
+       (shape==='line'&&!!widthFt)||
+       (shape==='cylinder'&&!!heightFt)||
+       (shape==='wall'&&!!widthFt&&!!heightFt)
+     );
+     if(!shapeOk||!originOk||!dimensionsOk) return _ccBlockedDecision(reason||'reviewed_area_geometry+shape_aware_grid+server_aoe_authority','target');
+     const target={kind:'area',shape:shape,sizeFt:sizeFt,origin:origin};
+     if(widthFt) target.widthFt=widthFt;
+     if(heightFt) target.heightFt=heightFt;
+     return {availability:'available',target:target};
+   }
+   return _ccBlockedDecision(reason||'catalog_target_review','target');
+ }
+ function _ccLegacyTargetToken(target){
+   if(!target) return null;
+   if(target.kind==='self') return 'self';
+   if(target.kind==='single_creature') return 'creature';
+   return null;
+ }
+ function _ccSpellMenuDecision(sp,inCombat){
+   const castDecision=_ccCastAbbr(sp,inCombat);
+   if(castDecision.availability==='blocked') return castDecision;
+   const targetDecision=_ccTarget(sp);
+   if(targetDecision.availability==='blocked'){
+     targetDecision.cast=castDecision.cast;
+     targetDecision.castAbbr=castDecision.castAbbr;
+     targetDecision.menuSlot=castDecision.menuSlot;
+     targetDecision.ritualAvailable=castDecision.ritualAvailable;
+     return targetDecision;
+   }
+   const targetToken=_ccLegacyTargetToken(targetDecision.target);
+   if(!targetToken){
+     const unsupportedReason=targetDecision.target.kind==='discrete_multi'
+       ?'multi_target_picker+exact_cardinality+server_target_legality'
+       :(targetDecision.target.kind==='area'
+         ?'shape_aware_grid+area_origin+server_aoe_authority'
+         :'point_object_or_hybrid_picker+server_target_legality');
+     const unsupported=_ccBlockedDecision(sp.menu_target_blocked_primitive||unsupportedReason,'target');
+     unsupported.cast=castDecision.cast;
+     unsupported.castAbbr=castDecision.castAbbr;
+     unsupported.menuSlot=castDecision.menuSlot;
+     unsupported.ritualAvailable=castDecision.ritualAvailable;
+     return unsupported;
+   }
+   return {availability:'available',cast:castDecision.cast,castAbbr:castDecision.castAbbr,menuSlot:castDecision.menuSlot,ritualAvailable:castDecision.ritualAvailable,target:targetDecision.target,targetToken:targetToken};
+ }
+ function _ccSpellBlockedCopy(decision){
+   const key=String((decision&&decision.reasonCode)||'catalog_target_review');
+   const copy={
+     long_cast_flow:['ร่ายในศึกไม่ได้: เวทนี้ใช้เวลาร่ายนาน — ร่ายผ่านช่องเล่าเรื่องนอกการต่อสู้','Unavailable in combat: this spell has a long casting time — cast it through the story input outside combat.'],
+     catalog_cast_review:['ยังใช้เวทนี้จากเมนูไม่ได้: catalog ยังไม่ยืนยันเวลาร่าย','This spell is not yet available in the menu: its catalog casting time is not confirmed.'],
+     'shape_aware_grid+area_origin+server_aoe_authority':['ยังเล็งพื้นที่จากเมนูไม่ได้: กริดยังไม่รองรับรูปทรง จุดกำเนิด และอำนาจตัดสินพื้นที่อย่างถูกต้อง','Area targeting is not yet available: the grid does not support this shape, origin, and authoritative area resolution correctly.'],
+     'reviewed_area_geometry+shape_aware_grid+server_aoe_authority':['ยังเล็งพื้นที่จากเมนูไม่ได้: catalog ยังขาด geometry ที่ตรวจแล้ว และกริดยังไม่รองรับรูปทรงนี้','Area targeting is not yet available: reviewed geometry is missing and the grid does not support this shape.'],
+     'point_object_or_hybrid_picker+server_target_legality':['ยังใช้เวทนี้จากเมนูไม่ได้: ต้องมีตัวเลือกจุด วัตถุ หรือเป้าผสมและการตรวจเป้าหมายจาก server ก่อน','This spell is not yet available in the menu: it needs a point, object, or hybrid picker plus server target validation.'],
+     'multi_target_picker+exact_cardinality+server_target_legality':['ยังใช้เวทนี้จากเมนูไม่ได้: ต้องมีตัวเลือกหลายเป้าหมาย จำนวนที่แน่นอน และการตรวจเป้าหมายจาก server ก่อน','This spell is not yet available in the menu: it needs multi-target selection, exact cardinality, and server target validation.'],
+     catalog_target_review:['ยังใช้เวทนี้จากเมนูไม่ได้: catalog ยังไม่ยืนยันชนิดเป้าหมาย','This spell is not yet available in the menu: its catalog target contract is not confirmed.']
+   };
+   const pair=copy[key]||['เมนูยังไม่รองรับสัญญาเวทนี้ ('+key+')','The menu does not yet support this spell contract ('+key+').'];
+   return uiCopy(pair[0],pair[1]);
+ }
 async function prepCommandContext(){
   const ctx={enemies:[], character:null, loadError:null, slotsKnown:false, attacks:[], inventory:[]};
   // F26: mySheet is not realtime-authoritative while this menu is open. Refresh before deriving inventory or slot quota.
@@ -8702,7 +8815,7 @@ async function prepCommandContext(){
     const known=kr.data||[]; const spells=[], fb=[], fr=[]; const byName={}; (SPELL_CAT||[]).forEach(x=>byName[String(x.name).toLowerCase()]=x);
     known.forEach(sk=>{
       const sp=byName[String(sk.name).toLowerCase()];
-      if(sp){ spells.push({ id:sp.slug, _skillId:sk.id, name:sp.name, level:sp.level||0, cast:_ccCastAbbr(sp.casting_time), range:sp.range_||'', desc:sp.effect||sp.damage||'', target:_ccTarget(sp), concentration:!!sp.concentration, dice:sp.damage||null, maxUses:(+sk.max_uses>0?Math.floor(+sk.max_uses):null), used:Math.max(0,Math.floor(+sk.used||0)) }); }
+      if(sp){ const menuDecision=_ccSpellMenuDecision(sp,!!window._combatActive); spells.push({ id:sp.slug, _skillId:sk.id, name:sp.name, level:sp.level||0, cast:menuDecision.menuSlot, range:sp.range_||'', desc:sp.effect||sp.damage||'', target:menuDecision.targetToken||null, menuDecision:menuDecision, ritualAvailable:menuDecision.ritualAvailable===true, concentration:!!sp.concentration, dice:sp.damage||null, maxUses:(+sk.max_uses>0?Math.floor(+sk.max_uses):null), used:Math.max(0,Math.floor(+sk.used||0)) }); }
       else { const usesTxt=(sk.max_uses>0)?((sk.max_uses-(sk.used||0))+'/'+sk.max_uses):(sk.recharge||'passive'); const f={id:sk.id,name:sk.name,uses:usesTxt}; if(/reaction|ตอบโต้|สวนกลับ|riposte|parry/i.test(sk.description||'')) fr.push(f); else fb.push(f); }
     });
     spells.sort((a,b)=>a.level-b.level);
@@ -8865,6 +8978,7 @@ window.cc = (function(){
     if(left<=0) return uiCopy('ไม่มีสล็อตที่ใช้ได้','no spell slots available');
     return uiCopy('เหลือ '+left+' ครั้ง',left+' remaining');
   }
+  function _ccSpellBlocked(s){ return !!(s&&s.menuDecision&&s.menuDecision.availability==='blocked'); }
 
   function fakeMapPick(targetType){
     // TODO Phase 2: integrate with the real battle grid (replace prompt() placeholders).
@@ -8943,11 +9057,12 @@ window.cc = (function(){
     if(last==='cast_action'){
       return { items: character.spells.filter(function(s){return s.cast==='1A';}).map(function(s){
         var left = spellLeft(s);
-        var dim = left===null||left<=0;
-        var tag = (s.level===0?'CANT':'L'+s.level) + (s.concentration?' [C]':'');
+        var blocked=_ccSpellBlocked(s);
+        var dim = blocked||left===null||left<=0;
+        var tag = (s.level===0?'CANT':'L'+s.level) + (s.concentration?' [C]':'') + (s.ritualAvailable?uiCopy(' [พิธีกรรม]',' [RITUAL]'):'');
         return {
           label: s.name,
-          meta: tag + ' · ' + spellQuotaText(left) + ' · ' + s.range + ' · ' + s.desc,
+          meta: blocked ? _ccSpellBlockedCopy(s.menuDecision) : tag + ' · ' + spellQuotaText(left) + ' · ' + s.range + ' · ' + s.desc,
           drill: dim ? null : 'spell_'+s.id+'_action',
           dim: dim
         };
@@ -8957,10 +9072,11 @@ window.cc = (function(){
     if(last==='cast_bonus'){
       return { items: character.spells.filter(function(s){return s.cast==='1B';}).map(function(s){
         var left = spellLeft(s);
-        var dim = left===null||left<=0;
+        var blocked=_ccSpellBlocked(s);
+        var dim = blocked||left===null||left<=0;
         return {
           label: s.name,
-          meta: 'L'+s.level+' [B] · '+spellQuotaText(left)+' · '+s.range+' · '+s.desc,
+          meta: blocked ? _ccSpellBlockedCopy(s.menuDecision) : 'L'+s.level+' [B]'+(s.ritualAvailable?uiCopy(' [พิธีกรรม]',' [RITUAL]'):'')+' · '+spellQuotaText(left)+' · '+s.range+' · '+s.desc,
           drill: dim ? null : 'spell_'+s.id+'_bonus',
           dim: dim
         };
@@ -8970,10 +9086,11 @@ window.cc = (function(){
     if(last==='cast_reaction'){
       return { items: character.spells.filter(function(s){return s.cast==='1R';}).map(function(s){
         var left = spellLeft(s);
-        var dim = left===null||left<=0;
+        var blocked=_ccSpellBlocked(s);
+        var dim = blocked||left===null||left<=0;
         return {
           label: s.name,
-          meta: 'L'+s.level+' [R] · '+spellQuotaText(left)+' · '+s.range+' · '+s.desc,
+          meta: blocked ? _ccSpellBlockedCopy(s.menuDecision) : 'L'+s.level+' [R]'+(s.ritualAvailable?uiCopy(' [พิธีกรรม]',' [RITUAL]'):'')+' · '+spellQuotaText(left)+' · '+s.range+' · '+s.desc,
           drill: dim ? null : 'spell_'+s.id+'_reaction',
           dim: dim
         };
