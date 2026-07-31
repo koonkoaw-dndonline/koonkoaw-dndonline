@@ -2061,7 +2061,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202607290797;   // F36: spell menu reads catalog contract and fails closed
+const FRONTEND_BUILD = 202607300800;   // v800: combat-grid cell selection uses a synchronous local paint fast path
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -7319,7 +7319,88 @@ async function gridFastRefresh(){
     if(typeof renderCombat==='function') renderCombat();   // นอกฉากรบ: render panel ตามเดิม (กริดส่วนในยังเร็วขึ้นจาก cache)
   }catch(e){ try{ if(_bsShown) renderBattleScene(); else renderCombat(); }catch(_e){} }
 }
-function aoePickCell(c,r){ if(!aoeMode) return; aoeCenter={c:c,r:r}; gridFastRefresh(); }
+function gridCellLabel(c,r){ const L="ABCDEFGHIJKLMNOPQRST"; return (L[c]||'?')+(r+1); }
+function gridAoeStatusText(c,r){
+  const ft=(aoeMode&&aoeMode.radiusFt)||0, picked=(Number.isInteger(c)&&Number.isInteger(r))?gridCellLabel(c,r):'';
+  return uiCopy(
+    `🎯 เล็งพื้นที่ (${ft?('รัศมี '+ft+'ft'):'จุดเดียว'}) — แตะช่องศูนย์กลาง${picked?(' · เลือก '+picked):''}`,
+    `🎯 Target area (${ft?('radius '+ft+'ft'):'single point'}) — tap the center cell${picked?(' · selected '+picked):''}`
+  );
+}
+function gridMoveStatusText(c,r){
+  const sp=(typeof mySheet!=='undefined'&&mySheet&&mySheet.combat&&+mySheet.combat.speed)||30;
+  const cf=(_lastGrid&&_lastGrid.cell_ft)||5, maxC=Math.max(1,Math.floor(sp/cf));
+  const picked=(Number.isInteger(c)&&Number.isInteger(r))?gridCellLabel(c,r):'';
+  return uiCopy(
+    `🚶 แตะช่องเขียวเพื่อเลือกที่จะเดิน (≤ ${sp}ft = ${maxC} ช่อง)${picked?(' · เลือก '+picked+' → กด ✓'):''}`,
+    `🚶 Tap a green cell to move (≤ ${sp}ft = ${maxC} cells)${picked?(' · selected '+picked+' → press ✓'):''}`
+  );
+}
+// v800: cell selection is visual-only until confirm. Paint the existing SVG synchronously
+// instead of rebuilding/serializing the whole board; full render remains a fail-safe fallback.
+function gridPickPaint(kind,c,r){
+  try{
+    const board=document.getElementById('bsBoard');
+    c=Number(c); r=Number(r);
+    if(!board||!Number.isInteger(c)||!Number.isInteger(r)) return false;
+    if(kind==='aoe'){
+      const nodes=Array.from(board.querySelectorAll('[data-grid-aoe-cell]'));
+      if(!nodes.length) return false;
+      const center=gridCellLabel(c,r), affected=new Set(aoeCellsFor(c,r)); let hit=null;
+      nodes.forEach(function(n){
+        const cell=n.getAttribute('data-grid-cell')||'', isCenter=cell===center, isAffected=affected.has(cell);
+        if(isCenter) hit=n;
+        n.setAttribute('fill',isCenter?'rgba(226,75,74,0.62)':(isAffected?'rgba(226,75,74,0.45)':'rgba(255,255,255,0.02)'));
+        n.setAttribute('stroke',isCenter?'#fff':(isAffected?'#ff7b7b':'none'));
+        n.setAttribute('stroke-width',isCenter?'1.6':(isAffected?'0.8':'0'));
+      });
+      if(!hit) return false;
+      const status=board.querySelector('[data-grid-aoe-status]'); if(status) status.textContent=gridAoeStatusText(c,r);
+      const confirm=board.querySelector('[data-grid-aoe-confirm]'); if(confirm){ confirm.disabled=false; confirm.setAttribute('aria-disabled','false'); }
+      const svg=hit.ownerSVGElement||(hit.closest&&hit.closest('svg'));
+      if(svg){
+        let marker=svg.querySelector('[data-grid-aoe-center]');
+        if(!marker){ marker=document.createElementNS('http://www.w3.org/2000/svg','circle'); marker.setAttribute('data-grid-aoe-center','1'); marker.setAttribute('r','4'); marker.setAttribute('fill','#fff'); marker.setAttribute('stroke','#e23b3b'); marker.setAttribute('stroke-width','1.5'); marker.setAttribute('style','pointer-events:none'); svg.appendChild(marker); }
+        marker.setAttribute('cx',hit.getAttribute('data-grid-center-x')||'0'); marker.setAttribute('cy',hit.getAttribute('data-grid-center-y')||'0');
+      }
+      return true;
+    }
+    if(kind==='move'){
+      const nodes=Array.from(board.querySelectorAll('[data-grid-move-cell]')); let hit=null;
+      if(!nodes.length) return false;
+      nodes.forEach(function(n){
+        const selected=Number(n.getAttribute('data-grid-c'))===c&&Number(n.getAttribute('data-grid-r'))===r;
+        if(selected) hit=n;
+        n.setAttribute('fill',selected?'rgba(250,199,117,0.55)':'rgba(90,210,130,0.20)');
+        n.setAttribute('stroke',selected?'#FAC775':'#5ce08a');
+        n.setAttribute('stroke-width',selected?'1.6':'0.7');
+      });
+      if(!hit) return false;
+      const status=board.querySelector('[data-grid-move-status]'); if(status) status.textContent=gridMoveStatusText(c,r);
+      const confirm=board.querySelector('[data-grid-move-confirm]'); if(confirm){ confirm.disabled=false; confirm.setAttribute('aria-disabled','false'); }
+      const svg=hit.ownerSVGElement||(hit.closest&&hit.closest('svg'));
+      if(svg){
+        const old=svg.querySelector('[data-grid-move-arrow-live]'); if(old&&old.remove) old.remove();
+        const oldStatic=svg.querySelector('[data-grid-move-arrow-static]'); if(oldStatic&&oldStatic.remove) oldStatic.remove();
+        const oldPopup=svg.querySelector('[data-grid-move-popup]'); if(oldPopup&&oldPopup.remove) oldPopup.remove();
+        const x1=Number(hit.getAttribute('data-grid-src-x')), y1=Number(hit.getAttribute('data-grid-src-y'));
+        const x2=Number(hit.getAttribute('data-grid-center-x')), y2=Number(hit.getAttribute('data-grid-center-y'));
+        const dx=x2-x1, dy=y2-y1, len=Math.sqrt(dx*dx+dy*dy);
+        if(Number.isFinite(len)&&len>=8){
+          const ux=dx/len, uy=dy/len, ax=x2-ux*10, ay=y2-uy*10, px=-uy, py=ux;
+          const ns='http://www.w3.org/2000/svg', g=document.createElementNS(ns,'g'), line=document.createElementNS(ns,'line'), arrow=document.createElementNS(ns,'polygon');
+          g.setAttribute('data-grid-move-arrow-live','1'); g.setAttribute('style','pointer-events:none');
+          [['x1',x1],['y1',y1],['x2',ax],['y2',ay],['stroke','#FAC775'],['stroke-width','2.5']].forEach(a=>line.setAttribute(a[0],String(a[1])));
+          arrow.setAttribute('points',`${x2},${y2} ${ax+px*5},${ay+py*5} ${ax-px*5},${ay-py*5}`); arrow.setAttribute('fill','#FAC775');
+          g.appendChild(line); g.appendChild(arrow); svg.appendChild(g);
+        }
+      }
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
+function aoePickCell(c,r){ if(!aoeMode) return; aoeCenter={c:c,r:r}; if(!gridPickPaint('aoe',c,r)) gridFastRefresh(); }
 // เปิดตัวเลือกพื้นที่บน Map ให้ Command Menu (คืนผลผ่าน callback) — รัศมีจาก target เช่น sphere_20/cone_15/line_30
 function ccGridPick(target, cb){
   const m=/^(?:sphere|cone|line|cube|square|cylinder)_?(\d+)/.exec(String(target||'')); const ft=m?parseInt(m[1]):20;
@@ -7348,7 +7429,7 @@ function ccMovePick(cb){
   if(_bsShown){ renderBattleScene(); } else if(typeof renderCombat==='function'){ renderCombat(); }
   try{ toast('แตะช่องสีเขียวเพื่อเลือกที่จะเดินไป แล้วกด ✓'); }catch(e){}
 }
-function movePickCell(c,r){ if(!moveMode) return; moveSel={c:c,r:r}; gridFastRefresh(); }
+function movePickCell(c,r){ if(!moveMode) return; moveSel={c:c,r:r}; if(!gridPickPaint('move',c,r)) gridFastRefresh(); }
 function moveConfirm(){
   if(!moveMode||!moveSel){ try{toast('แตะช่องปลายทางก่อน',true);}catch(e){} return; }
   const L="ABCDEFGHIJKLMNOPQRST"; const cell=(L[moveSel.c]||'?')+(moveSel.r+1); const cb=moveMode.cb;
@@ -7941,10 +8022,11 @@ async function renderBattleGrid(p){
     const _ac=[]; for(let r=0;r<rows;r++)for(let c=0;c<cols;c++) _ac.push([c,r]);
     if(ISO) _ac.sort((a,b)=>(a[0]+a[1])-(b[0]+b[1]));   // iso: ช่องหน้าวาดทับ → คลิกโดนช่องบนสุด
     _ac.forEach(p=>{ const c=p[0], r=p[1], cell=rc2cell(c,r);
-      if(affected.has(cell)) svg+=cellShape(c,r,'fill="rgba(226,75,74,0.45)" stroke="#ff7b7b" stroke-width="0.8" style="pointer-events:none"');
-      svg+=cellShape(c,r,`fill="rgba(255,255,255,0.02)" style="cursor:crosshair" onclick="aoePickCell(${c},${r})"`);
+      const centered=!!(aoeCenter&&aoeCenter.c===c&&aoeCenter.r===r), hit=affected.has(cell);
+      const _cc=cellCenter(c,r);
+      svg+=cellShape(c,r,`data-grid-aoe-cell="1" data-grid-cell="${cell}" data-grid-center-x="${_cc[0].toFixed(2)}" data-grid-center-y="${_cc[1].toFixed(2)}" fill="${centered?'rgba(226,75,74,0.62)':(hit?'rgba(226,75,74,0.45)':'rgba(255,255,255,0.02)')}" stroke="${centered?'#fff':(hit?'#ff7b7b':'none')}" stroke-width="${centered?'1.6':(hit?'0.8':'0')}" style="cursor:crosshair" onclick="aoePickCell(${c},${r})"`);
     });
-    if(aoeCenter){ const _acc=cellCenter(aoeCenter.c,aoeCenter.r); svg+=`<circle cx="${_acc[0].toFixed(1)}" cy="${_acc[1].toFixed(1)}" r="4" fill="#fff" stroke="#e23b3b" stroke-width="1.5" style="pointer-events:none"/>`; }
+    if(aoeCenter){ const _acc=cellCenter(aoeCenter.c,aoeCenter.r); svg+=`<circle data-grid-aoe-center="1" cx="${_acc[0].toFixed(1)}" cy="${_acc[1].toFixed(1)}" r="4" fill="#fff" stroke="#e23b3b" stroke-width="1.5" style="pointer-events:none"/>`; }
   }
   // 🚶 โหมดเดิน: ไฮไลต์ช่องในระยะความเร็วของหมากผู้เล่น + แตะเลือก
   if(moveMode){
@@ -7954,13 +8036,14 @@ async function renderBattleGrid(p){
       const cf=grid.cell_ft||5; const maxC=Math.max(1,Math.floor(sp/cf));
       const _mc=[]; for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){ const cell=rc2cell(c,r), d=Math.max(Math.abs(c-myTok.col),Math.abs(r-myTok.row)); if(d>0&&d<=maxC&&!walls.has(cell)) _mc.push([c,r]); }
       if(ISO) _mc.sort((a,b)=>(a[0]+a[1])-(b[0]+b[1]));
-      _mc.forEach(p=>{ const c=p[0], r=p[1], seld=moveSel&&moveSel.c===c&&moveSel.r===r;
-        svg+=cellShape(c,r,`fill="${seld?'rgba(250,199,117,0.55)':'rgba(90,210,130,0.20)'}" stroke="${seld?'#FAC775':'#5ce08a'}" stroke-width="${seld?'1.6':'0.7'}" style="cursor:pointer" onclick="movePickCell(${c},${r})"`);
-      });
       const _sf=footXY(myTok.col,myTok.row), sfx=_sf[0], sfy=_sf[1];
+      _mc.forEach(p=>{ const c=p[0], r=p[1], seld=moveSel&&moveSel.c===c&&moveSel.r===r;
+        const _cc=cellCenter(c,r);
+        svg+=cellShape(c,r,`data-grid-move-cell="1" data-grid-c="${c}" data-grid-r="${r}" data-grid-src-x="${sfx.toFixed(2)}" data-grid-src-y="${sfy.toFixed(2)}" data-grid-center-x="${_cc[0].toFixed(2)}" data-grid-center-y="${_cc[1].toFixed(2)}" fill="${seld?'rgba(250,199,117,0.55)':'rgba(90,210,130,0.20)'}" stroke="${seld?'#FAC775':'#5ce08a'}" stroke-width="${seld?'1.6':'0.7'}" style="cursor:pointer" onclick="movePickCell(${c},${r})"`);
+      });
       svg+=`<circle cx="${sfx.toFixed(1)}" cy="${sfy.toFixed(1)}" r="3" fill="#5ce08a" stroke="#0d1018" stroke-width="1" style="pointer-events:none"/>`;
       // ข้อ 2: ลูกศรทิศทางจากตำแหน่งปัจจุบัน → ช่องที่กำลังเลือก (เห็นทิศก่อนกดยืนยัน)
-      if(moveSel){ const _sc=cellCenter(moveSel.c,moveSel.r); svg+=_gridArrow(sfx, sfy, _sc[0], _sc[1], '#FAC775', false); }
+      if(moveSel){ const _sc=cellCenter(moveSel.c,moveSel.r); svg+=`<g data-grid-move-arrow-static="1">${_gridArrow(sfx, sfy, _sc[0], _sc[1], '#FAC775', false)}</g>`; }
       // ป๊อปอัปยืนยันเด้งใกล้ช่องที่คลิก (เหนือช่อง) — ปุ่ม ✓ เดิน / ✕ ยกเลิก
       if(moveSel){
         const _sc2=cellCenter(moveSel.c,moveSel.r), cx=_sc2[0], _vw=(ISO?IVW:VW);
@@ -7969,8 +8052,10 @@ async function renderBattleGrid(p){
         let gy=cellTopY(moveSel.c,moveSel.r)-bh-5; if(gy<(ISO?6:PADTOP-4)) gy=_below;
         let x1=cx-bw-gap/2, x2=cx+gap/2;
         if(x1<2){ x1=2; x2=2+bw+gap; } if(x2+bw>_vw-2){ x2=_vw-2-bw; x1=x2-bw-gap; }
+        svg+='<g data-grid-move-popup="1">';
         svg+=`<g style="cursor:pointer" onclick="moveConfirm()"><rect x="${x1.toFixed(1)}" y="${gy.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="4" fill="#1c7a3e" stroke="#7CFFB0" stroke-width="1.5"/><text x="${(x1+bw/2).toFixed(1)}" y="${(gy+bh*0.72).toFixed(1)}" text-anchor="middle" font-size="${fs}" fill="#eafff2" style="pointer-events:none">✓</text></g>`;
         svg+=`<g style="cursor:pointer" onclick="moveCancel()"><rect x="${x2.toFixed(1)}" y="${gy.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="4" fill="#7a1c1c" stroke="#ff9a9a" stroke-width="1.5"/><text x="${(x2+bw/2).toFixed(1)}" y="${(gy+bh*0.72).toFixed(1)}" text-anchor="middle" font-size="${fs}" fill="#ffecec" style="pointer-events:none">✕</text></g>`;
+        svg+='</g>';
       }
     }
   }
@@ -7987,20 +8072,20 @@ async function renderBattleGrid(p){
   box.innerHTML='<div style="overflow-x:auto;-webkit-overflow-scrolling:touch">'+svg+'</div>';   // v452: ตัด header "⚔ BATTLE GRID" + note ออก (ฉากสู้ชิดขอบบน)
   if(aoeMode){
     const ctl=document.createElement('div'); ctl.className='optrow'; ctl.style.marginTop='8px';
-    ctl.innerHTML=`<span class="dicelbl">🎯 เล็งพื้นที่ (${aoeMode.radiusFt?('รัศมี '+aoeMode.radiusFt+'ft'):'จุดเดียว'}) — แตะช่องศูนย์กลาง${aoeCenter?(' · เลือก '+(("ABCDEFGHIJKLMNOPQRST"[aoeCenter.c]||'?')+(aoeCenter.r+1))):''}</span>`;
-    const ok=document.createElement('button'); ok.className='btn sm'; ok.textContent='✓ ยืนยันพื้นที่'; ok.onclick=aoeConfirm; ctl.appendChild(ok);
-    const no=document.createElement('button'); no.className='btn ghost sm'; no.textContent='ยกเลิก'; no.onclick=aoeCancel; ctl.appendChild(no);
+    const ast=document.createElement('span'); ast.className='dicelbl'; ast.setAttribute('data-grid-aoe-status','1'); ast.textContent=gridAoeStatusText(aoeCenter&&aoeCenter.c,aoeCenter&&aoeCenter.r); ctl.appendChild(ast);
+    const ok=document.createElement('button'); ok.className='btn sm'; ok.textContent=uiCopy('✓ ยืนยันพื้นที่','✓ Confirm area'); ok.setAttribute('data-grid-aoe-confirm','1'); ok.disabled=!aoeCenter; ok.setAttribute('aria-disabled',aoeCenter?'false':'true'); ok.onclick=aoeConfirm; ctl.appendChild(ok);
+    const no=document.createElement('button'); no.className='btn ghost sm'; no.textContent=uiCopy('ยกเลิก','Cancel'); no.onclick=aoeCancel; ctl.appendChild(no);
     box.appendChild(ctl);
   }
   if(moveMode){
     const myTok2=toks.find(t=> t.ref_char_id && (typeof myChar!=='undefined') && myChar && t.ref_char_id===myChar.id);
-    const sp=(typeof mySheet!=='undefined'&&mySheet&&mySheet.combat&&+mySheet.combat.speed)||30;
-    const cf=grid.cell_ft||5; const maxC=Math.max(1,Math.floor(sp/cf)); const L2="ABCDEFGHIJKLMNOPQRST";
     const ctl=document.createElement('div'); ctl.className='optrow'; ctl.style.marginTop='8px';
-    ctl.innerHTML = myTok2
-      ? `<span class="dicelbl">🚶 แตะช่องเขียวเพื่อเลือกที่จะเดิน (≤ ${sp}ft = ${maxC} ช่อง)${moveSel?(' · เลือก '+((L2[moveSel.c]||'?')+(moveSel.r+1))+' → กด ✓ บนกระดาน'):''}</span>`
-      : `<span class="dicelbl" style="color:#f09595">ไม่พบหมากของคุณบนสนามรบ</span>`;
-    const no2=document.createElement('button'); no2.className='btn ghost sm'; no2.textContent='ยกเลิก'; no2.onclick=moveCancel; ctl.appendChild(no2);
+    const mst=document.createElement('span'); mst.className='dicelbl'; mst.setAttribute('data-grid-move-status','1');
+    if(myTok2) mst.textContent=gridMoveStatusText(moveSel&&moveSel.c,moveSel&&moveSel.r);
+    else { mst.style.color='#f09595'; mst.textContent=uiCopy('ไม่พบหมากของคุณบนสนามรบ','Your token is not on the battle grid'); }
+    ctl.appendChild(mst);
+    const ok2=document.createElement('button'); ok2.className='btn sm'; ok2.textContent='✓'; ok2.title=uiCopy('ยืนยันช่องปลายทาง','Confirm destination'); ok2.setAttribute('aria-label',uiCopy('ยืนยันช่องปลายทาง','Confirm destination')); ok2.setAttribute('data-grid-move-confirm','1'); ok2.disabled=!moveSel; ok2.setAttribute('aria-disabled',moveSel?'false':'true'); ok2.onclick=moveConfirm; ctl.appendChild(ok2);
+    const no2=document.createElement('button'); no2.className='btn ghost sm'; no2.textContent=uiCopy('ยกเลิก','Cancel'); no2.onclick=moveCancel; ctl.appendChild(no2);
     box.appendChild(ctl);
   }
   p.appendChild(box);
