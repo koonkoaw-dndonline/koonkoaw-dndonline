@@ -17,6 +17,8 @@
 <script>/* v610 skin: ตั้งคลาสก่อน CSS paint กันจอกะพริบ — default = paper (กระดาษนิยาย) · classic = ธีมพิกเซลเดิม */
 try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentElement.classList.add('skin-paper'); }catch(e){}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./grid-command-flow.js?v=822"></script>
+<script src="./grid-command-adapter.js?v=822"></script>
 <style>
 /* ============================================================
    TTRPG CAMPAIGN — Dragon Quest (NES) monochrome re-skin (เฟส 5)
@@ -1807,7 +1809,7 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
 <div class="center hidden" id="lobbyScreen">
   <!-- จอ 1: เลือกบทบาท -->
   <div id="roleScreen">
-    <div class="card" id="createCard" onclick="lobbyGo('hostModeScreen')" style="cursor:pointer;text-align:left">
+    <div class="card" id="createCard" onclick="openHostLobby()" style="cursor:pointer;text-align:left">
       <h2>HOST — สร้างโลกใหม่</h2>
       <p class="sub">คุณเป็นผู้คุมเกม (DM) ของโลกนี้ — เลือกรูปแบบการเล่น สร้างโลก แล้วชวนเพื่อนได้สูงสุด 4 คน</p>
       <p class="note" style="font-weight:600">สร้างโลก →</p>
@@ -1891,7 +1893,7 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
         <b>⛏ DUNGEON CRAWLER</b> <span class="note" style="display:inline">— ดันเจี้ยนเดียว ดำดิ่งถึงก้น โค่นสิ่งที่เฝ้าอยู่</span>
       </div>
       <label class="fld">โจทย์ของเรื่อง (สั้นๆ พอ — DM ขยายเอง)<textarea id="osPremise" style="height:70px" placeholder="เช่น &quot;ขุนนางถูกฆ่ากลางงานเลี้ยง ประตูปิดตาย ฆาตกรอยู่ในหมู่แขก&quot;"></textarea></label>
-      <div class="fld" style="margin-bottom:4px;font-size:13px;color:var(--gray);line-height:1.6">เลเวลเริ่มต้นของปาร์ตี้ — ทุกคนถูกดันขึ้นถึงเลเวลนี้หลังสร้างตัวละคร (เลือก feature เองทีละขั้น)</div>
+      <div id="osLevelHelp" class="fld" style="margin-bottom:4px;font-size:13px;color:var(--gray);line-height:1.6">เป้าหมายเลเวลของปาร์ตี้ — ตัวละครเริ่มที่เลเวล 1 แล้วขึ้นทีละ 1 ผ่านการ์ด LEVEL UP; ผู้เล่นทุกคนต้องยืนยันแต่ละขั้นก่อนขึ้นขั้นถัดไป</div>
       <div class="srow3" style="gap:8px">
         <div class="card lvlpick" data-lv="3" onclick="pickLevel(this,3)" style="cursor:pointer;text-align:center;padding:8px 4px"><b>เลเวล 3</b><div class="note">เหมาะกับมือใหม่</div></div>
         <div class="card lvlpick" data-lv="5" onclick="pickLevel(this,5)" style="cursor:pointer;text-align:center;padding:8px 4px;outline:2px solid currentColor"><b>เลเวล 5</b><div class="note">ช่วงสนุกสุดของ D&D</div></div>
@@ -2021,7 +2023,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202607300800;   // v800: combat-grid cell selection uses a synchronous local paint fast path
+const FRONTEND_BUILD = 202607310822;   // v822: caller-only Host eligibility from app_config; no copied email allowlist
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2062,7 +2064,7 @@ async function retractActionForEdit(actionId, draftText){
   try{
     var rpc=await supa.rpc('retract_action_v2',{p_cid:campaign.id,p_round:curRound.id,p_group:actionIngressGroup(curRound,myChar&&myChar.id),p_action:actionId});
     if(rpc.error||!rpc.data||rpc.data.ok!==true) throw new Error(actionIngressError(rpc.data&&rpc.data.error,rpc.error&&rpc.error.message));
-    if(rpc.data.status==='not_found') throw new Error(uiCopy('(แก้: ไม่พบ action รายการนี้ในรอบปัจจุบัน — ระบบเก็บฉบับร่างไว้และไม่เคลียร์สถานะใด กรุณาโหลดรอบล่าสุด)','(Fixed: that action was not found in the current round. The draft and repair state were preserved; load the latest round.)'));
+    if(rpc.data.status==='not_found') throw new Error(uiCopy('(แก้: ไม่พบการกระทำนี้ในรอบปัจจุบัน — ฉบับร่างยังอยู่ครบ กรุณาโหลดรอบล่าสุด)','(Fixed: that action was not found in the current round. Your draft is preserved; load the latest round.)'));
     window._actionEditDraft=String(draftText||''); window._actionRepair=null;
     toast(uiCopy('(แก้: ปลด action ที่ค้างแล้ว — แก้ข้อความและส่งใหม่ได้)','(Fixed: the stuck action was released — edit it and submit again.)'));
     await loadRound(); renderRoundbar();
@@ -2103,7 +2105,7 @@ async function submitInventoryAffordance(affordance){
   const actionText=uiCopy(String(affordance.label_th||'เลือกของจากคลัง'),String(affordance.label_en||'Choose inventory action'));
   try{
     const saved=await submitActionV2(curRound,myChar.id,actionText,{inventory_affordance:affordance.payload});
-    if(!saved||!saved.action_id) throw new Error(uiCopy('(แก้: server ไม่คืนหลักฐาน action จึงยังไม่ดำเนินรายการคลัง)','(Fixed: the server returned no action receipt, so the inventory action was not processed.)'));
+    if(!saved||!saved.action_id) throw new Error(uiCopy('(แก้: การกระทำยังไม่มีหลักฐานยืนยัน จึงยังไม่ดำเนินรายการคลัง)','(Fixed: the action had no confirmation, so the inventory action was not processed.)'));
     await resolveInventoryAffordance(String(saved.action_id),affordance);
   }catch(e){
     toast(e.message||uiCopy('(แก้: ส่งตัวเลือกคลังไม่สำเร็จ — ยังไม่มี state ถูกเปลี่ยน)','(Fixed: the inventory option could not be submitted; no state changed.)'),true);
@@ -2123,7 +2125,54 @@ const DUNGEON_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/ingest-dungeon';
 const DYNAMIC_FN = SUPA_URL.replace(/\/$/,'') + '/functions/v1/dynamic-task';
 let supa=null, session=null, me=null;            // me = auth user
 let slowlifeState={active:false,mode:'off'};     // v710: resolver-filtered projection; host never receives private prose
-const OWNER_EMAILS=['koonkoaw@hotmail.com','koonkoaw19871@gmail.com'];   // ช่วงทดสอบ: เฉพาะอีเมลในลิสต์สร้างโลกได้ (กัน API token หมด) — ต้องตรงกับ allowlist ใน migration 0140
+// ══ v822 HOST ALLOWLIST CONFIG — client sees only its own verdict; the email list stays private in app_config ══
+let campaignCreateAccess={
+  allowed:false,reason:'checking',
+  player_note_th:'กำลังตรวจสิทธิ์สร้างโลก…',
+  player_note_en:'Checking world-creation access…'
+};
+function campaignCreateAccessMessage(verdict,bilingual=false){
+  const v=verdict&&typeof verdict==='object'?verdict:{};
+  const th=String(v.player_note_th||'(แก้: ยังยืนยันสิทธิ์ Host ไม่ได้ ระบบจึงหยุดก่อนสร้างโลก)');
+  const en=String(v.player_note_en||'(Fixed: Host access could not be verified, so the system stopped before creating a world.)');
+  return bilingual?th+'\n'+en:uiCopy(th,en);
+}
+function renderCampaignCreateAccess(){
+  const card=$('createCard'); if(!card) return;
+  const allowed=campaignCreateAccess&&campaignCreateAccess.allowed===true;
+  card.setAttribute('aria-disabled',allowed?'false':'true');
+  card.style.opacity=allowed?'':'0.68'; card.style.cursor=allowed?'pointer':'not-allowed';
+  let note=$('hostAccessNote');
+  if(!note){ note=document.createElement('p'); note.id='hostAccessNote'; note.className='note'; note.style.cssText='margin-top:9px;white-space:pre-line;color:#f6b5b5'; card.appendChild(note); }
+  note.textContent=allowed?'':campaignCreateAccessMessage(campaignCreateAccess,true);
+  note.style.display=allowed?'none':'';
+}
+function openHostLobby(){
+  if(!(campaignCreateAccess&&campaignCreateAccess.allowed===true)){
+    toast(campaignCreateAccessMessage(campaignCreateAccess),true); return;
+  }
+  lobbyGo('hostModeScreen');
+}
+async function refreshCampaignCreateAccess(){
+  let verdict={
+    allowed:false,reason:'host-access-unavailable',
+    player_note_th:'(แก้: ยังยืนยันสิทธิ์ Host ไม่ได้ ระบบจึงหยุดก่อนสร้างโลก)',
+    player_note_en:'(Fixed: Host access could not be verified, so the system stopped before creating a world.)'
+  };
+  try{
+    const rpc=await supa.rpc('campaign_create_access',{p_beta_code:(BETA&&betaCode())?betaCode():null});
+    if(rpc.error) throw rpc.error;
+    const row=Array.isArray(rpc.data)?rpc.data[0]:rpc.data;
+    if(row&&typeof row==='object'&&typeof row.allowed==='boolean') verdict=row;
+  }catch(e){}
+  campaignCreateAccess=verdict; renderCampaignCreateAccess();
+  return verdict.allowed===true;
+}
+async function ensureCampaignCreateAccess(){
+  const allowed=await refreshCampaignCreateAccess();
+  if(!allowed) toast(campaignCreateAccessMessage(campaignCreateAccess),true);
+  return allowed;
+}
 // ══ v210 BETA MODE — เปิดเมื่อไฟล์ชื่อมี beta (beta.html) หรือ ?beta=1 · กำแพงจริงอยู่ฝั่ง server (BETA_CODE env + migration 0056) ══
 const BETA=/beta/i.test(location.pathname)||new URLSearchParams(location.search).has('beta');
 function betaCode(){ try{ return localStorage.getItem('betaCode')||''; }catch(e){ return ''; } }
@@ -2189,7 +2238,7 @@ function renderFrontendRefreshBanner(){
   // v737 P0-A (B4): ย้าย banner ลงล่างจอ — เดิม top:10px ทับแถบแท็บ (Party/DM TOOLS คลิกไม่ได้) ระหว่างที่ฟอร์มส่ง action ด้านล่างยังกดได้ = สภาพกึ่งกลางต้องห้าม
   if(!el){ el=document.createElement('div'); el.id='frontendBuildBanner'; el.style.cssText='position:fixed;left:10px;right:10px;bottom:10px;z-index:100000;background:#2b1600;color:#fff;border:2px solid #ffbf47;border-radius:8px;padding:10px 12px;font:600 14px/1.5 sans-serif;box-shadow:0 4px 18px #000'; document.body.appendChild(el); }
   const v=frontendRefreshSafe(), why={draft:uiCopy('มีข้อความที่ยังไม่ได้ส่ง','an unsent draft'),local_write:uiCopy('คำขอในเครื่องกำลังจบ','a local request is finishing'),resolving:uiCopy('DM กำลังประมวลผล','the DM is resolving'),combat:uiCopy('ยังอยู่กลางการต่อสู้','combat is active'),victory_transaction:uiCopy('กำลังปิดธุรกรรมหลังศึก','the victory transaction is active')};
-  el.innerHTML='<div>'+uiCopy('⚠️ หน้าเกมรุ่นนี้เก่ากว่ารุ่นที่ server รองรับ','⚠️ This game page is older than the server requires')+(v.safe?uiCopy(' — พร้อมรีเฟรชอย่างปลอดภัย',' — safe to reload'):uiCopy(' — รอคำขอในเครื่องให้จบ',' — waiting for the local request'))+'</div><div style="font-weight:400;opacity:.85">'+(v.safe?(v.stashed?uiCopy('ข้อความร่างจะถูกเก็บในเครื่องและคืนหลังโหลดหน้าใหม่','Your draft will be saved locally and restored after reload'):uiCopy('กดปุ่มเมื่อพร้อม ข้อมูลเกมอยู่บน server แล้ว','Reload when ready; game data is already on the server')):uiCopy('รอ: ','Waiting for: ')+v.blockers.map(x=>why[x]||x).join(' · '))+'</div>';
+  el.innerHTML='<div>'+uiCopy('⚠️ หน้าเกมรุ่นนี้เก่ากว่ารุ่นที่ระบบเกมรองรับ','⚠️ This game page is older than the game service requires')+(v.safe?uiCopy(' — พร้อมรีเฟรชอย่างปลอดภัย',' — safe to reload'):uiCopy(' — รอคำขอในเครื่องให้จบ',' — waiting for the local request'))+'</div><div style="font-weight:400;opacity:.85">'+(v.safe?(v.stashed?uiCopy('ข้อความร่างจะถูกเก็บในเครื่องและคืนหลังโหลดหน้าใหม่','Your draft will be saved locally and restored after reload'):uiCopy('กดปุ่มเมื่อพร้อม ข้อมูลเกมถูกเก็บไว้อย่างปลอดภัยแล้ว','Reload when ready; your game data is safe')):uiCopy('รอ: ','Waiting for: ')+v.blockers.map(x=>why[x]||x).join(' · '))+'</div>';
   // v737 P0-A: reload พร้อม cache-buster จาก min build (GitHub Pages เสิร์ฟ HTML แคชได้ — reload() เปล่าอาจได้ไฟล์เก่าซ้ำ) · คง query เดิมทั้งหมด (id/code) แก้เฉพาะ v
   const b=document.createElement('button'); b.type='button'; b.textContent=v.safe?uiCopy('รีเฟรชเพื่อใช้รุ่นล่าสุด','Reload latest version'):uiCopy('ยังรีเฟรชไม่ได้','Reload not safe yet'); b.disabled=!v.safe; b.style.cssText='margin-top:7px;padding:7px 12px'; b.onclick=()=>{ if(!frontendRefreshSafe().safe) return; if(!frontendStashDrafts()&&frontendDraftPending()){ if(!confirm(uiCopy('บันทึกฉบับร่างไม่สำเร็จ (เบราว์เซอร์ไม่ให้เก็บข้อมูล) — รีเฟรชแล้วข้อความที่พิมพ์ไว้จะหาย ยืนยันรีเฟรช?','Draft could not be saved (browser storage unavailable) — reloading will lose the typed text. Reload anyway?'))) return; } try{ const u=new URL(window.location.href); u.searchParams.set('v', String((_frontendRequirement&&_frontendRequirement.minBuild)||FRONTEND_BUILD)); window.location.replace(u.toString()); }catch(e){ window.location.reload(); } }; el.appendChild(b);   // v738b P3-4: stash ล้ม + มี draft = ต้อง confirm ก่อนทิ้ง
 }
@@ -2253,6 +2302,41 @@ function playerCombatUiState(){
 let aoeMode=null, aoeCenter=null, pendingAoE=null, aoePickOpen=false, _lastGrid=null;  // เล็งเวทแบบพื้นที่บน Map
 let moveMode=null, moveSel=null;  // โหมดแตะกริดเลือกช่องเดินเอง
 let _gridCache=null, _gridUseCache=false;  // (06-10) cache ข้อมูลสนามรบ — แตะเลือกช่องวาดใหม่ทันทีไม่ยิง query (แก้หน่วง)
+let gridCommandAdapter=null, gridCommandFlow=null, gridCommandSession=null;
+try{
+  if(window.TTRPG_GRID_COMMAND_ADAPTER&&window.TTRPG_GRID_COMMAND_FLOW){
+    gridCommandAdapter=window.TTRPG_GRID_COMMAND_ADAPTER.create({
+      campaign:()=>campaign,
+      encounterId:()=>window.gEncId,
+      round:()=>curRound,
+      groupNo:()=>terminalGroupForUi(),
+      gridCache:()=>_gridCache,
+      character:()=>myChar,
+      sheet:()=>mySheet,
+      language:()=>uiLanguage(),
+      closeCommandSheet:()=>{ if(typeof bsCloseSheets!=='function') return false; bsCloseSheets(); return true; },
+      announce:(info)=>{ if(!info||!info.text||typeof toast!=='function') return false; toast(info.text,info.level==='error'); return true; }
+    });
+    gridCommandFlow=window.TTRPG_GRID_COMMAND_FLOW.createController(gridCommandAdapter);
+  }
+}catch(_gridWireError){ gridCommandAdapter=null; gridCommandFlow=null; }
+
+function gridCommandInvalidate(reason){
+  if(!gridCommandAdapter||!gridCommandFlow) return false;
+  gridCommandAdapter.bumpRevision();
+  const next=gridCommandAdapter.readIdentity();
+  gridCommandFlow.invalidate(next||null,reason);
+  gridCommandSession=null;
+  return true;
+}
+
+function gridCommandDelegate(kind,action,arg){
+  const session=gridCommandSession;
+  if(!session||session.kind!==kind||!session.handlers||typeof session.handlers[action]!=='function') return false;
+  const result=session.handlers[action](arg);
+  if(action!=='select'&&result&&(result.ok||result.reason==='context-changed'||result.reason==='stale-session')) gridCommandSession=null;
+  return true;
+}
 
 function $(id){return document.getElementById(id);}
 function toast(msg,isErr){const t=$('toast');t.textContent=msg;t.className='toast show'+(isErr?' err':'');setTimeout(()=>t.className='toast',2600);}
@@ -2332,7 +2416,7 @@ async function afterAuthChange(){
   if(!session){ $('hdDot').className='dot'; $('hdLogout').classList.add('hidden'); show('authScreen'); return; }
   me = session.user;
   await refreshEdgeFunctionRegion();
-  try{ const _own=OWNER_EMAILS.includes((me.email||'').toLowerCase())||(BETA&&!!betaCode()); const _cc=$('createCard'); if(_cc) _cc.style.display=_own?'':'none'; }catch(e){}   // v210: เบต้าเทสเตอร์ (มีรหัส) สร้างโลกได้
+  await refreshCampaignCreateAccess();
   $('hdDot').className='dot ok'; $('hdLogout').classList.remove('hidden');
   $('hdWho').textContent = me.email || '';
   await ensureProfile();
@@ -2453,6 +2537,7 @@ function onMusicFiles(files){
 let pendingMode='open', pendingStyle='journey', pendingLevel=5;
 function lobbyGo(id){
   ['roleScreen','joinScreen','hostModeScreen','hostCreateScreen','hostOneshotScreen'].forEach(s=>{ const el=$(s); if(el) el.classList.toggle('hidden', s!==id); });
+  const levelHelp=$('osLevelHelp'); if(levelHelp) levelHelp.textContent=uiCopy('เป้าหมายเลเวลของปาร์ตี้ — ตัวละครเริ่มที่เลเวล 1 แล้วขึ้นทีละ 1 ผ่านการ์ด LEVEL UP; ผู้เล่นทุกคนต้องยืนยันแต่ละขั้นก่อนขึ้นขั้นถัดไป','Party target level — characters start at level 1, then advance one level at a time through the LEVEL UP card; every player must confirm each step before the next begins.');
 }
 function pickMode(el,m){ pendingMode=m; document.querySelectorAll('#hostModeScreen .modepick').forEach(x=>x.style.outline=''); el.style.outline='2px solid currentColor'; }
 function modeNext(){
@@ -2462,7 +2547,7 @@ function modeNext(){
 function pickStyle(el,s,scope){ pendingStyle=s; document.querySelectorAll('#'+scope+' .stylepick').forEach(x=>x.style.outline=''); el.style.outline='2px solid currentColor'; }
 function pickLevel(el,n){ pendingLevel=n; document.querySelectorAll('#hostOneshotScreen .lvlpick').forEach(x=>x.style.outline=''); el.style.outline='2px solid currentColor'; }
 async function createCampaign(){
-  if(!OWNER_EMAILS.includes((me.email||'').toLowerCase())&&!(BETA&&betaCode())){ toast('ช่วงทดสอบ: เฉพาะเจ้าของระบบเท่านั้นที่สร้างโลกได้',true); return; }   // v210: เบต้า+รหัส = สร้างได้ (server เช็ครหัสซ้ำใน migration 0056)
+  if(!await ensureCampaignCreateAccess()) return;
   const _oneshot=pendingMode==='oneshot';   // v617: ONE SHOT ใช้ฟอร์มย่อ (osName/osPremise + เลเวลเริ่ม 3/5/8)
   const name=(_oneshot?$('osName'):$('newName')).value.trim(); if(!name){toast(_oneshot?'ตั้งชื่อเรื่องก่อน':'Name your campaign first',true);return;}
   $('createBtn').disabled=true; if($('createOsBtn')) $('createOsBtn').disabled=true;
@@ -2472,6 +2557,7 @@ async function createCampaign(){
     const { data, error } = await supa.rpc('create_campaign', BETA&&betaCode() ? { p_name:name, p_rules:combined, p_beta_code:betaCode() } : { p_name:name, p_rules:combined });
     if(error) throw error;
     campaign = Array.isArray(data)?data[0]:data;
+    if(!campaign||!campaign.id) throw new Error(campaignCreateAccessMessage(campaignCreateAccess));
     const _tone=_oneshot?'':((($('newTone')||{}).value||'').trim());   // v296: ถอด pace ออก — บลูพรินท์คุมจังหวะ
     // v617: เขียนโหมด/แนวเนื้อเรื่อง/เลเวลเริ่ม (คอลัมน์ campaigns · migration 0086 — pattern เดียวกับ tone: host เขียนตรงผ่าน RLS)
     // v628 #10 (static review): เช็ค {error} จริง + readback — supabase-js ไม่ throw ดังนั้น try/catch เดิมไม่มีวันจับ
@@ -3475,7 +3561,7 @@ async function createCharacter(){
     if(_shErr && String(_shErr.code)!=='23505') throw _shErr;   // v628 #6: 23505 = ชีทมีอยู่แล้ว (path กู้ตัวละครค้าง) — ใช้ของเดิม ห้ามทับ
     if(sheet.birth_date_game && campaign&&campaign.companion_mode==='v2'){
       try{ await companionResolve({romance_confirm:{character_id:ch.id,birthday_only:true,birth_date:sheet.birth_date_game,birth_age_years:parseInt(sheet.age,10)||null}}); }
-      catch(e){ toast(e.message||'วันเกิดยังไม่ถูกล็อกในปฏิทิน server — ตั้งใหม่ได้ในแท็บ Companion',true); }
+      catch(e){ toast(e.message||uiCopy('วันเกิดยังไม่ถูกล็อกในปฏิทินโลก — ตั้งใหม่ได้ในแท็บ Companion','The birthday is not fixed in the world calendar yet — set it again in Companion'),true); }
     }
     // ความสามารถเริ่มต้นตามคลาส → แท็บ Skills (ไม่พังถ้าตาราง skills ยังไม่ได้ migrate)
     try{
@@ -3596,8 +3682,8 @@ function slowlifeSection(s,companionView){
   const host=campaign.host_id===me.id,E=escapeHtml,mode=String(s&&s.mode||'off');
   let h='<div class="item" style="border:1px solid rgba(127,209,127,.35);margin-bottom:14px"><div class="nm">🌿 '+uiCopy('Slowlife Lanes','Slowlife Lanes')+'</div>';
   if(!s||!s.active){
-    h+='<div class="note" style="text-align:left">'+(mode==='off'?uiCopy('ระบบปิดอยู่เป็นค่าเริ่มต้น — ไม่มีการแยกเลน','The feature is off by default — no lanes are split'):mode==='shadow'?uiCopy('โหมด Shadow ตรวจ eligibility เท่านั้น ยังไม่สร้างเลน','Shadow mode checks eligibility only; it does not create lanes'):uiCopy('พร้อมเปิดได้เฉพาะฉากปลอดภัยในเมืองหรือจุดพักระหว่างทาง','Ready only at a safe city or road-rest boundary'))+'</div>';
-    if(host) h+='<div class="srow2" style="flex-wrap:wrap"><button class="btn ghost sm" onclick="slowlifeSetMode(\'off\')">Off</button><button class="btn ghost sm" onclick="slowlifeSetMode(\'shadow\')">Shadow</button><button class="btn ghost sm" onclick="slowlifeSetMode(\'enforce\')">Enforce</button>'+(mode==='enforce'?'<button class="btn sm" onclick="slowlifeOpen(\'city_slowlife\')">'+uiCopy('เปิดช่วงในเมือง','Open city window')+'</button><button class="btn sm" onclick="slowlifeOpen(\'road_rest_slowlife\')">'+uiCopy('เปิดช่วงพักระหว่างทาง','Open road-rest window')+'</button>':'')+'</div>';
+    h+='<div class="note" style="text-align:left">'+(mode==='off'?uiCopy('พักการแยกฉากส่วนตัวอยู่','Private scene splitting is paused'):mode==='shadow'?uiCopy('กำลังตรวจความพร้อมเท่านั้น — ยังไม่แยกฉาก','Checking readiness only — no private scene is opened'):uiCopy('พร้อมเปิดได้เฉพาะฉากปลอดภัยในเมืองหรือจุดพักระหว่างทาง','Ready only at a safe city or road-rest boundary'))+'</div>';
+    if(host) h+='<div class="srow2" style="flex-wrap:wrap"><button class="btn ghost sm" onclick="slowlifeSetMode(\'off\')">'+uiCopy('พักไว้','Pause')+'</button><button class="btn ghost sm" onclick="slowlifeSetMode(\'shadow\')">'+uiCopy('ตรวจความพร้อม','Check readiness')+'</button><button class="btn ghost sm" onclick="slowlifeSetMode(\'enforce\')">'+uiCopy('เปิดใช้','Enable')+'</button>'+(mode==='enforce'?'<button class="btn sm" onclick="slowlifeOpen(\'city_slowlife\')">'+uiCopy('เปิดช่วงในเมือง','Open city window')+'</button><button class="btn sm" onclick="slowlifeOpen(\'road_rest_slowlife\')">'+uiCopy('เปิดช่วงพักระหว่างทาง','Open road-rest window')+'</button>':'')+'</div>';
     return h+'</div>';
   }
   const sw=s.window||{};
@@ -3618,7 +3704,7 @@ function slowlifeSection(s,companionView){
       const currentTurn=(s.turns||[]).filter(t=>String(t.lane_id)===String(l.id)).sort((a,b)=>Number(a.sequence)-Number(b.sequence)).slice(-1)[0]||null;
       h+='<div class="item" style="margin:9px 0"><div class="nm">'+E(owner.name||uiCopy('เลนของคุณ','Your lane'))+' <span class="tag">'+E(l.status)+'</span></div><div class="sub">'+E(l.local_elapsed_minutes)+'/'+E(sw.horizon_minutes)+' '+uiCopy('นาที','minutes')+' · '+E(l.resolved_beats)+'/4 beats</div>';
       h+=prose.map(n=>'<div class="note" style="text-align:left;white-space:normal;margin:7px 0">'+E(n.content||'').replace(/\n/g,'<br>')+'</div>').join('');
-      h+=deferred.map(x=>'<div class="note" style="text-align:left;color:#FAC775">'+uiCopy('(แก้: ผล '+E(x.effect_kind)+' ยังไม่เปลี่ยนของ/เงิน/วัสดุ — ต้องมีรายการยืนยันจาก server)','(Fixed: '+E(x.effect_kind)+' has not changed items, money, or materials — a typed server receipt is required)')+'</div>').join('');
+      h+=deferred.map(x=>'<div class="note" style="text-align:left;color:#FAC775">'+uiCopy('(แก้: ผล '+E(x.effect_kind)+' ยังไม่เปลี่ยนของ เงิน หรือวัสดุ เพราะยังไม่มีหลักฐานยืนยัน)','(Fixed: '+E(x.effect_kind)+' has not changed items, money, or materials because it has not been confirmed.)')+'</div>').join('');
       if(l.status==='active'&&(!currentTurn||currentTurn.status==='awaiting_action')) h+='<textarea id="slowlife-act-'+l.id+'" placeholder="'+uiCopy('กิจกรรมสงบในเมือง/จุดพัก: คุย เดต ซื้อของ คราฟต์ ศึกษา พัก หรือฟังข่าว','Safe city/road-rest activity: talk, date, shop, craft, study, rest, or gather rumors')+'"></textarea><div class="srow2"><button class="btn sm" onclick="slowlifeSubmit(\''+l.id+'\',\''+l.owner_character_id+'\')">'+uiCopy('ดำเนินเลน','Advance lane')+'</button><button class="btn ghost sm" onclick="slowlifeReady(\''+l.id+'\',\'park\')">'+uiCopy('รอที่จุดนัด','Wait at checkpoint')+'</button></div>';
       else if(l.status==='active'&&currentTurn&&['queued','processing'].includes(currentTurn.status)) h+='<div class="note" style="text-align:left">'+uiCopy('คิวของคุณถูกเก็บแล้ว ระบบกำลังประมวลผลทีละเลน คุณไปดูส่วนอื่นได้และหน้านี้จะตรวจผลให้อัตโนมัติ','Your turn is safely queued. The system processes one lane at a time; you may browse elsewhere and this view will check again automatically.')+'</div>';
       else if(l.status==='ready'&&Number(l.local_elapsed_minutes)<Number(sw.horizon_minutes)) h+='<button class="btn ghost sm" onclick="slowlifeReady(\''+l.id+'\',\'park\')">'+uiCopy('เติมเวลารอถึงจุดรวมตัว','Wait until checkpoint')+'</button>';
@@ -4297,7 +4383,7 @@ async function renderRoundbar(){
       const pta=document.createElement('textarea'); pta.id='petActInput'; pta.placeholder='จะให้ '+myPet.name+' ทำอะไร?'; bar.appendChild(pta);
       const pb=document.createElement('button'); pb.className='btn'; pb.textContent='Submit ('+myPet.name+')'; pb.onclick=()=>submitAction(myPet.id); bar.appendChild(pb);
     }
-    if(isHost){ const f=document.createElement('button'); f.className='btn warn sm'; f.textContent=resolving?'Resolving…':'⚡ Force Resolve'; f.disabled=resolving; f.onclick=()=>forceResolveConfirm(); bar.appendChild(f); }
+    if(isHost){ const f=document.createElement('button'); f.className='btn warn sm'; f.textContent=resolving?uiCopy('กำลังดำเนินเรื่อง…','Continuing…'):uiCopy('⚡ ดำเนินเรื่องต่อ','⚡ Continue Scene'); f.disabled=resolving; f.onclick=()=>forceResolveConfirm(); bar.appendChild(f); }
     return;
   }
   // หมดสติ (HP 0) ระหว่างคอมแบต → ห้ามสั่งการ แสดงสถานะ Death Save แทน (server ทอยให้รอบละครั้ง)
@@ -4436,7 +4522,7 @@ async function renderRoundbar(){
       }
       if(_inventoryMineS.length){
         const invOpts=document.createElement('div'); invOpts.className='copt inventory-affordance-options';
-        const invHead=document.createElement('div'); invHead.className='copt-h'; invHead.textContent=uiCopy('— รายการคลังที่ server ยืนยันแล้ว —','— Server-verified inventory actions —'); invOpts.appendChild(invHead);
+        const invHead=document.createElement('div'); invHead.className='copt-h'; invHead.textContent=uiCopy('— รายการคลังที่พร้อมใช้ —','— Available inventory actions —'); invOpts.appendChild(invHead);
         _inventoryMineS.slice(0,8).forEach(aff=>{ const ib=document.createElement('button'); ib.type='button'; ib.className='btn ghost sm'; ib.textContent=uiCopy(String(aff.label_th||'เลือกของ'),String(aff.label_en||'Choose item')); ib.disabled=!!resolving; ib.onclick=()=>submitInventoryAffordance(aff); invOpts.appendChild(ib); });
         bar.appendChild(invOpts);
       }
@@ -4465,7 +4551,7 @@ async function renderRoundbar(){
         const sf=document.createElement('button'); sf.className='btn ghost sm'; sf.textContent='ทอยเอง'; sf.onclick=rollSelf; dice.appendChild(sf);
       }
       bar.appendChild(dice);
-      const dn=document.createElement('div'); dn.className='econleg'; dn.textContent='“DM ทอยให้” = server สุ่มจริง 100% · “ทอยเอง” = ทอยเต๋าจริงในมือแล้วใส่เลข'; bar.appendChild(dn);
+      const dn=document.createElement('div'); dn.className='econleg'; dn.textContent=uiCopy('“DM ทอยให้” = ใช้ผลสุ่มจริงตามกติกา · “ทอยเอง” = ทอยเต๋าจริงในมือแล้วใส่เลข','“DM rolls” uses a real rules-based roll · “Roll yourself” lets you enter a physical die result'); bar.appendChild(dn);
     }
     const b=document.createElement('button'); b.className='btn'; b.textContent='Submit Action'; b.onclick=submitAction; bar.appendChild(b);
     // D: ขอตัวเลือกเฉพาะตัว — กดแล้ว DM ปั่น 3-5 ทางเลือกสำหรับ 'ตัวละครเรา' ณ สถานการณ์นี้ (on-demand ไม่เปลือง token ถ้าไม่กด)
@@ -4478,8 +4564,8 @@ async function renderRoundbar(){
     const pending=members.filter(m=>characters.some(c=>c.user_id===m.user_id)&&!submittedIds.has(m.user_id)).map(m=>chatNameFor(m.user_id));
     const w=document.createElement('div'); w.className='note'; w.style.cssText='text-align:left;padding:8px 2px;line-height:1.6';
     if(curRound.phase==='resolving') w.innerHTML='⏳ DM กำลังดำเนินเรื่อง…';
-    else if(pending.length) w.innerHTML='✓ คุณส่งแล้ว — กำลังรอคำตอบจากสมาชิกในปาร์ตี้ <b>'+escapeHtml(pending.join(', '))+'</b><br><span class="muted">DM จะดำเนินเรื่องเมื่อได้คำตอบครบ (host กด Force Resolve เพื่อไปต่อได้)</span>';
-    else w.innerHTML=uiCopy('✓ ส่งครบแล้ว — พร้อมประมวลผลรอบนี้อีกครั้งหาก DM หยุดก่อนจบ<br><span class="muted">(แก้: ระบบจะไม่ยิง retry ซ้ำเอง เพื่อไม่เผาโควต้า API ฟรี)</span>','✓ All actions are submitted — this round is ready for a deliberate retry if the DM stopped early.<br><span class="muted">(Fixed: the client will not multiply retries and burn free API quota.)</span>');
+    else if(pending.length) w.innerHTML=uiCopy('✓ คุณส่งแล้ว — กำลังรอคำตอบจากสมาชิกในปาร์ตี้ <b>','✓ Submitted — waiting for <b>')+escapeHtml(pending.join(', '))+uiCopy('</b><br><span class="muted">เมื่อทุกคนพร้อม ผู้ดูแลสามารถดำเนินเรื่องต่อได้</span>','</b><br><span class="muted">Once everyone is ready, the host can continue the scene.</span>');
+    else w.innerHTML=uiCopy('✓ ส่งครบแล้ว — พร้อมลองดำเนินเรื่องรอบนี้อีกครั้งหาก DM หยุดก่อนจบ<br><span class="muted">(แก้: เกมจะไม่ลองซ้ำเอง เพื่อไม่ให้ผู้เล่าเรื่องทำงานซ้ำ)</span>','✓ All actions are submitted — this round is ready for a deliberate retry if the DM stopped early.<br><span class="muted">(Fixed: the game will not retry by itself, avoiding duplicate storyteller requests.)</span>');
     bar.appendChild(w);
     const _wedge=(worldState&&worldState.settings&&worldState.settings.enc_action_wedge)||null;
     const _repair=window._actionRepair&&window._actionRepair.round_id===curRound.id?window._actionRepair:(_wedge&&String(_wedge.round_id)===String(curRound.id)?_wedge:null);
@@ -4499,7 +4585,7 @@ async function renderRoundbar(){
       rb.disabled=!!resolving; rb.onclick=()=>resolveRound(false); bar.appendChild(rb);
     }
   }
-  if(isHost){ const f=document.createElement('button'); f.className='btn warn sm'; f.textContent=resolving?'Resolving…':'⚡ Force Resolve'; f.disabled=resolving; f.onclick=()=>forceResolveConfirm(); bar.appendChild(f); }
+  if(isHost){ const f=document.createElement('button'); f.className='btn warn sm'; f.textContent=resolving?uiCopy('กำลังดำเนินเรื่อง…','Continuing…'):uiCopy('⚡ ดำเนินเรื่องต่อ','⚡ Continue Scene'); f.disabled=resolving; f.onclick=()=>forceResolveConfirm(); bar.appendChild(f); }
 }
 
 // ── ทอยเต๋า: DM ทอยให้ (server สุ่มจริง) / ทอยเอง (ใส่เลขดิบ) ──
@@ -4867,7 +4953,7 @@ async function renderLevelUpPanel(p){
         else { asiState[k]=1; }
         paintAll(); };
       g.appendChild(b); });
-    const hintA=document.createElement('div'); hintA.className='note'; hintA.style.cssText='text-align:left;margin-top:3px'; hintA.textContent='กด 1 ครั้ง = +1 · กดซ้ำค่าเดิม = +2 · server ตรวจเพดาน 20 + ครั้งเดียวต่อเลเวลให้';
+    const hintA=document.createElement('div'); hintA.className='note'; hintA.style.cssText='text-align:left;margin-top:3px'; hintA.textContent=uiCopy('กด 1 ครั้ง = +1 · กดซ้ำค่าเดิม = +2 · ค่าสูงสุด 20 และเลือกได้ครั้งเดียวต่อเลเวล','Press once for +1 or twice on the same score for +2 · maximum 20, once per level');
     box.appendChild(g); box.appendChild(hintA); card.appendChild(box);
   }
   // v175: เลือก cantrip/เวทตามโควต้า D&D 5e — แยกนับ cantrip (level 0) กับเวทมีระดับ · server (levelUpGuard) เป็นกำแพงจริง
@@ -5330,7 +5416,7 @@ async function _renderPartyInner(){
     const dmTg=document.createElement('button'); dmTg.type='button';
     dmTg.className='dm-tg';   // v612: ย้ายสไตล์เข้า CSS ต่อสกิน — classic คงพิกเซลเดิม · paper ใช้โทนหัวข้อเดียวกับ sectitle
     const dmBody=document.createElement('div'); dmBody.style.display='none';
-    const dmSet=(on)=>{ window._dmToolsOpen=on; dmBody.style.display=on?'block':'none'; dmTg.textContent='🎛 DM TOOLS '+(on?'▾':'▸'); if(on&&!dmBody.children.length){ try{ dmBody.appendChild(buildDmToolsCard(false)); }catch(e){} } };
+    const dmSet=(on)=>{ window._dmToolsOpen=on; dmBody.style.display=on?'block':'none'; dmTg.textContent='🎛 DM TOOLS '+(on?'▾':'▸'); if(on&&!dmBody.children.length) mountDmToolsBody(dmBody); };
     dmTg.onclick=()=>dmSet(dmBody.style.display==='none');
     dmCard.appendChild(dmTg); dmCard.appendChild(dmBody); right.appendChild(dmCard);
     dmSet(!!window._dmToolsOpen);
@@ -5378,7 +5464,7 @@ async function renderQuest(){
     const paid=rewardJobs.filter(j=>j.state==='applied');
     const card=document.createElement('div'); card.className='item';
     const head=document.createElement('div'); head.style.cssText=FONT+';font-size:15px;font-weight:700;text-align:left;padding:2px 0 6px;border-bottom:1px solid #444;margin-bottom:6px';
-    head.textContent=uiCopy('🎁 บัญชีรางวัลเควสต์','🎁 Quest reward ledger');
+    head.textContent=uiCopy('🎁 ประวัติรางวัลเควสต์','🎁 Quest reward history');
     card.appendChild(head);
     rewardJobs.slice(0,8).forEach(j=>{
       const row=document.createElement('div'); row.style.cssText=FONT+';font-size:12px;text-align:left;margin:5px 0;display:flex;justify-content:space-between;gap:10px';
@@ -5695,7 +5781,7 @@ function skillCat(s){ const n=(s.name||'').toLowerCase(); if(_RACE_NAMES.has(n))
 function rechLabel(r){ return ({long:'LONG REST',short:'SHORT REST',atwill:'AT WILL',passive:'PASSIVE'})[r]||String(r||'').toUpperCase(); }
 // v328 Fighting Style picker (Fighter/Paladin/Ranger) — เขียน sheet.fighting_style ให้ server (resolver v328) บังคับโบนัส
 const FIGHTING_STYLE_OPTS=[
-  {id:'', label:'— ยังไม่เลือก —', desc:'เลือกรูปแบบการต่อสู้ของคุณ — server จะบังคับโบนัสให้อัตโนมัติในการรบ'},
+  {id:'', label:'— ยังไม่เลือก —', desc:uiCopy('เลือกรูปแบบการต่อสู้ของคุณ — โบนัสจะมีผลอัตโนมัติในการรบ','Choose your Fighting Style — its bonus applies automatically in combat')},
   {id:'archery', label:'Archery (แม่นธนู)', desc:'+2 ค่าโจมตี เมื่อใช้อาวุธยิงไกล (ธนู/หน้าไม้) ✅ บังคับจริง'},
   {id:'defense', label:'Defense (ตั้งรับ)', desc:'+1 AC ขณะสวมเกราะ ✅ บังคับจริง'},
   {id:'dueling', label:'Dueling (ดาบเดี่ยว)', desc:'+2 ดาเมจ เมื่อถืออาวุธประชิดมือเดียว ไม่มีอาวุธรอง (มีโล่ได้) ✅ บังคับจริง'},
@@ -5776,10 +5862,10 @@ const FEAT_OPTS=[
   {id:'alert', label:'Alert (ตื่นตัว)', desc:'+5 initiative ✅ บังคับจริง · ไม่ถูกจู่โจมแบบ surprise (DM เล่า)'},
   {id:'great-weapon-master', label:'Great Weapon Master (จอมอาวุธหนัก)', desc:'−5 โจมตี/+10 ดาเมจ อาวุธหนักประชิด ✅ บังคับจริง · พิมพ์ "ทุ่มสุดแรง"/"power attack" ในแอ็กชันเพื่อใช้'},
   {id:'sharpshooter', label:'Sharpshooter (มือแม่นปืน)', desc:'−5 โจมตี/+10 ดาเมจ อาวุธยิงไกล · ข้ามที่กำบัง+ยิงไกลไม่ติด disadvantage ✅ บังคับจริง · พิมพ์ "เล็งจุดตาย"/"sharpshooter" ในแอ็กชันเพื่อใช้'},
-  {id:'lucky', label:'Lucky (ดวงเฮง)', desc:'3 แต้มโชคต่อพักยาว · server ทอย d20 ใหม่ให้เมื่อโจมตี/เซฟพลาด (เก็บค่าสูง) ✅ บังคับจริง'},
+  {id:'lucky', label:'Lucky (ดวงเฮง)', desc:uiCopy('3 แต้มโชคต่อพักยาว · ทอย d20 ใหม่เมื่อโจมตีหรือเซฟพลาด แล้วเก็บค่าสูง ✅ มีผลจริง','3 luck points per long rest · reroll d20 after a failed attack or save and keep the higher roll ✅ active')},
   {id:'war-caster', label:'War Caster (จอมเวทสนาม)', desc:'ได้เปรียบเซฟ CON รักษาสมาธิเวท (Bless/Hex/Hold Person ฯลฯ ไม่หลุดง่าย) ✅ บังคับจริง · ร่ายขณะถืออาวุธ/โล่ + ร่ายเป็น opportunity attack = DM เล่า'},
   {id:'resilient', label:'Resilient (แกร่งทน)', desc:'+1 ค่าสถานะ (แก้ในชีทเอง) + ชำนาญเซฟของค่านั้น ✅ บังคับจริง · เลือกค่าสถานะ →', ability:true},
-  {id:'observant', label:'Observant (ช่างสังเกต)', desc:'+5 passive Perception — server คำนวณเลขให้ DM (DM เล่าว่าเห็น/ไม่เห็น · ยังไม่มี surprise guard บังคับ) · +1 INT/WIS เลือกในชีท'},
+  {id:'observant', label:'Observant (ช่างสังเกต)', desc:uiCopy('+5 passive Perception — ใช้ค่านี้ตัดสินสิ่งที่สังเกตเห็น · +1 INT/WIS เลือกในชีท','+5 passive Perception — this value determines what you notice · choose +1 INT or WIS on your sheet')},
   {id:'durable', label:'Durable (ทนทาน)', desc:'พักสั้น: HP ฟื้นต่อ Hit Die อย่างน้อย 2×CON mod (ขั้นต่ำ 2) ✅ บังคับจริง'},
   {id:'savage-attacker', label:'Savage Attacker (จู่โจมดุดัน)', desc:'1 ครั้ง/เทิร์น: ทอยเต๋าดาเมจอาวุธประชิดใหม่ เก็บค่าสูงกว่า ✅ บังคับจริง'},
   {id:'sentinel', label:'Sentinel (ผู้พิทักษ์)', desc:'ศัตรูประชิดโจมตี "เพื่อน" (ไม่ใช่ตัวคุณ) → reaction ตีสวนผู้โจมตี 1 ครั้ง ✅ บังคับจริง (ต้องมีกริด · ยืนชิดผู้โจมตี ≤5ft · 1 reaction/รอบ) · OA ทะลุ Disengage (ศัตรูถอนตัวก็ยังโดนตีสวน) ✅ บังคับจริง · หยุดความเร็วเป้าที่โดน OA = เร็วๆ นี้'},
@@ -5890,7 +5976,7 @@ function renderFeatCard(p){
         else { fa=fa.filter(function(x){ return _featMatch(x)!==id; }); }
         sheet.feats=fa;
         await _saveSheet(sheet, _prev); tick();
-        toast(cb.checked?('เพิ่ม feat: '+((FEAT_OPTS.find(function(o){return o.id===id;})||{}).label||'')+' ✓ — server บังคับผลรอบถัดไป'):'ลบ feat แล้ว');
+        toast(cb.checked?uiCopy('เพิ่ม feat: '+((FEAT_OPTS.find(function(o){return o.id===id;})||{}).label||'')+' ✓ — มีผลตั้งแต่รอบถัดไป','Feat added: '+((FEAT_OPTS.find(function(o){return o.id===id;})||{}).label||'')+' ✓ — takes effect next round'):uiCopy('ลบ feat แล้ว','Feat removed'));
         renderSkills();
       }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ชีทเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderSkills(); } else { toast('บันทึกไม่สำเร็จ ลองใหม่',true); cb.checked=!cb.checked; } }
     };
@@ -5929,7 +6015,7 @@ function renderFeatCard(p){
 }
 // v329 Hunter's Prey picker (Ranger L3+) — เขียน sheet.hunters_prey ให้ server (resolver v329) บังคับผล
 const HUNTERS_PREY_OPTS=[
-  {id:'', label:'— ยังไม่เลือก —', desc:"เลือก Hunter's Prey (Hunter archetype เลเวล 3) — server บังคับผลในการรบ"},
+  {id:'', label:'— ยังไม่เลือก —', desc:uiCopy("เลือก Hunter's Prey (Hunter archetype เลเวล 3) — ความสามารถจะมีผลในการรบ","Choose Hunter's Prey (Hunter archetype level 3) — the feature applies in combat")},
   {id:'colossus-slayer', label:'Colossus Slayer (บั่นทอนยักษ์)', desc:'+1d8 ดาเมจ เมื่อตีศัตรูที่ HP ไม่เต็ม (1 ครั้ง/เทิร์น) ✅ บังคับจริง'},
   {id:'horde-breaker', label:'Horde Breaker (ทลายฝูง)', desc:'โจมตีเพิ่ม 1 ครั้งใส่ศัตรูอีกตัวในระยะ 5ft จากเป้าหลัก (1 ครั้ง/เทิร์น · ต้องมีกริด) ✅ บังคับจริง'},
   {id:'giant-killer', label:'Giant Killer (สังหารยักษ์)', desc:'reaction: เมื่อศัตรูขนาดใหญ่ (Large+) ในระยะ 5ft โจมตีคุณ → โต้กลับทันที 1 ครั้ง ✅ บังคับจริง'},
@@ -6276,7 +6362,7 @@ async function renderSkills(){
       if(/breath|ลมหายใจ|healing hands|มือแห่งการรักษา|สัมผัสเพื่อรักษา/i.test(s.name||'')){
         const left=(s.max_uses>0)?(s.max_uses-(s.used||0)):1;
         const ab=document.createElement('button'); ab.type='button'; ab.className='btn sm'; ab.style.cssText='margin:6px 0 2px;display:block';
-        ab.textContent=(left>0?'⚡ ใช้ทันที (server ทอยให้)':'⚡ ใช้ครบแล้ว — รอพักฟื้น'); if(left<=0) ab.disabled=true;
+        ab.textContent=(left>0?uiCopy('⚡ ใช้ทันที (เกมทอยให้)','⚡ Use now (the game rolls)'):uiCopy('⚡ ใช้ครบแล้ว — รอพักฟื้น','⚡ Fully used — recover before using again')); if(left<=0) ab.disabled=true;
         ab.onclick=()=>useAbility(s.name, s.description);
         const desc=row.querySelector('.sk-desc'); if(desc) desc.appendChild(ab);
       }
@@ -6290,7 +6376,7 @@ async function useAbility(name, desc){
   const isHeal=/healing hands|มือ.*รักษา|สัมผัส.*รักษา/i.test(name||'');
   let target='';
   if(isHeal){ const t=prompt('Healing Hands — รักษาใคร? (พิมพ์ชื่อตัวละคร · เว้นว่าง = ตัวเอง)',''); if(t===null) return; target=String(t).trim(); }
-  else { if(!confirm('พ่นลมหายใจใส่ศัตรูในศึก? (server ทอยดาเมจ + ให้ศัตรูเซฟครึ่งให้)')) return; }
+  else { if(!confirm(uiCopy('พ่นลมหายใจใส่ศัตรูในศึก? (ทอยดาเมจและให้ศัตรูเซฟเพื่อลดครึ่ง)','Use Breath Weapon against enemies in combat? (Roll damage; enemies save for half)'))) return; }
   tick();
   try{
     const tok=(await supa.auth.getSession()).data.session?.access_token;
@@ -6557,7 +6643,7 @@ async function renderInitiativeTracker(p){
     const lc=document.createElement('div'); lc.className='item';
     lc.innerHTML='<div class="sectitle">COMBAT LOG</div>';
     const feed=document.createElement('div'); feed.style.cssText='display:flex;flex-direction:column;gap:3px;margin-top:6px;max-height:260px;overflow:auto;font-size:13px;line-height:1.5';
-    logs.forEach(l=>{ if(l.entry_type==='note'&&/^\s*(⚔️|✦|✕|⚠|💢|🛡|💀)|^\s*\(แก้|ยังไม่(ล้ม|ตาย|ฟื้น)|ถูกกำจัดไปแล้ว|ไม่มี(บาดแผล|การรักษา|การโจมตีจาก)|รอดบาดแผล|การโจมตี(พลาด|ไม่เข้า)|ระบบ:/.test(String(l.summary||''))) return;   /* v459: ซ่อน note ของ guard/ระบบ (สับสนกับบทบรรยาย) */ const d=document.createElement('div'); d.style.color=l.entry_type==='round_advance'?'#9a9a9a':'#fff'; d.innerHTML=(ICON[l.entry_type]||'•')+' '+escapeHtml(l.summary); feed.appendChild(d); });
+    logs.forEach(l=>{ if(l.entry_type==='note'&&/^\s*(⚔️|✦|✕|⚠|💢|🛡|💀)|^\s*\(แก้|ยังไม่(ล้ม|ตาย|ฟื้น)|ถูกกำจัดไปแล้ว|ไม่มี(บาดแผล|การรักษา|การโจมตีจาก)|รอดบาดแผล|การโจมตี(พลาด|ไม่เข้า)|ระบบ:/.test(String(l.summary||''))) return;   /* v459: ซ่อน note ของ guard/ระบบ (สับสนกับบทบรรยาย) */ const d=document.createElement('div'); d.style.color=l.entry_type==='round_advance'?'#9a9a9a':'#fff'; d.innerHTML=(ICON[l.entry_type]||'•')+' '+escapeHtml(playerCombatSummary(l)); feed.appendChild(d); });
     lc.appendChild(feed); p.appendChild(lc);
     setTimeout(()=>{ feed.scrollTop=feed.scrollHeight; },0);
   }
@@ -6628,15 +6714,136 @@ function forceResolveConfirm(){
   try{
     const inB=document.body.classList.contains('in-battle')||!!window._combatActive;
     const an=(typeof gCombat!=='undefined'&&gCombat&&gCombat.active)?gCombat.activeName:null;
-    if(inB&&an&&!confirm('ตอนนี้รอเทิร์นของ "'+an+'" อยู่\nForce Resolve จะถือว่าเขา ตั้งรับ (Dodge) แล้วข้ามเทิร์นไปเลย\n(บอทอาจแค่กำลังคิด — รอสักครู่ก่อนก็ได้)\n\nยืนยันข้ามเทิร์นหรือไม่?')) return;
+    if(inB&&an&&!confirm(uiCopy('ตอนนี้รอเทิร์นของ "'+an+'" อยู่\nหากดำเนินเรื่องต่อ '+an+' จะตั้งรับ (Dodge) ในรอบนี้\n(บอทอาจกำลังคิด — รอสักครู่ก่อนได้)\n\nยืนยันหรือไม่?','The party is waiting for "'+an+'".\nContinuing now makes '+an+' take the Dodge action this round.\n(The bot may still be thinking; you can wait a moment.)\n\nContinue?'))) return;
   }catch(e){}
   resolveRound(true);
 }
+// ── v816: per-slot Gemini tier + deterministic cooldown recovery (masked status only) ──
+function appendGeminiKeyTierControls(tools, styleCtl, DMF){
+  if(!tools||!campaign||!me||campaign.host_id!==me.id) return false;
+  const section=document.createElement('div'); section.setAttribute('data-key-tier-controls','host-only'); section.style.cssText='display:flex;flex-direction:column;gap:6px;margin:8px 0;padding-top:8px;border-top:1px solid #555';
+  const title=document.createElement('div'); title.style.cssText=DMF+';font-weight:700'; title.textContent=uiCopy('🪜 ลำดับคีย์: ฟรีก่อน · เสียเงินท้ายสุด','🪜 Key ladder: free first · paid last'); section.appendChild(title);
+  const help=document.createElement('div'); help.style.cssText=DMF+';color:#9a9a9a;font-size:12px;line-height:1.6'; help.textContent=uiCopy('ประกาศชนิดของแต่ละช่องตามบัญชีจริง ระบบไม่เดา tier เอง · ปลดได้เฉพาะ cooldown แบบ daily/billing; minute ต้องรอให้หมดเอง','Declare each slot according to its actual account. The system never infers a tier · only daily/billing cooldowns can be cleared; minute cooldowns must expire normally.'); section.appendChild(help);
+  const pool=document.createElement('div'); pool.style.cssText=DMF+';color:#9a9a9a;font-size:12px'; pool.setAttribute('data-key-tier-pool-status','1'); pool.textContent=uiCopy('สถานะรวม: กำลังตรวจ…','Pool status: checking…'); section.appendChild(pool);
+  const rows=[];
+  const tierText=(tier)=>tier==='paid'?uiCopy('เสียเงิน','paid'):uiCopy('ฟรี','free');
+  const safeMaskedKey=(value)=>{ const m=/^\.\.\.([A-Za-z0-9._-]{4})$/.exec(String(value||'')); return m?'...'+m[1]:null; };
+  const safeTier=(value)=>String(value||'').toLowerCase()==='paid'?'paid':'free';
+  const safeCooldowns=(value)=>Array.isArray(value)?value.map(x=>String(x||'').toLowerCase()).filter(x=>x==='minute'||x==='daily'||x==='billing'):[];
+  const cooldownText=(items)=>items.length?items.map(x=>x==='minute'?uiCopy('รายนาที','minute'):x==='daily'?uiCopy('รายวัน','daily'):uiCopy('การเรียกเก็บเงิน','billing')).join(', '):uiCopy('ไม่มี','none');
+  for(let slot=1;slot<=3;slot++){
+    const row=document.createElement('div'); row.setAttribute('data-key-tier-slot',String(slot)); row.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:6px;border:1px solid #555;border-radius:6px';
+    const stat=document.createElement('div'); stat.style.cssText=DMF+';width:100%;color:#9a9a9a;font-size:12px'; stat.textContent=uiCopy('ช่อง ','Slot ')+slot+' · '+uiCopy('กำลังตรวจ…','checking…');
+    const select=styleCtl(document.createElement('select')); select.setAttribute('data-key-tier-select',String(slot)); select.style.width='auto';
+    [['free',uiCopy('ฟรี','Free')],['paid',uiCopy('เสียเงิน','Paid')]].forEach(([value,label])=>{ const option=document.createElement('option'); option.value=value; option.textContent=label; select.appendChild(option); });
+    select.value='free'; select.disabled=true;
+    const save=styleCtl(document.createElement('button')); save.type='button'; save.className='btn sm'; save.setAttribute('data-key-tier-save',String(slot)); save.textContent=uiCopy('บันทึก tier','Save tier'); save.disabled=true;
+    const clear=styleCtl(document.createElement('button')); clear.type='button'; clear.className='btn ghost sm'; clear.setAttribute('data-key-cooldown-clear',String(slot)); clear.textContent=uiCopy('แก้เพดานแล้ว — ลองใหม่','Cap fixed — retry'); clear.style.display='none';
+    row.appendChild(stat); row.appendChild(select); row.appendChild(save); row.appendChild(clear); section.appendChild(row);
+    rows.push({slot:slot,row:row,stat:stat,select:select,save:save,clear:clear,configured:false,cooldowns:[]});
+  }
+  const footer=document.createElement('div'); footer.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap';
+  const refresh=styleCtl(document.createElement('button')); refresh.type='button'; refresh.className='btn ghost sm'; refresh.setAttribute('data-key-tier-refresh','1'); refresh.textContent=uiCopy('↻ รีเฟรชสถานะ','↻ Refresh status');
+  const clearAll=styleCtl(document.createElement('button')); clearAll.type='button'; clearAll.className='btn ghost sm'; clearAll.setAttribute('data-key-cooldown-clear-all','1'); clearAll.textContent=uiCopy('ปลด daily/billing ทุกช่อง','Clear daily/billing for all slots'); clearAll.style.display='none';
+  footer.appendChild(refresh); footer.appendChild(clearAll); section.appendChild(footer); tools.appendChild(section);
+
+  const errorText=(data,fallback)=>{
+    const code=String((data&&data.error)||'');
+    if(code==='host_only'||code==='host only') return uiCopy('เฉพาะ host เท่านั้น','Host only');
+    if(code==='key_tier_requires_own_key'||code==='bad_key_cooldown_slot') return uiCopy('ช่องนี้ยังไม่มีคีย์ที่ตั้งไว้','This slot has no configured key.');
+    if(code==='bad_key_tier'||code==='bad_key_tier_slot'||code==='bad_key_tiers') return uiCopy('ค่า tier ไม่ถูกต้อง','Invalid tier value.');
+    if(code==='key_cooldown_clear_failed') return uiCopy('ปลด cooldown ไม่สำเร็จ — ยังไม่มีสถานะใดถูกล้าง','Cooldown clear failed — no cooldown state was cleared.');
+    return fallback;
+  };
+  const post=async(body)=>{
+    try{
+      const tok=(await supa.auth.getSession()).data.session?.access_token;
+      if(!tok) return {error:'no_session'};
+      const response=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify(Object.assign({campaign_id:campaign.id},body))});
+      return await response.json();
+    }catch(e){ return {error:'network'}; }
+  };
+  const renderStatus=(data)=>{
+    const slots=Array.isArray(data&&data.slots)?data.slots:[];
+    let canClearAny=false;
+    rows.forEach(entry=>{
+      const status=slots.find(x=>Number(x&&x.slot)===entry.slot)||null;
+      const masked=safeMaskedKey(status&&status.key);
+      const declared=safeTier(status&&status.tier);
+      const effective=status&&status.effective_tier!=null?safeTier(status.effective_tier):null;
+      const cooldowns=safeCooldowns(status&&status.cooldowns);
+      const configured=!!(status&&(status.tier==='free'||status.tier==='paid'||masked));
+      const deterministic=cooldowns.some(x=>x==='daily'||x==='billing');
+      entry.configured=configured; entry.cooldowns=cooldowns; entry.select.value=declared; entry.select.disabled=!configured; entry.save.disabled=!configured; entry.clear.style.display=deterministic?'inline-flex':'none';
+      canClearAny=canClearAny||deterministic;
+      const keyLabel=configured?(masked||uiCopy('ตั้งคีย์แล้ว (ซ่อน fingerprint)','key configured (fingerprint hidden)')):uiCopy('ยังไม่ตั้งคีย์','not configured');
+      entry.stat.textContent=uiCopy('ช่อง ','Slot ')+entry.slot+' · '+keyLabel+' · '+uiCopy('ประกาศ: ','declared: ')+tierText(declared)+' · '+uiCopy('ระบบใช้เป็น: ','effective: ')+(effective?tierText(effective):'—')+' · '+uiCopy('cooldown: ','cooldown: ')+cooldownText(cooldowns);
+    });
+    clearAll.style.display=canClearAny?'inline-flex':'none';
+    const overall=String((data&&data.effective_key_tier)||'').toLowerCase();
+    pool.textContent=uiCopy('สถานะรวมที่ระบบมองเห็น: ','Effective pool tier: ')+(overall==='host'?uiCopy('คีย์กลาง','host'):tierText(safeTier(overall)));
+  };
+  const load=async()=>{
+    rows.forEach(entry=>{ entry.select.disabled=true; entry.save.disabled=true; entry.clear.style.display='none'; }); clearAll.style.display='none';
+    const data=await post({key_status:true});
+    if(data&&data.ok){ renderStatus(data); return true; }
+    pool.textContent=errorText(data,uiCopy('สถานะรวม: ตรวจไม่สำเร็จ','Pool status: check failed'));
+    return false;
+  };
+  const clearCooldowns=async(slot)=>{
+    const scope=slot?uiCopy('ช่อง ','slot ')+slot:uiCopy('ทุกช่องที่ตั้งไว้','all configured slots');
+    if(!confirm(uiCopy('ยืนยันปลด cooldown daily/billing ของ ','Clear daily/billing cooldowns for ')+scope+'?\n'+uiCopy('cooldown แบบ minute จะถูกเก็บไว้และยังต้องรอ','Minute cooldowns will be preserved and must still expire normally.'))) return;
+    const data=await post({clear_key_cooldowns:slot?{slot:slot}:true});
+    if(data&&data.ok){ toast(uiCopy('ปลด daily/billing แล้ว ✓ · minute ยังอยู่','Daily/billing cooldowns cleared ✓ · minute preserved')); await load(); }
+    else toast(errorText(data,uiCopy('ปลด cooldown ไม่สำเร็จ','Failed to clear cooldowns.')),true);
+  };
+  rows.forEach(entry=>{
+    entry.save.onclick=async()=>{
+      if(!entry.configured) return;
+      const tier=safeTier(entry.select.value);
+      if(tier==='paid'&&!confirm(uiCopy('ประกาศช่องนี้เป็น paid? ระบบจะใช้หลังคีย์ free หมดสิทธิ์ และอาจมีค่าใช้จ่าย','Declare this slot as paid? It is used only after free keys are exhausted and may incur charges.'))) return;
+      entry.save.disabled=true;
+      const data=await post({set_gemini_key_tier:{slot:entry.slot,tier:tier}});
+      if(data&&data.ok){ toast(uiCopy('บันทึก tier ช่อง ','Saved tier for slot ')+entry.slot+' ✓'); await load(); }
+      else { toast(errorText(data,uiCopy('บันทึก tier ไม่สำเร็จ','Failed to save tier.')),true); entry.save.disabled=false; }
+    };
+    entry.clear.onclick=()=>clearCooldowns(entry.slot);
+  });
+  refresh.onclick=()=>load(); clearAll.onclick=()=>clearCooldowns(null); load();
+  return true;
+}
+
 // ── DM TOOLS การ์ดกลาง (host) — ใช้ทั้งแท็บ Party (withFrame=true) และเมนูย่อยในฉากต่อสู้ (false) ──
+function dmToolsHostAllowed(){ return !!(campaign&&me&&campaign.host_id===me.id); }
+function buildEndCombatControl(styleCtl){
+  const wrap=document.createElement('div'); wrap.setAttribute('data-dm-end-combat','host-only'); wrap.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;width:100%';
+  const note=document.createElement('div'); note.className='note'; note.style.cssText='width:100%;text-align:left;line-height:1.5'; note.textContent=uiCopy('ทางออกฉุกเฉินของ host — ศัตรูที่เหลือถอนจากฉาก ศึกจบโดยไม่นับเป็นชัยชนะ และไม่ได้ XP/loot จากชัยชนะ','Host emergency exit — remaining enemies retreat; combat ends without a victory and grants no victory XP or loot.');
+  const endB=styleCtl(document.createElement('button')); endB.type='button'; endB.className='btn warn sm'; endB.textContent=uiCopy('ยุติศึกแบบถอนตัว','End Combat as Retreat');
+  endB.onclick=async()=>{
+    if(!confirm(uiCopy('ยุติศึกแบบถอนตัวตอนนี้?\n• ศัตรูที่เหลือถอนจากฉาก\n• ไม่นับเป็นชัยชนะ\n• ไม่ได้ XP หรือ loot จากชัยชนะ\n\nยืนยันยุติศึก?','End combat as a retreat now?\n• Remaining enemies leave the scene\n• This does not count as a victory\n• No victory XP or loot is awarded\n\nConfirm ending combat?'))) return;
+    endB.disabled=true;
+    try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
+      const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,end_combat:true})});
+      const j=await r.json(); if(j.error){ toast(j.error,true); endB.disabled=false; } else toast(uiCopy('ยุติศึกแบบถอนตัวแล้ว ✓ — ไม่มีรางวัลชัยชนะ','Combat ended as a retreat ✓ — no victory rewards'));
+    }catch(e){ toast(uiCopy('ยุติศึกไม่สำเร็จ','Failed to end combat'),true); endB.disabled=false; }
+  };
+  wrap.appendChild(note); wrap.appendChild(endB); return wrap;
+}
+function mountDmToolsBody(body){
+  if(!body||!dmToolsHostAllowed()) return false;
+  body.replaceChildren();
+  const fallback=document.createElement('div'); fallback.setAttribute('data-dm-tools-fallback','host-only'); fallback.style.cssText='font-family:inherit;font-size:13px';
+  const fallbackNote=document.createElement('div'); fallbackNote.className='note'; fallbackNote.style.cssText='text-align:left;margin-bottom:6px'; fallbackNote.textContent=uiCopy('เครื่องมือ DM ส่วนอื่นโหลดไม่สำเร็จ — ทางออกฉุกเฉินยังใช้ได้','Other DM tools could not load — the emergency exit remains available.');
+  fallback.appendChild(fallbackNote); fallback.appendChild(buildEndCombatControl(el=>{ el.style.cssText+=';font-family:inherit;font-size:13px;padding:4px 8px'; return el; })); body.appendChild(fallback);
+  try{ const full=buildDmToolsCard(false); if(full&&full.children.length) body.replaceChildren(full); }
+  catch(e){ console.warn('dm-tools-render-fallback'); }
+  return true;
+}
 function buildDmToolsCard(withFrame){
   // v76: ฟอนต์/ขนาดเดียวกันทุกชิ้นในการ์ด (อ่านง่าย ไม่โดดไปมา)
   const DMF="font-family:inherit;font-size:13px";   /* v610f: inherit (เหตุผลเดียวกับ FONT) */
   const tools=document.createElement('div'); tools.style.cssText=DMF;
+  if(!dmToolsHostAllowed()){ tools.hidden=true; return tools; }
   if(withFrame){ tools.className='item'; tools.innerHTML='<div style="'+DMF+';font-weight:700;font-size:14px;text-align:left;padding:2px 0 4px">DM TOOLS <span style="font-weight:400;font-size:12px;color:#9a9a9a">host only</span></div>'; }
   const ctl='style';
   const styleCtl=el=>{ el.style.cssText+=';'+DMF+';padding:4px 8px'; return el; };
@@ -6656,14 +6863,6 @@ function buildDmToolsCard(withFrame){
   };
   r1.appendChild(sel); r1.appendChild(hpIn); r1.appendChild(setBtn); tools.appendChild(r1);
   const r2=document.createElement('div'); r2.style.cssText='display:flex;gap:6px;flex-wrap:wrap';
-  const endB=styleCtl(document.createElement('button')); endB.className='btn warn sm'; endB.textContent='จบการต่อสู้ทันที';
-  endB.onclick=async()=>{
-    if(!confirm('จบการต่อสู้ปัจจุบันทันที? (ศัตรูถอนจากฉาก)')) return;
-    try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
-      const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,end_combat:true})});
-      const j=await r.json(); toast(j.error||'จบการต่อสู้แล้ว ✓',!!j.error);
-    }catch(e){ toast('ไม่สำเร็จ',true); }
-  };
   const clB=styleCtl(document.createElement('button')); clB.className='btn warn sm'; clB.textContent='ล้างแชททั้งห้อง (ลบจริง)';
   clB.onclick=async()=>{
     if(!confirm('ลบแชททั้งหมดของห้องนี้ถาวร?\nทุกเครื่องเห็นผล และกู้คืนไม่ได้')) return;
@@ -6672,7 +6871,8 @@ function buildDmToolsCard(withFrame){
       const j=await r.json(); if(j.error) toast(j.error,true); else { toast('ลบแล้ว '+j.deleted+' ข้อความ ✓'); chatMsgs=[]; renderChatList(); try{ if(typeof renderBattleChat==='function') renderBattleChat(); }catch(e){} }
     }catch(e){ toast('ไม่สำเร็จ',true); }
   };
-  r2.appendChild(endB); if(!BETA) r2.appendChild(clB); tools.appendChild(r2);
+  r2.appendChild(buildEndCombatControl(styleCtl)); if(!BETA) r2.appendChild(clB); tools.appendChild(r2);
+  if(campaign&&me&&campaign.host_id===me.id) appendGeminiKeyTierControls(tools,styleCtl,DMF);
   // v275/v277: ตั้ง/ลด HP มอนสเตอร์ (host) — เปลี่ยนได้หลายครั้ง (ช่วยกู้บั๊ก) · เลือกมอนที่ยังอยู่ในศึก · hp 0 = ออกจากศึก · อยู่ในชุดกู้ภัย (เบต้าเห็นด้วย)
   const rM=document.createElement('div'); rM.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0';
   const mSel=styleCtl(document.createElement('select')); mSel.style.maxWidth='168px';
@@ -6909,7 +7109,7 @@ async function renderBattleScene(){
         var dtg=document.createElement('button'); dtg.type='button'; dtg.id='bsDmTg'; dtg.className='dm-tg';   // v453: ตัดเส้นขวางเหนือ DM TOOLS · v612: สไตล์ย้ายเข้า CSS ต่อสกิน
         dtg.textContent='🎛 DM TOOLS ▸';
         var dbody=document.createElement('div'); dbody.id='bsDmBody'; dbody.style.display='none';
-        dtg.onclick=function(){ var on=dbody.style.display==='none'; dbody.style.display=on?'block':'none'; dtg.textContent='🎛 DM TOOLS '+(on?'▾':'▸'); if(on){ dbody.innerHTML=''; try{ dbody.appendChild(buildDmToolsCard(false)); }catch(e){} } };
+        dtg.onclick=function(){ var on=dbody.style.display==='none'; dbody.style.display=on?'block':'none'; dtg.textContent='🎛 DM TOOLS '+(on?'▾':'▸'); if(on) mountDmToolsBody(dbody); };
         hud4.appendChild(dtg); hud4.appendChild(dbody);
       }
     }catch(e){}
@@ -6997,7 +7197,7 @@ async function renderBattleInitLog(initEl, logEl){
     const _lfrag=document.createDocumentFragment();
     // v623 B (DG-6 Option 2): แถวใหม่ที่ server ทอยจริง → ครอบเลข d20 ด้วย .bs-droll แล้วแอนิเมตหลัง render (client ไม่ทอยเองแล้ว — เลขบนจอ = เลขจริงเสมอ)
     var _prevLastN=parseFloat(logEl.getAttribute('data-last'))||0;
-    logs.forEach(l=>{ if(l.entry_type==='note'&&/^\s*(⚔️|✦|✕|⚠|💢|🛡|💀)|^\s*\(แก้|ยังไม่(ล้ม|ตาย|ฟื้น)|ถูกกำจัดไปแล้ว|ไม่มี(บาดแผล|การรักษา|การโจมตีจาก)|รอดบาดแผล|การโจมตี(พลาด|ไม่เข้า)|ระบบ:/.test(String(l.summary||''))) return;   /* v459: ซ่อน note ของ guard/ระบบ (สับสนกับบทบรรยาย) */ const d=document.createElement('div'); d.className='bs-logrow'; if(l.entry_type==='round_advance') d.style.color='#9a9a9a'; let _h=escapeHtml(l.summary); if(_prevLastN&&(+l.seq>_prevLastN)&&/\[server-rolled\]/.test(String(l.summary||''))){ _h=_h.replace(/(d20\s*[=(]\s*)(\d+)/, function(_m,pre,n){ return pre+'<span class="bs-droll" data-n="'+n+'">'+n+'</span>'; }); } d.innerHTML=(ICON[l.entry_type]||'•')+' '+_h; _lfrag.appendChild(d); });
+    logs.forEach(l=>{ if(l.entry_type==='note'&&/^\s*(⚔️|✦|✕|⚠|💢|🛡|💀)|^\s*\(แก้|ยังไม่(ล้ม|ตาย|ฟื้น)|ถูกกำจัดไปแล้ว|ไม่มี(บาดแผล|การรักษา|การโจมตีจาก)|รอดบาดแผล|การโจมตี(พลาด|ไม่เข้า)|ระบบ:/.test(String(l.summary||''))) return;   /* v459: ซ่อน note ของ guard/ระบบ (สับสนกับบทบรรยาย) */ const d=document.createElement('div'); d.className='bs-logrow'; if(l.entry_type==='round_advance') d.style.color='#9a9a9a'; let _h=escapeHtml(playerCombatSummary(l)); if(_prevLastN&&(+l.seq>_prevLastN)&&combatLogServerRolled(l)){ _h=_h.replace(/(d20\s*[=(]\s*)(\d+)/, function(_m,pre,n){ return pre+'<span class="bs-droll" data-n="'+n+'">'+n+'</span>'; }); } d.innerHTML=(ICON[l.entry_type]||'•')+' '+_h; _lfrag.appendChild(d); });
     if(!_lfrag.childNodes.length){ const d=document.createElement('div'); d.className='note'; d.style.color='#9a9a9a'; d.textContent='— ยังไม่มีบันทึกการรบ —'; _lfrag.appendChild(d); }
     var _lg=document.createElement('div'); _lg.appendChild(_lfrag.cloneNode(true));
     if(logEl.getAttribute('data-sig')!==_lg.innerHTML){
@@ -7011,6 +7211,18 @@ async function renderBattleInitLog(initEl, logEl){
       bsAnimateDice(logEl);   // v623 B (DG-6): แอนิเมตเลขทอยจริงบนแถวใหม่
     }
   }
+}
+function combatLogServerRolled(row){
+  const d=row&&row.detail&&typeof row.detail==='object'?row.detail:{};
+  const p=d.provenance&&typeof d.provenance==='object'?d.provenance:{};
+  return p.server_rolled===true||d.server_rolled===true||/\[server-rolled(?:[^\]]*)\]/i.test(String(row&&row.summary||''));
+}
+function playerCombatSummary(row){
+  return String(row&&row.summary||'')
+    .replace(/\s*\[server-rolled(?:[^\]]*)\]/gi,'')
+    .replace(/\[\s*ทอย\s*2(?:\s*ลูก)?\s*ใช้(?:ค่า)?ต่ำ\s*\]/gi,'[เสียเปรียบ]')
+    .replace(/\[\s*ทอย\s*2(?:\s*ลูก)?\s*ใช้(?:ค่า)?สูง\s*\]/gi,'[ได้เปรียบ]')
+    .trim();
 }
 // v623 B (DG-6 Option 2): หมุนตัวเลขสุ่มสั้นๆ แล้วหยุดที่ 'เลขจริงจาก server' — ความรู้สึกได้ทอย โดยเลข = ของจริงเสมอ
 function bsAnimateDice(scope){
@@ -7144,9 +7356,35 @@ function gridPickPaint(kind,c,r){
   }catch(e){}
   return false;
 }
-function aoePickCell(c,r){ if(!aoeMode) return; aoeCenter={c:c,r:r}; if(!gridPickPaint('aoe',c,r)) gridFastRefresh(); }
+function aoePickCell(c,r){ if(gridCommandDelegate('aoe','select',{c:c,r:r})) return; if(!aoeMode) return; aoeCenter={c:c,r:r}; if(!gridPickPaint('aoe',c,r)) gridFastRefresh(); }
 // เปิดตัวเลือกพื้นที่บน Map ให้ Command Menu (คืนผลผ่าน callback) — รัศมีจาก target เช่น sphere_20/cone_15/line_30
 function ccGridPick(target, cb){
+  if(gridCommandAdapter&&gridCommandFlow){
+    const bound=gridCommandAdapter.bindCommand({
+      kind:'aoe',
+      callback:cb,
+      fallback:()=>true,
+      resume:(info)=>{
+        gridCommandSession=null;
+        if(info&&info.cancelled&&typeof cb==='function') cb(null);
+        return true;
+      }
+    });
+    if(bound){
+      const opened=gridCommandFlow.open({
+        kind:'aoe',
+        language:uiLanguage(),
+        commandKey:'action',
+        requestToken:String((curRound&&curRound.id)||'')+'|aoe',
+        target:target
+      });
+      if(opened&&opened.ok){
+        gridCommandSession={kind:'aoe',handlers:opened.handlers};
+        return;
+      }
+    }
+  }
+  // KEEP: legacy ccGridPick body is the soak fallback when instant open is unavailable.
   const m=/^(?:sphere|cone|line|cube|square|cylinder)_?(\d+)/.exec(String(target||'')); const ft=m?parseInt(m[1]):20;
   aoeMode={radiusFt:ft, cb:cb}; aoeCenter=null;
   // v524 (เคสจริง Thunderwave): ต้องปิดชีตคำสั่ง + เข้าฉากรบก่อน — เดิมชีตคำสั่ง (mobile) บังกระดาน = แตะเลือกพื้นที่ไม่ติด (มิเรอร์ ccMovePick ที่ทำถูกอยู่แล้ว)
@@ -7156,6 +7394,7 @@ function ccGridPick(target, cb){
   toast('แตะช่องศูนย์กลางบน Map แล้วกด ✓ ยืนยันพื้นที่');
 }
 function aoeConfirm(){
+  if(gridCommandDelegate('aoe','confirm')) return;
   if(!aoeMode||!aoeCenter){ toast('แตะช่องศูนย์กลางก่อน',true); return; }
   const L="ABCDEFGHIJKLMNOPQRST"; const center=(L[aoeCenter.c]||'?')+(aoeCenter.r+1);
   const cells=aoeCellsFor(aoeCenter.c,aoeCenter.r); const ft=aoeMode.radiusFt; const cb=aoeMode.cb;
@@ -7164,17 +7403,46 @@ function aoeConfirm(){
   pendingAoE={centerCell:center, cells:cells, radiusFt:ft};
   switchTab('story'); toast('ปักพื้นที่แล้ว ✓ — พิมพ์คำสั่งแล้วกด Submit');
 }
-function aoeCancel(){ const cb=aoeMode&&aoeMode.cb; aoeMode=null; aoeCenter=null; if(cb){ try{ cb(null); }catch(e){} gridFastRefresh(); return; } gridFastRefresh(); }
+function aoeCancel(){ if(gridCommandDelegate('aoe','cancel')) return; const cb=aoeMode&&aoeMode.cb; aoeMode=null; aoeCenter=null; if(cb){ try{ cb(null); }catch(e){} gridFastRefresh(); return; } gridFastRefresh(); }
 // ───────── เดินบนกริด: ผู้เล่นแตะเลือกช่องปลายทางเอง (ไฮไลต์ช่องในระยะความเร็ว) ─────────
-function ccMovePick(cb){
+function ccMovePick(cb, instantBinding){
+  if(gridCommandAdapter&&gridCommandFlow){
+    const b=Object.assign({},instantBinding||{});
+    b.kind='move';
+    b.fallback=()=>true;
+    if(!b.turn&&typeof b.applyMovement!=='function'){
+      b.applyMovement=(movement)=>{ if(typeof cb==='function') cb(movement.moveTo); return true; };
+    }
+    if(typeof b.resume!=='function'){
+      b.resume=(info)=>{
+        gridCommandSession=null;
+        if(info&&info.cancelled&&typeof cb==='function') cb(null);
+        return true;
+      };
+    }
+    if(gridCommandAdapter.bindCommand(b)){
+      const opened=gridCommandFlow.open({
+        kind:'move',
+        language:uiLanguage(),
+        commandKey:'movement',
+        requestToken:String((curRound&&curRound.id)||'')+'|move'
+      });
+      if(opened&&opened.ok){
+        gridCommandSession={kind:'move',handlers:opened.handlers};
+        return;
+      }
+    }
+  }
+  // KEEP: legacy ccMovePick body is the soak fallback when instant open is unavailable.
   moveMode={cb:cb}; moveSel=null;
   try{ if(typeof bsCloseSheets==='function') bsCloseSheets(); }catch(e){}   // ปิดชีตคำสั่งให้เห็นกระดาน
   if(!_bsShown && typeof enterBattleScene==='function'){ try{ enterBattleScene(); }catch(e){} }   // กันฉากรบหาย: เข้าฉากแทนการ navigate ออก
   if(_bsShown){ renderBattleScene(); } else if(typeof renderCombat==='function'){ renderCombat(); }
   try{ toast('แตะช่องสีเขียวเพื่อเลือกที่จะเดินไป แล้วกด ✓'); }catch(e){}
 }
-function movePickCell(c,r){ if(!moveMode) return; moveSel={c:c,r:r}; if(!gridPickPaint('move',c,r)) gridFastRefresh(); }
+function movePickCell(c,r){ if(gridCommandDelegate('move','select',{c:c,r:r})) return; if(!moveMode) return; moveSel={c:c,r:r}; if(!gridPickPaint('move',c,r)) gridFastRefresh(); }
 function moveConfirm(){
+  if(gridCommandDelegate('move','confirm')) return;
   if(!moveMode||!moveSel){ try{toast('แตะช่องปลายทางก่อน',true);}catch(e){} return; }
   const L="ABCDEFGHIJKLMNOPQRST"; const cell=(L[moveSel.c]||'?')+(moveSel.r+1); const cb=moveMode.cb;
   window._pendingMove={c:moveSel.c, r:moveSel.r, cell:cell};   // ข้อ 2: มาร์คปลายทางค้างบนกริดจนเทิร์นถูก resolve (token ถึงช่อง/ขึ้นรอบใหม่ = เคลียร์)
@@ -7182,7 +7450,7 @@ function moveConfirm(){
   if(cb){ try{ cb(cell); }catch(e){} }
   gridFastRefresh();
 }
-function moveCancel(){ const cb=moveMode&&moveMode.cb; moveMode=null; moveSel=null; if(cb){ try{ cb(null); }catch(e){} } gridFastRefresh(); }
+function moveCancel(){ if(gridCommandDelegate('move','cancel')) return; const cb=moveMode&&moveMode.cb; moveMode=null; moveSel=null; if(cb){ try{ cb(null); }catch(e){} } gridFastRefresh(); }
 function aoeTag(sp){ if(!sp||!sp.area_shape) return ''; const M={sphere:'วง',cube:'ลูกบาศก์',cone:'กรวย',line:'เส้น',cylinder:'ทรงกระบอก',square:'สี่เหลี่ยม'}; return ' <span class="chip" style="background:#3a1a1a;color:#f09595;border-color:#f09595;font-size:10px">🎯 '+(sp.area_size?sp.area_size+'ft ':'')+(M[sp.area_shape]||sp.area_shape)+'</span>'; }
 
 // ───────── battle grid (2.5D squashed square — pattern จากเกม motley crews) ─────────
@@ -7832,6 +8100,25 @@ async function renderBattleGrid(p){
     const no2=document.createElement('button'); no2.className='btn ghost sm'; no2.textContent=uiCopy('ยกเลิก','Cancel'); no2.onclick=moveCancel; ctl.appendChild(no2);
     box.appendChild(ctl);
   }
+  try{
+    if(gridCommandAdapter&&gridCommandFlow){
+      const snap=gridCommandAdapter.buildSnapshot({
+        grid:grid,
+        tokens:toks,
+        character:myChar,
+        sheet:mySheet,
+        mode:ISO?'isometric':'square',
+        geometry:{
+          centerFor:cellCenter,
+          width:TILE,
+          height:TILE*SY,
+          halfWidth:IHTW,
+          halfHeight:IHTH
+        }
+      });
+      if(snap) gridCommandFlow.prime(snap);
+    }
+  }catch(_gridPrimeError){}
   p.appendChild(box);
 }
 
@@ -8656,8 +8943,14 @@ function subscribeRealtime(){
     .on('postgres_changes',{event:'*',schema:'public',table:'combat_encounters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await updateCombatBadge(); await refreshCombatTurn(); scheduleBattleScene(); if(activeTab()==='story') renderRoundbar(); })   /* v271 H4: refresh _combatActive จาก realtime (กันโหมด input คอมแบต/เรื่อง desync ตอนคนอื่นเปิด/ปิดศึก) */
     .on('postgres_changes',{event:'*',schema:'public',table:'initiative_entries',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await refreshCombatTurn(); scheduleBattleScene(); if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'combat_log',filter:'campaign_id=eq.'+campaign.id}, async()=>{ scheduleBattleScene(); })
-    .on('postgres_changes',{event:'*',schema:'public',table:'battle_grids',filter:'campaign_id=eq.'+campaign.id}, async()=>{ scheduleBattleScene(); })
-    .on('postgres_changes',{event:'*',schema:'public',table:'grid_tokens',filter:'campaign_id=eq.'+campaign.id}, async()=>{ scheduleBattleScene(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'battle_grids',filter:'campaign_id=eq.'+campaign.id}, async()=>{
+      gridCommandInvalidate('battle-grids-realtime');
+      scheduleBattleScene();
+    })
+    .on('postgres_changes',{event:'*',schema:'public',table:'grid_tokens',filter:'campaign_id=eq.'+campaign.id}, async()=>{
+      gridCommandInvalidate('grid-tokens-realtime');
+      scheduleBattleScene();
+    })
     ;
   /* v663 X4-01/02/03/04 (BUGROOTS 07-18 · เคสสด 08:53 stack overflow): callback ปิดเหนือ instance ตัวเอง (_rtCh) ไม่ใช่ global — กัน ABA (callback เก่าของ A ลบ B) ·
      null-before-remove + _torn = re-enter จาก removeChannel เป็น no-op · reconnect timer เดียว (clear ก่อนตั้งใหม่) · assign ก่อน subscribe (กัน callback เร็วกว่า assignment) */
@@ -8863,8 +9156,8 @@ function prettyCond(c){
      catalog_cast_review:['ยังใช้เวทนี้จากเมนูไม่ได้: catalog ยังไม่ยืนยันเวลาร่าย','This spell is not yet available in the menu: its catalog casting time is not confirmed.'],
      'shape_aware_grid+area_origin+server_aoe_authority':['ยังเล็งพื้นที่จากเมนูไม่ได้: กริดยังไม่รองรับรูปทรง จุดกำเนิด และอำนาจตัดสินพื้นที่อย่างถูกต้อง','Area targeting is not yet available: the grid does not support this shape, origin, and authoritative area resolution correctly.'],
      'reviewed_area_geometry+shape_aware_grid+server_aoe_authority':['ยังเล็งพื้นที่จากเมนูไม่ได้: catalog ยังขาด geometry ที่ตรวจแล้ว และกริดยังไม่รองรับรูปทรงนี้','Area targeting is not yet available: reviewed geometry is missing and the grid does not support this shape.'],
-     'point_object_or_hybrid_picker+server_target_legality':['ยังใช้เวทนี้จากเมนูไม่ได้: ต้องมีตัวเลือกจุด วัตถุ หรือเป้าผสมและการตรวจเป้าหมายจาก server ก่อน','This spell is not yet available in the menu: it needs a point, object, or hybrid picker plus server target validation.'],
-     'multi_target_picker+exact_cardinality+server_target_legality':['ยังใช้เวทนี้จากเมนูไม่ได้: ต้องมีตัวเลือกหลายเป้าหมาย จำนวนที่แน่นอน และการตรวจเป้าหมายจาก server ก่อน','This spell is not yet available in the menu: it needs multi-target selection, exact cardinality, and server target validation.'],
+     'point_object_or_hybrid_picker+server_target_legality':['ยังใช้เวทนี้จากเมนูไม่ได้: ต้องมีตัวเลือกจุด วัตถุ หรือเป้าผสมพร้อมตรวจว่าเลือกเป้าหมายได้ถูกต้องก่อน','This spell is not yet available in the menu: it needs a point, object, or hybrid picker with complete target validation.'],
+     'multi_target_picker+exact_cardinality+server_target_legality':['ยังใช้เวทนี้จากเมนูไม่ได้: ต้องมีตัวเลือกหลายเป้าหมาย จำนวนที่แน่นอน และตรวจว่าเลือกเป้าหมายได้ถูกต้องก่อน','This spell is not yet available in the menu: it needs multi-target selection, exact cardinality, and complete target validation.'],
      catalog_target_review:['ยังใช้เวทนี้จากเมนูไม่ได้: catalog ยังไม่ยืนยันชนิดเป้าหมาย','This spell is not yet available in the menu: its catalog target contract is not confirmed.']
    };
    const pair=copy[key]||['เมนูยังไม่รองรับสัญญาเวทนี้ ('+key+')','The menu does not yet support this spell contract ('+key+').'];
@@ -9252,7 +9545,7 @@ window.cc = (function(){
     if(last==='reaction'){
       var ritems = [];
       if((character.spells||[]).some(function(s){return s.cast==='1R';})) ritems.push({label:'Ready Reaction Spell',drill:'cast_reaction'});
-      ritems.push({label:uiCopy('Opportunity Attack ทำงานอัตโนมัติ','Opportunity Attacks are automatic'),meta:uiCopy('ระบบจะตรวจเงื่อนไขและทอยให้เอง — ไม่ต้องใส่เป็น Reaction','The server checks the trigger and rolls it automatically — do not add it as your Reaction'),dim:true});
+      ritems.push({label:uiCopy('Opportunity Attack ทำงานอัตโนมัติ','Opportunity Attacks are automatic'),meta:uiCopy('เกมจะตรวจเงื่อนไขและทอยให้เอง — ไม่ต้องใส่เป็น Reaction','The game checks the trigger and rolls automatically — do not add it as your Reaction'),dim:true});
       ((character.features&&character.features.reaction)||[]).forEach(function(f){
         ritems.push({label:f.name, meta:'passive', dim:true});
       });
@@ -9456,6 +9749,18 @@ window.cc = (function(){
           ccReturnToMenu();   // ข้อ 4: ยืนยันช่องเดินแล้ว → กลับเมนูเลือก action/bonus ที่เหลือ (ปิดเองเมื่อกดส่งเท่านั้น)
           renderAll();
           try{ if(typeof renderRoundbar==='function') renderRoundbar(); }catch(e){}
+        },{
+          turn:turn,
+          sequenceAdd:seqAdd,
+          setPendingMove:(pending)=>{ window._pendingMove=pending; },
+          resume:()=>{
+            gridCommandSession=null;
+            stack=['root'];
+            ccReturnToMenu();
+            renderAll();
+            try{ if(typeof renderRoundbar==='function') renderRoundbar(); }catch(e){}
+            return true;
+          }
         });
       }
       return;
@@ -9779,7 +10084,7 @@ window.cc = (function(){
     var frame = document.getElementById('ccFrame');
     var rows = '';
     if(rollResults.length === 0){
-      rows = '<div class="cc-dice-row"><span class="cc-lab">[SENT]</span> ส่งเทิร์นแล้ว — 🎲 server ทอยเต๋าจริงให้ ผลปรากฏใน Battle Log</div>';   // v623 B (DG-6): client ไม่ทอยเองแล้ว
+      rows = '<div class="cc-dice-row"><span class="cc-lab">'+escapeHtml(uiCopy('ส่งแล้ว','SENT'))+'</span> '+escapeHtml(uiCopy('ส่งเทิร์นแล้ว — 🎲 ผลทอยจริงจะปรากฏใน Battle Log','Turn sent — 🎲 the resolved roll will appear in the Battle Log'))+'</div>';   // v623 B (DG-6): client ไม่ทอยเองแล้ว
     } else {
       for(var i=0;i<rollResults.length;i++){
         var r = rollResults[i];
