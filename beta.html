@@ -2043,7 +2043,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608021700;   // v831: recruitment CTA + partial Battle Command + visual/theme truth
+const FRONTEND_BUILD = 202608022348;   // v833: null-safe Battle Command + public Battle Log privacy projection
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -7277,7 +7277,7 @@ async function renderBattleInitLog(initEl, logEl){
     const _lfrag=document.createDocumentFragment();
     // v623 B (DG-6 Option 2): แถวใหม่ที่ server ทอยจริง → ครอบเลข d20 ด้วย .bs-droll แล้วแอนิเมตหลัง render (client ไม่ทอยเองแล้ว — เลขบนจอ = เลขจริงเสมอ)
     var _prevLastN=parseFloat(logEl.getAttribute('data-last'))||0;
-    logs.forEach(l=>{ if(l.entry_type==='note'&&/^\s*(⚔️|✦|✕|⚠|💢|🛡|💀)|^\s*\(แก้|ยังไม่(ล้ม|ตาย|ฟื้น)|ถูกกำจัดไปแล้ว|ไม่มี(บาดแผล|การรักษา|การโจมตีจาก)|รอดบาดแผล|การโจมตี(พลาด|ไม่เข้า)|ระบบ:/.test(String(l.summary||''))) return;   /* v459: ซ่อน note ของ guard/ระบบ (สับสนกับบทบรรยาย) */ const d=document.createElement('div'); d.className='bs-logrow'; if(l.entry_type==='round_advance') d.style.color='#9a9a9a'; let _h=escapeHtml(playerCombatSummary(l)); if(_prevLastN&&(+l.seq>_prevLastN)&&combatLogServerRolled(l)){ _h=_h.replace(/(d20\s*[=(]\s*)(\d+)/, function(_m,pre,n){ return pre+'<span class="bs-droll" data-n="'+n+'">'+n+'</span>'; }); } d.innerHTML=(ICON[l.entry_type]||'•')+' '+_h; _lfrag.appendChild(d); });
+    logs.forEach(l=>{ if(!battleLogPublicVisible(l)) return; const d=document.createElement('div'); d.className='bs-logrow'; if(l.entry_type==='round_advance') d.style.color='#9a9a9a'; let _h=escapeHtml(playerCombatSummary(l)); if(!_h) return; if(_prevLastN&&(+l.seq>_prevLastN)&&combatLogServerRolled(l)){ _h=_h.replace(/(d20\s*[=(]\s*)(\d+)/, function(_m,pre,n){ return pre+'<span class="bs-droll" data-n="'+n+'">'+n+'</span>'; }); } d.innerHTML=(ICON[l.entry_type]||'•')+' '+_h; _lfrag.appendChild(d); });
     if(!_lfrag.childNodes.length){ const d=document.createElement('div'); d.className='note'; d.style.color='#9a9a9a'; d.textContent='— ยังไม่มีบันทึกการรบ —'; _lfrag.appendChild(d); }
     var _lg=document.createElement('div'); _lg.appendChild(_lfrag.cloneNode(true));
     if(logEl.getAttribute('data-sig')!==_lg.innerHTML){
@@ -7297,11 +7297,24 @@ function combatLogServerRolled(row){
   const p=d.provenance&&typeof d.provenance==='object'?d.provenance:{};
   return p.server_rolled===true||d.server_rolled===true||/\[server-rolled(?:[^\]]*)\]/i.test(String(row&&row.summary||''));
 }
+function battleLogPublicVisible(row){
+  if(!row) return false;
+  const s=String(row.summary||''); const d=row.detail&&typeof row.detail==='object'?row.detail:{};
+  if(d.player_action_required===true||d.public_outcome===true) return true;
+  if(String(row.entry_type||'').toLowerCase()==='note'){
+    if(/\((?:แก้|Fixed)\s*:|\b(?:server|guard|receipt)\b|\bกติกา\b|\bระบบ\s*:/i.test(s)) return false;
+    if(/^\s*(⚔️|✦|✕|⚠|💢|🛡|💀)|^\s*\(แก้|ยังไม่(ล้ม|ตาย|ฟื้น)|ถูกกำจัดไปแล้ว|ไม่มี(บาดแผล|การรักษา|การโจมตีจาก)|รอดบาดแผล|การโจมตี(พลาด|ไม่เข้า)|ระบบ:/.test(s)) return false;
+  }
+  return true;
+}
 function playerCombatSummary(row){
   return String(row&&row.summary||'')
+    .replace(/\s+(?:armor|shield|persona|personality|owner|action|level|max_hp|hp|ac|abilities|class|race|sex|summon_days|summon_kind)\s*:[\s\S]*?(?=\s*\((?:STR|DEX|CON|INT|WIS|CHA)[+-])/i,' ')
+    .replace(/\s*\((?:แก้|Fixed)\s*:[^)]*\)\s*/gi,' ')
     .replace(/\s*\[server-rolled(?:[^\]]*)\]/gi,'')
     .replace(/\[\s*ทอย\s*2(?:\s*ลูก)?\s*ใช้(?:ค่า)?ต่ำ\s*\]/gi,'[เสียเปรียบ]')
     .replace(/\[\s*ทอย\s*2(?:\s*ลูก)?\s*ใช้(?:ค่า)?สูง\s*\]/gi,'[ได้เปรียบ]')
+    .replace(/\s{2,}/g,' ')
     .trim();
 }
 // v623 B (DG-6 Option 2): หมุนตัวเลขสุ่มสั้นๆ แล้วหยุดที่ 'เลขจริงจาก server' — ความรู้สึกได้ทอย โดยเลข = ของจริงเสมอ
@@ -9249,6 +9262,14 @@ function prettyCond(c){
    const pair=copy[key]||['เมนูยังไม่รองรับสัญญาเวทนี้ ('+key+')','The menu does not yet support this spell contract ('+key+').'];
    return uiCopy(pair[0],pair[1]);
  }
+function ccSlotLedgerState(ledger,sheetRefreshOk){
+  const lvMax=ledger&&Array.isArray(ledger.lv_max)?ledger.lv_max:[];
+  const lvUsed=ledger&&ledger.lv_used&&typeof ledger.lv_used==='object'?ledger.lv_used:{};
+  const loaded=lvMax.length>1; const slots={};
+  const slotsKnown=loaded||sheetRefreshOk===true;
+  if(slotsKnown){ for(let L=1;L<=9;L++){ slots[L]=[Math.max(0,Math.floor(+lvUsed[String(L)]||0)),Math.max(0,Math.floor(+lvMax[L]||0))]; } }
+  return {slots:slots,slotsKnown:slotsKnown,slotQuotaState:loaded?'loaded':(sheetRefreshOk===true?'none':'loading')};
+}
 async function prepCommandContext(){
   const ctx={enemies:[], character:null, loadError:null, loadWarnings:[], slotsKnown:false, attacks:[], inventory:[]};
   // F26: mySheet is not realtime-authoritative while this menu is open. Refresh before deriving inventory or slot quota.
@@ -9274,12 +9295,10 @@ async function prepCommandContext(){
   // v831: character sheet is the base command contract. Optional spell/skill
   // catalogs enrich it but may never remove Attack/Dash/Dodge/Disengage.
   if(myChar&&myChar.id){
-    const _ledger=mySheet&&mySheet.slots; const _lvMax=_ledger&&_ledger.lv_max; const _lvUsed=(_ledger&&_ledger.lv_used&&typeof _ledger.lv_used==='object')?_ledger.lv_used:{};
-    const slots={}; const _slotLedgerLoaded=Array.isArray(_lvMax)&&_lvMax.length>1;
-    ctx.slotsKnown=_slotLedgerLoaded||sheetRefreshOk;
-    ctx.slotQuotaState=_slotLedgerLoaded?'loaded':(sheetRefreshOk?'none':'loading');
-    if(ctx.slotsKnown){ for(let L=1;L<=9;L++){ slots[L]=[Math.max(0,Math.floor(+_lvUsed[String(L)]||0)),Math.max(0,Math.floor(+_lvMax[L]||0))]; } }
-    ctx.character={ speed_ft:(mySheet&&mySheet.combat&&mySheet.combat.speed)||30, slots:slots, slotsKnown:ctx.slotsKnown, slotQuotaState:ctx.slotQuotaState, spells:[], features:{bonus:[], reaction:[]} };
+    const _ledger=mySheet&&mySheet.slots; const _slotState=ccSlotLedgerState(_ledger,sheetRefreshOk);
+    ctx.slotsKnown=_slotState.slotsKnown;
+    ctx.slotQuotaState=_slotState.slotQuotaState;
+    ctx.character={ speed_ft:(mySheet&&mySheet.combat&&mySheet.combat.speed)||30, slots:_slotState.slots, slotsKnown:ctx.slotsKnown, slotQuotaState:ctx.slotQuotaState, spells:[], features:{bonus:[], reaction:[]} };
   }else ctx.loadError={kind:'character',detail:'character_unavailable'};
   // เวท/สกิลจริงของผู้เล่น (skills ∩ SPELL_CAT) — dependency ล้มให้ซ่อนเฉพาะคำสั่งเสริม
   try{
