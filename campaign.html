@@ -820,6 +820,11 @@ body.role-player .dm-only{display:none!important;}
 .cc-narr{width:100%;min-height:96px;background:#000;border:2px solid #fff;border-radius:8px;color:#fff;font-family:'IBM Plex Sans Thai',sans-serif;font-size:14px;line-height:1.55;padding:11px;resize:vertical;box-sizing:border-box;}
 .cc-narr:focus{outline:none;box-shadow:0 0 0 2px rgba(255,255,255,.3);}
 .cc-narr-wrap .cc-btn-row{margin-top:9px;}
+.cc-context-warning{border:1px dashed #FAC775;border-radius:8px;padding:8px 10px;margin-bottom:9px;color:#FAC775;font-size:12px;line-height:1.5;}
+.cc-context-warning button{margin-top:6px;}
+.recruit-affordance{border:2px dashed #FAC775;border-radius:10px;padding:12px 14px;margin:8px 0;background:rgba(250,199,117,.08);display:grid;gap:8px;}
+.recruit-affordance .recruit-title{font-weight:800;color:#FAC775;}
+.recruit-affordance .recruit-note{font-size:13px;color:#aaa;line-height:1.5;}
 
 /* ========== Battle Scene (RPG cut-in overlay) ========== */
 .tab[data-tab="mon"]{display:none;}
@@ -1122,7 +1127,7 @@ html.skin-paper [style*="color:#5cc8ff"]:not([style*="background"]){color:#235e8
 html.skin-paper [style*="color:#ff6b6b"]:not([style*="background"]){color:#9c2f2f!important;}
 /* ── v612: ฉากต่อสู้สกินกระดาษ (คำสั่ง Koon 07-12) — แผงรอบสนามเป็นกระดาษ ตัวหนังสือหมึก อ่านชัด · บอร์ด/token คงศิลป์เดิม ── */
 html.skin-paper .bscene{background:#efe6d2;}
-html.skin-paper .bs-init,html.skin-paper .bs-log,html.skin-paper .bs-narr,html.skin-paper .bs-chat{background:#f7f0e0;border:1px solid #b9a77f;}
+html.skin-paper .bs-init,html.skin-paper .bs-log,html.skin-paper .bs-narr,html.skin-paper .bs-chat,html.skin-paper .bs-cmd,html.skin-paper .cc-inline{background:#f7f0e0;border:1px solid #b9a77f;color:#3a2e20;}
 html.skin-paper .bs-panelttl{font-family:'Cinzel','Trirong',serif;-webkit-font-smoothing:antialiased;font-size:12px;letter-spacing:2px;font-weight:700;color:#7a1f1f;border-bottom:1px solid #d6c49c;}
 html.skin-paper .bs-log-list{color:#3a2e20;font-family:'Trirong',Georgia,serif;font-size:13.5px;}
 html.skin-paper .bs-initrow,html.skin-paper .bs-chat-list{font-family:'Trirong',Georgia,serif;}
@@ -1149,6 +1154,20 @@ html.skin-paper .cc-crumb a:hover{background:#e6d8b9;color:#1c1611;}
 html.skin-paper .cc-close{color:#3a2e20;}
 html.skin-paper .cc-item.cc-root{font-family:'Cinzel','Trirong',serif;font-size:12px;}
 html.skin-paper .cc-item .cc-tag{border-color:#7c6a4f;color:#7c6a4f;}
+html.skin-paper .cc-seq,html.skin-paper .cc-narr{background:#fbf6ea;border-color:#b9a77f;color:#3a2e20;}
+html.skin-paper .cc-seq-row{border-bottom-color:#d6c49c;}
+html.skin-paper .cc-seq-n{border-color:#7c6a4f;color:#3a2e20;}
+html.skin-paper .cc-seq-ttl,html.skin-paper .cc-context-warning{color:#7a1f1f;}
+html.skin-paper .cc-seq-ctl button,html.skin-paper .cc-btn{background:#efe4ca;border-color:#9d875c;color:#3a2e20;}
+html.skin-paper .cc-seq-ctl button:hover:not(:disabled),html.skin-paper .cc-btn:hover{background:#7a1f1f;color:#fbf6ea;}
+html.skin-paper .cc-backdrop.on,html.skin-paper .bs-sheet-backdrop.on{background:rgba(58,46,32,.48);}
+html.skin-paper .bs-hud.bs-sheet-open,html.skin-paper .bs-init.bs-sheet-open,html.skin-paper .bs-log.bs-sheet-open,html.skin-paper .bs-cmd.bs-sheet-open,html.skin-paper .bs-chat.bs-sheet-open{background:#f7f0e0;border-color:#b9a77f;color:#3a2e20;}
+html.skin-paper .bscene.bs-has-sheet .bs-sheet-close{background:#7a1f1f;color:#fbf6ea;border:1px solid #5b1717;}
+html.skin-paper .bs-charsheet{background:#f7f0e0;border-color:#b9a77f;color:#3a2e20;}
+html.skin-paper .bs-cs-btn{background:#f7f0e0;color:#7a1f1f;border-color:#9d875c;}
+html.skin-paper .recruit-affordance{background:#efe4ca;border-color:#9d875c;}
+html.skin-paper .recruit-affordance .recruit-title{color:#7a1f1f;}
+html.skin-paper .recruit-affordance .recruit-note{color:#6b5a44;}
 /* แถบเมนูมือถือของฉากรบ */
 html.skin-paper .bs-mobbar{background:#efe6d2;border-top:1px solid #b9a77f;}
 html.skin-paper .bs-mobbar button{background:#efe6d2;color:#3a2e20;border-right:1px solid #d6c49c;font-family:'Trirong',Georgia,serif;}
@@ -2064,7 +2083,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608010824;   // v824: music v2 Gate 5 dark-launch client; wall remains fail-closed
+const FRONTEND_BUILD = 202608021700;   // v831: recruitment CTA + partial Battle Command + visual/theme truth
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -4144,6 +4163,40 @@ function renderProgressiveReceipts(rows){
     item.innerHTML=narrDraw(n); box.appendChild(item);
   });
 }
+function pendingRecruitmentNames(rows){
+  const out=[], seen=new Set();
+  (Array.isArray(rows)?rows:[]).forEach(n=>{
+    const source=String((n&&n.source_content)||'');
+    if(!source.startsWith('system:companion-recruitment:')) return;
+    const text=String((n&&n.content)||'');
+    if(!/(?:ยังยืนยันธุรกรรมคำเชิญและสถานะสมาชิกไม่ครบ|could not confirm the complete invitation-and-membership transaction)/i.test(text)) return;
+    const m=text.match(/บทเล่าระบุว่า\s+(.+?)\s+เป็นสมาชิกปาร์ตี้/i)||text.match(/story described\s+(.+?)\s+as a party member/i);
+    if(!m) return;
+    String(m[1]).split(/\s*,\s*/).forEach(raw=>{
+      const name=raw.trim().slice(0,80), key=name.toLocaleLowerCase();
+      if(name.length<2||seen.has(key)) return;
+      seen.add(key); out.push(name);
+    });
+  });
+  return out;
+}
+function renderRecruitmentAffordance(feed,rows){
+  if(!feed) return;
+  feed.querySelectorAll('.recruit-affordance').forEach(x=>x.remove());
+  const activeNames=new Set((Array.isArray(characters)?characters:[]).filter(c=>c&&c.is_companion===true&&c.controller!=='left').map(c=>String(c.name||'').trim().toLocaleLowerCase()));
+  pendingRecruitmentNames(rows).filter(name=>!activeNames.has(name.toLocaleLowerCase())).forEach(name=>{
+    const inCombat=!!(gCombat&&gCombat.active);
+    const card=document.createElement('div'); card.className='recruit-affordance'; card.dataset.recruitName=name;
+    const title=document.createElement('div'); title.className='recruit-title'; title.textContent=uiCopy('ยืนยันคำเชิญเข้าปาร์ตี้: ','Confirm party invitation: ')+name; card.appendChild(title);
+    const note=document.createElement('div'); note.className='recruit-note'; note.textContent=inCombat
+      ? uiCopy('(แก้: เก็บคำเชิญนี้ไว้ให้ยืนยันหลังจบการต่อสู้ เพื่อไม่เปลี่ยนสมาชิกกลางศึก)','(Fixed: this invitation is held until combat ends so party membership cannot change mid-encounter.)')
+      : uiCopy('การกดปุ่มจะส่งคำเชิญในนามตัวละครของคุณ จากนั้น server จะเพิ่มสมาชิกเมื่อ NPC ยอมรับและธุรกรรมชีทสำเร็จเท่านั้น','This sends an invitation from your character. The server adds the member only after NPC acceptance and a complete sheet transaction.');
+    card.appendChild(note);
+    const btn=document.createElement('button'); btn.type='button'; btn.className='btn'; btn.disabled=inCombat; btn.textContent=inCombat?uiCopy('รอยืนยันหลังจบศึก','Confirm after combat'):uiCopy('เชิญ '+name+' เข้าปาร์ตี้','Invite '+name+' to the party');
+    btn.onclick=async()=>{ if(inCombat||btn.disabled) return; btn.disabled=true; await quickSubmit(uiCopy('ฉันขอเชิญ '+name+' เข้าร่วมปาร์ตี้อย่างเป็นทางการ หากเจ้าตัวยินยอม','I formally invite '+name+' to join the party, if they accept.')); };
+    card.appendChild(btn); feed.appendChild(card);
+  });
+}
 async function renderStory(){
   renderClock();
   try{ renderVoteCard(); }catch(e){}
@@ -4162,7 +4215,7 @@ async function renderStory(){
     let changed=false;
     shown.forEach((n,i)=>{ if(existing[i].dataset.sig!==isig(n)){ const cd=existing[i].querySelector('.narrc'); if(cd){ cd.innerHTML=cdraw(n); existing[i].dataset.sig=isig(n); changed=true; } } });
     if(changed && !_skipAutoScroll){ const sp=$('panel-story'); if(sp && (sp.scrollHeight-sp.scrollTop-sp.clientHeight)<160) sp.scrollTop=sp.scrollHeight; }
-    _skipAutoScroll=false; renderRoundbar(); return;
+    renderRecruitmentAffordance(feed,shown); _skipAutoScroll=false; renderRoundbar(); return;
   }
   // โครงสร้างเปลี่ยน (entry ใหม่/ลบ/โหลดเก่า) → rebuild ทั้งก้อน
   _lastFeedSig=shown.map(n=>`${n.id}:${isig(n)}`).join('|');
@@ -4176,6 +4229,7 @@ async function renderStory(){
     const c=document.createElement('div'); c.className='narrc'; c.innerHTML=cdraw(n);
     d.appendChild(c); feed.appendChild(d);
   });
+  renderRecruitmentAffordance(feed,shown);
   if(_skipAutoScroll){ _skipAutoScroll=false; } else { const sp=$('panel-story'); if(sp) sp.scrollTop=sp.scrollHeight; if(feed) feed.scrollTop=feed.scrollHeight; }
   renderRoundbar();
 }
@@ -7838,6 +7892,8 @@ const _MON_BIG={adult_black_dragon:2,adult_blue_dragon:2,adult_brass_dragon:2,ad
 const _MON_TILES={aboleth:2, cyclops:3, water_weird:2, yeti:2, beholder:2, adult_black_dragon:3, adult_blue_dragon:3, adult_brass_dragon:3, adult_bronze_dragon:3, adult_copper_dragon:3, adult_gold_dragon:3, adult_green_dragon:3, adult_red_dragon:3, adult_silver_dragon:3, adult_white_dragon:3, air_elemental:2, ancient_black_dragon:4, ancient_blue_dragon:4, ancient_brass_dragon:4, ancient_bronze_dragon:4, ancient_copper_dragon:4, ancient_gold_dragon:4, ancient_green_dragon:4, ancient_red_dragon:4, ancient_silver_dragon:4, ancient_white_dragon:4, androsphinx:2, ankheg:2, awakened_tree:3, axe_beak:2, balor:3, behir:3, black_pudding:2, bone_devil:2, brown_bear:2, bulette:2, camel:2, carrion_crawler:2, centaur:2, chimera:2, chuul:2, clay_golem:2, cloaker:2, cloud_giant:3, constrictor_snake:2, crocodile:2, dire_wolf:2, djinni:2, draft_horse:2, dragon_turtle:4, drider:2, earth_elemental:2, efreeti:2, elephant:3, elk:2, ettin:2, fire_elemental:2, fire_giant:3, frost_giant:3, gelatinous_cube:2, giant_ape:3, giant_bat:2, giant_boar:2, giant_constrictor_snake:3, giant_crocodile:3, giant_eagle:2, giant_elk:3, giant_goat:2, giant_hyena:2, giant_lizard:2, giant_octopus:2, giant_owl:2, giant_scorpion:2, giant_sea_horse:2, giant_shark:3, giant_spider:2, giant_toad:2, giant_vulture:2, glabrezu:2, gorgon:2, griffon:2, guardian_naga:2, gynosphinx:2, hezrou:2, hill_giant:3, hippogriff:2, horned_devil:2, hydra:3, ice_devil:2, iron_golem:2, killer_whale:3, kraken:4, lamia:2, lion:2, mammoth:3, manticore:2, marilith:2, merrow:2, minotaur:2, minotaur_skeleton:2, nalfeshnee:2, nightmare:2, ochre_jelly:2, ogre:2, ogre_zombie:2, oni:2, otyugh:2, owlbear:2, pegasus:2, phase_spider:2, pit_fiend:2, planetar:2, plesiosaurus:2, polar_bear:2, purple_worm:4, remorhaz:3, rhinoceros:2, riding_horse:2, roc:4, roper:2, rug_of_smothering:2, saber_toothed_tiger:2, salamander:2, shambling_mound:2, shield_guardian:2, solar:2, spirit_naga:2, stone_giant:3, stone_golem:2, storm_giant:3, tarrasque:4, tiger:2, treant:3, triceratops:3, troll:2, tyrannosaurus_rex:3, unicorn:2, vrock:2, warhorse:2, warhorse_skeleton:2, water_elemental:2, winter_wolf:2, worg:2, wyvern:2, young_black_dragon:2, young_blue_dragon:2, young_brass_dragon:2, young_bronze_dragon:2, young_copper_dragon:2, young_gold_dragon:2, young_green_dragon:2, young_red_dragon:2, young_silver_dragon:2, young_white_dragon:2};
 const _MON_ALIAS={werewolf:'werewolf_hybrid_form',wereboar:'wereboar_hybrid_form',wererat:'wererat_hybrid_form',weretiger:'weretiger_hybrid_form',werebear:'werebear_hybrid_form',vampire:'vampire_vampire_form'};   // v638 BUG1: ชื่อ spawn โดด (Werewolf/Vampire) → default form sprite (รูปมีอยู่ใต้ key *_form แต่ generator สร้างชื่อโดด → เดิม pawn แดงทั้งที่ art มี)
 function _monId(t){ let g=String((t&&t.glyph)||'').toLowerCase().trim(); if(['monster','pc','ally','npc','object','marker',''].indexOf(g)>=0) g=''; const base=g||String((t&&t.label)||''); const id=base.toLowerCase().trim().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,''); const _alB=id.replace(/_(?:[a-z]|\d+)$/,''); if(_MON_ALIAS[id]) return _MON_ALIAS[id]; if(_MON_ALIAS[_alB]) return _MON_ALIAS[_alB]; const _try=(c)=>{ if(c&&c.length>=3&&_MON_RENDERED.has(c)) return c; if(c&&c.length>=4&&c.charAt(c.length-1)==='y'&&_MON_RENDERED.has(c.slice(0,-1))) return c.slice(0,-1); return null; }; let _hit=_try(id); if(_hit) return _hit; const _s=id.replace(/_(?:[a-z]|\d+)$/,''); _hit=_try(_s); if(_hit) return _hit; const _p=_s.split('_'); for(let i=1;i<_p.length;i++){ _hit=_try(_p.slice(i).join('_')); if(_hit) return _hit; } for(let i=_p.length-1;i>=1;i--){ _hit=_try(_p.slice(0,i).join('_')); if(_hit) return _hit; } return id; }   // v606fx: (1) ลูปตัดคำขยายต้องรันบน id ที่ตัด suffix แล้ว — เคสจริง 07-12 "Giant Panther A"→giant_panther_a: ลูปเดิมได้ "panther_a"≠panther → pawn เปล่าทั้งศึก (2) stem ตัว y ท้ายคำ shadowy→shadow (เคส "Shadowy Figure")   // v505: ชื่อมอนแต่งเอง (Giant Wolf) → ตัดคำขยายหา sprite ใกล้สุด giant_wolf→wolf · shadow_bandit→bandit   // v420: glyph มอน = generic → fallback label · v444: ตัด suffix แยกตัว (Bugbear A→bugbear_a→bugbear)
+const _monIdBeforeV831=_monId;
+_monId=function(t){ const legacy=_monIdBeforeV831(t); if(_MON_RENDERED.has(legacy)) return legacy; const raw=String((t&&t.label)||'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').replace(/_(?:[a-z]|\d+)$/,''); const parts=raw.split('_').filter(Boolean); for(let len=parts.length;len>=1;len--){ for(let start=0;start+len<=parts.length;start++){ const key=parts.slice(start,start+len).join('_'), alias=_MON_ALIAS[key]||key; if(_MON_RENDERED.has(alias)) return alias; } } return legacy; };   // v831: decorated middle identity (Ironblood Orc Sentry A → orc)
 function _biomeKey(bg){ const s=String(bg||'').toLowerCase();
   if(/ถ้ำ|\bcave\b/.test(s)) return 'cave'; if(/ดันเจ|dungeon|ใต้ดิน|crypt/.test(s)) return 'dungeon';
   if(/สุสาน|หลุมศพ|grave|tomb|ซาก/.test(s)) return 'graveyard'; if(/ลาวา|lava|ภูเขาไฟ|volcan|นรก/.test(s)) return 'lava';
@@ -7859,7 +7915,9 @@ function hd2dCharHref(t){
     let cls=null, sex='other', race='Human';
     if(t.kind==='pc'||t.kind==='ally'){
       const ch=(typeof characters!=='undefined'&&characters)?characters.find(x=>x.id===t.ref_char_id):null;
-      cls=ch&&ch.class; if(!cls) return null;
+      cls=ch&&ch.class;
+      if(Array.isArray(t.flags)){ for(const _f of t.flags){ const _c=/^sprite_class:(.+)$/i.exec(_f); if(_c&&!cls)cls=_c[1]; } }
+      if(!cls&&ch) cls='Fighter'; if(!cls) return null;   // v831: a canonical character never falls back to a faction-coloured pawn
       if(typeof myChar!=='undefined'&&myChar&&t.ref_char_id===myChar.id&&typeof mySheet!=='undefined'&&mySheet){ if(mySheet.sex) sex=mySheet.sex; if(mySheet.race) race=mySheet.race; }
       else if(Array.isArray(t.flags)){ for(const _f of t.flags){ const _s=/^sex:(.+)$/i.exec(_f); if(_s)sex=_s[1]; const _r=/^race:(.+)$/i.exec(_f); if(_r)race=_r[1]; } }   // v420: เพศ/เผ่าเพื่อนจาก flags ที่ server bake
     } else if(t.kind==='monster'&&Array.isArray(t.flags)){   // v441: มอน humanoid ที่ server ใส่ sprite_class → render เป็นตัวละคร (แทน token เปล่า · ลำดับหลัง monster sprite จริง)
@@ -8008,7 +8066,8 @@ async function renderBattleGrid(p){
   const SPR_ALIAS={'ต้นสน':'pine',pine:'pine',fir:'pine','สน':'pine','ต้นไม้':'tree',tree:'tree',oak:'tree','ต้นโอ๊ค':'tree','ถ้ำ':'cave',cave:'cave','โพรง':'cave','หิน':'rock','ก้อนหิน':'rock',rock:'rock',boulder:'rock','โต๊ะ':'table',table:'table','เตาผิง':'fireplace',fireplace:'fireplace',hearth:'fireplace','เตาไฟ':'fire','กองไฟ':'fire','ไฟ':'fire',fire:'fire',campfire:'fire','ถัง':'barrel',barrel:'barrel','หีบ':'chest','หีบสมบัติ':'chest',chest:'chest',treasure:'chest','ลัง':'crate','กล่อง':'crate',crate:'crate',box:'crate','ประตู':'door',door:'door','บ่อน้ำ':'well',well:'well','เต็นท์':'tent',tent:'tent','คบเพลิง':'torch','ตะเกียง':'torch',torch:'torch',brazier:'torch','หลุมศพ':'grave',grave:'grave',tombstone:'grave','รูปปั้น':'statue',statue:'statue','คริสตัล':'crystal','ผลึก':'crystal',crystal:'crystal','ธง':'banner',banner:'banner',flag:'banner','พุ่มไม้':'bush',bush:'bush',shrub:'bush','เห็ด':'mushroom',mushroom:'mushroom','ตอไม้':'stump',stump:'stump','ขอนไม้':'log',log:'log','ท่อนไม้':'log','สะพาน':'bridge',bridge:'bridge','บันได':'stairs',stairs:'stairs',ladder:'stairs','แท่นบูชา':'altar',altar:'altar','เสา':'pillar',pillar:'pillar',column:'pillar','กระดูก':'bones',bones:'bones','กะโหลก':'skull',skull:'skull','ชั้นหนังสือ':'bookshelf',bookshelf:'bookshelf',shelf:'bookshelf','เตียง':'bed',bed:'bed','หม้อ':'cauldron','หม้อต้ม':'cauldron',cauldron:'cauldron','pot':'cauldron','ทั่ง':'anvil',anvil:'anvil','ป้าย':'signpost',signpost:'signpost',sign:'signpost','โลงศพ':'coffin',coffin:'coffin','วงเวท':'magiccircle','วงเวทมนตร์':'magiccircle','พอร์ทัล':'magiccircle',portal:'magiccircle',rune:'magiccircle','คันโยก':'lever',lever:'lever','รั้ว':'fence',fence:'fence','กองฟาง':'haystack',haystack:'haystack',hay:'haystack','โคมไฟ':'lantern',lantern:'lantern','ตะเกียงแขวน':'lantern','ใยแมงมุม':'web',web:'web',cobweb:'web','ดอกไม้':'flower',flower:'flower','กระบองเพชร':'cactus',cactus:'cactus','เกวียน':'wagon','รถลาก':'wagon',wagon:'wagon',cart:'wagon',
   'กะโหลกสัตว์':'animal_skull', 'ชุดเกราะตั้ง':'armor_stand', 'กองเถ้า':'ash_pile', 'เคาน์เตอร์บาร์':'bar_counter', 'เสาบะซอลต์':'basalt_column', 'ตะกร้า':'basket', 'ม้านั่ง':'bench', 'พุ่มเบอร์รี่':'berry_bush', 'หินก้อนใหญ่':'boulder', 'กระถางไฟ':'brazier', 'เสาหัก':'broken_pillar', 'กรงขัง':'cage', 'กองหินซ้อน':'cairn', 'รถเข็น':'cart', 'ธูปฤๅษี':'cattail', 'โซ่ตรวน':'chains', 'เก้าอี้':'chair', 'โคมระย้า':'chandelier', 'ลังซ้อน':'crates_stack', 'ลำธาร':'creek', 'ตู้':'cupboard', 'ต้นไม้ตาย':'dead_tree', 'เนินทราย':'dune', 'ต้นไม้ล้ม':'fallen_tree', 'เฟิร์น':'fern', 'ผลึกไฟ':'fire_crystal', 'น้ำพุ':'fountain', 'ต้นไม้แข็ง':'frozen_tree', 'ผลึกน้ำแข็ง':'ice_crystal', 'แท่งน้ำแข็ง':'ice_shard', 'หินย้อยน้ำแข็ง':'icicle', 'รั้วเหล็ก':'iron_fence', 'เสาไฟ':'lamppost', 'พื้นลาวา':'lava_floor', 'บ่อลาวา':'lava_pool', 'ใบบัว':'lilypad', 'ปล่องแมกมา':'magma_vent', 'โกงกาง':'mangrove', 'แผงตลาด':'market_stall', 'สุสานหิน':'mausoleum', 'เนินโคลน':'mud_mound', 'โอเอซิส':'oasis', 'เสาโอเบลิสก์':'obelisk', 'ออบซิเดียน':'obsidian', 'สายแร่':'ore_vein', 'ต้นปาล์ม':'palm', 'บ่อน้ำ':'pond', 'ประตูเหล็ก':'portcullis', 'กอกก':'reeds', 'รากไม้':'roots', 'กองเศษหิน':'rubble', 'พรม':'rug', 'ซากหินทราย':'sandstone_ruin', 'โลงหิน':'sarcophagus', 'ชั้นวางของ':'shelf', 'กองหิมะ':'snowdrift', 'กับดักหนาม':'spike_trap', 'หินย้อย':'stalactite', 'สตูล':'stool', 'หญ้าสูง':'tall_grass', 'บัลลังก์':'throne', 'โกศ':'urn', 'หญ้าน้ำ':'water_grass', 'ราวอาวุธ':'weapon_rack'};
   function spriteFn(t){ const k=String(t.glyph||'').toLowerCase().trim(); if(SPR_ALIAS[k]&&SPRITES[SPR_ALIAS[k]]) return SPRITES[SPR_ALIAS[k]]; const lab=String(t.label||'').toLowerCase(); for(const key in SPR_ALIAS){ if(lab.includes(key.toLowerCase())) return SPRITES[SPR_ALIAS[key]]; } return null; }
-  const PAL={ pc:['#378ADD','#0C447C','#85B7EB'], ally:['#5c7bff','#26306b','#aeb8ff'], monster:['#E24B4A','#791F1F','#F09595'], npc:['#E8B23A','#6e5200','#f3d27a'] };
+  const _paperPawn=document.documentElement.classList.contains('skin-paper');
+  const PAL=_paperPawn?{pc:['#d8c7a2','#235e8a','#fbf6ea'],ally:['#d8c7a2','#596b3a','#fbf6ea'],monster:['#d8c7a2','#9c2f2f','#fbf6ea'],npc:['#d8c7a2','#8a6d1f','#fbf6ea']}:{pc:['#30343b','#378ADD','#d7dbe1'],ally:['#30343b','#5c7bff','#d7dbe1'],monster:['#30343b','#E24B4A','#d7dbe1'],npc:['#30343b','#E8B23A','#d7dbe1']};
   // ── (06-10) ของตกแต่งสุ่มฝั่ง client: ใช้เฉพาะกริดเก่าที่ไม่มี decor จริงจาก server (v145 ลง DB แล้ว — DM เห็น/ใช้เป็นกลไกได้) ──
   const _decoToks=[];
   try{ if(!toks.some(t=>Array.isArray(t.flags)&&t.flags.includes('decor'))){
@@ -9454,16 +9513,18 @@ function prettyCond(c){
    return uiCopy(pair[0],pair[1]);
  }
 async function prepCommandContext(){
-  const ctx={enemies:[], character:null, loadError:null, slotsKnown:false, attacks:[], inventory:[]};
+  const ctx={enemies:[], character:null, loadError:null, loadWarnings:[], slotsKnown:false, attacks:[], inventory:[]};
   // F26: mySheet is not realtime-authoritative while this menu is open. Refresh before deriving inventory or slot quota.
-  const sheetRefreshOk=await reloadMySheet();
+  let sheetRefreshOk=false;
+  try{ sheetRefreshOk=await reloadMySheet(); }catch(e){ sheetRefreshOk=false; }
+  if(!sheetRefreshOk) ctx.loadWarnings.push('sheet_refresh_failed');
   // ศัตรูจริงจากสนามรบ (label A/B เมื่อชื่อซ้ำ)
   try{
     const r=await uiCombatStateRows('id,cur_hp,monsters(name)',true);
     const rows=(r.data||[]).filter(x=>x.cur_hp==null||x.cur_hp>0); const grp={};
     rows.forEach(x=>{ const n=(x.monsters&&x.monsters.name)||'ศัตรู'; (grp[n]=grp[n]||[]).push(x); });
     rows.forEach(x=>{ const n=(x.monsters&&x.monsters.name)||'ศัตรู'; const g=grp[n]; const lbl=g.length>1?(n+' '+String.fromCharCode(65+g.indexOf(x))):n; ctx.enemies.push({id:x.id,name:lbl}); });
-  }catch(e){}
+  }catch(e){ if(!ctx.loadWarnings.includes('combat_targets_unavailable')) ctx.loadWarnings.push('combat_targets_unavailable'); }
   // ของจริงในกระเป๋า — ใช้ร่วมกับ Attack / Use Object / FREE (qty<=0 ไม่ใช่ของที่ใช้ได้)
   try{
     const _inv=(mySheet&&Array.isArray(mySheet.inventory))?mySheet.inventory:[];
@@ -9473,9 +9534,19 @@ async function prepCommandContext(){
       return {name:name,qty:qty};
     }).filter(function(x){return x.name&&x.qty>0;});
   }catch(e){ ctx.inventory=[]; }
-  // เวท/สกิลจริงของผู้เล่น (skills ∩ SPELL_CAT) — query/catalog ล้มต้อง fail closed ห้ามคืน wizard ตัวอย่าง
+  // v831: character sheet is the base command contract. Optional spell/skill
+  // catalogs enrich it but may never remove Attack/Dash/Dodge/Disengage.
+  if(myChar&&myChar.id){
+    const _ledger=mySheet&&mySheet.slots; const _lvMax=_ledger&&_ledger.lv_max; const _lvUsed=(_ledger&&_ledger.lv_used&&typeof _ledger.lv_used==='object')?_ledger.lv_used:{};
+    const slots={}; const _slotLedgerLoaded=Array.isArray(_lvMax)&&_lvMax.length>1;
+    ctx.slotsKnown=_slotLedgerLoaded||sheetRefreshOk;
+    ctx.slotQuotaState=_slotLedgerLoaded?'loaded':(sheetRefreshOk?'none':'loading');
+    if(ctx.slotsKnown){ for(let L=1;L<=9;L++){ slots[L]=[Math.max(0,Math.floor(+_lvUsed[String(L)]||0)),Math.max(0,Math.floor(+_lvMax[L]||0))]; } }
+    ctx.character={ speed_ft:(mySheet&&mySheet.combat&&mySheet.combat.speed)||30, slots:slots, slotsKnown:ctx.slotsKnown, slotQuotaState:ctx.slotQuotaState, spells:[], features:{bonus:[], reaction:[]} };
+  }else ctx.loadError={kind:'character',detail:'character_unavailable'};
+  // เวท/สกิลจริงของผู้เล่น (skills ∩ SPELL_CAT) — dependency ล้มให้ซ่อนเฉพาะคำสั่งเสริม
   try{
-    if(!myChar||!myChar.id) throw new Error('character_unavailable');
+    if(!ctx.character) throw new Error('character_unavailable');
     if(!SPELL_CAT.length) await loadCatalogs();
     if(!Array.isArray(SPELL_CAT)||!SPELL_CAT.length) throw new Error('spell_catalog_unavailable');
     const kr=await supa.from('skills').select('*').eq('character_id',myChar.id);
@@ -9487,16 +9558,11 @@ async function prepCommandContext(){
       else { const usesTxt=(sk.max_uses>0)?((sk.max_uses-(sk.used||0))+'/'+sk.max_uses):(sk.recharge||'passive'); const f={id:sk.id,name:sk.name,uses:usesTxt}; if(/reaction|ตอบโต้|สวนกลับ|riposte|parry/i.test(sk.description||'')) fr.push(f); else fb.push(f); }
     });
     spells.sort((a,b)=>a.level-b.level);
-    const _ledger=mySheet&&mySheet.slots; const _lvMax=_ledger&&_ledger.lv_max; const _lvUsed=(_ledger&&_ledger.lv_used&&typeof _ledger.lv_used==='object')?_ledger.lv_used:{};
-    const slots={}; const _slotLedgerLoaded=Array.isArray(_lvMax)&&_lvMax.length>1;
-    // A successful authoritative read with no lv_max means the character truly has no slots; only a failed read stays unknown.
-    ctx.slotsKnown=_slotLedgerLoaded||sheetRefreshOk;
-    ctx.slotQuotaState=_slotLedgerLoaded?'loaded':(sheetRefreshOk?'none':'loading');
-    if(ctx.slotsKnown){ for(let L=1;L<=9;L++){ slots[L]=[Math.max(0,Math.floor(+_lvUsed[String(L)]||0)),Math.max(0,Math.floor(+_lvMax[L]||0))]; } }
-    ctx.character={ speed_ft:(mySheet&&mySheet.combat&&mySheet.combat.speed)||30, slots:slots, slotsKnown:ctx.slotsKnown, slotQuotaState:ctx.slotQuotaState, spells, features:{bonus:fb, reaction:fr} };
+    ctx.character.spells=spells; ctx.character.features={bonus:fb,reaction:fr};
   }catch(e){
-    ctx.character=null;
-    ctx.loadError={kind:'skills',detail:String((e&&e.message)||e||'skills_unavailable').slice(0,160)};
+    const rawReason=String((e&&e.message)||e||'skills_unavailable').toLowerCase();
+    const reason=rawReason.includes('spell_catalog')?'spell_catalog_unavailable':(rawReason.includes('failed to fetch')?'network_unavailable':'skills_unavailable');
+    if(reason!=='character_unavailable'&&!ctx.loadWarnings.includes(reason)) ctx.loadWarnings.push(reason);
   }
   // ค่าโจมตีจริงของอาวุธที่ถือ + มือรอง + อาวุธทุกชิ้นในกระเป๋า + มือเปล่า
   try{
@@ -9536,19 +9602,30 @@ async function prepCommandContext(){
   }catch(e){}
   try{ ctx.interactables=(typeof curRound!=='undefined'&&curRound&&curRound.meta&&Array.isArray(curRound.meta.interactables))?curRound.meta.interactables:[]; }catch(e){ ctx.interactables=[]; }
   window.__ccCtx=ctx;
+  if(ctx.loadWarnings.length) reportBattleCommandContextWarnings(ctx.loadWarnings);
+}
+function reportBattleCommandContextWarnings(reasons){
+  try{
+    const codes=(Array.isArray(reasons)?reasons:[]).map(x=>String(x||'').toLowerCase().slice(0,40));
+    const key=[(curRound&&curRound.id)||'no-round'].concat(codes).join('|');
+    if(!codes.length||window._ccDiagKey===key) return; window._ccDiagKey=key;
+    supa.auth.getSession().then(s=>{ const tok=s.data.session&&s.data.session.access_token; if(!tok) return; return fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,group_no:terminalGroupForUi(),client_build:FRONTEND_BUILD,client_epoch:FRONTEND_COMPAT_EPOCH,i18n_asset_build:englishAssetBuildProof(),ui_diagnostic:{kind:'battle_command_context',reason_codes:codes}})}); }).catch(()=>{});
+  }catch(e){}
 }
 window.cc = (function(){
   'use strict';
 
   function getCharacter(){
-    // ข้อมูลจริงเท่านั้น — ถ้า query skills/catalog ล้มให้ render fail-closed + retry
-    try{ if(window.__ccCtx && !window.__ccCtx.loadError && window.__ccCtx.character && Array.isArray(window.__ccCtx.character.spells)) return window.__ccCtx.character; }catch(e){}
+    // v831: only a missing canonical character blocks the menu; optional
+    // dependency failures are shown as bounded warnings beside usable core actions.
+    try{ if(window.__ccCtx && window.__ccCtx.character && Array.isArray(window.__ccCtx.character.spells)) return window.__ccCtx.character; }catch(e){}
     return null;
   }
   function getEnemies(){
-    // ใช้ศัตรูจริงจากสนามรบถ้ามี (prepCommandContext) — ไม่งั้น fallback generic
-    try{ if(window.__ccCtx && Array.isArray(window.__ccCtx.enemies) && window.__ccCtx.enemies.length) return window.__ccCtx.enemies; }catch(e){}
-    return [ {id:'enemy_a', name:'ศัตรู A'}, {id:'enemy_b', name:'ศัตรู B'}, {id:'enemy_c', name:'ศัตรู C'} ];
+    // v831: target identity is fail-closed. Movement/defence remain usable, but
+    // a failed combat-state read must never expose generic fake enemies.
+    try{ if(window.__ccCtx && Array.isArray(window.__ccCtx.enemies)) return window.__ccCtx.enemies; }catch(e){}
+    return [];
   }
   function getAllies(){
     var out = [];
@@ -10293,9 +10370,14 @@ window.cc = (function(){
       var titleAttr = tip ? ' title="'+esc(tip)+'"' : '';
       menuHtml += '<div class="' + cls + '" data-idx="' + k + '"'+titleAttr+'>' + text + '</div>';
     }
+    var warningHtml='';
+    if(stack.length===1&&window.__ccCtx&&Array.isArray(window.__ccCtx.loadWarnings)&&window.__ccCtx.loadWarnings.length){
+      warningHtml='<div class="cc-context-warning">'+esc(uiCopy('(แก้: คำสั่งพื้นฐานยังใช้ได้ แต่ซ่อนเวทหรือสกิลที่ยังโหลดหลักฐานไม่ครบ)','(Fixed: core commands remain available; spells or features without complete loaded evidence are hidden.)'))+'<br><span>'+esc(window.__ccCtx.loadWarnings.join(', '))+'</span><br><button class="cc-btn cc-alt" id="ccRetryPartial">'+esc(uiCopy('ลองโหลดคำสั่งเสริมใหม่','Retry optional commands'))+'</button></div>';
+    }
     frame.innerHTML =
       '<div class="cc-crumb" id="ccCrumb">'+crumbHtml+'</div>' +
       backHtml +
+      warningHtml +
       '<div id="ccMenu">'+menuHtml+'</div>' +
       seqHtml +
       '<hr class="cc-divider">' +
@@ -10304,6 +10386,7 @@ window.cc = (function(){
         '<button class="cc-btn cc-alt" id="ccReset">RESET</button>' +
       '</div>';
     var as = frame.querySelectorAll('#ccCrumb a');
+    var retryPartial=frame.querySelector('#ccRetryPartial'); if(retryPartial) retryPartial.addEventListener('click',retryContextLoad);
     for(var j=0;j<as.length;j++){
       as[j].addEventListener('click', function(ev){
         var idx = parseInt(ev.target.getAttribute('data-idx'),10);
@@ -10421,7 +10504,7 @@ window.cc = (function(){
   function renderContextFailure(){
     var frame=document.getElementById('ccFrame'); if(!frame) return;
     frame.innerHTML='<div class="cc-crumb">'+esc(uiCopy('COMBAT COMMAND — โหลดไม่สำเร็จ','COMBAT COMMAND — load failed'))+'</div>'+
-      '<div class="cc-dice-row">'+esc(uiCopy('โหลดสกิลหรือชีทตัวละครไม่สำเร็จ ระบบจึงซ่อนคำสั่งที่ยังยืนยันไม่ได้','Could not load character skills or sheet data, so unverified commands are hidden.'))+'</div>'+
+      '<div class="cc-dice-row">'+esc(uiCopy('ยืนยันตัวละครหลักจาก server ไม่สำเร็จ จึงยังเปิดคำสั่งไม่ได้','The canonical character could not be confirmed from the server, so commands cannot open yet.'))+'</div>'+
       '<div class="cc-btn-row"><button class="cc-btn" id="ccRetryLoad"'+(contextRetrying?' disabled':'')+'>'+esc(contextRetrying?uiCopy('กำลังโหลด…','Loading…'):uiCopy('ลองใหม่','Retry'))+'</button></div>';
     var btn=frame.querySelector('#ccRetryLoad'); if(btn&&!contextRetrying) btn.addEventListener('click',retryContextLoad);
   }
