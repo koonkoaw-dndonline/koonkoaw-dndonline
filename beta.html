@@ -2043,7 +2043,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608022348;   // v833: null-safe Battle Command + public Battle Log privacy projection
+const FRONTEND_BUILD = 202608030118;   // v834: narrative editorial privacy + combat-context option fallback
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2819,6 +2819,21 @@ function narrativeProjectionMode(n){
   try{ const wall=String((n&&n.projection_wall)||'narrative_claim'); if(wall==='terminal_truth'||wall==='mechanical_truth') return 'enforce'; const key=wall==='lethal_projection'?'lethal_projection':'narrative_claim'; const m=String(((((worldState||{}).settings||{}).wall_modes||{})[key])||'enforce').toLowerCase(); return ['off','shadow','enforce'].includes(m)?m:'enforce'; }catch(e){ return 'enforce'; }
 }
 const LANGUAGE_REPAIR_META_LINES=new Set(['(fixed: system output was normalized to english.)','(แก้: ระบบปรับผลลัพธ์ให้เป็นภาษาอังกฤษแล้ว)']);
+function stripNarrativeEditorialMeta(value){
+  const src=String(value||''); let out='',i=0;
+  const markerAt=(at)=>(src[at]==='('||src[at]==='（')&&/^\s*(?:แก้|fixed)\s*:/iu.test(src.slice(at+1));
+  while(i<src.length){
+    if(markerAt(i)){
+      let depth=0,j=i;
+      for(;j<src.length;j++){ const ch=src[j]; if(ch==='('||ch==='（') depth++; else if(ch===')'||ch==='）'){ depth--; if(depth<=0){j++;break;} } }
+      const before=out.slice(-1),after=src.slice(j,j+1); if(/[\p{L}\p{N}]/u.test(before)&&/[\p{L}\p{N}]/u.test(after)) out+=' ';
+      i=j; continue;
+    }
+    out+=src[i++];
+  }
+  const clean=out.replace(/\s*[（(]\s*(?:ระบบ|system)\s*[)）]\s*/giu,' ').replace(/[ \t]{2,}/g,' ').replace(/\s+([,.;:!?])/g,'$1').replace(/\n{3,}/g,'\n\n').trim();
+  return /[\p{L}\p{N}]/u.test(clean)?clean:'';
+}
 function stripLanguageRepairMetaText(value){
   const fn=globalThis.TTRPG_I18N&&globalThis.TTRPG_I18N.stripLanguageRepairMetaText;
   if(typeof fn==='function') return fn(value);
@@ -2828,14 +2843,14 @@ function stripLanguageRepairMetaText(value){
 }
 function narrText(n){
   if(!n) return '';
-  if(n.status==='invalidated'||n.projection_status==='invalidated') return uiCopy('(แก้: บทนี้ถูกถอนจากความต่อเนื่องของโลกแล้ว — ระบบเก็บต้นฉบับไว้เป็นหลักฐานเท่านั้น)','(Fixed: this entry was withdrawn from world continuity; the original is retained for audit only.)');
+  if(n.status==='invalidated'||n.projection_status==='invalidated') return '';
   const p=String(n.projection_content||'').trim();
   const legacy=String(n.legacy_content||'').trim();
   const value=narrativeProjectionMode(n)==='enforce'&&p?p:(legacy||String(n.content||''));
-  return /^(dm|system)$/i.test(String(n.author||'dm'))?stripLanguageRepairMetaText(value):value;
+  return /^(dm|system)$/i.test(String(n.author||'dm'))?stripNarrativeEditorialMeta(stripLanguageRepairMetaText(value)):value;
 }
 function narrProjectionNote(n){
-  return narrativeProjectionMode(n)==='enforce'&&n&&n.projection_status==='corrected'?String(n.projection_note||'').trim():'';
+  return narrativeProjectionMode(n)==='enforce'&&n&&n.projection_status==='corrected'?stripNarrativeEditorialMeta(String(n.projection_note||'')):'';
 }
 function narrDraw(n){
   const note=narrProjectionNote(n);
@@ -3974,7 +3989,7 @@ function renderRecruitmentAffordance(feed,rows){
     const card=document.createElement('div'); card.className='recruit-affordance'; card.dataset.recruitName=name;
     const title=document.createElement('div'); title.className='recruit-title'; title.textContent=uiCopy('ยืนยันคำเชิญเข้าปาร์ตี้: ','Confirm party invitation: ')+name; card.appendChild(title);
     const note=document.createElement('div'); note.className='recruit-note'; note.textContent=inCombat
-      ? uiCopy('(แก้: เก็บคำเชิญนี้ไว้ให้ยืนยันหลังจบการต่อสู้ เพื่อไม่เปลี่ยนสมาชิกกลางศึก)','(Fixed: this invitation is held until combat ends so party membership cannot change mid-encounter.)')
+      ? uiCopy('ยืนยันคำเชิญได้หลังการต่อสู้จบ เพื่อไม่เปลี่ยนสมาชิกกลางศึก','Confirm this invitation after combat so party membership does not change mid-encounter.')
       : uiCopy('การกดปุ่มจะส่งคำเชิญในนามตัวละครของคุณ จากนั้น server จะเพิ่มสมาชิกเมื่อ NPC ยอมรับและธุรกรรมชีทสำเร็จเท่านั้น','This sends an invitation from your character. The server adds the member only after NPC acceptance and a complete sheet transaction.');
     card.appendChild(note);
     const btn=document.createElement('button'); btn.type='button'; btn.className='btn'; btn.disabled=inCombat; btn.textContent=inCombat?uiCopy('รอยืนยันหลังจบศึก','Confirm after combat'):uiCopy('เชิญ '+name+' เข้าปาร์ตี้','Invite '+name+' to the party');
@@ -3989,7 +4004,7 @@ async function renderStory(){
   const receiptRows=narrative.filter(n=>n.status!=='placeholder'&&isProgressiveReceiptNarrative(n)&&String(n.round_id||'')===String((curRound&&curRound.id)||''));
   renderProgressiveReceipts(receiptRows);
   const receiptIds=new Set(receiptRows.map(n=>String(n.id)));
-  const shown = narrative.filter(n => (n.status !== 'placeholder' || isStreaming(n))&&!receiptIds.has(String(n.id)));
+  const shown = narrative.filter(n => (n.status !== 'placeholder' || isStreaming(n))&&!receiptIds.has(String(n.id))&&(isStreaming(n)||!!narrText(n)));
   const feed=$('narrFeed');
   const isig = n => (n.status||'')+':'+(n.author||'')+':'+narrText(n).length+':'+(n.projection_status||'')+':'+(n.projection_note||'');
   const cdraw = n => isStreaming(n) ? (colorizeNarr(n.content)+'<span class="dots">▌</span>') : narrDraw(n);
@@ -4105,12 +4120,19 @@ function dmOptionCard(raw,setRec,idx){
   const b=document.createElement('button'); b.type='button'; b.className='btn ghost sm'; b.style.marginTop='6px'; b.textContent=uiCopy('ใช้เป็นคำแนะนำ','Use as draft'); b.onclick=()=>dmFillOption(opt,setRec,idx); body.appendChild(b);
   d.appendChild(body); return d;
 }
+function dmCombatOptionRelevant(raw){
+  if(!window._combatActive) return true;
+  const opt=dmParseOption(raw)||dmRawOption(raw);
+  const text=[opt.title,opt.action,opt.target,opt.expected,opt.why].join(' ');
+  return /โจมตี|ฟัน|แทง|ยิง|ร่าย|รักษา|ฮีล|ป้องกัน|ตั้งรับ|หลบหลีก|ถอนตัว|เคลื่อน|ขยับ|ช่วยเปิด|เตรียมโจมตี|attack|strike|shoot|cast|heal|dodge|defend|disengage|reposition|\bhelp\b|ready\s+(?:an?\s+)?attack|potion|โพชั่น/i.test(text);
+}
 function dmRenderOptions(host,list,setRec){
   host.querySelectorAll('.dmopt,.dmopt-format-note').forEach(x=>x.remove());
-  let blocked=0;
-  (Array.isArray(list)?list:[]).slice(0,6).forEach((raw,i)=>{ const card=dmOptionCard(raw,setRec,i); if(card) host.appendChild(card); else blocked++; });
+  const source=(Array.isArray(list)?list:[]).slice(0,6), relevant=source.filter(dmCombatOptionRelevant), combatCut=source.length-relevant.length; let blocked=0;
+  relevant.forEach((raw,i)=>{ const card=dmOptionCard(raw,setRec,i); if(card) host.appendChild(card); else blocked++; });
   dmApplyOptionSelection(host);
-  if(blocked){ const n=document.createElement('div'); n.className='note dmopt-note dmopt-format-note'; n.textContent=uiCopy('(แก้: ซ่อนแท็กตัวเลือกที่ไม่ครบ เพราะยังไม่ใช่คำแนะนำที่กดใช้ได้)','(Fixed: incomplete option tags were hidden because they are not actionable suggestions.)'); host.appendChild(n); }
+  if(window._combatActive&&combatCut&&relevant.length===0){ const n=document.createElement('div'); n.className='note dmopt-note dmopt-format-note'; n.textContent=uiCopy('ชุดนี้ไม่สัมพันธ์กับการต่อสู้ปัจจุบัน — ใช้ BATTLE COMMAND หรือขอชุดใหม่','This set does not match the current fight — use BATTLE COMMAND or request a new set'); host.appendChild(n); }
+  else if(blocked){ const n=document.createElement('div'); n.className='note dmopt-note dmopt-format-note'; n.textContent=uiCopy('ตัวเลือกบางข้อมีข้อมูลไม่ครบ จึงยังใช้เป็นคำสั่งไม่ได้','Some suggestions were incomplete and cannot be used as commands yet'); host.appendChild(n); }
 }
 // v763: personal-options UI state is round/character scoped, never DOM-node
 // scoped. renderRoundbar replaces this widget during a 30s model request, so a
@@ -4126,7 +4148,8 @@ function persOptsCurrentCache(){
 }
 function persOptsRenderInto(host,cache){
   host.querySelectorAll('.dmopt-note').forEach(x=>x.remove());
-  if(cache&&cache.note){ const n=document.createElement('div'); n.className='note dmopt-note'; n.textContent=String(cache.note); host.appendChild(n); }
+  const publicNote=cache&&cache.note?stripNarrativeEditorialMeta(String(cache.note)):'';
+  if(publicNote){ const n=document.createElement('div'); n.className='note dmopt-note'; n.textContent=publicNote; host.appendChild(n); }
   dmRenderOptions(host,cache&&cache.list,cache&&cache.set||null);
 }
 function persOptsRequestId(){
@@ -4546,7 +4569,8 @@ async function renderRoundbar(){
       // A: ทางเลือกคุณภาพจาก DM ขึ้น 'บนสุด' กดได้ทันที — เมนูคำสั่งเต็มตามหลัง
       // v638 ownerWall: แสดง options เฉพาะเมื่อเป็น 'ของเรา' — ใช้ owner รวม 2 แท็ก (for_char_id||opt_for) กัน cross-branch leak
       const _optsMine = _optIsMine(cb);
-      if(cb.options_note && _optsMine){ const on=document.createElement('div'); on.className='note'; on.style.cssText='text-align:left;padding:6px 2px;color:#FAC775'; on.textContent=String(cb.options_note); bar.appendChild(on); }
+      const _publicOptNote=cb.options_note?stripNarrativeEditorialMeta(String(cb.options_note)):'';
+      if(_publicOptNote && _optsMine){ const on=document.createElement('div'); on.className='note'; on.style.cssText='text-align:left;padding:6px 2px;color:#FAC775'; on.textContent=_publicOptNote; bar.appendChild(on); }
       if(Array.isArray(cb.options) && cb.options.length && _optsMine){
         const opts=document.createElement('div'); opts.className='copt';
         const oh=document.createElement('div'); oh.className='copt-h'; oh.textContent=uiCopy('— แนวทางที่ DM เสนอ (เลือกเป็น draft แล้วแก้ได้) —','— DM suggestions (use as an editable draft) —'); opts.appendChild(oh);
@@ -4588,7 +4612,8 @@ async function renderRoundbar(){
       const _inventoryLabelsS=new Set(_inventoryAllS.flatMap(aff=>[String(aff&&aff.label_th||''),String(aff&&aff.label_en||'')]).filter(Boolean));
       const _storyOptionsS=(Array.isArray(cb.options)?cb.options:[]).filter(raw=>!_inventoryLabelsS.has(String(raw)));
       const _optsMineS = _optIsMine(cb);
-      if(cb.options_note && _optsMineS){ const on=document.createElement('div'); on.className='note'; on.style.cssText='text-align:left;padding:6px 2px;color:#FAC775'; on.textContent=String(cb.options_note); bar.appendChild(on); }
+      const _publicOptNoteS=cb.options_note?stripNarrativeEditorialMeta(String(cb.options_note)):'';
+      if(_publicOptNoteS && _optsMineS){ const on=document.createElement('div'); on.className='note'; on.style.cssText='text-align:left;padding:6px 2px;color:#FAC775'; on.textContent=_publicOptNoteS; bar.appendChild(on); }
       if(_storyOptionsS.length && !_optsMineS){
         const w=document.createElement('div'); w.className='note'; w.style.cssText='text-align:left;padding:6px 2px;line-height:1.5';
         w.innerHTML=uiCopy('💬 ทางเลือกนี้เป็นของ <b>','💬 These suggestions belong to <b>')+escapeHtml(_optOwner(cb).name||uiCopy('เพื่อนร่วมทีม','a teammate'))+uiCopy('</b> — คุณยังพิมพ์การกระทำของตัวเองด้านล่างได้','</b> — you can still type your own action below');
