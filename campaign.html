@@ -2083,7 +2083,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608030118;   // v834: narrative editorial privacy + combat-context option fallback
+const FRONTEND_BUILD = 202608030740;   // v836: inventory sale requires exact shop or verified NPC-trade context
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2162,6 +2162,10 @@ async function resolveInventoryAffordance(actionId, affordance){
 }
 async function submitInventoryAffordance(affordance){
   if(resolving||!curRound||!myChar||!affordance||!affordance.payload) return;
+  if(!inventoryAffordanceUiAllowed(affordance,curRound.meta)){
+    toast(uiCopy('(แก้: ตอนนี้ยังขายของไม่ได้ — ต้องอยู่ในร้านหรือกำลังซื้อขายกับ NPC ที่ระบบยืนยันก่อน)','(Fixed: items cannot be sold here; enter a shop or establish a verified NPC trade first.)'),true);
+    return;
+  }
   const actionText=uiCopy(String(affordance.label_th||'เลือกของจากคลัง'),String(affordance.label_en||'Choose inventory action'));
   try{
     const saved=await submitActionV2(curRound,myChar.id,actionText,{inventory_affordance:affordance.payload});
@@ -2171,6 +2175,12 @@ async function submitInventoryAffordance(affordance){
     toast(e.message||uiCopy('(แก้: ส่งตัวเลือกคลังไม่สำเร็จ — ยังไม่มี state ถูกเปลี่ยน)','(Fixed: the inventory option could not be submitted; no state changed.)'),true);
     await refreshAll(); renderStory(); renderRoundbar();
   }
+}
+function inventoryAffordanceUiAllowed(affordance,meta){
+  const operation=String(affordance&&affordance.payload&&affordance.payload.operation||'').toLowerCase();
+  if(operation!=='sale') return true;
+  const context=meta&&meta.inventory_sale_context;
+  return !!(context&&context.allowed===true&&(context.kind==='shop'||context.kind==='npc_trade'));
 }
 function terminalGroupForUi(){ var n=Number((myChar&&myChar.group_no)||1); return Math.floor(n)===2?2:1; }
 function terminalGateForUi(settings,groupNo){
@@ -4822,9 +4832,10 @@ async function renderRoundbar(){
       // v512: ตัวเลือกนอกคอมแบต (เช่น standoff เจรจา/ข่มขู่/ถอย/สู้ จาก parleyGuard v501) — server ส่งผ่าน meta.combat.options แม้ active=false
       //   กดแล้วเติมช่องพิมพ์ (แก้ไขต่อได้ก่อนส่ง — ไม่ยิงทันทีแบบในศึก)
       // v587 optOwner + v638 ownerWall: ผู้รับ options แบบรวม 2 แท็ก (for_char_id||opt_for) — กัน combat option หลุดเมื่อ render สาขานี้
-      const _inventoryAllS=Array.isArray(meta.inventory_affordances)?meta.inventory_affordances:[];
+      const _inventoryRawS=Array.isArray(meta.inventory_affordances)?meta.inventory_affordances:[];
+      const _inventoryAllS=_inventoryRawS.filter(aff=>inventoryAffordanceUiAllowed(aff,meta));
       const _inventoryMineS=_inventoryAllS.filter(aff=>aff&&aff.payload&&myChar&&(!aff.character_id||String(aff.character_id)===String(myChar.id))&&(!aff.payload.actor_character_id||String(aff.payload.actor_character_id)===String(myChar.id)));
-      const _inventoryLabelsS=new Set(_inventoryAllS.flatMap(aff=>[String(aff&&aff.label_th||''),String(aff&&aff.label_en||'')]).filter(Boolean));
+      const _inventoryLabelsS=new Set(_inventoryRawS.flatMap(aff=>[String(aff&&aff.label_th||''),String(aff&&aff.label_en||'')]).filter(Boolean));
       const _storyOptionsS=(Array.isArray(cb.options)?cb.options:[]).filter(raw=>!_inventoryLabelsS.has(String(raw)));
       const _optsMineS = _optIsMine(cb);
       const _publicOptNoteS=cb.options_note?stripNarrativeEditorialMeta(String(cb.options_note)):'';
