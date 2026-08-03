@@ -22,7 +22,7 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./character-content-en.js?v=20260720e4"></script>
 <script src="./grid-command-flow.js?v=822"></script>
 <script src="./grid-command-adapter.js?v=822"></script>
-<script src="./music-v2-dark-launch.js?v=824"></script>
+<script src="./music-v2-dark-launch.js?v=838"></script>
 <style>
 /* ============================================================
    TTRPG CAMPAIGN — Dragon Quest (NES) monochrome re-skin (เฟส 5)
@@ -2083,7 +2083,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608030740;   // v836: inventory sale requires exact shop or verified NPC-trade context
+const FRONTEND_BUILD = 202608030838;   // v838: browser-confirmed legacy play starts feed privacy-safe Music v2 shadow metrics
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2284,6 +2284,9 @@ if(BETA){
   };
 }
 let _frontendRequirement=null, _frontendBuildCheckBusy=false;
+window._musicV2AudioIdentityReceiptCap=false;   // v838: Pages-first safe; only a successful resolver ping may enable the new field
+window._musicV2AudioIdentityCapabilityChecked=false;
+window._musicV2PendingHeardReceipt=null;   // latest-only pending exposure while the initial capability ping is unresolved
 function frontendDraftPending(){
   try{ for(const id of ['actInput','petActInput','ccNarr']){ const e=document.getElementById(id); if(e&&String(e.value||'').trim()) return true; } if(window._actSubmitting||window._quickBusy) return true; if(window.cc&&window.cc.isBusy&&window.cc.isBusy()) return true; }catch(e){} return false;
 }
@@ -2321,7 +2324,8 @@ function frontendRequirementSeen(minBuild,minEpoch){
 setInterval(frontendRestoreDrafts,1000);
 async function checkFrontendBuild(){
   if(_frontendBuildCheckBusy) return; _frontendBuildCheckBusy=true;
-  try{ const tok=(await supa.auth.getSession()).data.session?.access_token; if(!tok) return; const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({ping:true,client_build:FRONTEND_BUILD,client_epoch:FRONTEND_COMPAT_EPOCH})}); const j=await r.json(); frontendRequirementSeen(j.min_frontend_build,j.min_frontend_epoch); }catch(e){} finally{_frontendBuildCheckBusy=false;}
+  window._musicV2AudioIdentityReceiptCap=false; window._musicV2AudioIdentityCapabilityChecked=false;
+  try{ const tok=(await supa.auth.getSession()).data.session?.access_token; if(!tok){window._musicV2AudioIdentityCapabilityChecked=true;window._musicV2PendingHeardReceipt=null;return;} const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({ping:true,client_build:FRONTEND_BUILD,client_epoch:FRONTEND_COMPAT_EPOCH})}); const j=await r.json(); window._musicV2AudioIdentityReceiptCap=!!(r.ok&&j&&j.features&&j.features.music_v2_audio_identity_receipt_v1===true); window._musicV2AudioIdentityCapabilityChecked=true; if(window._musicV2AudioIdentityReceiptCap)_flushPendingMusicHeardReceipt();else window._musicV2PendingHeardReceipt=null; frontendRequirementSeen(j.min_frontend_build,j.min_frontend_epoch); }catch(e){window._musicV2AudioIdentityReceiptCap=false;window._musicV2AudioIdentityCapabilityChecked=true;window._musicV2PendingHeardReceipt=null;} finally{_frontendBuildCheckBusy=false;}
 }
 // host ใส่/แก้ Gemini key ของโลก (เรียกเองหรือเด้งอัตโนมัติเมื่อ server บอกว่ายังไม่มี key)
 async function betaAskKey(){
@@ -3096,6 +3100,7 @@ async function loadState(){
 // ใช้ <audio> ตัวเดียวซ้ำ → ปลดล็อกด้วยการแตะครั้งเดียว แล้วเปลี่ยนเพลงต่อได้บน iOS/มือถือ
 const PUBLIC_URL = SUPA_URL.replace(/\/$/,'') + '/storage/v1/object/public/';
 let musicLib={}, mAudio=null, curMood=null, musicOn=false, _musicBlocked=false, _musicHintShown=false, _moodTimer=null;
+let _currentLegacyMusicPick=null, _legacyPlayAttempt=0, _legacyPlayInFlight=null, _musicHeardRecent=new Map();
 // ── v228: เพลง prototype ฝังมากับเว็บ (frontend/music/ บน GitHub Pages) — ทุกโลกมีเพลงตั้งแต่เริ่ม
 //   9 หมวดตามชื่อไฟล์ [หมวด]ชื่อเพลง (ตัด sad/mystery/victory) · โลกอัพไฟล์เองราย mood ผ่าน music_tracks = ทับ default หมวดนั้น
 const _mu=function(f){ return 'music/'+encodeURIComponent(f); };
@@ -3120,15 +3125,41 @@ function getAudioEl(){ if(!mAudio){ mAudio=new Audio(); mAudio.preload='auto'; }
 async function loadMusicLibrary(){
   musicLib={};
   try{
-    const { data } = await supa.from('music_tracks').select('mood,storage_path,loop,volume').eq('campaign_id',campaign.id);
-    (data||[]).forEach(t=>{ if((t.mood||'')==='perform') return;   /* v231: เพลงการแสดงบาร์ดไม่เข้าคลัง scene_mood (เล่นผ่าน playPerformance เท่านั้น) */ const m=normalizeMood(t.mood||''); (musicLib[m]=musicLib[m]||[]).push({url:PUBLIC_URL+'audio/'+t.storage_path, loop:t.loop!==false, volume:(t.volume==null?0.6:t.volume)}); });
+    const { data } = await supa.from('music_tracks').select('id,mood,storage_path,loop,volume').eq('campaign_id',campaign.id);
+    (data||[]).forEach(t=>{ if((t.mood||'')==='perform') return;   /* v231: เพลงการแสดงบาร์ดไม่เข้าคลัง scene_mood (เล่นผ่าน playPerformance เท่านั้น) */ const m=normalizeMood(t.mood||''); (musicLib[m]=musicLib[m]||[]).push({url:PUBLIC_URL+'audio/'+t.storage_path, loop:t.loop!==false, volume:(t.volume==null?0.6:t.volume),logicalTrackKey:/^[0-9a-f-]{36}$/i.test(String(t.id||''))?'campaign:'+String(t.id).toLowerCase():null}); });
   }catch(e){}
   // v228: หมวดที่โลกนี้ไม่มีไฟล์ → เติมเพลง prototype (volume=null = ตาม slider ล้วน)
-  for(const m in DEFAULT_MUSIC){ if(!musicLib[m]||!musicLib[m].length) musicLib[m]=DEFAULT_MUSIC[m].map(function(t){ return {url:t.url,loop:true,volume:null}; }); }
+  for(const m in DEFAULT_MUSIC){ if(!musicLib[m]||!musicLib[m].length) musicLib[m]=DEFAULT_MUSIC[m].map(function(t){ return {url:t.url,loop:true,volume:null,logicalTrackKey:'builtin:legacy:'+m}; }); }
+}
+function _invalidateLegacyPlayback(){ _legacyPlayAttempt++; _legacyPlayInFlight=null; _currentLegacyMusicPick=null; }
+function _flushPendingMusicHeardReceipt(){
+  if(window._musicV2AudioIdentityReceiptCap!==true)return; const pending=window._musicV2PendingHeardReceipt; window._musicV2PendingHeardReceipt=null; if(!pending)return;
+  void _reportMusicHeard(pending.logicalTrackKey,pending.stateVersion,pending.playbackContext);
+}
+async function _reportMusicHeard(logicalTrackKey,stateVersion,playbackContext){
+  if(String(worldState&&worldState.settings&&worldState.settings.wall_modes&&worldState.settings.wall_modes.music_v2||'').toLowerCase()!=='shadow'){window._musicV2PendingHeardReceipt=null;return;}
+  const key=String(logicalTrackKey||''); const valid=/^builtin:legacy:(?:forest|town|village|capital|battle|boss|tavern|dungeon|rest)$/.test(key)||/^campaign:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(key);
+  if(window._musicV2AudioIdentityReceiptCap!==true){if(window._musicV2AudioIdentityCapabilityChecked!==true)window._musicV2PendingHeardReceipt={logicalTrackKey:valid?key:null,stateVersion:stateVersion||null,playbackContext:playbackContext};else window._musicV2PendingHeardReceipt=null;return;}
+  const dedupe=(valid?key:'unavailable')+'|'+String(stateVersion||'none')+'|'+playbackContext, now=Date.now(), prior=Number(_musicHeardRecent.get(dedupe)||0);
+  if(now-prior<1500)return; _musicHeardRecent.set(dedupe,now); if(_musicHeardRecent.size>32){const first=_musicHeardRecent.keys().next().value;if(first!==undefined)_musicHeardRecent.delete(first);}
+  try{
+    const s=await supa.auth.getSession(), token=s&&s.data&&s.data.session&&s.data.session.access_token; if(!token)return;
+    const body={campaign_id:campaign.id,group_no:terminalGroupForUi(),client_build:FRONTEND_BUILD,client_epoch:FRONTEND_COMPAT_EPOCH,i18n_asset_build:englishAssetBuildProof(),music_audio_identity_heard:{playback_started:true,identity_status:valid?'available':'unavailable',logical_track_key:valid?key:null,observed_state_version:stateVersion||null,playback_context:playbackContext}};
+    if(BETA&&betaCode())body.beta_code=betaCode(); const ac=typeof AbortController==='function'?new AbortController():null, timer=ac?setTimeout(function(){try{ac.abort();}catch(e){}},2500):null;
+    try{await window.fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(body),signal:ac?ac.signal:undefined});}finally{if(timer)clearTimeout(timer);}
+  }catch(e){}   /* shadow telemetry is bounded/no-retry and never changes heard audio */
+}
+function _playLegacyWithReceipt(el,pick,mood){
+  if(_legacyPlayInFlight&&_legacyPlayInFlight.el===el&&_legacyPlayInFlight.pick===pick&&_legacyPlayInFlight.mood===mood)return _legacyPlayInFlight.promise;
+  const attempt=++_legacyPlayAttempt, stateVersion=String(worldState&&worldState.updated_at||'')||null, playbackContext=musicOverride?'manual_override':'scene_auto'; let promise;
+  try{promise=el.play();}catch(e){_flagBlocked();return null;} if(!promise||typeof promise.then!=='function')return promise||null;
+  const flight={attempt:attempt,el:el,pick:pick,mood:mood,promise:promise}; _legacyPlayInFlight=flight;
+  promise.then(function(){if(_legacyPlayInFlight===flight)_legacyPlayInFlight=null;if(attempt!==_legacyPlayAttempt||_currentLegacyMusicPick!==pick||curMood!==mood||el!==mAudio||el.paused)return;_musicBlocked=false;void _reportMusicHeard(pick&&pick.logicalTrackKey,stateVersion,playbackContext);}).catch(function(){if(_legacyPlayInFlight===flight)_legacyPlayInFlight=null;if(attempt===_legacyPlayAttempt)_flagBlocked();});
+  return promise;
 }
 function toggleMusic(){
   tick();
-  if(musicOn){ musicOn=false; try{localStorage.setItem('ttrpg_music','0');}catch(e){} if(mAudio){ try{mAudio.pause();}catch(e){} } if(_musicV2Controller){ try{_musicV2Controller.pause();}catch(e){} } curMood=null; }
+  if(musicOn){ musicOn=false; _invalidateLegacyPlayback(); try{localStorage.setItem('ttrpg_music','0');}catch(e){} if(mAudio){ try{mAudio.pause();}catch(e){} } if(_musicV2Controller){ try{_musicV2Controller.pause();}catch(e){} } curMood=null; }
   else { musicOn=true; try{localStorage.setItem('ttrpg_music','1');}catch(e){} _moodNow(); }
   updateMusicBtn();
 }
@@ -3163,6 +3194,7 @@ function _musicV2ControllerFor(){
 }
 // MUSIC_V2_GATE5_CLIENT_END
 function playPerformance(path){
+  _invalidateLegacyPlayback();
   if(_musicV2Controller){try{_musicV2Controller.suspendForPerformance();}catch(e){}}
   if(!musicOn){ curMood='__perf__'; return; }
   const url=PUBLIC_URL+'audio/'+path; const el=getAudioEl(); const tag='__perf__'+path;
@@ -3179,7 +3211,7 @@ function _moodNow(){ try{
       if(pf.by===me.id && !window._perfStopSent){ window._perfStopSent=true; try{ stopPerformance(true); }catch(e){} }
     } else { window._perfStopSent=false; playPerformance(pf.path); return; }
   } else { window._perfStopSent=false; }
-  if(_musicV2Enabled()&&!musicOverride){const v2=_musicV2ControllerFor();if(v2){if(mAudio){try{mAudio.pause();}catch(e){}}void v2.refresh();return;}}
+  if(_musicV2Enabled()&&!musicOverride){const v2=_musicV2ControllerFor();if(v2){_invalidateLegacyPlayback();if(mAudio){try{mAudio.pause();}catch(e){}}void v2.refresh();return;}}
   if(_musicV2Controller){try{_musicV2Controller.pause();}catch(e){}}
   playMood((worldState&&worldState.scene_mood)||'explore');
 }catch(e){} }
@@ -3219,18 +3251,17 @@ function playMood(mood){
   if(!list||!list.length) return;
   // อารมณ์เดิม: ถ้าหยุดอยู่ (โดน block/สะดุด) แค่เล่นต่อ — ไม่สุ่มเพลงใหม่/ไม่รีเซ็ต src (กันเพลงกระตุก/รีสตาร์ท)
   if(mood===curMood){
-    if(el.paused){ const pr=el.play(); if(pr&&pr.then){ pr.then(function(){_musicBlocked=false;}).catch(_flagBlocked); } }
+    if(el.paused&&_currentLegacyMusicPick){ _playLegacyWithReceipt(el,_currentLegacyMusicPick,mood); }
     return;
   }
   // เปลี่ยนอารมณ์ → เลือกเพลงใหม่
   const pick=list[Math.floor(Math.random()*list.length)];
-  curMood=mood; el.loop=pick.loop!==false;
+  curMood=mood; _currentLegacyMusicPick=pick; el.loop=pick.loop!==false;
   if(el.src!==pick.url) el.src=pick.url;
   // v228: เสียงจริง = gain ของเพลง × ระดับ slider ผู้เล่น (default 50%) — เพลง prototype gain=1
   _curGain=(pick.volume==null?1:pick.volume);
   const target=Math.max(0,Math.min(1,_curGain*musicVol));
-  const pr=el.play();
-  if(pr&&pr.then){ pr.then(function(){_musicBlocked=false;}).catch(_flagBlocked); } else if(pr&&pr.catch){ pr.catch(_flagBlocked); }
+  _playLegacyWithReceipt(el,pick,mood);
   fadeInEl(el, target, 600);
 }
 function fadeInEl(a,target,ms){ try{a.volume=0;}catch(e){return;} if(_fadeTimer){ try{clearInterval(_fadeTimer);}catch(e){} _fadeTimer=null; }   /* v271 L3: ล้าง fade เดิมก่อน (กัน interval ซ้อนแย่งคุม volume กระตุก) */ const steps=12,dt=ms/steps; let i=0; _fadeTimer=setInterval(()=>{ i++; try{a.volume=Math.min(target,target*i/steps);}catch(e){} if(i>=steps){ clearInterval(_fadeTimer); _fadeTimer=null; } },dt); }
