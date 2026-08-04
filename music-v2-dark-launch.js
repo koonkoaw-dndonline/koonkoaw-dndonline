@@ -214,7 +214,13 @@
       const elements = ensureSlots();
       const asset = selectEncoding(selection.assets, function (mime) { return elements[0].canPlayType(mime); });
       if (!asset) return { ok: false, reason: 'no_supported_encoding' };
-      if (current && current.trackKey === selection.trackKey && Number(current.epoch) === Number(selection.epoch)) {
+      const selectionKey = String(selection.selectionKey || [
+        selection.origin || '',
+        selection.trackKey || '',
+        Number(selection.epoch),
+        selection.catalogVersion == null ? '' : selection.catalogVersion,
+      ].join('|'));
+      if (current && current.selectionKey === selectionKey) {
         suspended = false;
         stopOtherSlots(elements, elements[active]);
         if (elements[active].paused) playElement(elements[active]);
@@ -225,6 +231,7 @@
       const incoming = elements[next];
       active = next;
       current = {
+        selectionKey: selectionKey,
         trackKey: selection.trackKey,
         epoch: Number(selection.epoch),
         origin: selection.origin,
@@ -301,6 +308,27 @@
       return String(ctx.publicBase).replace(/\/+$/u, '') + '/audio/' + String(path).split('/').map(encodeURIComponent).join('/');
     }
 
+    // MUSIC_V2_SELECTION_IDENTITY_START: reuse is legal only for the complete
+    // projected scene + selected tuple. A scene/intensity change must reach the
+    // candidate fetch even if a malformed writer reuses track_key/epoch.
+    function selectionKeyFor(state) {
+      return [
+        state.base_scene || '',
+        state.intensity || '',
+        state.scene_key || '',
+        state.selected_origin || '',
+        state.selected_track_key || '',
+        Number(state.rotation_epoch),
+        state.selected_catalog_version == null ? '' : state.selected_catalog_version,
+      ].join('|');
+    }
+
+    function playingSelectionMatches(state) {
+      const activeSelection = player && player.current ? player.current() : null;
+      return !!activeSelection && player.isPlaying() && activeSelection.selectionKey === selectionKeyFor(state);
+    }
+    // MUSIC_V2_SELECTION_IDENTITY_END
+
     async function selectedAssets(ctx, state) {
       if (state.selected_origin === 'official') {
         const result = await ctx.supabase.from('music_v2_official_candidates')
@@ -334,7 +362,7 @@
       const sequence = ++refreshSequence;
       try {
         const result = await ctx.supabase.from('music_v2_group_projection')
-          .select('campaign_id,group_no,rotation_epoch,selection_status,selected_origin,selected_track_key,selected_catalog_version')
+          .select('campaign_id,group_no,rotation_epoch,selection_status,base_scene,intensity,scene_key,selected_origin,selected_track_key,selected_catalog_version')
           .eq('campaign_id', ctx.campaignId).eq('group_no', ctx.groupNo).maybeSingle();
         if (result.error) throw result.error;
         if (sequence !== refreshSequence) return true;
@@ -344,12 +372,14 @@
           options.onDegraded(ctx.mood, text(ctx.language, 'silent'));
           return true;
         }
+        if (playingSelectionMatches(state)) return true;
         const assets = await selectedAssets(ctx, state);
         if (sequence !== refreshSequence) return true;
         const lease = options.playbackOwner ? options.playbackOwner.acquire('v2', 'v2_refresh') : null;
         if (options.playbackOwner && (!lease || !options.playbackOwner.isCurrent(lease))) return true;
         if (sequence !== refreshSequence) return true;
         const verdict = ensurePlayer(ctx).play({
+          selectionKey: selectionKeyFor(state),
           trackKey: state.selected_track_key,
           epoch: state.rotation_epoch,
           origin: state.selected_origin,

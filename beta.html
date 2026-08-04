@@ -19,8 +19,8 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./grid-command-flow.js?v=822"></script>
 <script src="./grid-command-adapter.js?v=822"></script>
-<script src="./music-playback-owner.js?v=846"></script>
-<script src="./music-v2-dark-launch.js?v=846"></script>
+<script src="./music-playback-owner.js?v=847"></script>
+<script src="./music-v2-dark-launch.js?v=847"></script>
 <style>
 /* ============================================================
    TTRPG CAMPAIGN — Dragon Quest (NES) monochrome re-skin (เฟส 5)
@@ -2044,7 +2044,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608042127;   // v846 frontend: one music playback owner + overlap-free handoff
+const FRONTEND_BUILD = 202608050254;   // v847 frontend: authoritative selection wake + bounded convergence
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -3021,7 +3021,7 @@ function _playLegacyWithReceipt(el,pick,mood){
 }
 function toggleMusic(){
   tick();
-  if(musicOn){ musicOn=false; try{localStorage.setItem('ttrpg_music','0');}catch(e){} if(_musicPlaybackOwner)_musicPlaybackOwner.stopAll('music_off'); curMood=null; }
+  if(musicOn){ musicOn=false; try{localStorage.setItem('ttrpg_music','0');}catch(e){} _musicV2CancelProjectionConvergence(); if(_musicPlaybackOwner)_musicPlaybackOwner.stopAll('music_off'); curMood=null; }
   else { musicOn=true; try{localStorage.setItem('ttrpg_music','1');}catch(e){} _moodNow(); }
   updateMusicBtn();
 }
@@ -3056,6 +3056,17 @@ function _musicV2ControllerFor(){
   if(_musicV2Controller&&_musicPlaybackOwner)_musicPlaybackOwner.register('v2',{stop:function(){_musicV2Controller.pause();},isPlaying:function(){return _musicV2Controller.isPlaying();}});
   return _musicV2Controller;
 }
+// MUSIC_V2_SELECTION_CONVERGENCE_START: campaign_state can arrive before the
+// selection CAS. Realtime is authoritative; these bounded re-reads also close
+// a dropped/reordered event without re-fetching an unchanged candidate tuple.
+let _musicV2ProjectionWake=0,_musicV2ProjectionTimers=[];
+function _musicV2CancelProjectionConvergence(){_musicV2ProjectionWake++;_musicV2ProjectionTimers.forEach(function(timer){try{clearTimeout(timer);}catch(e){}});_musicV2ProjectionTimers=[];}
+function _musicV2ScheduleProjectionConvergence(){
+  _musicV2CancelProjectionConvergence();if(!_musicV2Enabled()||musicOverride||!musicOn)return;const wake=_musicV2ProjectionWake;
+  [900,3200,8000].forEach(function(delay){_musicV2ProjectionTimers.push(setTimeout(function(){if(wake===_musicV2ProjectionWake&&_musicV2Enabled()&&!musicOverride&&musicOn)_moodNow();},delay));});
+}
+function _musicV2SelectionChanged(){_musicV2CancelProjectionConvergence();applyMood(true);}
+// MUSIC_V2_SELECTION_CONVERGENCE_END
 // MUSIC_V2_GATE5_CLIENT_END
 function playPerformance(path){
   if(!_musicOwnerAcquire('legacy','bard_performance'))return;
@@ -3079,7 +3090,7 @@ function _moodNow(){ try{
   playMood((worldState&&worldState.scene_mood)||'explore');
 }catch(e){} }
 // auto path (realtime/tab/refresh) → debounce กัน burst event ทำเพลงสะดุด; gesture path เรียก _moodNow ตรงๆ
-function applyMood(){ if(_moodTimer) clearTimeout(_moodTimer); _moodTimer=setTimeout(function(){ _moodTimer=null; _moodNow(); }, 180); }
+function applyMood(selectionCurrent){ if(_moodTimer) clearTimeout(_moodTimer); _moodTimer=setTimeout(function(){ _moodTimer=null; _moodNow(); }, 180); if(selectionCurrent!==true)_musicV2ScheduleProjectionConvergence(); }
 // หลัง refresh: browser บล็อก autoplay → เริ่มเพลงเองตอนผู้ใช้แตะ/คลิก/กดปุ่มครั้งแรก
 let _musicArmed=false;
 function armMusicResume(){
@@ -9175,7 +9186,7 @@ function subscribeRealtime(){
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_messages',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ const row=payload.new; if(row&&row.id&&!chatMsgs.some(m=>m.id===row.id)){ chatMsgs.push(row); if(chatMsgs.length>300) chatMsgs=chatMsgs.slice(-300); cacheSave('chat',chatMsgs); } if(_bsShown){ try{ renderBattleChat(); }catch(e){} } if(activeTab()==='party'){ renderChatList(); } else if(row && row.user_id!==me.id){ const t=document.querySelector('.tab[data-tab="party"]'); if(t) t.classList.add('blink'); if(_bsShown){ const mb=document.querySelector('#bsMobBar button[data-sheet="chat"]'); if(mb) mb.classList.add('blink'); } } })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'chronicles',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='chron'){ renderChronicle(); } else { const t=document.querySelector('.tab[data-tab="chron"]'); if(t) t.classList.add('blink'); } })
     .on('postgres_changes',{event:'*',schema:'public',table:'music_tracks',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadMusicLibrary(); if(activeTab()==='files') renderFiles(); })
-    .on('postgres_changes',{event:'*',schema:'public',table:'music_scene_state_v2',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ const row=(payload&&payload.new)||{}; if(_musicV2Enabled()&&Number(row.group_no||1)===terminalGroupForUi()) applyMood(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'music_scene_state_v2',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ const row=(payload&&payload.new)||{}; if(_musicV2Enabled()&&Number(row.group_no||1)===terminalGroupForUi()) _musicV2SelectionChanged(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'combat_encounters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await updateCombatBadge(); await refreshCombatTurn(); scheduleBattleScene(); if(activeTab()==='story') renderRoundbar(); })   /* v271 H4: refresh _combatActive จาก realtime (กันโหมด input คอมแบต/เรื่อง desync ตอนคนอื่นเปิด/ปิดศึก) */
     .on('postgres_changes',{event:'*',schema:'public',table:'initiative_entries',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await refreshCombatTurn(); scheduleBattleScene(); if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'combat_log',filter:'campaign_id=eq.'+campaign.id}, async()=>{ scheduleBattleScene(); })
