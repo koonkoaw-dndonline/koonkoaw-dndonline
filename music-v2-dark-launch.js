@@ -52,12 +52,9 @@
 
   function createPlayer(options) {
     const createAudio = options.createAudio || function () { return new Audio(); };
-    const setTimer = options.setInterval || root.setInterval.bind(root);
-    const clearTimer = options.clearInterval || root.clearInterval.bind(root);
     const setDeadline = options.setTimeout || root.setTimeout.bind(root);
     const clearDeadline = options.clearTimeout || root.clearTimeout.bind(root);
     const store = options.storage || null;
-    const fadeMs = Math.max(0, Number(options.fadeMs == null ? 800 : options.fadeMs));
     const mediaStartTimeoutMs = Math.max(1, Number(options.mediaStartTimeoutMs == null ? 12000 : options.mediaStartTimeoutMs));
     const context = options.context || {};
     let slots = null;
@@ -65,7 +62,6 @@
     let current = null;
     let suspended = false;
     let volume = Math.max(0, Math.min(1, Number(options.volume == null ? 0.5 : options.volume)));
-    let fadeTimer = null;
     let mediaStartTimer = null;
     let mediaStartElement = null;
     const reported = new Set();
@@ -203,41 +199,28 @@
       } catch (error) { handlePlayRejection(el, error); }
     }
 
-    function crossfade(outgoing, incoming) {
-      if (fadeTimer) { clearTimer(fadeTimer); fadeTimer = null; }
-      const target = volume;
-      try { incoming.volume = 0; } catch (_) {}
-      if (!outgoing || fadeMs === 0) {
-        try { incoming.volume = target; } catch (_) {}
-        if (outgoing) { try { outgoing.pause(); } catch (_) {} }
-        return;
-      }
-      const steps = 12;
-      let step = 0;
-      const outgoingStart = Math.max(0, Number(outgoing.volume) || 0);
-      fadeTimer = setTimer(function () {
-        step += 1;
-        const ratio = Math.min(1, step / steps);
-        try { incoming.volume = target * ratio; } catch (_) {}
-        try { outgoing.volume = outgoingStart * (1 - ratio); } catch (_) {}
-        if (step >= steps) {
-          clearTimer(fadeTimer);
-          fadeTimer = null;
-          try { outgoing.pause(); } catch (_) {}
-        }
-      }, Math.max(1, fadeMs / steps));
+    // MUSIC_PLAYBACK_SERIAL_HANDOFF_START: an overlap-free handoff deliberately
+    // stops every non-incoming slot before play(). A volume crossfade cannot
+    // satisfy the Gate 6 invariant because it has two playing elements by design.
+    function stopOtherSlots(elements, incoming) {
+      elements.forEach(function (el) {
+        if (el !== incoming) { try { el.pause(); } catch (_) {} }
+      });
+      try { incoming.volume = volume; } catch (_) {}
     }
+    // MUSIC_PLAYBACK_SERIAL_HANDOFF_END
 
     function play(selection) {
       const elements = ensureSlots();
       const asset = selectEncoding(selection.assets, function (mime) { return elements[0].canPlayType(mime); });
       if (!asset) return { ok: false, reason: 'no_supported_encoding' };
       if (current && current.trackKey === selection.trackKey && Number(current.epoch) === Number(selection.epoch)) {
-        if (!suspended && elements[active].paused) playElement(elements[active]);
+        suspended = false;
+        stopOtherSlots(elements, elements[active]);
+        if (elements[active].paused) playElement(elements[active]);
         return { ok: true, reused: true, asset: current.asset };
       }
       persist();
-      const previous = active >= 0 ? elements[active] : null;
       const next = active === 0 ? 1 : 0;
       const incoming = elements[next];
       active = next;
@@ -253,8 +236,8 @@
       incoming.loop = asset.loop_enabled !== false;
       if (incoming.src !== asset.url) incoming.src = asset.url;
       restorePosition(incoming, selection);
+      stopOtherSlots(elements, incoming);
       playElement(incoming);
-      crossfade(previous, incoming);
       return { ok: true, reused: false, asset: asset };
     }
 
@@ -271,6 +254,7 @@
     }
 
     function pause() {
+      suspended = true;
       clearMediaStartTimeout();
       persist();
       if (slots) slots.forEach(function (el) { try { el.pause(); } catch (_) {} });
@@ -278,12 +262,12 @@
 
     function setVolume(next) {
       volume = Math.max(0, Math.min(1, Number(next) || 0));
-      if (slots && active >= 0 && !fadeTimer) {
+      if (slots && active >= 0) {
         try { slots[active].volume = volume; } catch (_) {}
       }
     }
 
-    return { play, suspend, resume, pause, setVolume, current: function () { return current; } };
+    return { play, suspend, resume, pause, setVolume, current: function () { return current; }, isPlaying: function () { return !!slots && slots.some(function (el) { return !el.paused; }); } };
   }
 
   function createDarkLaunchController(options) {
@@ -346,7 +330,7 @@
 
     async function refresh() {
       const ctx = context();
-      if (!enabled(ctx.settings)) return false;
+      if (!enabled(ctx.settings)) { refreshSequence += 1; if (player) player.pause(); return false; }
       const sequence = ++refreshSequence;
       try {
         const result = await ctx.supabase.from('music_v2_group_projection')
@@ -362,6 +346,9 @@
         }
         const assets = await selectedAssets(ctx, state);
         if (sequence !== refreshSequence) return true;
+        const lease = options.playbackOwner ? options.playbackOwner.acquire('v2', 'v2_refresh') : null;
+        if (options.playbackOwner && (!lease || !options.playbackOwner.isCurrent(lease))) return true;
+        if (sequence !== refreshSequence) return true;
         const verdict = ensurePlayer(ctx).play({
           trackKey: state.selected_track_key,
           epoch: state.rotation_epoch,
@@ -375,6 +362,7 @@
           options.onDegraded(ctx.mood, text(ctx.language, 'degraded'));
         }
       } catch (_) {
+        if (sequence !== refreshSequence) return true;
         if (player) player.pause();
         options.onDegraded(ctx.mood, text(ctx.language, 'degraded'));
       }
@@ -455,10 +443,11 @@
     return {
       enabled: isEnabled,
       refresh: refresh,
-      suspendForPerformance: function () { if (player) player.suspend(); },
-      resumeAfterPerformance: function () { if (player) player.resume(); },
-      pause: function () { if (player) player.pause(); },
+      suspendForPerformance: function () { refreshSequence += 1; if (player) player.suspend(); },
+      resumeAfterPerformance: function () { void refresh(); },
+      pause: function () { refreshSequence += 1; if (player) player.pause(); },
       setVolume: function (value) { if (player) player.setVolume(value); },
+      isPlaying: function () { return !!player && player.isPlaying(); },
     };
   }
 
