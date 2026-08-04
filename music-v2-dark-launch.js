@@ -54,8 +54,11 @@
     const createAudio = options.createAudio || function () { return new Audio(); };
     const setTimer = options.setInterval || root.setInterval.bind(root);
     const clearTimer = options.clearInterval || root.clearInterval.bind(root);
+    const setDeadline = options.setTimeout || root.setTimeout.bind(root);
+    const clearDeadline = options.clearTimeout || root.clearTimeout.bind(root);
     const store = options.storage || null;
     const fadeMs = Math.max(0, Number(options.fadeMs == null ? 800 : options.fadeMs));
+    const mediaStartTimeoutMs = Math.max(1, Number(options.mediaStartTimeoutMs == null ? 12000 : options.mediaStartTimeoutMs));
     const context = options.context || {};
     let slots = null;
     let active = -1;
@@ -63,6 +66,8 @@
     let suspended = false;
     let volume = Math.max(0, Math.min(1, Number(options.volume == null ? 0.5 : options.volume)));
     let fadeTimer = null;
+    let mediaStartTimer = null;
+    let mediaStartElement = null;
     const reported = new Set();
 
     function persist() {
@@ -96,21 +101,50 @@
       } catch (_) {}
     }
 
-    function notifyFailure(el) {
+    function clearMediaStartTimeout(el) {
+      if (el && mediaStartElement !== el) return;
+      if (mediaStartTimer !== null) clearDeadline(mediaStartTimer);
+      mediaStartTimer = null;
+      mediaStartElement = null;
+    }
+
+    function notifyFailure(el, forcedCode) {
       if (!current || slots[active] !== el) return;
-      const code = mediaErrorCode(el.error);
-      const key = current.trackKey + '|' + current.epoch + '|' + current.asset.asset_key + '|' + code;
+      clearMediaStartTimeout(el);
+      const code = forcedCode || mediaErrorCode(el.error);
+      const key = current.trackKey + '|' + current.epoch + '|' + current.asset.asset_key;
       if (reported.has(key)) return;
       reported.add(key);
       try { el.pause(); } catch (_) {}
+      const exposure = {
+        schema: 'music_v2_playback_exposure_v1',
+        playback_exposures: { numerator: 1, denominator: 1 },
+        playback_started: { numerator: 0, denominator: 1 },
+        playback_start_unreported: { numerator: code === 'timeout' ? 1 : 0, denominator: 1 },
+      };
+      if (options.onPlaybackExposure) options.onPlaybackExposure(exposure);
       if (options.onError) options.onError({
         group: Number(context.groupNo || 1),
         epoch: Number(current.epoch),
         selected_track: current.trackKey,
         encoded_asset: current.asset.asset_key,
         error_code: code,
+        exposure: exposure,
       });
     }
+
+    // MUSIC_V2_MEDIA_NO_EVENT_TIMEOUT_START: a play() promise may resolve while
+    // the media element emits no playing/error/ended event. Bound that exposure.
+    function armMediaStartTimeout(el) {
+      clearMediaStartTimeout();
+      mediaStartElement = el;
+      mediaStartTimer = setDeadline(function () {
+        mediaStartTimer = null;
+        mediaStartElement = null;
+        notifyFailure(el, 'timeout');
+      }, mediaStartTimeoutMs);
+    }
+    // MUSIC_V2_MEDIA_NO_EVENT_TIMEOUT_END
 
     function ensureSlots() {
       if (slots) return slots;
@@ -118,6 +152,8 @@
       slots.forEach(function (el) {
         el.preload = 'metadata';
         if (el.addEventListener) {
+          el.addEventListener('playing', function () { clearMediaStartTimeout(el); });
+          el.addEventListener('ended', function () { clearMediaStartTimeout(el); });
           el.addEventListener('error', function () { notifyFailure(el); });
           el.addEventListener('timeupdate', persist);
         }
@@ -125,19 +161,21 @@
       return slots;
     }
 
-    function handlePlayRejection(error) {
+    function handlePlayRejection(el, error) {
       if (error && error.name === 'NotAllowedError') {
+        clearMediaStartTimeout(el);
         if (options.onAutoplayBlocked) options.onAutoplayBlocked();
         return;
       }
-      notifyFailure(active >= 0 && slots ? slots[active] : null);
+      notifyFailure(el);
     }
 
     function playElement(el) {
+      armMediaStartTimeout(el);
       try {
         const promise = el.play();
-        if (promise && promise.catch) promise.catch(handlePlayRejection);
-      } catch (error) { handlePlayRejection(error); }
+        if (promise && promise.catch) promise.catch(function (error) { handlePlayRejection(el, error); });
+      } catch (error) { handlePlayRejection(el, error); }
     }
 
     function crossfade(outgoing, incoming) {
@@ -190,6 +228,7 @@
 
     function suspend() {
       suspended = true;
+      clearMediaStartTimeout();
       persist();
       if (slots && active >= 0) { try { slots[active].pause(); } catch (_) {} }
     }
@@ -200,6 +239,7 @@
     }
 
     function pause() {
+      clearMediaStartTimeout();
       persist();
       if (slots) slots.forEach(function (el) { try { el.pause(); } catch (_) {} });
     }
@@ -217,6 +257,9 @@
   function createDarkLaunchController(options) {
     let player = null;
     let refreshSequence = 0;
+    const reportTimeoutMs = Math.max(1, Number(options.reportTimeoutMs == null ? 2500 : options.reportTimeoutMs));
+    const setDeadline = options.setTimeout || root.setTimeout.bind(root);
+    const clearDeadline = options.clearTimeout || root.clearTimeout.bind(root);
 
     function context() { return options.getContext(); }
     function isEnabled() { const ctx = context(); return enabled(ctx.settings); }
@@ -225,7 +268,12 @@
         context: { campaignId: ctx.campaignId, groupNo: ctx.groupNo },
         volume: ctx.volume,
         storage: options.storage || root.sessionStorage,
+        createAudio: options.createAudio,
+        mediaStartTimeoutMs: options.mediaStartTimeoutMs,
+        setTimeout: options.setTimeout,
+        clearTimeout: options.clearTimeout,
         onAutoplayBlocked: function () { options.onVisible(text(ctx.language, 'autoplay')); },
+        onPlaybackExposure: options.onPlaybackExposure,
         onError: reportError,
       });
       player.setVolume(ctx.volume);
@@ -299,36 +347,73 @@
 
     async function reportError(error) {
       const ctx = context();
-      try {
-        const session = await ctx.supabase.auth.getSession();
-        const token = session && session.data && session.data.session && session.data.session.access_token;
-        if (!token) throw new Error('music_auth_missing');
-        const response = await (options.fetcher || root.fetch)(ctx.resolveUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-          body: JSON.stringify({
-            campaign_id: ctx.campaignId,
-            group_no: ctx.groupNo,
-            client_build: ctx.frontendBuild,
-            client_epoch: ctx.frontendEpoch,
-            i18n_asset_build: ctx.i18nAssetBuild,
-            music_playback_error: {
-              expected_epoch: error.epoch,
-              selected_track_key: error.selected_track,
-              encoded_asset_key: error.encoded_asset,
-              error_code: error.error_code,
-            },
-          }),
-        });
-        const body = await response.json();
-        if (!response.ok) throw new Error(String(body && body.error || response.status));
-        const note = ctx.language === 'en' ? body.player_note_en : body.player_note_th;
-        if (note) options.onVisible(note);
-      } catch (_) {
-        options.onVisible(text(ctx.language, 'degraded'));
-      }
       if (player) player.pause();
       options.onDegraded(ctx.mood, text(ctx.language, 'degraded'));
+      let reportTimer = null;
+      let timedOut = false;
+      const abortController = new (options.AbortController || root.AbortController)();
+      try {
+        // MUSIC_V2_REPORT_TIMEOUT_WALL_START: race the complete authenticated
+        // report against a local deadline; AbortController alone is not enough
+        // because a transport double may ignore its signal.
+        const send = (async function () {
+          const session = await ctx.supabase.auth.getSession();
+          const token = session && session.data && session.data.session && session.data.session.access_token;
+          if (!token) throw new Error('music_auth_missing');
+          const response = await (options.fetcher || root.fetch)(ctx.resolveUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+            body: JSON.stringify({
+              campaign_id: ctx.campaignId,
+              group_no: ctx.groupNo,
+              client_build: ctx.frontendBuild,
+              client_epoch: ctx.frontendEpoch,
+              i18n_asset_build: ctx.i18nAssetBuild,
+              music_playback_error: {
+                expected_epoch: error.epoch,
+                selected_track_key: error.selected_track,
+                encoded_asset_key: error.encoded_asset,
+                error_code: error.error_code,
+              },
+            }),
+            signal: abortController.signal,
+          });
+          const body = await response.json();
+          if (!response.ok) throw new Error(String(body && body.error || response.status));
+          return body;
+        })();
+        const timeout = new Promise(function (_, reject) {
+          reportTimer = setDeadline(function () {
+            timedOut = true;
+            abortController.abort();
+            reject(new Error('music_report_timeout'));
+          }, reportTimeoutMs);
+        });
+        const body = await Promise.race([send, timeout]);
+        const note = ctx.language === 'en' ? body.player_note_en : body.player_note_th;
+        if (note) options.onVisible(note);
+        if (options.onReportOutcome) options.onReportOutcome({
+          schema: 'music_v2_report_transport_v1',
+          status: 'reported',
+          error_code: error.error_code,
+          report_attempts: { numerator: 1, denominator: 1 },
+          report_completed: { numerator: 1, denominator: 1 },
+          report_timeouts: { numerator: 0, denominator: 1 },
+        });
+      } catch (_) {
+        options.onVisible(text(ctx.language, 'degraded'));
+        if (options.onReportOutcome) options.onReportOutcome({
+          schema: 'music_v2_report_transport_v1',
+          status: timedOut ? 'timeout' : 'failed',
+          error_code: error.error_code,
+          report_attempts: { numerator: 1, denominator: 1 },
+          report_completed: { numerator: 0, denominator: 1 },
+          report_timeouts: { numerator: timedOut ? 1 : 0, denominator: 1 },
+        });
+      } finally {
+        if (reportTimer !== null) clearDeadline(reportTimer);
+      }
+      // MUSIC_V2_REPORT_TIMEOUT_WALL_END
     }
 
     return {
