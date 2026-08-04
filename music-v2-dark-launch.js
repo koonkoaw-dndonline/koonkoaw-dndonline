@@ -1,5 +1,5 @@
-// Music v2 Gate 5 client. Loaded in production pages but inert until the
-// server-owned wall mode reaches "enforce" in a later gate.
+// Music v2 Gate 6 canary client. Loaded in every page but active only when the
+// host explicitly sets this campaign's wall mode to "enforce".
 // language-impact: th+en — every player-visible recovery message is paired.
 (function (root) {
   'use strict';
@@ -69,6 +69,7 @@
     let mediaStartTimer = null;
     let mediaStartElement = null;
     const reported = new Set();
+    const started = new Set();
 
     function persist() {
       if (!store || !current || active < 0) return;
@@ -133,6 +134,30 @@
       });
     }
 
+    function notifyStarted(el) {
+      if (!current || slots[active] !== el) return;
+      clearMediaStartTimeout(el);
+      const key = current.trackKey + '|' + current.epoch + '|' + current.asset.asset_key;
+      if (started.has(key)) return;
+      started.add(key);
+      const exposure = {
+        schema: 'music_v2_playback_exposure_v1',
+        playback_exposures: { numerator: 1, denominator: 1 },
+        playback_started: { numerator: 1, denominator: 1 },
+        playback_start_unreported: { numerator: 0, denominator: 1 },
+      };
+      if (options.onPlaybackExposure) options.onPlaybackExposure(exposure);
+      if (options.onPlaybackStarted) options.onPlaybackStarted({
+        group_no: Number(context.groupNo || 1),
+        selected_origin: current.origin,
+        selected_track_key: current.trackKey,
+        selected_rotation_epoch: current.epoch,
+        selected_catalog_version: current.catalogVersion,
+        observed_state_version: current.observedStateVersion,
+        exposure: exposure,
+      });
+    }
+
     // MUSIC_V2_MEDIA_NO_EVENT_TIMEOUT_START: a play() promise may resolve while
     // the media element emits no playing/error/ended event. Bound that exposure.
     function armMediaStartTimeout(el) {
@@ -152,7 +177,7 @@
       slots.forEach(function (el) {
         el.preload = 'metadata';
         if (el.addEventListener) {
-          el.addEventListener('playing', function () { clearMediaStartTimeout(el); });
+          el.addEventListener('playing', function () { notifyStarted(el); });
           el.addEventListener('ended', function () { clearMediaStartTimeout(el); });
           el.addEventListener('error', function () { notifyFailure(el); });
           el.addEventListener('timeupdate', persist);
@@ -216,7 +241,14 @@
       const next = active === 0 ? 1 : 0;
       const incoming = elements[next];
       active = next;
-      current = { trackKey: selection.trackKey, epoch: Number(selection.epoch), asset: asset };
+      current = {
+        trackKey: selection.trackKey,
+        epoch: Number(selection.epoch),
+        origin: selection.origin,
+        catalogVersion: selection.catalogVersion == null ? null : selection.catalogVersion,
+        observedStateVersion: selection.observedStateVersion || null,
+        asset: asset,
+      };
       suspended = false;
       incoming.loop = asset.loop_enabled !== false;
       if (incoming.src !== asset.url) incoming.src = asset.url;
@@ -274,6 +306,7 @@
         clearTimeout: options.clearTimeout,
         onAutoplayBlocked: function () { options.onVisible(text(ctx.language, 'autoplay')); },
         onPlaybackExposure: options.onPlaybackExposure,
+        onPlaybackStarted: options.onPlaybackStarted,
         onError: reportError,
       });
       player.setVolume(ctx.volume);
@@ -332,6 +365,9 @@
         const verdict = ensurePlayer(ctx).play({
           trackKey: state.selected_track_key,
           epoch: state.rotation_epoch,
+          origin: state.selected_origin,
+          catalogVersion: state.selected_catalog_version,
+          observedStateVersion: ctx.stateVersion,
           assets: assets,
         });
         if (!verdict.ok) {

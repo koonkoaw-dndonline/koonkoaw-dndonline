@@ -22,7 +22,7 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./character-content-en.js?v=20260720e4"></script>
 <script src="./grid-command-flow.js?v=822"></script>
 <script src="./grid-command-adapter.js?v=822"></script>
-<script src="./music-v2-dark-launch.js?v=840"></script>
+<script src="./music-v2-dark-launch.js?v=843"></script>
 <style>
 /* ============================================================
    TTRPG CAMPAIGN — Dragon Quest (NES) monochrome re-skin (เฟส 5)
@@ -2083,7 +2083,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608041842;   // v842: optional selected-tuple snapshot on actual heard receipt
+const FRONTEND_BUILD = 202608041843;   // v843: per-campaign Music Gate 6 canary + actual v2 heard receipt
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -3135,7 +3135,7 @@ async function loadMusicLibrary(){
 function _invalidateLegacyPlayback(){ _legacyPlayAttempt++; _legacyPlayInFlight=null; _currentLegacyMusicPick=null; }
 function _flushPendingMusicHeardReceipt(){
   if(window._musicV2AudioIdentityReceiptCap!==true)return; const pending=window._musicV2PendingHeardReceipt; window._musicV2PendingHeardReceipt=null; if(!pending)return;
-  void _reportMusicHeard(pending.logicalTrackKey,pending.stateVersion,pending.playbackContext);
+  void _reportMusicHeard(pending.logicalTrackKey,pending.stateVersion,pending.playbackContext,pending.selectedSnapshot||null);
 }
 // MUSIC_V2_HEARD_SELECTION_SNAPSHOT_START: this read never selects or plays a
 // track. It snapshots the durable server selection only after legacy play()
@@ -3156,15 +3156,15 @@ async function _musicV2SelectedSnapshotForHeard(groupNo){
   }catch(e){return _musicV2UnavailableSelectedSnapshot('projection_read_failed');}finally{if(timer!==null)clearTimeout(timer);}
 }
 // MUSIC_V2_HEARD_SELECTION_SNAPSHOT_END
-async function _reportMusicHeard(logicalTrackKey,stateVersion,playbackContext){
-  if(String(worldState&&worldState.settings&&worldState.settings.wall_modes&&worldState.settings.wall_modes.music_v2||'').toLowerCase()!=='shadow'){window._musicV2PendingHeardReceipt=null;return;}
-  const key=String(logicalTrackKey||''); const valid=/^builtin:legacy:(?:forest|town|village|capital|battle|boss|tavern|dungeon|rest)$/.test(key)||/^campaign:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(key);
-  if(window._musicV2AudioIdentityReceiptCap!==true){if(window._musicV2AudioIdentityCapabilityChecked!==true)window._musicV2PendingHeardReceipt={logicalTrackKey:valid?key:null,stateVersion:stateVersion||null,playbackContext:playbackContext};else window._musicV2PendingHeardReceipt=null;return;}
+async function _reportMusicHeard(logicalTrackKey,stateVersion,playbackContext,selectedSnapshot){
+  const mode=String(worldState&&worldState.settings&&worldState.settings.wall_modes&&worldState.settings.wall_modes.music_v2||'').toLowerCase();if(mode!=='shadow'&&mode!=='enforce'){window._musicV2PendingHeardReceipt=null;return;}
+  const key=String(logicalTrackKey||''); const valid=/^official:[0-9]{2}:[A-Za-z0-9._-]{1,32}:[A-Za-z0-9._-]{1,32}:[A-Za-z0-9._-]{1,48}$/.test(key)||/^builtin:legacy:(?:forest|town|village|capital|battle|boss|tavern|dungeon|rest)$/.test(key)||/^campaign:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(key);
+  if(window._musicV2AudioIdentityReceiptCap!==true){if(window._musicV2AudioIdentityCapabilityChecked!==true)window._musicV2PendingHeardReceipt={logicalTrackKey:valid?key:null,stateVersion:stateVersion||null,playbackContext:playbackContext,selectedSnapshot:selectedSnapshot||null};else window._musicV2PendingHeardReceipt=null;return;}
   const dedupe=(valid?key:'unavailable')+'|'+String(stateVersion||'none')+'|'+playbackContext, now=Date.now(), prior=Number(_musicHeardRecent.get(dedupe)||0);
   if(now-prior<1500)return; _musicHeardRecent.set(dedupe,now); if(_musicHeardRecent.size>32){const first=_musicHeardRecent.keys().next().value;if(first!==undefined)_musicHeardRecent.delete(first);}
   try{
     const s=await supa.auth.getSession(), token=s&&s.data&&s.data.session&&s.data.session.access_token; if(!token)return;
-    const groupNo=terminalGroupForUi(),selected=playbackContext==='scene_auto'?await _musicV2SelectedSnapshotForHeard(groupNo):null;
+    const groupNo=terminalGroupForUi(),selected=playbackContext==='scene_auto'?(selectedSnapshot||await _musicV2SelectedSnapshotForHeard(groupNo)):null;
     const heard={playback_started:true,identity_status:valid?'available':'unavailable',logical_track_key:valid?key:null,observed_state_version:stateVersion||null,playback_context:playbackContext};if(selected)Object.assign(heard,selected);
     const body={campaign_id:campaign.id,group_no:groupNo,client_build:FRONTEND_BUILD,client_epoch:FRONTEND_COMPAT_EPOCH,i18n_asset_build:englishAssetBuildProof(),music_audio_identity_heard:heard};
     if(BETA&&betaCode())body.beta_code=betaCode(); const ac=typeof AbortController==='function'?new AbortController():null, timer=ac?setTimeout(function(){try{ac.abort();}catch(e){}},2500):null;
@@ -3209,8 +3209,8 @@ function _musicV2ControllerFor(){
   if(!_musicV2Enabled()||!window.TTRPG_MUSIC_V2)return null;
   if(!_musicV2Controller)_musicV2Controller=window.TTRPG_MUSIC_V2.createDarkLaunchController({
     storage:window.sessionStorage,
-    getContext:function(){return {settings:(worldState&&worldState.settings)||{},campaignId:campaign.id,groupNo:terminalGroupForUi(),language:uiLanguage(),volume:musicVol,supabase:supa,publicBase:PUBLIC_URL,resolveUrl:RESOLVE_FN,frontendBuild:FRONTEND_BUILD,frontendEpoch:FRONTEND_COMPAT_EPOCH,i18nAssetBuild:englishAssetBuildProof(),mood:(worldState&&worldState.scene_mood)||'forest'};},
-    builtinAsset:_musicV2BuiltinAsset,onVisible:function(msg){try{toast(msg);}catch(e){}},onDegraded:_musicV2Degraded
+    getContext:function(){return {settings:(worldState&&worldState.settings)||{},campaignId:campaign.id,groupNo:terminalGroupForUi(),language:uiLanguage(),volume:musicVol,supabase:supa,publicBase:PUBLIC_URL,resolveUrl:RESOLVE_FN,frontendBuild:FRONTEND_BUILD,frontendEpoch:FRONTEND_COMPAT_EPOCH,i18nAssetBuild:englishAssetBuildProof(),mood:(worldState&&worldState.scene_mood)||'forest',stateVersion:String(worldState&&worldState.updated_at||'')||null};},
+    builtinAsset:_musicV2BuiltinAsset,onVisible:function(msg){try{toast(msg);}catch(e){}},onDegraded:_musicV2Degraded,onPlaybackStarted:function(e){const selected={selected_identity_status:'available',selected_origin:e.selected_origin,selected_logical_track_key:e.selected_track_key,selected_rotation_epoch:e.selected_rotation_epoch,selected_catalog_version:e.selected_catalog_version==null?null:e.selected_catalog_version,selected_unavailable_reason:null};void _reportMusicHeard(e.selected_track_key,e.observed_state_version,'scene_auto',selected);}
   });
   return _musicV2Controller;
 }
