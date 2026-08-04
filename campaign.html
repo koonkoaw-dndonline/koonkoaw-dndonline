@@ -2083,7 +2083,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608041700;   // v841: visible companion candidates + evidence-bound historical roster repair
+const FRONTEND_BUILD = 202608041842;   // v842: optional selected-tuple snapshot on actual heard receipt
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2285,6 +2285,7 @@ if(BETA){
 }
 let _frontendRequirement=null, _frontendBuildCheckBusy=false;
 window._musicV2AudioIdentityReceiptCap=false;   // v838: Pages-first safe; only a successful resolver ping may enable the new field
+window._musicV2AudioIdentitySelectedReceiptCap=false;   // v842: optional durable selected-tuple snapshot; safe across either deploy order
 window._musicV2AudioIdentityCapabilityChecked=false;
 window._musicV2PendingHeardReceipt=null;   // latest-only pending exposure while the initial capability ping is unresolved
 function frontendDraftPending(){
@@ -2324,8 +2325,8 @@ function frontendRequirementSeen(minBuild,minEpoch){
 setInterval(frontendRestoreDrafts,1000);
 async function checkFrontendBuild(){
   if(_frontendBuildCheckBusy) return; _frontendBuildCheckBusy=true;
-  window._musicV2AudioIdentityReceiptCap=false; window._musicV2AudioIdentityCapabilityChecked=false;
-  try{ const tok=(await supa.auth.getSession()).data.session?.access_token; if(!tok){window._musicV2AudioIdentityCapabilityChecked=true;window._musicV2PendingHeardReceipt=null;return;} const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({ping:true,client_build:FRONTEND_BUILD,client_epoch:FRONTEND_COMPAT_EPOCH})}); const j=await r.json(); window._musicV2AudioIdentityReceiptCap=!!(r.ok&&j&&j.features&&j.features.music_v2_audio_identity_receipt_v1===true); window._musicV2AudioIdentityCapabilityChecked=true; if(window._musicV2AudioIdentityReceiptCap)_flushPendingMusicHeardReceipt();else window._musicV2PendingHeardReceipt=null; frontendRequirementSeen(j.min_frontend_build,j.min_frontend_epoch); }catch(e){window._musicV2AudioIdentityReceiptCap=false;window._musicV2AudioIdentityCapabilityChecked=true;window._musicV2PendingHeardReceipt=null;} finally{_frontendBuildCheckBusy=false;}
+  window._musicV2AudioIdentityReceiptCap=false; window._musicV2AudioIdentitySelectedReceiptCap=false; window._musicV2AudioIdentityCapabilityChecked=false;
+  try{ const tok=(await supa.auth.getSession()).data.session?.access_token; if(!tok){window._musicV2AudioIdentityCapabilityChecked=true;window._musicV2PendingHeardReceipt=null;return;} const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({ping:true,client_build:FRONTEND_BUILD,client_epoch:FRONTEND_COMPAT_EPOCH})}); const j=await r.json(); window._musicV2AudioIdentityReceiptCap=!!(r.ok&&j&&j.features&&j.features.music_v2_audio_identity_receipt_v1===true); window._musicV2AudioIdentitySelectedReceiptCap=!!(r.ok&&j&&j.features&&j.features.music_v2_audio_identity_selected_receipt_v1===true); window._musicV2AudioIdentityCapabilityChecked=true; if(window._musicV2AudioIdentityReceiptCap)_flushPendingMusicHeardReceipt();else window._musicV2PendingHeardReceipt=null; frontendRequirementSeen(j.min_frontend_build,j.min_frontend_epoch); }catch(e){window._musicV2AudioIdentityReceiptCap=false;window._musicV2AudioIdentitySelectedReceiptCap=false;window._musicV2AudioIdentityCapabilityChecked=true;window._musicV2PendingHeardReceipt=null;} finally{_frontendBuildCheckBusy=false;}
 }
 // host ใส่/แก้ Gemini key ของโลก (เรียกเองหรือเด้งอัตโนมัติเมื่อ server บอกว่ายังไม่มี key)
 async function betaAskKey(){
@@ -3136,6 +3137,25 @@ function _flushPendingMusicHeardReceipt(){
   if(window._musicV2AudioIdentityReceiptCap!==true)return; const pending=window._musicV2PendingHeardReceipt; window._musicV2PendingHeardReceipt=null; if(!pending)return;
   void _reportMusicHeard(pending.logicalTrackKey,pending.stateVersion,pending.playbackContext);
 }
+// MUSIC_V2_HEARD_SELECTION_SNAPSHOT_START: this read never selects or plays a
+// track. It snapshots the durable server selection only after legacy play()
+// succeeds, so the resolver can exact-refetch the tuple before comparison.
+function _musicV2UnavailableSelectedSnapshot(reason){return {selected_identity_status:'unavailable',selected_origin:null,selected_logical_track_key:null,selected_rotation_epoch:null,selected_catalog_version:null,selected_unavailable_reason:reason};}
+async function _musicV2SelectedSnapshotForHeard(groupNo){
+  if(window._musicV2AudioIdentitySelectedReceiptCap!==true)return null;
+  let timer=null,timedOut=false;
+  try{
+    const read=supa.from('music_v2_group_projection').select('group_no,rotation_epoch,selection_status,selected_origin,selected_track_key,selected_catalog_version').eq('campaign_id',campaign.id).eq('group_no',groupNo).maybeSingle();
+    const result=await Promise.race([read,new Promise(function(resolve){timer=setTimeout(function(){timedOut=true;resolve(null);},1200);})]);
+    if(timedOut)return _musicV2UnavailableSelectedSnapshot('projection_timeout');
+    if(!result||result.error)return _musicV2UnavailableSelectedSnapshot('projection_read_failed');
+    const row=result.data;if(!row)return _musicV2UnavailableSelectedSnapshot('projection_missing');
+    const origin=String(row.selected_origin||''),key=String(row.selected_track_key||''),epoch=Number(row.rotation_epoch),catalog=row.selected_catalog_version==null?null:String(row.selected_catalog_version);
+    if(Number(row.group_no)!==Number(groupNo)||row.selection_status!=='selected'||!['official','campaign','builtin'].includes(origin)||!key||key.length>240||!Number.isSafeInteger(epoch)||epoch<1||(catalog!==null&&(!catalog||catalog.length>80)))return _musicV2UnavailableSelectedSnapshot('projection_invalid');
+    return {selected_identity_status:'available',selected_origin:origin,selected_logical_track_key:key,selected_rotation_epoch:epoch,selected_catalog_version:catalog,selected_unavailable_reason:null};
+  }catch(e){return _musicV2UnavailableSelectedSnapshot('projection_read_failed');}finally{if(timer!==null)clearTimeout(timer);}
+}
+// MUSIC_V2_HEARD_SELECTION_SNAPSHOT_END
 async function _reportMusicHeard(logicalTrackKey,stateVersion,playbackContext){
   if(String(worldState&&worldState.settings&&worldState.settings.wall_modes&&worldState.settings.wall_modes.music_v2||'').toLowerCase()!=='shadow'){window._musicV2PendingHeardReceipt=null;return;}
   const key=String(logicalTrackKey||''); const valid=/^builtin:legacy:(?:forest|town|village|capital|battle|boss|tavern|dungeon|rest)$/.test(key)||/^campaign:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(key);
@@ -3144,7 +3164,9 @@ async function _reportMusicHeard(logicalTrackKey,stateVersion,playbackContext){
   if(now-prior<1500)return; _musicHeardRecent.set(dedupe,now); if(_musicHeardRecent.size>32){const first=_musicHeardRecent.keys().next().value;if(first!==undefined)_musicHeardRecent.delete(first);}
   try{
     const s=await supa.auth.getSession(), token=s&&s.data&&s.data.session&&s.data.session.access_token; if(!token)return;
-    const body={campaign_id:campaign.id,group_no:terminalGroupForUi(),client_build:FRONTEND_BUILD,client_epoch:FRONTEND_COMPAT_EPOCH,i18n_asset_build:englishAssetBuildProof(),music_audio_identity_heard:{playback_started:true,identity_status:valid?'available':'unavailable',logical_track_key:valid?key:null,observed_state_version:stateVersion||null,playback_context:playbackContext}};
+    const groupNo=terminalGroupForUi(),selected=playbackContext==='scene_auto'?await _musicV2SelectedSnapshotForHeard(groupNo):null;
+    const heard={playback_started:true,identity_status:valid?'available':'unavailable',logical_track_key:valid?key:null,observed_state_version:stateVersion||null,playback_context:playbackContext};if(selected)Object.assign(heard,selected);
+    const body={campaign_id:campaign.id,group_no:groupNo,client_build:FRONTEND_BUILD,client_epoch:FRONTEND_COMPAT_EPOCH,i18n_asset_build:englishAssetBuildProof(),music_audio_identity_heard:heard};
     if(BETA&&betaCode())body.beta_code=betaCode(); const ac=typeof AbortController==='function'?new AbortController():null, timer=ac?setTimeout(function(){try{ac.abort();}catch(e){}},2500):null;
     try{await window.fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(body),signal:ac?ac.signal:undefined});}finally{if(timer)clearTimeout(timer);}
   }catch(e){}   /* shadow telemetry is bounded/no-retry and never changes heard audio */
