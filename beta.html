@@ -2043,7 +2043,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608040923;   // v840: bounded Music v2 media-start and report-transport timeout goldens
+const FRONTEND_BUILD = 202608041700;   // v841: visible companion candidates + evidence-bound historical roster repair
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -3822,6 +3822,34 @@ async function companionViewLoad(force){
   if(!force&&_companionViewCache&&Date.now()-_companionViewTs<10000) return _companionViewCache;
   const j=await companionResolve({companion_view:true}); _companionViewCache=j; _companionViewTs=Date.now(); return j;
 }
+const _companionAcceptFlights=new Set(); let _companionRepairFlight=false;
+async function companionAcceptCandidate(characterId,name,confirmed){
+  name=String(name||(((_companionViewCache&&_companionViewCache.companions)||[]).find(c=>String(c.character_id)===String(characterId))||{}).name||uiCopy('Companion','Companion'));
+  if(_companionAcceptFlights.has(String(characterId))) return toast(uiCopy('กำลังยืนยันสมาชิกคนนี้อยู่','This companion confirmation is already in progress'));
+  if(!confirmed&&!confirm(uiCopy('ยืนยันรับ '+name+' เข้ากลุ่มหรือไม่? หากช่อง Active เต็ม ระบบจะเก็บไว้ใน Reserve','Accept '+name+' into the party? If Active slots are full, the companion will be placed in Reserve.'))) return;
+  _companionAcceptFlights.add(String(characterId));
+  try{
+    const j=await companionResolve({companion_accept:{character_id:characterId,request_key:'accept:'+characterId}});
+    toast(j.note||uiCopy(name+' เข้ารายชื่อปาร์ตี้แล้ว',name+' is now on the party roster'));
+    _companionViewCache=null; _companionViewTs=0; await loadCharacters(); await renderCompanion(); await renderParty();
+  }catch(e){ toast(e.message||uiCopy('รับ Companion ไม่สำเร็จ','Could not accept the Companion'),true); }
+  finally{ _companionAcceptFlights.delete(String(characterId)); }
+}
+async function companionRepairHistorical(){
+  if(_companionRepairFlight) return toast(uiCopy('กำลังตรวจหลักฐานสมาชิกย้อนหลังอยู่','Historical membership verification is already in progress'));
+  const name=String(prompt(uiCopy('ใส่ชื่อ NPC ให้ตรงกับในเรื่อง ระบบจะกู้ได้เมื่อพบทั้งคำเชิญของผู้เล่นและคำตอบรับของ NPC ที่ยืนยันแล้ว','Enter the NPC name exactly as shown in the story. Recovery requires both a verified player invitation and the NPC acceptance.'),'')||'').trim();
+  if(!name) return;
+  if(!confirm(uiCopy('ตรวจและกู้สถานะสมาชิกย้อนหลังของ '+name+' หรือไม่? ระบบจะไม่เปลี่ยนปาร์ตี้หากหลักฐานไม่ครบ','Verify and repair '+name+' from history? The party will not change unless the evidence is complete.'))) return;
+  _companionRepairFlight=true;
+  try{
+    const j=await companionResolve({companion_reconcile:{name},group_no:terminalGroupForUi(),client_build:FRONTEND_BUILD,client_epoch:FRONTEND_COMPAT_EPOCH,i18n_asset_build:englishAssetBuildProof()});
+    toast(j.note||uiCopy('กู้หลักฐานสมาชิกแล้ว','Historical membership evidence recovered'));
+    _companionViewCache=null; _companionViewTs=0;
+    if(j.status==='candidate'&&j.character_id) return await companionAcceptCandidate(j.character_id,j.name||name,true);
+    await loadCharacters(); await renderCompanion(); await renderParty();
+  }catch(e){ toast(e.message||uiCopy('กู้สมาชิกจากประวัติไม่สำเร็จ','Could not repair membership from history'),true); }
+  finally{ _companionRepairFlight=false; }
+}
 function companionTierTH(t){ return ({enemy:'ศัตรู',hostile:'เป็นปฏิปักษ์',wary:'ระแวง',neutral:'เป็นกลาง',friendly:'เป็นมิตร',trusted:'ไว้ใจ',close:'สนิท',inner_circle:'คนวงใน'})[String(t||'neutral')]||'เป็นกลาง'; }
 function companionOwnedPc(view){
   const pcs=(view&&view.own_characters)||[]; if(!pcs.length) return null; if(pcs.length===1) return pcs[0];
@@ -3840,7 +3868,7 @@ async function renderCompanion(){
   const p=$('panel-companion'); if(!p) return;
   if(!companionV2UiEnabled()){ p.innerHTML=`<div class="item"><div class="nm">Companion</div><div class="note">${escapeHtml(companionLegacyUiMessage())}</div></div>`; return; }
   p.innerHTML='<div class="muted">กำลังโหลด Companion roster…</div>';
-  try{ const pair=await Promise.all([companionViewLoad(false),loadSlowlifeState(true)]),v=pair[0],sl=pair[1], all=v.companions||[], active=all.filter(c=>c.status==='active'), reserve=all.filter(c=>c.status==='reserve'), memorial=all.filter(c=>['dead','former'].includes(c.status)); const host=campaign.host_id===me.id;
+  try{ const pair=await Promise.all([companionViewLoad(false),loadSlowlifeState(true)]),v=pair[0],sl=pair[1], all=v.companions||[], candidates=all.filter(c=>c.status==='candidate'), active=all.filter(c=>c.status==='active'), reserve=all.filter(c=>c.status==='reserve'), memorial=all.filter(c=>['dead','former'].includes(c.status)); const host=campaign.host_id===me.id;
     if(_slowlifePollT){ clearTimeout(_slowlifePollT); _slowlifePollT=null; }
     if((sl.turns||[]).some(t=>['queued','processing'].includes(String(t.status)))) _slowlifePollT=setTimeout(()=>{ if(activeTab()==='companion') renderCompanion(); },3500);
     const fr=await supa.from('private_narrative').select('id,kind,content,created_at,recipient_character_id,companion_character_id').eq('campaign_id',campaign.id).order('created_at',{ascending:false}).limit(30); if(fr.error) throw fr.error;
@@ -3851,6 +3879,12 @@ async function renderCompanion(){
       `<h3>Reserve</h3>${reserve.map(c=>companionCard(c,host,v)).join('')||'<div class="muted">กองสำรองว่าง</div>'}`+
       (memorial.length?`<h3>Memorial / History</h3>${memorial.map(c=>companionCard(c,false,v)).join('')}`:'')+
       `<h3>Private relationship feed</h3><div class="note" style="text-align:left">เห็นได้เฉพาะบัญชีผู้รับผ่าน RLS</div>${feedHtml}`;
+    if(host){
+      const repair=document.createElement('div'); repair.className='item'; repair.innerHTML='<div class="nm">'+uiCopy('ซ่อมรายชื่อ Companion','Companion roster repair')+'</div><div class="note" style="text-align:left">'+uiCopy('ใช้เมื่อเรื่องยืนยันรับสมาชิกไปแล้วแต่ตัวละครไม่ขึ้น ระบบจะตรวจหลักฐานสองฝ่ายก่อนทุกครั้ง','Use this when the story accepted a member but no character appeared. Both sides of the transaction are verified first.')+'</div><button class="btn ghost sm" onclick="companionRepairHistorical()">'+uiCopy('กู้สมาชิกจากประวัติ','Repair from history')+'</button>'; p.insertBefore(repair,p.firstChild);
+    }
+    if(candidates.length){
+      const box=document.createElement('div'); box.innerHTML='<h3>'+uiCopy('รอ Host ยืนยัน','Awaiting Host confirmation')+'</h3>'+candidates.map(c=>'<div class="item"><div class="nm">'+escapeHtml(c.name)+' <span class="tag">candidate</span></div><div class="sub">'+escapeHtml(c.race||'')+' '+escapeHtml(c.class||'')+' · Lv '+(c.level||1)+'</div><div class="note" style="text-align:left">'+uiCopy('คำเชิญถูกบันทึกแล้ว แต่ยังไม่ใช่สมาชิกจนกว่า Host จะยืนยัน','The invitation is recorded, but membership starts only after Host confirmation.')+'</div>'+(host?'<button class="btn sm" onclick="companionAcceptCandidate(\''+String(c.character_id||'').replace(/[^A-Za-z0-9-]/g,'')+'\')">'+uiCopy('รับเข้ากลุ่ม','Accept into party')+'</button>':'')+'</div>').join(''); p.insertBefore(box,p.firstChild);
+    }
   }catch(e){ const msg=(e&&e.payload&&e.payload.error==='companion_v2_not_enabled')?companionLegacyUiMessage():uiCopy('โหลดข้อมูลคอมพาเนี่ยนไม่สำเร็จ กรุณาลองใหม่','Could not load companion data. Please try again.'); p.innerHTML='<div class="item"><div class="nm">Companion</div><div class="note">'+escapeHtml(msg)+'</div></div>'; }
 }
 function companionSoon(label){ toast(label+' จะเปิดในเฟส Privacy/Interaction'); }
