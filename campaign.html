@@ -2083,7 +2083,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608041843;   // v843: per-campaign Music Gate 6 canary + actual v2 heard receipt
+const FRONTEND_BUILD = 202608041844;   // v844 frontend: Human uses the 2014 Variant package
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -3464,9 +3464,11 @@ function abBonusMap(){
   const m={str:0,dex:0,con:0,int:0,wis:0,cha:0};
   if(bonusMode==='2-1'){ if(bonusPick.a) m[bonusPick.a]+=2; if(bonusPick.b&&bonusPick.b!==bonusPick.a) m[bonusPick.b]+=1; }
   else { const seen=[bonusPick.a,bonusPick.b,bonusPick.c]; seen.forEach((k,i)=>{ if(k&&seen.indexOf(k)===i) m[k]+=1; }); }
-  if(raceKey()==='human' && bonusPick.a) m[bonusPick.a]+=1;   // v291 Human (ข): +1 ค่าสถานะพิเศษ (เพิ่มที่ช่องแรก)
+  variantHumanAbilityKeys(raceKey(),bonusPick.a,bonusPick.b).forEach(k=>{m[k]+=1;});   // 2014 Variant Human: +1 สองค่าที่ต่างกัน
   return m;
 }
+function variantHumanAbilityPicksValid(rk,a,b){const valid=new Set(['str','dex','con','int','wis','cha']);return rk==='human'&&valid.has(a)&&valid.has(b)&&a!==b;}
+function variantHumanAbilityKeys(rk,a,b){return variantHumanAbilityPicksValid(rk,a,b)?[a,b]:[];}
 function finalAb(k){ return Math.min(17, pb[k]+(abBonusMap()[k]||0)); }
 function setBonusMode(m){ bonusMode=m; renderBonus(); }
 function setBonus(slot,v){ bonusPick[slot]=v; renderBonus(); }
@@ -3526,7 +3528,7 @@ const CLASS_TIPS={
   Artificer:'นักประดิษฐ์เวทมนตร์ — สร้างของ จูนอุปกรณ์ ผสมเวทกับเครื่องจักร · สายช่าง/แก้ปัญหา ระดับกลาง',
 };
 const RACE_TIPS={
-  'Human':'มนุษย์ (2024) — เก่งเฉลี่ยทุกด้าน: ทักษะถนัด +1 (Skillful) + Origin feat 1 อย่าง (Versatile · เลือกในการ์ด FEATS) + Heroic Inspiration (จบ long rest ได้ 1 แต้ม ทอย d20 ใหม่เมื่อพลาด) · เข้ากับทุกอาชีพ',
+  'Human':'มนุษย์สาย Variant (กฎ 2014) — ค่าสถานะ +1 สองค่าที่ต่างกัน · ทักษะถนัดเพิ่ม 1 อย่าง · feat เพิ่ม 1 อย่าง (เลือกในการ์ด FEATS) · เข้ากับทุกอาชีพ',
   'Elf':'เอลฟ์ — คล่องแคล่ว สายตาเฉียบในความมืด ไม่ต้องนอน (เข้าฌาน) · เข้ากับ Ranger/Rogue/Wizard',
   'Drow (Dark Elf)':'เอลฟ์มืด — มองมืดไกลพิเศษ + เวทติดตัว แต่แพ้แสงจ้า · มีปมชาติกำเนิดให้เล่น',
   'Dwarf':'คนแคระ — อึด ต้านพิษ ถนัดขวาน/ค้อน รู้เรื่องหิน-เหมือง · เข้ากับ Fighter/Cleric',
@@ -3544,7 +3546,7 @@ const CLASS_TIPS_EN={
   Barbarian:'A durable front-line warrior who enters Rage to hit harder and resist physical damage. Very approachable for new players.',Bard:'A versatile performer who excels at social scenes, support magic, and creative problem-solving.',Cleric:'A divine spellcaster, healer, armored combatant, and specialist against undead.',Druid:'A nature spellcaster who heals, controls the battlefield, and later transforms into beasts.',Fighter:'A straightforward weapon-and-armor expert with reliable accuracy and durability. Excellent for new players.',Monk:'A fast, unarmored martial artist with rapid strikes, mobility, and strong defenses.',Paladin:'A holy warrior who combines armor, healing, oaths, and explosive Divine Smite damage.',Ranger:'A mobile hunter skilled with bows or two weapons, tracking, wilderness travel, and nature magic.',Rogue:'A stealth and skill expert who deals heavy Sneak Attack damage and handles locks and traps.',Sorcerer:'An innate spellcaster with powerful magic and flexible Metamagic, balanced by low durability.',Warlock:'A pact-bound spellcaster with reliable Eldritch Blast attacks and story hooks tied to a patron.',Wizard:'A fragile but exceptionally versatile prepared spellcaster with the broadest spellbook.',Artificer:'A magical inventor who combines tools, crafted equipment, and support magic.'
 };
 const RACE_TIPS_EN={
-  Human:'Adaptable and flexible: one extra skill, an Origin Feat, and Heroic Inspiration. Works with every class.',Elf:'Keen senses, Darkvision, Fey Ancestry, and Trance. A natural fit for Ranger, Rogue, or Wizard.', 'Drow (Dark Elf)':'Superior Darkvision and innate magic, balanced by Sunlight Sensitivity.',Dwarf:'Durable, poison-resistant, and knowledgeable about stonework. Strong as a Fighter or Cleric.',Halfling:'Small, brave, nimble, and famously Lucky. Strong as a Rogue or Bard.','Half-Elf':'Socially gifted with Darkvision, Fey Ancestry, and two additional skill proficiencies.','Half-Orc':'Powerful and hard to drop, with Relentless Endurance and stronger melee critical hits.',Tiefling:'Fire-resistant with Darkvision and innate infernal magic. Strong as a Warlock or Sorcerer.',Dragonborn:'Choose a draconic damage type for your breath weapon and matching resistance.',Gnome:'Small, clever, magically resilient, and gifted with Darkvision.',Aasimar:'Celestial heritage grants healing, Darkvision, and radiant and necrotic resistance.',Goliath:'A mountain-born powerhouse with strong carrying capacity, cold resistance, and damage reduction.',Orc:'Strong, aggressive, and difficult to drop, with Darkvision and Relentless Endurance.'
+  Human:'Variant Human (2014): add +1 to two different ability scores, gain one extra skill proficiency, and choose one feat from the FEATS card. Works with every class.',Elf:'Keen senses, Darkvision, Fey Ancestry, and Trance. A natural fit for Ranger, Rogue, or Wizard.', 'Drow (Dark Elf)':'Superior Darkvision and innate magic, balanced by Sunlight Sensitivity.',Dwarf:'Durable, poison-resistant, and knowledgeable about stonework. Strong as a Fighter or Cleric.',Halfling:'Small, brave, nimble, and famously Lucky. Strong as a Rogue or Bard.','Half-Elf':'Socially gifted with Darkvision, Fey Ancestry, and two additional skill proficiencies.','Half-Orc':'Powerful and hard to drop, with Relentless Endurance and stronger melee critical hits.',Tiefling:'Fire-resistant with Darkvision and innate infernal magic. Strong as a Warlock or Sorcerer.',Dragonborn:'Choose a draconic damage type for your breath weapon and matching resistance.',Gnome:'Small, clever, magically resilient, and gifted with Darkvision.',Aasimar:'Celestial heritage grants healing, Darkvision, and radiant and necrotic resistance.',Goliath:'A mountain-born powerhouse with strong carrying capacity, cold resistance, and damage reduction.',Orc:'Strong, aggressive, and difficult to drop, with Darkvision and Relentless Endurance.'
 };
 function _tipShow(id,txt){ const el=$(id); if(!el) return; if(txt){ el.textContent=txt; el.classList.remove('hidden'); } else el.classList.add('hidden'); }
 function onClassChange(){
@@ -3556,7 +3558,7 @@ function onClassChange(){
 }
 function raceValue(){ const sel=$('cRace'); if(!sel) return ''; return sel.value==='__custom' ? (($('cRaceCustom')||{}).value||'').trim() : (sel.value||'').trim(); }
 function onRaceChange(){ const sel=$('cRace'),cu=$('cRaceCustom'); if(!sel||!cu) return; if(sel.value==='__custom'){ cu.classList.remove('hidden'); cu.focus(); } else { cu.classList.add('hidden'); cu.value=''; } _tipShow('cRaceInfo', (uiLanguage()==='en'?RACE_TIPS_EN:RACE_TIPS)[sel.value]||'');
-  // v291: ตัวเลือกธาตุสายมังกร (Dragonborn) + รีเฟรชสกิล/โบนัส (Human +1 สกิล/+1 ค่าสถานะ · Half-Elf +2 สกิล)
+  // รีเฟรชตัวเลือกธาตุสายมังกร + สกิล/โบนัส (2014 Variant Human: +1 สกิล/+1 สองค่าสถานะ · Half-Elf +2 สกิล)
   const de=$('cDragonElem'); if(de){ if(raceKey()==='dragonborn') de.classList.remove('hidden'); else de.classList.add('hidden'); }
   try{ renderSkillPick(); renderBonus(); }catch(e){}
 }
@@ -3714,9 +3716,8 @@ let chosenSkills=[];
 let chosenSpells=[];   // {slug,name,level,effect} ที่เลือกตอนสร้างตัว (สายเวท)
 let dragonbornElement='fire';   // v291: ธาตุสายมังกร (Dragonborn) → sheet.dragonborn_element (resist + Breath Weapon)
 const RACE_FEATURES={
-  human:[{name:'Skillful (Human)',description:'มนุษย์ปรับตัวเก่ง — ได้ทักษะถนัดเพิ่ม +1 ตอนสร้างตัวละคร (2024 Human)',max_uses:0,recharge:'passive'},
-         {name:'Versatile (Human)',description:'ได้ Origin feat เพิ่ม 1 อย่าง ตอนสร้างตัวละคร — เลือกในการ์ด "คุณสมบัติพิเศษ · FEATS" (2024 Human Versatile)',max_uses:0,recharge:'passive'},
-         {name:'Heroic Inspiration',description:'ความเก๋าของมนุษย์ — จบ long rest ได้ Heroic Inspiration 1 แต้ม: ทอย d20 ใหม่ได้ 1 ครั้งเมื่อทอยพลาด ใช้ผลใหม่ (1 ครั้ง/long rest · 2024 Human Resourceful)',max_uses:1,recharge:'long'}],
+  human:[{name:'Skillful (Human)',description:'มนุษย์สาย Variant ปรับตัวเก่ง — ได้ทักษะถนัดเพิ่ม 1 อย่างตามที่เลือกตอนสร้างตัวละคร',max_uses:0,recharge:'passive'},
+         {name:'Feat (Variant Human)',description:'ได้ feat เพิ่ม 1 อย่างตอนสร้างตัวละคร — เลือกจากรายการที่ระบบรองรับในการ์ด "คุณสมบัติพิเศษ · FEATS"',max_uses:0,recharge:'passive'}],
   elf:[{name:'Darkvision',description:'มองเห็นในที่มืดสลัวได้ไกล 60 ฟุต (เป็นโทนสีเทา)',max_uses:0,recharge:'passive'},
        {name:'Fey Ancestry',description:'ได้เปรียบเซฟต้านการสะกดจิต (charm) และเวทมนตร์ทำให้คุณหลับไม่ได้',max_uses:0,recharge:'passive'},
        {name:'Trance',description:'พักผ่อนเต็มที่ด้วยการเข้าภวังค์เพียง 4 ชม. (แทน 8 ชม.)',max_uses:0,recharge:'passive'},
@@ -3836,6 +3837,7 @@ async function createCharacter(){
   if(!($('cSex')&&$('cSex').value||'').trim()){ toast(uiText('builder.sexRequired'),true); const _e=$('cSex'); if(_e){try{_e.focus();_e.scrollIntoView({block:'center'});}catch(x){}} return; }
   if(lang==='en'&&[name,classValue(),raceValue()].some(v=>UI18N.latinPublicTextVerdict(v)!=='ok')){toast(uiText('builder.publicLatinRequired'),true);return;}
   if(_catalogBlocked){toast(uiText('builder.catalogBlocked'),true);return;}
+  if(raceKey()==='human'&&!variantHumanAbilityPicksValid('human',bonusPick.a,bonusPick.b)){toast(uiCopy('Human 2014 Variant ต้องเลือกค่าสถานะ +1 สองค่าที่ต่างกัน','Variant Human (2014) must choose two different ability scores for its +1 bonuses.'),true);const _e=$('bonusWrap');if(_e){try{_e.scrollIntoView({block:'center'});}catch(x){}}return;}
   // v643 FIX-9 (BUGPLAN_2026-07-17 A8 — เคสจริง playtest 07-16: PC สถิติ 8 ทั้งแถบเข้าเกมเงียบๆ): บังคับกระจาย point buy ให้ครบก่อน
   if(typeof pbSpent==='function' && pbSpent() < PB_BUDGET){ toast(uiText('builder.pointsRemaining',{n:PB_BUDGET-pbSpent()}),true); const _e=$('pbWrap'); if(_e){try{_e.scrollIntoView({block:'center'});}catch(x){}} return; }
   $('charBtn').disabled=true;
@@ -6202,7 +6204,7 @@ async function unequipItem(slot){
   }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ของเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderItems(); } else toast('ถอดไม่สำเร็จ',true); }
 }
 // ───────── render: skills (ตาราง skills + fallback) ─────────
-const _RACE_NAMES=(()=>{const x=new Set();try{Object.values(RACE_FEATURES).forEach(a=>a.forEach(f=>x.add((f.name||'').toLowerCase())));}catch(e){}return x;})();
+const _RACE_NAMES=(()=>{const x=new Set(['heroic inspiration','resourceful','แรงบันดาลใจฮีโร่']);try{Object.values(RACE_FEATURES).forEach(a=>a.forEach(f=>x.add((f.name||'').toLowerCase())));}catch(e){}return x;})();   // ชื่อ legacy คงไว้เพื่อให้ชีท Human เก่าแสดงหมวดเผ่าได้โดยไม่มอบ trait นี้ให้ตัวใหม่
 const _CLASS_FNAMES=(()=>{const x=new Set();try{Object.values(CLASS_FEATURES).forEach(a=>a.forEach(f=>x.add((f.name||'').toLowerCase())));}catch(e){}return x;})();
 function skillCat(s){ const n=(s.name||'').toLowerCase(); if(_RACE_NAMES.has(n)) return 'race'; if(_CLASS_FNAMES.has(n)) return 'class'; return 'spell'; }
 function rechLabel(r){ return ({long:'LONG REST',short:'SHORT REST',atwill:'AT WILL',passive:'PASSIVE'})[r]||String(r||'').toUpperCase(); }
@@ -6308,7 +6310,6 @@ const FEAT_OPTS=[
   {id:'heavy-armor-master', label:'Heavy Armor Master (จอมเกราะหนัก)', desc:'สวมเกราะหนัก (Plate/Splint/Ring Mail/Chain Mail): ลดดาเมจ bludgeoning/piercing/slashing ที่ไม่ใช่เวท −3 ✅ บังคับจริง (RAW: ไม่มี +1 AC)'},
   {id:'defensive-duelist', label:'Defensive Duelist (นักดวลรับ)', desc:'ถืออาวุธ finesse (กริช/ดาบสั้น/rapier/scimitar/whip): ถูกตีประชิด → reaction +โบนัสความชำนาญ AC (อาจพลิก โดน→พลาด) ✅ บังคับจริง (1 reaction/รอบ)'},
 ];
-const ORIGIN_FEAT_IDS=['tough','alert','lucky','savage-attacker'];   // v466 Versatile: Origin feats (2024) ที่ implement แล้ว — ช่อง Origin ของ Human เลือกได้เฉพาะนี้
 const RESILIENT_ABILS=[['con','CON'],['dex','DEX'],['str','STR'],['wis','WIS'],['int','INT'],['cha','CHA']];
 function _resilientAbil(featsArr){   // ดึง ability ที่เลือกจาก slug resilient-<ab> (default con)
   for(var i=0;i<(featsArr||[]).length;i++){ var m=String(featsArr[i]||'').toLowerCase().match(/resilient[- ]?(str|dex|con|int|wis|cha)/); if(m) return m[1]; }
@@ -6354,8 +6355,8 @@ function _asiSlots(cls, level){   // RAW PHB: จำนวนช่อง ASI/fe
 }
 function renderFeatCard(p){
   const lvl=+(myChar&&myChar.level)||1; const cls=String(myChar&&myChar.class||'');
-  const _rcV=String((mySheet||{}).race||'').trim().toLowerCase(); const _isHumanV=(_rcV==='human'||_rcV==='มนุษย์');   // v466 Versatile: Human ได้ Origin feat +1 ช่อง (ตอนสร้างตัว)
-  const asiSlots=_asiSlots(cls, lvl); const originBonus=_isHumanV?1:0; const slots=asiSlots+originBonus;
+  const _rcV=String((mySheet||{}).race||'').trim().toLowerCase(); const _isHumanV=(_rcV==='human'||_rcV==='มนุษย์');
+  const asiSlots=_asiSlots(cls, lvl); const variantHumanBonus=_isHumanV?1:0; const slots=asiSlots+variantHumanBonus;
   const featsArr=Array.isArray((mySheet||{}).feats)?(mySheet.feats):[];
   const used=featsArr.length;
   /* v531d (feedback Koon 07-05): การ์ด FEATS พับได้ (มิเรอร์หมวดสกิล v182 — จำสถานะใน session · ดีฟอลต์ย่อ) + ฟอนต์เล็กลงผ่าน .sk-feats — รายการ feat ยาวกินพื้นที่ทั้งคอลัมน์/ตัวใหญ่เกิน */
@@ -6368,13 +6369,11 @@ function renderFeatCard(p){
     p.appendChild(card); return;
   }
   const curIds=featsArr.map(_featMatch).filter(Boolean);
-  const _isOriginFeat=function(id){ return ORIGIN_FEAT_IDS.indexOf(id)>=0; };   // v466 Versatile
-  const generalPicked=curIds.filter(function(id){ return !_isOriginFeat(id); }).length;   // feat ทั่วไปกินเฉพาะช่อง ASI (Origin feat ใช้ช่อง Versatile/ASI ก็ได้)
-  let html=head+'<div class="muted" style="font-size:.85em;margin-bottom:6px">ช่อง feat: <b>'+used+'/'+slots+'</b> ใช้แล้ว (1 ช่องต่อ ASI · L4/8/12/16/19'+(/fighter|นักรบ|นักสู้/i.test(cls)?' +Fighter L6/14':'')+(/rogue|โจร/i.test(cls)?' +Rogue L10':'')+(originBonus?' · +1 Origin feat (เผ่า Human — ช่องนี้เลือกได้เฉพาะ Origin feat: Tough/Alert/Lucky/Savage Attacker)':'')+')</div>';
+  const variantHumanNote=variantHumanBonus?uiCopy(' · +1 feat จากเผ่า Human สาย Variant (กฎ 2014 — เลือกได้ทุก feat ที่ระบบรองรับ)',' · +1 feat from Variant Human (2014 — choose any supported feat)'):'';
+  let html=head+'<div class="muted" style="font-size:.85em;margin-bottom:6px">ช่อง feat: <b>'+used+'/'+slots+'</b> ใช้แล้ว (1 ช่องต่อ ASI · L4/8/12/16/19'+(/fighter|นักรบ|นักสู้/i.test(cls)?' +Fighter L6/14':'')+(/rogue|โจร/i.test(cls)?' +Rogue L10':'')+variantHumanNote+')</div>';
   html+=FEAT_OPTS.map(function(o){
     const on=curIds.indexOf(o.id)>=0;
-    const _orig=_isOriginFeat(o.id);   // v466 Versatile: feat ทั่วไปใช้ได้เฉพาะช่อง ASI · Origin feat ใช้ช่องไหนก็ได้ (Human L1 จึงเลือกได้เฉพาะ Origin feat)
-    const dis=(!on) && (_orig ? (used>=slots) : (generalPicked>=asiSlots || used>=slots));
+    const dis=(!on) && used>=slots;
     let extra='';
     if(o.ability && on){   // v357 Resilient: เลือก ability ที่ชำนาญเซฟ (slug resilient-<ab>)
       const curAb=_resilientAbil(featsArr);
