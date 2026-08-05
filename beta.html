@@ -2084,7 +2084,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608050850;   // v850 frontend: server-owned quest affordance controls on Story + Quest surfaces
+const FRONTEND_BUILD = 202608050854;   // v854 frontend: folded clue journal + exact quest-evidence truth
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -5966,13 +5966,37 @@ async function retryQuestRewards(btn){
   }catch(e){ toast(e.message||uiCopy('เล่นรางวัลซ้ำไม่สำเร็จ','Reward replay failed'),true); }
   finally{ if(btn) btn.disabled=false; }
 }
+function questClueProjection(questRows,clueRows){
+  const quests=Array.isArray(questRows)?questRows:[], clues=Array.isArray(clueRows)?clueRows:[];
+  const groups=quests.map(quest=>({quest,quest_id:String((quest&&quest.id)||''),evidence:[],related:[]}));
+  const used=new Set();
+  // Exact server ownership wins before any fuzzy title match, so a real quest clue can never be borrowed by another quest.
+  groups.forEach(group=>{
+    if(!group.quest_id) return;
+    clues.forEach((clue,index)=>{
+      if(used.has(index)||String((clue&&clue.quest_id)||'')!==group.quest_id) return;
+      group.evidence.push(clue); used.add(index);
+    });
+  });
+  groups.forEach(group=>{
+    const title=String((group.quest&&group.quest.title)||'').toLowerCase().trim(); if(!title) return;
+    clues.forEach((clue,index)=>{
+      if(used.has(index)||String((clue&&clue.quest_id)||'').trim()) return;
+      const mystery=String((clue&&clue.mystery)||'').toLowerCase().trim(); if(!mystery) return;
+      if(mystery===title||mystery.includes(title)||title.includes(mystery)){ group.related.push(clue); used.add(index); }
+    });
+  });
+  const rest=clues.filter((_,index)=>!used.has(index));
+  const displayed_count=groups.reduce((n,group)=>n+group.evidence.length+group.related.length,0)+rest.length;
+  return {groups,rest,displayed_count};
+}
 async function renderQuest(){
   // v87: แท็บ Quest ใช้งานจริง — เควส active พร้อม hint ที่ทยอยได้ (จาก clues ผูกชื่อเควส) + เควสที่จบแล้ว + เบาะแสอื่น
   const _hostQ=$('panel-quest'); _hostQ.innerHTML='<div class="sk-cols"></div>'; const p=_hostQ.firstElementChild;   /* v531c: multicol บน wrapper (มิเรอร์ skills) */
   const FONT="font-family:inherit";   /* v610f: inherit — classic ได้ IBM Plex จาก body เท่าเดิม · สกิน paper cascade Trirong ได้ (เดิม inline ทับทุกสกิน) */
   let quests=[], cls=[], rewardJobs=[];
   try{ const r=await supa.from('quests').select('*').eq('campaign_id',campaign.id).order('created_at',{ascending:false}); quests=r.data||[]; }catch(e){}
-  try{ const r=await supa.from('clues').select('mystery,clue,created_at').eq('campaign_id',campaign.id).order('created_at',{ascending:true}).limit(120); cls=r.data||[]; }catch(e){}
+  try{ const r=await supa.from('clues').select('quest_id,mystery,clue,created_at').eq('campaign_id',campaign.id).order('created_at',{ascending:true}).limit(120); cls=r.data||[]; }catch(e){}
   try{ const r=await supa.from('quest_reward_jobs').select('id,quest_id,quest_title,state,xp_per_character,gold_per_character,loot_name,planned_recipients,attempt_count,updated_at,completed_at').eq('campaign_id',campaign.id).order('created_at',{ascending:false}).limit(40); if(!r.error) rewardJobs=r.data||[]; }catch(e){}
   // v772 G4: durable reward state is visible independently from narration.
   // No raw database error is shown; the host gets an explicit idempotent replay action.
@@ -6047,12 +6071,13 @@ async function renderQuest(){
   }catch(e){}
   // v178: ซ่อนเบาะแสที่เป็น 'ผลการต่อสู้' (กำจัด/พ่ายแพ้/หนีไป/ศึกจบ) — ไม่ใช่เบาะแสสืบสวน (server กันใหม่ + อันเก่ายังค้างใน DB)
   const CLUE_COMBAT=/(การต่อสู้สิ้นสุด|จบการต่อสู้|ชนะการต่อสู้|พ่ายแพ้|ถูกกำจัด|ถูกสังหารหมด|กำจัดหมดแล้ว|หนีไปแล้ว|defeated|slain|victory)/i;
-  cls=cls.filter(c=>!CLUE_COMBAT.test(String(c.mystery||''))&&!CLUE_COMBAT.test(String(c.clue||'')));
+  cls=cls.filter(c=>!CLUE_COMBAT.test(String(c.mystery||''))&&!CLUE_COMBAT.test(String(c.clue||''))).slice().reverse();   // v854 U1-R1: query/limit เดิม; แสดงใหม่สุดก่อนโดยไม่ตัดแถว
   // กันเควสซ้ำในการแสดงผล (เผื่อมีชื่อซ้ำค้างใน DB) — เก็บอันล่าสุดต่อชื่อ
   const seen=new Set();
   const dedup=quests.filter(q=>{ const k=String(q.title||'').toLowerCase().trim(); if(seen.has(k))return false; seen.add(k); return true; });
   const active=dedup.filter(q=>q.status==='active');
   const ended=dedup.filter(q=>q.status==='completed'||q.status==='failed');   // v178: ซ่อน 'merged' (เควสรวมซ้ำ ไม่ใช่เควสที่สำเร็จ)
+  const clueProjection=questClueProjection(active.concat(ended),cls);
   const questAffordances=questAffordancesForUi();
   const acceptAffordances=questAffordances.filter(aff=>aff.operation==='accept');
   const turnInAffordances=questAffordances.filter(aff=>aff.operation==='turn_in');
@@ -6080,35 +6105,18 @@ async function renderQuest(){
     const who=hk.npc?(' · '+String(hk.npc)):(hk.faction?(' · '+String(hk.faction)):'');
     return ' <span style="font-weight:600;font-size:11px;color:'+x[1]+';border:1px dashed '+x[1]+';border-radius:6px;padding:0 6px;white-space:nowrap">'+x[0]+escapeHtml(who)+'</span>'; };
   const bpTitle=(q)=>escapeHtml(String(q.title||'').replace(/^[\s💀⭐]+/,''));   // ตัดอิโมจิหน้าชื่อ (ป้ายแสดงแยกแล้ว)
-  // จับคู่เบาะแส → เควส: clue.mystery ตรง/คาบเกี่ยวกับชื่อเควส (ที่เหลือเข้าสมุดเบาะแสรวม)
-  const usedClue=new Set();
-  const hintsFor=(q)=>{
-    const t=String(q.title||'').toLowerCase().trim(); if(!t) return [];
-    return cls.filter((c,i)=>{
-      if(usedClue.has(i)) return false;
-      const m=String(c.mystery||'').toLowerCase().trim(); if(!m) return false;
-      const hit=(m===t)||m.includes(t)||t.includes(m);
-      if(hit) usedClue.add(i);
-      return hit;
-    }).map(c=>c.clue);
-  };
   if(!active.length&&!acceptAffordances.length){ const d=document.createElement('div'); d.className='muted'; d.textContent=uiCopy('ยังไม่มีเควสที่กำลังทำ','No active quests yet'); p.appendChild(d); }
   // เควสที่กำลังทำ — ดรอปดาวน์ทีละเควส (ลดความรก) · เปิดเควสแรกไว้ให้เห็นทันที
   const mountedTurnInIds=new Set();
   active.forEach((q,qi)=>{
-    const hints=hintsFor(q);
     const det=document.createElement('details'); det.className='item'; det.style.cssText=FONT; if(qi===0) det.open=true;
     const sum=document.createElement('summary'); sum.style.cssText='cursor:pointer;font-weight:700;font-size:15px;padding:4px 0;'+FONT;
-    sum.innerHTML=bpTitle(q)+bpBadge(q)+hookBadge(q)+(hints.length?(' <span style="font-weight:400;font-size:12px;color:#FAC775">('+hints.length+' เบาะแส)</span>'):'');
+    sum.innerHTML=bpTitle(q)+bpBadge(q)+hookBadge(q);
     det.appendChild(sum);
     const body=document.createElement('div'); body.style.cssText=FONT+';text-align:left;padding:2px 0 4px';
     let html=q.description?('<div style="font-size:13px;color:#bbb;line-height:1.6">'+escapeHtml(q.description)+'</div>'):'';
     if(q.blueprint&&q.blueprint.hint) html+='<div style="font-size:12px;color:#9a9a9a;margin-top:4px">🔎 '+escapeHtml(String(q.blueprint.hint))+'</div>';   // v194: คำใบ้สาธารณะ
-    if(hints.length){
-      html+='<div style="font-size:12px;color:#FAC775;margin-top:6px">เบาะแสที่ได้</div>'+
-            '<div style="font-size:13px;line-height:1.7;color:#ccc">'+hints.map(h=>'<div>– '+escapeHtml(String(h))+'</div>').join('')+'</div>';
-    }
-    body.innerHTML=html||'<div class="muted" style="font-size:13px">ยังไม่มีรายละเอียด/เบาะแส</div>';
+    body.innerHTML=html||('<div class="muted" style="font-size:13px">'+escapeHtml(uiCopy('ยังไม่มีรายละเอียด','No details yet'))+'</div>');
     const turnIn=turnInAffordances.find(aff=>String(aff.id)===String(q.id)||String(aff.source_id)===String(q.id));
     if(turnIn){ mountedTurnInIds.add(turnIn.id); const button=document.createElement('button'); button.type='button'; button.className='btn sm'; button.style.marginTop='8px'; button.textContent=questAffordanceLabel(turnIn); button.disabled=!!window._questAffordanceSubmitting||!!resolving; button.onclick=()=>submitQuestAffordance(turnIn); body.appendChild(button); }
     det.appendChild(body);
@@ -6126,33 +6134,54 @@ async function renderQuest(){
     sum.textContent='เควสที่จบแล้ว ('+ended.length+')';
     det.appendChild(sum);
     ended.forEach(q=>{
-      const hints=hintsFor(q);
       const row=document.createElement('div'); row.style.cssText=FONT+';border-top:1px solid #333;padding:6px 0;text-align:left';
       row.innerHTML='<div style="font-size:14px;font-weight:600">'+bpTitle(q)+bpBadge(q)+hookBadge(q)+' <span style="font-weight:400;font-size:12px;color:'+(q.status==='completed'?'#97C459':'#E24B4A')+'">'+(q.status==='completed'?'สำเร็จ':'ล้มเหลว')+'</span></div>'+
-                    (q.description?'<div style="font-size:13px;color:#9a9a9a">'+escapeHtml(q.description)+'</div>':'')+
-                    (hints.length?'<div style="font-size:12px;color:#888;margin-top:3px">'+hints.map(h=>'<div>– '+escapeHtml(String(h))+'</div>').join('')+'</div>':'');
+                    (q.description?'<div style="font-size:13px;color:#9a9a9a">'+escapeHtml(q.description)+'</div>':'');
       det.appendChild(row);
     });
     p.appendChild(det);
   }
-  // ── สมุดเบาะแสรวม — เฉพาะปมที่ไม่ผูกกับเควสใด (ของที่ผูกแล้วโชว์ใต้เควสไปแล้ว) ──
+  // ── v854 U1-R1: สมุดเบาะแสพับได้อยู่นอก multi-column ของเควส จึงอยู่ใต้เควส/ปุ่มเสมอ ──
   try{
-    const rest=cls.filter((c,i)=>!usedClue.has(i));
-    if(rest.length){
-      const card=document.createElement('div'); card.className='item';
-      card.innerHTML='<div style="'+FONT+';font-size:15px;font-weight:700;text-align:left;padding:2px 0 6px;border-bottom:1px solid #444;margin-bottom:6px">สมุดเบาะแส <span style="font-weight:400;font-size:12px;color:#9a9a9a">'+rest.length+' รายการ — ปมอื่นที่ปาร์ตี้ค้นพบ</span></div>';
-      const byM={};
-      rest.forEach(c=>{const m=String(c.mystery||'ทั่วไป');(byM[m]=byM[m]||[]).push(c.clue);});
-      Object.keys(byM).forEach(m=>{
-        const det=document.createElement('details'); det.style.cssText='border:1px solid #444;border-radius:8px;margin:5px 0;padding:4px 10px;'+FONT;
-        const sum=document.createElement('summary'); sum.style.cssText='cursor:pointer;font-size:14px;font-weight:600;padding:4px 0;'+FONT;
-        sum.textContent=m+' ('+byM[m].length+')';
-        const body=document.createElement('div'); body.style.cssText=FONT+';font-size:13px;line-height:1.7;text-align:left;padding:2px 0 6px;color:#ccc';
-        body.innerHTML=byM[m].map(x=>'<div>– '+escapeHtml(String(x))+'</div>').join('');
-        det.appendChild(sum); det.appendChild(body); card.appendChild(det);
+    const clueFold=document.createElement('details'); clueFold.className='item sk-cardgrp sk-fold quest-clue-fold'; clueFold.style.cssText=FONT;
+    const summary=document.createElement('summary'), head=document.createElement('div'); head.className='sk-head';
+    const title=document.createElement('span'); title.textContent='🔎 '+uiCopy('สมุดเบาะแส','Clue journal');
+    const count=document.createElement('span'); count.className='sk-cnt'; count.textContent='('+clueProjection.displayed_count+')';
+    const arrow=document.createElement('span'); arrow.className='sk-arw'; arrow.textContent='▸';
+    head.appendChild(title); head.appendChild(count); head.appendChild(arrow); summary.appendChild(head); clueFold.appendChild(summary);
+    const foldBody=document.createElement('div'); foldBody.className='quest-clue-fold-body'; foldBody.style.cssText=FONT+';padding:6px 2px 2px';
+    const truth=document.createElement('div'); truth.className='note'; truth.style.cssText='text-align:left;margin:0 0 8px'; truth.textContent=uiCopy('จำนวนด้านล่างบอกการผูกข้อมูลเท่านั้น ปุ่มส่งงานมาจากระบบเกม','The counts below show data links only; turn-in controls come from the game service.'); foldBody.appendChild(truth);
+    const appendRows=(holder,rows)=>{
+      const grouped=new Map();
+      rows.forEach(clue=>{ const mystery=String((clue&&clue.mystery)||'').trim()||uiCopy('ทั่วไป','General'); if(!grouped.has(mystery)) grouped.set(mystery,[]); grouped.get(mystery).push(clue); });
+      grouped.forEach((items,mystery)=>{
+        const group=document.createElement('div'); group.className='quest-clue-mystery'; group.style.cssText='margin:7px 0 0';
+        const groupHead=document.createElement('div'); groupHead.style.cssText='font-size:12px;font-weight:700;color:#9a9a9a'; groupHead.textContent=mystery+' ('+items.length+')'; group.appendChild(groupHead);
+        items.forEach(clue=>{ const row=document.createElement('div'); row.className='quest-clue-row'; row.style.cssText='font-size:13px;line-height:1.7;color:#ccc'; row.textContent='– '+String((clue&&clue.clue)||''); group.appendChild(row); });
+        holder.appendChild(group);
       });
-      p.appendChild(card);
+    };
+    const appendCategory=(holder,label,rows,note)=>{
+      const section=document.createElement('div'); section.className='quest-clue-category'; section.style.cssText='margin:8px 0 0;padding-top:7px;border-top:1px solid #333;text-align:left';
+      const categoryHead=document.createElement('div'); categoryHead.style.cssText='font-size:13px;font-weight:800'; categoryHead.textContent=label+' ('+rows.length+')'; section.appendChild(categoryHead);
+      if(note){ const categoryNote=document.createElement('div'); categoryNote.className='muted'; categoryNote.style.cssText='font-size:11px;margin-top:2px'; categoryNote.textContent=note; section.appendChild(categoryNote); }
+      if(rows.length) appendRows(section,rows); else { const empty=document.createElement('div'); empty.className='muted quest-clue-empty'; empty.style.cssText='font-size:12px;margin-top:4px'; empty.textContent=uiCopy('ยังไม่มีรายการ','None yet'); section.appendChild(empty); }
+      holder.appendChild(section);
+    };
+    if(!cls.length){ const empty=document.createElement('div'); empty.className='muted quest-clue-empty'; empty.style.cssText='text-align:left;font-size:13px'; empty.textContent=uiCopy('ยังไม่มีคำใบ้ที่ปาร์ตี้ค้นพบ','The party has not discovered any clues yet.'); foldBody.appendChild(empty); }
+    else{
+      const activeIds=new Set(active.map(q=>String(q.id||'')));
+      clueProjection.groups.forEach(group=>{
+        if(!activeIds.has(group.quest_id)&&!group.evidence.length&&!group.related.length) return;
+        const questGroup=document.createElement('section'); questGroup.className='quest-clue-quest'; questGroup.style.cssText='margin:9px 0 0';
+        const questHead=document.createElement('div'); questHead.style.cssText='font-size:14px;font-weight:800;text-align:left'; questHead.textContent=uiCopy('เควส: ','Quest: ')+String((group.quest&&group.quest.title)||''); questGroup.appendChild(questHead);
+        appendCategory(questGroup,uiCopy('หลักฐานของเควสนี้','Evidence for this quest'),group.evidence,uiCopy('นับเฉพาะรายการที่ระบบผูกกับเควสนี้','Only clues linked to this quest by the game are shown here.'));
+        appendCategory(questGroup,uiCopy('เบาะแสที่เกี่ยวข้อง','Related clues'),group.related,uiCopy('อ่านประกอบได้ แต่ไม่ใช่หลักฐานผูกเควส','Useful context, but not quest-linked evidence.'));
+        foldBody.appendChild(questGroup);
+      });
+      if(clueProjection.rest.length) appendCategory(foldBody,uiCopy('เบาะแสอื่น','Other clues'),clueProjection.rest,uiCopy('จัดกลุ่มตามปมที่บันทึกไว้','Grouped by recorded mystery.'));
     }
+    clueFold.appendChild(foldBody); _hostQ.appendChild(clueFold);
   }catch(e){}
 }
 
