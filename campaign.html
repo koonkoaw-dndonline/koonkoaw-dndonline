@@ -2084,7 +2084,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608050254;   // v847 frontend: authoritative selection wake + bounded convergence
+const FRONTEND_BUILD = 202608050850;   // v850 frontend: server-owned quest affordance controls on Story + Quest surfaces
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2120,6 +2120,54 @@ async function submitActionV2(round, characterId, text, structured){
   try{ sessionStorage.removeItem(req.slot); }catch(e){}
   return rpc.data;
 }
+// v850 QUEST AFFORDANCE CONTROL: the server owns availability.  The client only
+// projects the exact response wire and fails closed when either language label
+// or an intent-binding field is absent; it never derives expiry or eligibility.
+function questAffordanceLogReject(reason, affordance, source){
+  try{ console.warn('[quest-affordance] hidden fail-closed',{reason:String(reason||'invalid_wire_shape'),source:String(source||'unknown'),id:String(affordance&&affordance.id||''),operation:String(affordance&&affordance.operation||'')}); }catch(e){}
+}
+function questAffordanceNormalize(affordance, source){
+  if(!affordance||typeof affordance!=='object'||Array.isArray(affordance)) return null;
+  const operation=String(affordance.operation||'');
+  if(operation!=='accept'&&operation!=='turn_in') return null;   // inventory affordances share some preserve responses; they are not quest controls
+  const id=String(affordance.id||'').trim(), labelTh=String(affordance.label_th||'').trim(), labelEn=String(affordance.label_en||'').trim();
+  if(!labelTh||!labelEn){ questAffordanceLogReject('missing_language_label',affordance,source); return null; }
+  const sourceKind=String(affordance.source_kind||'').trim(), sourceId=String(affordance.source_id||'').trim(), publicTitle=String(affordance.public_title||'').trim();
+  if(!id||!sourceKind||!sourceId||!publicTitle){ questAffordanceLogReject('invalid_wire_shape',affordance,source); return null; }
+  return {id:id,operation:operation,source_kind:sourceKind,source_id:sourceId,public_title:publicTitle,public_premise:String(affordance.public_premise||'').trim(),label_th:labelTh,label_en:labelEn};
+}
+function setQuestAffordancesFromResponse(payload, source){
+  if(!payload||typeof payload!=='object'||!Object.prototype.hasOwnProperty.call(payload,'affordances')) return {present:false,count:(window._questAffordances||[]).length};
+  if(!Array.isArray(payload.affordances)){ questAffordanceLogReject('affordances_not_array',null,source); window._questAffordances=[]; return {present:true,count:0}; }
+  const candidates=payload.affordances.filter(aff=>aff&&(aff.operation==='accept'||aff.operation==='turn_in'));
+  if(payload.affordances.length&&!candidates.length) return {present:false,count:(window._questAffordances||[]).length};   // an inventory-only preserve response does not overwrite the quest surface
+  const seen=new Set(), next=[];
+  candidates.forEach(raw=>{ const aff=questAffordanceNormalize(raw,source); if(!aff) return; const key=aff.operation+':'+aff.id; if(seen.has(key)) return; seen.add(key); next.push(aff); });
+  window._questAffordances=next;
+  return {present:true,count:next.length};
+}
+function questAffordancesForUi(){ return Array.isArray(window._questAffordances)?window._questAffordances.slice():[]; }
+function questAffordanceLabel(affordance){ return uiCopy(String(affordance.label_th),String(affordance.label_en)); }
+function questAffordanceIntent(affordance, actorCharacterId){
+  return {version:1,kind:'player_quest',operation:affordance.operation,target:{kind:affordance.operation==='accept'?'quest_offer':'active_quest',id:affordance.id},source:{kind:affordance.source_kind,id:affordance.source_id},actor_character_id:String(actorCharacterId)};
+}
+async function submitQuestAffordance(affordance){
+  if(gateBeforePlay()||window._questAffordanceSubmitting||resolving) return;
+  const aff=questAffordanceNormalize(affordance,'button');
+  if(!aff||!curRound||!myChar){ toast(uiCopy('(แก้: ยังส่งตัวเลือกเควสไม่ได้ เพราะข้อมูลรอบหรือตัวละครไม่ครบ)','(Fixed: the quest choice cannot be submitted because round or character data is incomplete.)'),true); return; }
+  window._questAffordanceSubmitting=true;
+  try{
+    const repair=window._actionRepair&&String(window._actionRepair.round_id||'')===String(curRound.id)?window._actionRepair:null;
+    if(repair&&repair.action_id){ const released=await retractActionForEdit(repair.action_id,''); if(!released) return; }
+    const saved=await submitActionV2(curRound,myChar.id,questAffordanceLabel(aff),{player_quest:questAffordanceIntent(aff,myChar.id)});
+    if(!saved||!saved.action_id) throw new Error(uiCopy('(แก้: ตัวเลือกเควสยังไม่มีหลักฐานยืนยัน จึงยังไม่ดำเนินรายการ)','(Fixed: the quest choice had no confirmation, so it was not processed.)'));
+    window._actionEditDraft=''; window._actionRepair=null;
+    toast(uiCopy('ส่งตัวเลือกเควสแล้ว ✓','Quest choice submitted ✓'));
+    await loadRound(); renderRoundbar(); window._afterSubmit=true; await resolveRound(false);
+    if(activeTab()==='quest') await renderQuest();
+  }catch(e){ toast(e.message||uiCopy('(แก้: ส่งตัวเลือกเควสไม่สำเร็จ — ยังไม่มีสถานะเควสถูกเปลี่ยน)','(Fixed: the quest choice could not be submitted; no quest state changed.)'),true); }
+  finally{ window._questAffordanceSubmitting=false; try{ if(activeTab()==='quest') renderQuest(); else if(activeTab()==='story') renderStory(); }catch(e){} }
+}
 async function retractActionForEdit(actionId, draftText){
   if(!curRound||!actionId) return;
   try{
@@ -2129,7 +2177,8 @@ async function retractActionForEdit(actionId, draftText){
     window._actionEditDraft=String(draftText||''); window._actionRepair=null;
     toast(uiCopy('(แก้: ปลด action ที่ค้างแล้ว — แก้ข้อความและส่งใหม่ได้)','(Fixed: the stuck action was released — edit it and submit again.)'));
     await loadRound(); renderRoundbar();
-  }catch(e){ toast(e.message||uiCopy('ปลด action ไม่สำเร็จ','Could not release the action'),true); }
+    return true;
+  }catch(e){ toast(e.message||uiCopy('ปลด action ไม่สำเร็จ','Could not release the action'),true); return false; }
 }
 async function resolveInventoryAffordance(actionId, affordance){
   if(resolving||!curRound||!actionId||!affordance||!affordance.payload) return;
@@ -4337,6 +4386,18 @@ function renderRecruitmentAffordance(feed,rows){
     card.appendChild(btn); feed.appendChild(card);
   });
 }
+function renderQuestAffordanceStorySignal(feed){
+  if(!feed) return;
+  feed.querySelectorAll('.quest-affordance-story-signal').forEach(node=>node.remove());
+  const affordances=questAffordancesForUi(); if(!affordances.length) return;
+  const acceptCount=affordances.filter(aff=>aff.operation==='accept').length, turnInCount=affordances.length-acceptCount;
+  const card=document.createElement('div'); card.className='item quest-affordance-story-signal'; card.style.cssText='width:100%;box-sizing:border-box;border-color:#FAC775;text-align:left';
+  const title=document.createElement('div'); title.style.cssText='font-weight:700;color:#FAC775;margin-bottom:4px'; title.textContent=uiCopy('📜 มีงานรอการตัดสินใจในแท็บ Quest','📜 Quest choices are waiting in the Quest tab'); card.appendChild(title);
+  const detail=document.createElement('div'); detail.className='note'; detail.style.cssText='text-align:left;padding:0 0 7px';
+  detail.textContent=uiCopy('รับได้ '+acceptCount+' · พร้อมส่ง '+turnInCount,'Available '+acceptCount+' · ready to turn in '+turnInCount); card.appendChild(detail);
+  const button=document.createElement('button'); button.type='button'; button.className='btn sm'; button.textContent=uiCopy('เปิดแท็บ Quest','Open Quest tab'); button.onclick=()=>switchTab('quest'); card.appendChild(button);
+  feed.appendChild(card);
+}
 async function renderStory(){
   renderClock();
   try{ renderVoteCard(); }catch(e){}
@@ -4355,7 +4416,7 @@ async function renderStory(){
     let changed=false;
     shown.forEach((n,i)=>{ if(existing[i].dataset.sig!==isig(n)){ const cd=existing[i].querySelector('.narrc'); if(cd){ cd.innerHTML=cdraw(n); existing[i].dataset.sig=isig(n); changed=true; } } });
     if(changed && !_skipAutoScroll){ const sp=$('panel-story'); if(sp && (sp.scrollHeight-sp.scrollTop-sp.clientHeight)<160) sp.scrollTop=sp.scrollHeight; }
-    renderRecruitmentAffordance(feed,shown); _skipAutoScroll=false; renderRoundbar(); return;
+    renderRecruitmentAffordance(feed,shown); renderQuestAffordanceStorySignal(feed); _skipAutoScroll=false; renderRoundbar(); return;
   }
   // โครงสร้างเปลี่ยน (entry ใหม่/ลบ/โหลดเก่า) → rebuild ทั้งก้อน
   _lastFeedSig=shown.map(n=>`${n.id}:${isig(n)}`).join('|');
@@ -4370,6 +4431,7 @@ async function renderStory(){
     d.appendChild(c); feed.appendChild(d);
   });
   renderRecruitmentAffordance(feed,shown);
+  renderQuestAffordanceStorySignal(feed);
   if(_skipAutoScroll){ _skipAutoScroll=false; } else { const sp=$('panel-story'); if(sp) sp.scrollTop=sp.scrollHeight; if(feed) feed.scrollTop=feed.scrollHeight; }
   renderRoundbar();
 }
@@ -5207,6 +5269,7 @@ async function resolveRound(force, mode){
     const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
       body:JSON.stringify(body)});
     const j=await r.json();
+    setQuestAffordancesFromResponse(j,r.ok?'resolved_response':'preserve_response');
     if(!r.ok){
       const _repairReasons=['atk_narr_damage_blocked','encounter_redo_claim_blocked','attack_claim_without_mechanics'];
       if(_repairReasons.includes(j.reason_code)&&j.action_preserved===true&&j.action_id){
@@ -5990,6 +6053,20 @@ async function renderQuest(){
   const dedup=quests.filter(q=>{ const k=String(q.title||'').toLowerCase().trim(); if(seen.has(k))return false; seen.add(k); return true; });
   const active=dedup.filter(q=>q.status==='active');
   const ended=dedup.filter(q=>q.status==='completed'||q.status==='failed');   // v178: ซ่อน 'merged' (เควสรวมซ้ำ ไม่ใช่เควสที่สำเร็จ)
+  const questAffordances=questAffordancesForUi();
+  const acceptAffordances=questAffordances.filter(aff=>aff.operation==='accept');
+  const turnInAffordances=questAffordances.filter(aff=>aff.operation==='turn_in');
+  if(acceptAffordances.length){
+    const offers=document.createElement('div'); offers.className='item quest-affordance-offers'; offers.style.cssText=FONT;
+    const head=document.createElement('div'); head.style.cssText=FONT+';font-size:15px;font-weight:700;text-align:left;padding:2px 0 6px;border-bottom:1px solid #444;margin-bottom:6px'; head.textContent=uiCopy('📜 งานที่รับได้ตอนนี้','📜 Quests available now'); offers.appendChild(head);
+    acceptAffordances.forEach(aff=>{
+      const row=document.createElement('div'); row.className='quest-affordance-row'; row.style.cssText=FONT+';text-align:left;padding:7px 0;border-bottom:1px solid #333';
+      const title=document.createElement('div'); title.style.cssText='font-size:14px;font-weight:700'; title.textContent=aff.public_title; row.appendChild(title);
+      if(aff.public_premise){ const premise=document.createElement('div'); premise.style.cssText='font-size:12px;color:#aaa;line-height:1.55;margin:3px 0 6px'; premise.textContent=aff.public_premise; row.appendChild(premise); }
+      const button=document.createElement('button'); button.type='button'; button.className='btn sm'; button.textContent=questAffordanceLabel(aff); button.disabled=!!window._questAffordanceSubmitting||!!resolving; button.onclick=()=>submitQuestAffordance(aff); row.appendChild(button); offers.appendChild(row);
+    });
+    p.appendChild(offers);
+  }
   // v194: ป้ายความยากจาก quests.blueprint (server ทอยล็อกตอนรับเควส — ผู้เล่นเห็นแค่ป้าย+คำใบ้ ตัวเลขเป็นความลับผู้กำกับ)
   const BP_BADGE={easy:['⭐ ง่าย','#97C459'],normal:['⭐⭐ ปกติ','#FAC775'],hard:['⭐⭐⭐ ยาก','#E8915B'],epic:['💀 มหาโหด','#E24B4A']};
   const bpBadge=(q)=>{
@@ -6015,8 +6092,9 @@ async function renderQuest(){
       return hit;
     }).map(c=>c.clue);
   };
-  if(!active.length){ const d=document.createElement('div'); d.className='muted'; d.textContent='ยังไม่มีเควสที่กำลังทำ'; p.appendChild(d); }
+  if(!active.length&&!acceptAffordances.length){ const d=document.createElement('div'); d.className='muted'; d.textContent=uiCopy('ยังไม่มีเควสที่กำลังทำ','No active quests yet'); p.appendChild(d); }
   // เควสที่กำลังทำ — ดรอปดาวน์ทีละเควส (ลดความรก) · เปิดเควสแรกไว้ให้เห็นทันที
+  const mountedTurnInIds=new Set();
   active.forEach((q,qi)=>{
     const hints=hintsFor(q);
     const det=document.createElement('details'); det.className='item'; det.style.cssText=FONT; if(qi===0) det.open=true;
@@ -6031,8 +6109,15 @@ async function renderQuest(){
             '<div style="font-size:13px;line-height:1.7;color:#ccc">'+hints.map(h=>'<div>– '+escapeHtml(String(h))+'</div>').join('')+'</div>';
     }
     body.innerHTML=html||'<div class="muted" style="font-size:13px">ยังไม่มีรายละเอียด/เบาะแส</div>';
+    const turnIn=turnInAffordances.find(aff=>String(aff.id)===String(q.id)||String(aff.source_id)===String(q.id));
+    if(turnIn){ mountedTurnInIds.add(turnIn.id); const button=document.createElement('button'); button.type='button'; button.className='btn sm'; button.style.marginTop='8px'; button.textContent=questAffordanceLabel(turnIn); button.disabled=!!window._questAffordanceSubmitting||!!resolving; button.onclick=()=>submitQuestAffordance(turnIn); body.appendChild(button); }
     det.appendChild(body);
     p.appendChild(det);
+  });
+  turnInAffordances.filter(aff=>!mountedTurnInIds.has(aff.id)).forEach(aff=>{
+    const card=document.createElement('div'); card.className='item quest-affordance-turnin'; card.style.cssText=FONT+';text-align:left';
+    const title=document.createElement('div'); title.style.cssText='font-size:14px;font-weight:700;margin-bottom:6px'; title.textContent=aff.public_title; card.appendChild(title);
+    const button=document.createElement('button'); button.type='button'; button.className='btn sm'; button.textContent=questAffordanceLabel(aff); button.disabled=!!window._questAffordanceSubmitting||!!resolving; button.onclick=()=>submitQuestAffordance(aff); card.appendChild(button); p.appendChild(card);
   });
   // เควสที่จบแล้ว (สำเร็จ/ล้มเหลว) — พับเก็บ
   if(ended.length){
