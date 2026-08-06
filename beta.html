@@ -2084,7 +2084,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608050854;   // v854 frontend: folded clue journal + exact quest-evidence truth
+const FRONTEND_BUILD = 202608050858;   // v858 frontend: quest affordance hydration + cross-path wiring (ราก R7 — ปุ่มหายหลัง refresh)
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2138,14 +2138,42 @@ function questAffordanceNormalize(affordance, source){
 }
 function setQuestAffordancesFromResponse(payload, source){
   if(!payload||typeof payload!=='object'||!Object.prototype.hasOwnProperty.call(payload,'affordances')) return {present:false,count:(window._questAffordances||[]).length};
-  if(!Array.isArray(payload.affordances)){ questAffordanceLogReject('affordances_not_array',null,source); window._questAffordances=[]; return {present:true,count:0}; }
+  if(!Array.isArray(payload.affordances)){ questAffordanceLogReject('affordances_not_array',null,source); window._questAffordances=[]; persistQuestAffordances([]); return {present:true,count:0}; }
   const candidates=payload.affordances.filter(aff=>aff&&(aff.operation==='accept'||aff.operation==='turn_in'));
   if(payload.affordances.length&&!candidates.length) return {present:false,count:(window._questAffordances||[]).length};   // an inventory-only preserve response does not overwrite the quest surface
   const seen=new Set(), next=[];
   candidates.forEach(raw=>{ const aff=questAffordanceNormalize(raw,source); if(!aff) return; const key=aff.operation+':'+aff.id; if(seen.has(key)) return; seen.add(key); next.push(aff); });
   window._questAffordances=next;
+  persistQuestAffordances(next);
   return {present:true,count:next.length};
 }
+// v858 HYDRATION (ราก R7): resolver ยิง turn_in affordance 30 ครั้งแต่ state ปุ่มอยู่ในหน่วยความจำ
+// ต่อแท็บเท่านั้น — refresh แล้วปุ่มหายทั้งที่เควสยัง active และไม่มี request ใดถูกส่งอีก.
+// แคชเก็บเฉพาะแถวที่ "ผ่านกำแพง wire ของ server มาแล้ว" และตอน hydrate ก็เล่นซ้ำผ่านกำแพงเดิม
+// (questAffordanceNormalize ใน setQuestAffordancesFromResponse) — จอจึงยังไม่เคยตัดสินสิทธิ์เอง.
+const QUEST_AFFORDANCE_CACHE_TTL_MS=48*60*60*1000;   // กันปุ่มผีข้ามวัน — resolve ถัดไปเขียนทับด้วยของจริงเสมอ (รวมค่า [] ที่ล้างปุ่ม)
+function questAffordanceCacheKey(){ try{ return (campaign&&campaign.id)?('qaff_v1:'+String(campaign.id)):null; }catch(e){ return null; } }
+function persistQuestAffordances(list){
+  const key=questAffordanceCacheKey(); if(!key) return;
+  try{ localStorage.setItem(key,JSON.stringify({saved_at:Date.now(),affordances:Array.isArray(list)?list:[]})); }catch(e){}
+}
+function hydrateQuestAffordancesFromCache(){
+  const key=questAffordanceCacheKey(); if(!key) return {present:false,count:(window._questAffordances||[]).length};
+  try{
+    const raw=localStorage.getItem(key); if(!raw) return {present:false,count:0};
+    const parsed=JSON.parse(raw);
+    if(!parsed||typeof parsed!=='object'||!Array.isArray(parsed.affordances)) return {present:false,count:0};
+    if(!(Date.now()-Number(parsed.saved_at||0)<QUEST_AFFORDANCE_CACHE_TTL_MS)) return {present:false,count:0};
+    return setQuestAffordancesFromResponse({affordances:parsed.affordances},'hydrated_cache');
+  }catch(e){ return {present:false,count:0}; }
+}
+if(typeof window.addEventListener==='function') window.addEventListener('storage',(ev)=>{ try{   // v858: แท็บอื่น resolve/accept/turn-in → แท็บนี้อัปเดตปุ่มตาม (ปิดอาการปุ่มค้างข้ามแท็บของ R6) · guard เพื่อ harness เทสที่ stub window
+  const key=questAffordanceCacheKey(); if(!key||!ev||ev.key!==key) return;
+  hydrateQuestAffordancesFromCache();
+  const t=(typeof activeTab==='function')?activeTab():null;
+  if(t==='quest'&&typeof renderQuest==='function') renderQuest();
+  else if(t==='story'&&typeof renderStory==='function') renderStory();
+}catch(e){} });
 function questAffordancesForUi(){ return Array.isArray(window._questAffordances)?window._questAffordances.slice():[]; }
 function questAffordanceLabel(affordance){ return uiCopy(String(affordance.label_th),String(affordance.label_en)); }
 function questAffordanceIntent(affordance, actorCharacterId){
@@ -2912,6 +2940,7 @@ async function joinCampaign(){
 async function enterCampaign(){
   if(campaign&&campaign.game_language==='en'&&!_I18N_ASSETS_OK){showEnglishAssetBlock('enter-campaign');return;}
   UI18N.language(campaign&&campaign.game_language); applyUiLanguage(campaign.game_language);
+  hydrateQuestAffordancesFromCache();   // v858: คืนปุ่มรับ/ส่งเควสจาก resolve ล่าสุดของโลกนี้ก่อน render แรก (ราก R7 — refresh แล้วปุ่มหาย)
   $('hdTitle').textContent = campaign.name;
   if(campaign.host_id===me.id && campaign.join_code){
     $('hdCode').textContent='Code: '+campaign.join_code; $('hdCode').classList.remove('hidden');
@@ -4592,6 +4621,7 @@ async function requestPersonalOptions(forceRefresh){
       }
       if(!last) throw new Error('personal_options_no_response');
       const r=last.r,j=last.j||{};
+      setQuestAffordancesFromResponse(j,'personal_options_response');   // v858: เส้นขอตัวเลือกก็เป็นพาหะ affordances — no-op เมื่อ payload ไม่มีฟิลด์ (ราก R7: เดิมทิ้ง payload นี้)
       const list2=Array.isArray(j.options)?j.options:[];
       if(r.status===409&&j.retryable){
         toast(j.note||j.error||uiCopy('พักตัวเลือกชั่วคราว — เดินเรื่องต่อก่อน','Options paused — continue the story first'),true);
