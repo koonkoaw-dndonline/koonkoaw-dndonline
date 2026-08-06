@@ -2088,7 +2088,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608060860;   // v860 frontend: clue journal column-span (สมุดเบาะแสไม่ทับกรอบเควส)
+const FRONTEND_BUILD = 202608060862;   // v862 frontend: Companion V2 legacy copy truth — โลกเดิมคง legacy · V2 เฉพาะโลกใหม่ (CV2-L3)
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -4053,7 +4053,7 @@ function switchTab(t){
 // ───────── Companion v2 roster (C2) ─────────
 let _companionViewCache=null,_companionViewTs=0,_slowlifePollT=null;
 function companionV2UiEnabled(){ return !!campaign&&String(campaign.companion_mode||'').toLowerCase()==='v2'; }
-function companionLegacyUiMessage(){ return uiCopy('โลกนี้ยังใช้ระบบคอมพาเนี่ยนแบบเดิม จึงไม่มี Roster/ความสัมพันธ์ส่วนตัวแบบ V2 ข้อมูลสมาชิกปาร์ตี้เดิมยังอยู่ครบ — Host สามารถเปิด V2 ภายหลังตามขั้นตอนอัปเกรดได้','This world still uses the legacy companion system, so V2 roster and private relationship tools are unavailable. Existing party companions are unchanged; the Host can enable V2 through the upgrade flow later.'); }
+function companionLegacyUiMessage(){ return uiCopy('โลกนี้คงใช้ระบบคอมพาเนี่ยนแบบเดิมถาวร จึงไม่มี Roster/ความสัมพันธ์ส่วนตัวแบบ V2 ข้อมูลสมาชิกปาร์ตี้เดิมยังอยู่ครบ — Companion V2 ใช้ได้กับโลกที่สร้างใหม่เท่านั้น','This world remains on the legacy companion system, so V2 roster and private relationship tools are unavailable. Existing party companions are unchanged; Companion V2 is available only to newly created worlds.'); }
 async function companionResolve(payload){
   if(!companionV2UiEnabled()) throw new Error(companionLegacyUiMessage());
   const tok=(await supa.auth.getSession()).data.session?.access_token; if(!tok) throw new Error('กรุณาเข้าสู่ระบบใหม่');
