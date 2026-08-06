@@ -687,6 +687,10 @@ body.role-player .dm-only{display:none!important;}
     -webkit-column-break-inside:avoid;
     margin:0 0 16px;
   }
+  /* v860: สมุดเบาะแสเป็น column-span:all ท้าย .sk-cols — เดิมอยู่นอก container แล้วการ์ดเควสที่สูง/กางทีหลัง
+     ล้นก้น multicol มาทับ (Chromium ไม่ re-grow container ให้การ์ด break-inside:avoid ที่โตหลัง layout)
+     spanner อยู่ใน fragmentation context เดียวกัน จึงถูกวางใต้คอลัมน์ที่สูงสุดเสมอ = ทับกันไม่ได้โดยนิยาม */
+  .sk-cols > .quest-clue-fold{column-span:all;-webkit-column-span:all;}
 }
 
 /* ============================================================
@@ -2084,7 +2088,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608050858;   // v858 frontend: quest affordance hydration + cross-path wiring (ราก R7 — ปุ่มหายหลัง refresh)
+const FRONTEND_BUILD = 202608060860;   // v860 frontend: clue journal column-span (สมุดเบาะแสไม่ทับกรอบเควส)
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -6171,7 +6175,8 @@ async function renderQuest(){
     });
     p.appendChild(det);
   }
-  // ── v854 U1-R1: สมุดเบาะแสพับได้อยู่นอก multi-column ของเควส จึงอยู่ใต้เควส/ปุ่มเสมอ ──
+  // ── v860 (แก้เคสจริง 08-06 สมุดทับกรอบเควส): สมุดเบาะแสเป็นลูกท้าย .sk-cols แบบ column-span:all
+  //    — v854 วางไว้นอก container แล้วการ์ดเควสที่ล้นก้น multicol ทับสมุด · spanner ทับกันไม่ได้โดยนิยาม ──
   try{
     const clueFold=document.createElement('details'); clueFold.className='item sk-cardgrp sk-fold quest-clue-fold'; clueFold.style.cssText=FONT;
     const summary=document.createElement('summary'), head=document.createElement('div'); head.className='sk-head';
@@ -6211,7 +6216,7 @@ async function renderQuest(){
       });
       if(clueProjection.rest.length) appendCategory(foldBody,uiCopy('เบาะแสอื่น','Other clues'),clueProjection.rest,uiCopy('จัดกลุ่มตามปมที่บันทึกไว้','Grouped by recorded mystery.'));
     }
-    clueFold.appendChild(foldBody); _hostQ.appendChild(clueFold);
+    clueFold.appendChild(foldBody); p.appendChild(clueFold);
   }catch(e){}
 }
 
