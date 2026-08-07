@@ -1789,6 +1789,7 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
     <select class="hidden" id="hdMusicSel" onchange="setMusicMood(this.value)" title="เลือกหมวดเพลง (Auto = เปลี่ยนตามฉาก)" style="font-size:11px;background:#11141c;color:#cfd6e6;border:1px solid #333;border-radius:6px;padding:2px 4px;max-width:104px"><option value="">&#127925; Auto</option><option value="battle">ต่อสู้</option><option value="boss">บอส</option><option value="capital">เมืองหลวง</option><option value="dungeon">ดันเจี้ยน</option><option value="forest">ป่า/เดินทาง</option><option value="rest">พักแรม</option><option value="tavern">โรงเตี๊ยม</option><option value="town">เมือง</option><option value="village">หมู่บ้าน</option></select>
     <input class="hidden" id="hdMusicVol" type="range" min="0" max="100" value="50" oninput="setMusicVol(this.value)" title="ระดับเสียงดนตรี (ค่าเริ่มต้น 50%)" style="width:64px;accent-color:#f5b942;vertical-align:middle">
     <button class="btn ghost sm hidden" id="hdToken" title="ก๊อป session token (host) สำหรับเครื่องมือ ingest ลอร์ — token สดทุกครั้งที่กด">&#128273; Ingest token</button>
+    <button class="btn ghost sm hidden" id="hdWorldSwitch" onclick="requestWorldSwitch()"></button>
     <button class="btn ghost sm hidden" id="hdEnd"></button>
     <button class="btn ghost sm hidden" id="hdLogout" onclick="doLogout()">Logout</button>
   </div>
@@ -1835,6 +1836,19 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
 
 <!-- LOBBY (v617 PLAY MODES: แยก HOST/JOIN → โหมดการเล่น 3 แบบ → สร้างโลก+แนวเนื้อเรื่อง 3 แบบ — docs/PLAY_MODES_PLAN.md §2) -->
 <div class="center hidden" id="lobbyScreen">
+  <!-- WS-01: account-level world selection. Copy is rendered through uiCopy because no target-world language exists yet. -->
+  <div id="worldSwitcherScreen" class="hidden" style="width:100%;max-width:680px">
+    <div class="card" style="max-width:680px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div><h2 id="worldSwitcherTitle" style="margin-bottom:5px"></h2><p class="sub" id="worldSwitcherSub" style="margin:0"></p></div>
+        <div class="srow2" style="width:auto;gap:6px">
+          <button type="button" class="btn ghost sm" id="worldSwitcherTh" onclick="setWorldSwitcherLanguage('th')"></button>
+          <button type="button" class="btn ghost sm" id="worldSwitcherEn" onclick="setWorldSwitcherLanguage('en')"></button>
+        </div>
+      </div>
+    </div>
+    <div id="worldSwitcherList" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin-top:10px"></div>
+  </div>
   <!-- D1: pre-world bilingual picker. English stays hidden until the server flag is enabled. -->
   <div id="languageScreen">
     <div class="card" style="max-width:560px;text-align:center">
@@ -2088,7 +2102,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608060862;   // v862 frontend: Companion V2 legacy copy truth — โลกเดิมคง legacy · V2 เฉพาะโลกใหม่ (CV2-L3)
+const FRONTEND_BUILD = 202608070863;   // v863 frontend: WS-01 account-level world picker + isolated world switching
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2440,6 +2454,7 @@ let campaign=null, members=[], myChar=null, characters=[], curRound=null, narrat
 const ENGLISH_UI_ENABLED=true;   // Slice E: flipped 2026-07-19 — reviewer GO (catalog gate ok=true, 639/639 approved) + server flag english_mode_enabled=true. Needs frontend push + cache-bust to go live.
 const ENGLISH_ASSET_BUILD='20260720e4';
 let pendingGameLanguage=null, englishModeAvailable=false, englishModeServerEnabled=false;   // DB world language wins after create/JOIN; pending is pre-world only.
+let worldSwitcherLanguage='th', worldChoices=[], worldSwitchReloading=false;   // WS-01: account-level UI preference only; never used to infer a target world's language.
 function inspectEnglishAssets(){
   const rows=[['TTRPG_I18N',globalThis.TTRPG_I18N],['TTRPG_CHARACTER_EN',globalThis.TTRPG_CHARACTER_EN],['TTRPG_RUNTIME_COPY',globalThis.TTRPG_RUNTIME_COPY]];
   const missing=rows.filter(([,v])=>!v).map(([k])=>k);
@@ -2463,9 +2478,11 @@ const UI18N=globalThis.TTRPG_I18N||{
 };
 // v720: บนจอ pre-world (เลือกภาษา/HOST-JOIN/สร้างโลก) ภาษาต้องตามที่ผู้ใช้กำลังเลือก ไม่ใช่โลกเก่าที่ค้างใน memory
 // — เดิม campaign โลก EN ค้างอยู่ทำให้ uiLanguage()='en' ทั้งที่ผู้ใช้กดกลับมาสร้างโลกไทย → display wall ทาสี label ไทยเป็น '—' ทั้งจอ
-const PRE_WORLD_SCREEN_IDS=['languageScreen','roleScreen','joinScreen','hostModeScreen','hostCreateScreen','hostOneshotScreen','englishAssetBlockScreen'];
-function preWorldUiActive(){ try{ return PRE_WORLD_SCREEN_IDS.some(id=>{const e=document.getElementById(id);return e&&!e.classList.contains('hidden');}); }catch(_e){ return false; } }
+const PRE_WORLD_SCREEN_IDS=['worldSwitcherScreen','languageScreen','roleScreen','joinScreen','hostModeScreen','hostCreateScreen','hostOneshotScreen','englishAssetBlockScreen'];
+function preWorldUiActive(){ try{ const lobby=document.getElementById('lobbyScreen'); if(!lobby||lobby.classList.contains('hidden'))return false; return PRE_WORLD_SCREEN_IDS.some(id=>{const e=document.getElementById(id);return e&&!e.classList.contains('hidden');}); }catch(_e){ return false; } }
+function worldSwitcherUiActive(){ try{ const lobby=document.getElementById('lobbyScreen'),e=document.getElementById('worldSwitcherScreen'); return !!(lobby&&!lobby.classList.contains('hidden')&&e&&!e.classList.contains('hidden')); }catch(_e){ return false; } }
 function uiLanguage(){
+  if(worldSwitcherUiActive()) return UI18N.language(worldSwitcherLanguage);
   if(campaign && !preWorldUiActive()) return UI18N.language(campaign.game_language);
   return UI18N.language(pendingGameLanguage||'th');
 }
@@ -2521,7 +2538,7 @@ function showLanguagePicker(clearPending){
   if(clearPending){ pendingGameLanguage=null; try{sessionStorage.removeItem('ttrpg_pending_game_language');}catch(e){} }
   if(UI18N.uninstallDisplayWall) UI18N.uninstallDisplayWall();   // v720: ออกจากโลก = ปลด wall ของโลกเก่า (จะติดตั้งใหม่ตอนเข้าโลกถัดไป)
   applyUiLanguage('th');
-  ['englishAssetBlockScreen','roleScreen','joinScreen','hostModeScreen','hostCreateScreen','hostOneshotScreen'].forEach(s=>{const el=$(s);if(el)el.classList.add('hidden');});
+  ['worldSwitcherScreen','englishAssetBlockScreen','roleScreen','joinScreen','hostModeScreen','hostCreateScreen','hostOneshotScreen'].forEach(s=>{const el=$(s);if(el)el.classList.add('hidden');});
   const ls=$('languageScreen'); if(ls) ls.classList.remove('hidden');
   syncEnglishLanguageUi();
 }
@@ -2630,6 +2647,86 @@ function pruneOtherCampaignCache(curId){
       const m=k.match(/([0-9a-f-]{36})$/i); if(m && m[1].toLowerCase()!==cur) rm.push(k); }   // cache ต่อแคมเปญของแคมเปญ 'อื่น' → ลบ (เก็บเฉพาะปัจจุบัน)
     rm.forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} });
   }catch(e){}
+}
+// ───────── WS-01 world switcher ─────────
+// Membership rows are the only source of selectable worlds. Active worlds stay first;
+// ended worlds remain selectable as the existing read-only archive flow requires.
+function worldChoicesFromMembership(rows){
+  const all=(Array.isArray(rows)?rows:[])
+    .filter(row=>row&&row.is_active!==false&&row.campaigns&&(row.campaigns.status==='active'||row.campaigns.status==='ended'))
+    .map(row=>({campaign:row.campaigns,role:String(row.role||'player').toLowerCase()}));
+  return all.filter(x=>x.campaign.status==='active').concat(all.filter(x=>x.campaign.status==='ended'));
+}
+function worldEntryDecision(choices){
+  const count=Array.isArray(choices)?choices.length:0;
+  return count===0?'lobby':count===1?'enter':'choose';
+}
+function worldChoiceById(choices,id){
+  return (Array.isArray(choices)?choices:[]).find(x=>x&&x.campaign&&String(x.campaign.id)===String(id))||null;
+}
+function worldModeLabel(c){ return c&&c.play_mode==='oneshot'?'ONE SHOT':c&&c.play_mode==='session'?'SESSION':'OPEN WORLD'; }
+function setWorldSwitcherLanguage(lang){
+  worldSwitcherLanguage=UI18N.language(lang);
+  try{sessionStorage.setItem('ttrpg_world_switcher_language',worldSwitcherLanguage);}catch(e){}
+  applyUiLanguage(worldSwitcherLanguage);
+  renderWorldSwitcher();
+}
+function renderWorldSwitcher(){
+  const list=$('worldSwitcherList'); if(!list)return;
+  const title=$('worldSwitcherTitle'), sub=$('worldSwitcherSub'), th=$('worldSwitcherTh'), en=$('worldSwitcherEn');
+  if(title)title.textContent=uiCopy('เลือกโลก','Choose a world');
+  if(sub)sub.textContent=uiCopy('เลือกโลกที่ต้องการเข้า การสลับโลกจะไม่ออกจากกลุ่มและไม่ลบข้อมูลใด ๆ','Choose the world to enter. Switching does not leave a group or delete any data.');
+  if(th){th.textContent=uiCopy('ไทย','Thai');th.style.outline=worldSwitcherLanguage==='th'?'2px solid currentColor':'';}
+  if(en){en.textContent=uiCopy('อังกฤษ','English');en.style.outline=worldSwitcherLanguage==='en'?'2px solid currentColor':'';}
+  list.replaceChildren();
+  worldChoices.forEach(choice=>{
+    const c=choice.campaign||{}, ended=c.status==='ended', host=(choice.role==='host'||(me&&c.host_id===me.id));
+    const name=String(c.name||uiCopy('โลกไม่มีชื่อ','Untitled world'));
+    const card=document.createElement('button'); card.type='button'; card.className='card';
+    card.style.cssText='max-width:none;text-align:left;cursor:pointer;color:inherit;min-height:148px;display:flex;flex-direction:column;align-items:stretch;justify-content:space-between;gap:10px;'+(ended?'opacity:.78;border-style:dashed;':'');
+    card.setAttribute('aria-label',uiCopy('เข้าโลก '+name,'Enter world '+name));
+    const head=document.createElement('div'), nm=document.createElement('h2'), meta=document.createElement('div');
+    nm.textContent=name; nm.style.margin='0 0 7px';
+    const language=c.game_language==='en'?uiCopy('ภาษา: อังกฤษ (EN)','Language: English (EN)'):uiCopy('ภาษา: ไทย (TH)','Language: Thai (TH)');
+    const role=host?uiCopy('บทบาท: Host','Role: Host'):uiCopy('บทบาท: ผู้เล่น','Role: Player');
+    meta.className='sub'; meta.textContent=worldModeLabel(c)+' · '+language+' · '+role; meta.style.margin='0';
+    head.append(nm,meta);
+    const foot=document.createElement('div'); foot.style.cssText='display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap';
+    const status=document.createElement('span'); status.className='note'; status.style.cssText='margin:0;font-weight:700';
+    status.textContent=ended?uiCopy('⏹ จบแล้ว · อ่านอย่างเดียว','⏹ Ended · read-only'):uiCopy('● กำลังเล่น','● Active');
+    const action=document.createElement('span'); action.style.fontWeight='700';
+    action.textContent=ended?uiCopy('อ่านย้อนหลัง →','Open archive →'):uiCopy('เข้าโลก →','Enter world →');
+    foot.append(status,action); card.append(head,foot); card.onclick=()=>selectWorldCampaign(c.id); list.appendChild(card);
+  });
+}
+function showWorldSwitcher(){
+  try{const saved=sessionStorage.getItem('ttrpg_world_switcher_language');worldSwitcherLanguage=(saved==='th'||saved==='en')?saved:'th';}catch(e){worldSwitcherLanguage='th';}
+  show('lobbyScreen'); lobbyGo('worldSwitcherScreen'); applyUiLanguage(worldSwitcherLanguage); renderWorldSwitcher();
+  const title=$('hdTitle'); if(title)title.textContent=uiCopy('เลือกโลก','Choose a world');
+}
+async function selectWorldCampaign(id){
+  const choice=worldChoiceById(worldChoices,id);
+  if(!choice){toast(uiCopy('ไม่พบโลกนี้ในบัญชีของคุณ','This world is not available on your account.'),true);return;}
+  const selector=$('worldSwitcherScreen'); if(selector)selector.classList.add('hidden');
+  campaign=choice.campaign;
+  pendingGameLanguage=null; try{sessionStorage.removeItem('ttrpg_pending_game_language');}catch(e){}
+  await enterCampaign();
+}
+async function requestWorldSwitch(){
+  if(worldSwitchReloading||worldChoices.length<2)return;
+  worldSwitchReloading=true;   // closes reconnect/resync entry points during the teardown→reload boundary
+  worldSwitcherLanguage=UI18N.language(uiLanguage());
+  try{sessionStorage.setItem('ttrpg_world_switcher_language',worldSwitcherLanguage);}catch(e){}
+  await teardownRealtimeForWorldSwitch();
+  try{if(_musicPlaybackOwner)_musicPlaybackOwner.stopAll('world-switcher');}catch(e){}
+  location.reload();
+}
+function configureWorldSwitcherHeader(){
+  const btn=$('hdWorldSwitch'); if(!btn)return;
+  const showButton=worldChoices.length>1;
+  btn.textContent=uiCopy('⇄ โลก','⇄ Worlds');
+  btn.title=uiCopy('เลือกหรือสลับโลกโดยไม่ออกจากกลุ่ม','Choose or switch worlds without leaving the group');
+  btn.classList.toggle('hidden',!showButton);
 }
 // ───────── init ─────────
 (async function init(){
@@ -2749,14 +2846,13 @@ async function leaveCampaign(){
 
 // ───────── campaign membership ─────────
 async function loadMyCampaign(){
-  // หาแคมเปญ active ที่เราเป็นสมาชิก
+  // หาโลก active + ended ที่เราเป็นสมาชิก; membership row เป็น authority ของรายการสลับโลก
   const { data: mem } = await supa.from('campaign_members')
     .select('campaign_id, role, is_active, campaigns(*)')
     .eq('user_id', me.id).eq('is_active', true);
-  const _allC = (mem||[]).map(m=>m.campaigns).filter(Boolean);
-  const active = _allC.filter(c=>c.status==='active');
-  const _endedC = _allC.filter(c=>c.status==='ended');   // v617 ONE SHOT soft-end: โลกจบถาวรยังเข้าไปอ่านย้อนได้ (read-only — resolver ปฏิเสธทุก action)
-  if(!active.length && !_endedC.length){
+  worldChoices=worldChoicesFromMembership(mem);
+  const entry=worldEntryDecision(worldChoices);
+  if(entry==='lobby'){
     show('lobbyScreen');
     try{const saved=sessionStorage.getItem('ttrpg_pending_game_language');pendingGameLanguage=(saved==='th'||saved==='en')?saved:null;}catch(e){pendingGameLanguage=null;}
     await refreshEnglishModeAvailability();
@@ -2765,12 +2861,10 @@ async function loadMyCampaign(){
     else showLanguagePicker(false);
     return;
   }
-  campaign = active[0] || _endedC[0];
+  if(entry==='choose'){showWorldSwitcher();return;}
+  campaign=worldChoices[0].campaign;   // single world only: exact legacy auto-entry, with no interstitial click
   if(campaign.game_language==='en'&&!_I18N_ASSETS_OK){showEnglishAssetBlock('enter-existing-world');return;}
-  UI18N.language(campaign.game_language);   // D1 fail closed: never infer a world language from browser state.
   pendingGameLanguage=null; try{sessionStorage.removeItem('ttrpg_pending_game_language');}catch(e){}
-  applyUiLanguage(campaign.game_language);
-  pruneOtherCampaignCache(campaign.id);   // v300: ล้าง cache แคมเปญอื่น (กัน localStorage โตจนเต็ม = หลุด login)
   await enterCampaign();
 }
 
@@ -2809,7 +2903,7 @@ function onMusicFiles(files){
 // ── v617 PLAY MODES: lobby flow state + สลับจอย่อย (roleScreen → join / hostMode → hostCreate / hostOneshot) ──
 let pendingMode='open', pendingStyle='journey', pendingLevel=5;
 function lobbyGo(id){
-  ['languageScreen','englishAssetBlockScreen','roleScreen','joinScreen','hostModeScreen','hostCreateScreen','hostOneshotScreen'].forEach(s=>{ const el=$(s); if(el) el.classList.toggle('hidden', s!==id); });
+  ['worldSwitcherScreen','languageScreen','englishAssetBlockScreen','roleScreen','joinScreen','hostModeScreen','hostCreateScreen','hostOneshotScreen'].forEach(s=>{ const el=$(s); if(el) el.classList.toggle('hidden', s!==id); });
   const levelHelp=$('osLevelHelp'); if(levelHelp) levelHelp.textContent=uiCopy('เป้าหมายเลเวลของปาร์ตี้ — ตัวละครเริ่มที่เลเวล 1 แล้วขึ้นทีละ 1 ผ่านการ์ด LEVEL UP; ผู้เล่นทุกคนต้องยืนยันแต่ละขั้นก่อนขึ้นขั้นถัดไป','Party target level — characters start at level 1, then advance one level at a time through the LEVEL UP card; every player must confirm each step before the next begins.');
 }
 function pickMode(el,m){ pendingMode=m; document.querySelectorAll('#hostModeScreen .modepick').forEach(x=>x.style.outline=''); el.style.outline='2px solid currentColor'; }
@@ -2943,7 +3037,9 @@ async function joinCampaign(){
 // ───────── enter campaign ─────────
 async function enterCampaign(){
   if(campaign&&campaign.game_language==='en'&&!_I18N_ASSETS_OK){showEnglishAssetBlock('enter-campaign');return;}
-  UI18N.language(campaign&&campaign.game_language); applyUiLanguage(campaign.game_language);
+  UI18N.language(campaign&&campaign.game_language);   // D1 fail closed: selected DB world language only; never browser/switcher state.
+  pruneOtherCampaignCache(campaign.id);   // WS-01: one cache boundary for single-entry, explicit selection, JOIN, and create.
+  applyUiLanguage(campaign.game_language);
   hydrateQuestAffordancesFromCache();   // v858: คืนปุ่มรับ/ส่งเควสจาก resolve ล่าสุดของโลกนี้ก่อน render แรก (ราก R7 — refresh แล้วปุ่มหาย)
   $('hdTitle').textContent = campaign.name;
   if(campaign.host_id===me.id && campaign.join_code){
@@ -2973,6 +3069,7 @@ async function enterCampaign(){
   // โชว์จาก cache ทันที (ถ้ามี) แล้วค่อยอัปเดตจาก DB
   hydrateCache();
   show('campaign');
+  configureWorldSwitcherHeader();   // after hiding the selector so uiCopy follows the selected world's DB language
   switchTab('story');
   await refreshAll();
   if(activeTab()==='story') renderStory(); else switchTab(activeTab()||'story');
@@ -9551,7 +9648,15 @@ function exportChronicle(){
 }
 
 // ───────── realtime ─────────
+async function teardownRealtimeForWorldSwitch(){
+  if(window._rtReconnT){clearTimeout(window._rtReconnT);window._rtReconnT=null;}
+  if(_rtPoll){clearInterval(_rtPoll);_rtPoll=null;}
+  if(window._combatWatchdog){clearInterval(window._combatWatchdog);window._combatWatchdog=null;}
+  const old=rtChannel; rtChannel=null; rtLastSyncTs=0;
+  if(old){old._torn=true;try{await supa.removeChannel(old);}catch(e){}}
+}
 function subscribeRealtime(){
+  if(worldSwitchReloading)return;
   if(rtChannel) return;
   // v744 FIX-0 watchdog: bounded typed-recovery trigger. One visible/current tab
   // owns a short lease; stale builds stop; retries back off and circuit-break.
@@ -9632,7 +9737,7 @@ function subscribeRealtime(){
 let _narrSig='', _roundSig='', _rtPoll=null;
 let _rsRunning=false, _rsQueuedForce=null;   /* v663 X4-06: single-flight (poll 8s + visibility/online/pageshow ซ้อนกันได้ — เก่าจบทีหลังเขียน globals ย้อนสถานะ) */
 async function resyncAll(force){
-  if(typeof campaign==='undefined' || !campaign || !campaign.id) return;
+  if(worldSwitchReloading||typeof campaign==='undefined' || !campaign || !campaign.id) return;
   if(_rsRunning){ _rsQueuedForce = (_rsQueuedForce===true) || !!force; return; }
   _rsRunning = true;
   try{
@@ -9662,6 +9767,7 @@ async function resyncAll(force){
   }
 }
 function ensureRtAlive(){
+  if(worldSwitchReloading)return;
   try{
     const st = rtChannel && rtChannel.state;
     /* v663 X4-05: 'joining' อายุ <15s = กำลังเชื่อมปกติ อย่าฆ่า (เดิม visibility/online/pageshow remove subscription ที่ยังเชื่อมอยู่) + null-before-remove + _torn (X4-01 — helper เดียวกับ status callback) */
