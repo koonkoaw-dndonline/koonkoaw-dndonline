@@ -246,6 +246,16 @@ a.link:hover{background:var(--white);color:var(--black);}
 .item .nm{font-size:16px;font-weight:700;color:var(--white);letter-spacing:.5px;border-bottom:2px solid var(--white);padding-bottom:7px;}
 .item .nm .meta-inline{font-size:12px;font-weight:400;color:var(--gray);letter-spacing:0;text-shadow:none;margin-left:8px;white-space:normal;}
 .item .sub{font-size:14px;color:var(--gray);line-height:1.6;}
+/* FE-01: Companion ใช้ type scale เดียวกับ Party/NPC โดย scope เฉพาะแท็บนี้ */
+#panel-companion{font-size:15px;line-height:1.6;}
+#panel-companion h3{font-family:'VT323',monospace;font-size:16px;line-height:1.35;font-weight:700;letter-spacing:.5px;margin:8px 0 0;}
+#panel-companion .item .nm{font-size:16px;line-height:1.35;}
+#panel-companion .item .sub,#panel-companion .note,#panel-companion .muted,#panel-companion .sub{font-size:14px;line-height:1.6;}
+#panel-companion .tag{font-size:12px;line-height:1.35;}
+#panel-companion .btn,#panel-companion .btn.sm{font-size:11.5px;line-height:1.25;padding:7px 11px;}
+#panel-companion textarea,#panel-companion input,#panel-companion select{font-size:15px;line-height:1.5;}
+html.skin-paper #panel-companion h3{font-family:'Cinzel','Trirong',serif;-webkit-font-smoothing:antialiased;}
+html.skin-paper #panel-companion .btn,html.skin-paper #panel-companion .btn.sm{font-size:11px;padding:5px 9px;}
 
 /* DQ stat line */
 .kv{display:flex;align-items:baseline;gap:8px;font-size:14px;padding:2px 0;flex-wrap:wrap;position:relative;}
@@ -2102,7 +2112,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608070863;   // v863 frontend: WS-01 account-level world picker + isolated world switching
+const FRONTEND_BUILD = 202608081311;   // FE-01: resolver correction + server-owned feat choice + Companion type scale
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -5579,14 +5589,15 @@ async function renderLevelUpPanel(p){
   const ckA=charClassKey(myChar.class);
   const asiLvls=(ri&&ri.asi&&ri.asi.levels)||(ckA==='fighter'?[4,6,8,12,14,16,19]:ckA==='rogue'?[4,8,10,12,16,19]:[4,8,12,16,19]);
   const asiAvail=ri?!!(ri.asi&&ri.asi.available):asiLvls.includes(lvl);
-  const asiState={};
+  const asiState={}; let levelFeatPick='';
   if(asiAvail){
-    const box=document.createElement('div'); box.innerHTML='<div class="sectitle" style="margin-top:8px">ABILITY \u2014 +2 ค่าเดียว หรือ +1 สองค่า (กฎ 5e)</div>';
+    const box=document.createElement('div'); box.innerHTML='<div class="sectitle" style="margin-top:8px">'+uiCopy('ABILITY หรือ FEAT — เลือกหนึ่งทาง','ABILITY OR FEAT — choose one')+'</div>';
     const g=document.createElement('div'); g.style.cssText='display:flex;flex-wrap:wrap;gap:6px';
+    let featSel=null;
     const totalAsi=()=>Object.values(asiState).reduce((s,n)=>s+n,0);
     const paintAll=()=>{ g.querySelectorAll('button').forEach(bb=>{ const kk=bb.dataset.k; const vv=asiState[kk]||0; bb.textContent=kk.toUpperCase()+(vv?(' +'+vv):''); bb.style.background=vv?'#f5c542':''; bb.style.color=vv?'#000':''; }); };
     ['str','dex','con','int','wis','cha'].forEach(k=>{ const b=document.createElement('button'); b.type='button'; b.className='btn ghost sm'; b.dataset.k=k; b.textContent=k.toUpperCase();
-      b.onclick=()=>{ const v=asiState[k]||0;
+      b.onclick=()=>{ if(levelFeatPick){ levelFeatPick=''; if(featSel) featSel.value=''; } const v=asiState[k]||0;
         if(v===2){ delete asiState[k]; }
         else if(v===1){ if(totalAsi()===1){ asiState[k]=2; } else { delete asiState[k]; } }
         else if(totalAsi()>=2){ toast('รวมได้สูงสุด +2 (กฎ 5e: +2 ค่าเดียว หรือ +1 สองค่า)',true); return; }
@@ -5595,6 +5606,18 @@ async function renderLevelUpPanel(p){
       g.appendChild(b); });
     const hintA=document.createElement('div'); hintA.className='note'; hintA.style.cssText='text-align:left;margin-top:3px'; hintA.textContent=uiCopy('กด 1 ครั้ง = +1 · กดซ้ำค่าเดิม = +2 · ค่าสูงสุด 20 และเลือกได้ครั้งเดียวต่อเลเวล','Press once for +1 or twice on the same score for +2 · maximum 20, once per level');
     box.appendChild(g); box.appendChild(hintA); card.appendChild(box);
+    const featBox=document.createElement('div'); featBox.innerHTML='<div class="sectitle" style="margin-top:8px">'+uiCopy('FEAT — ใช้แทน ASI','FEAT — instead of ASI')+'</div>';
+    featSel=document.createElement('select'); featSel.style.cssText='width:100%;margin:4px 0;padding:7px;border-radius:8px';
+    const featOptions=[]; const heldFeatIds=new Set((Array.isArray((mySheet||{}).feats)?mySheet.feats:[]).map(_featMatch).filter(Boolean));
+    FEAT_OPTS.filter(o=>!heldFeatIds.has(o.id)).forEach(o=>{
+      if(o.ability) RESILIENT_ABILS.forEach(a=>featOptions.push({id:'resilient-'+a[0],label:o.label+' — '+a[1]}));
+      else if(o.element) ELEM_ADEPT_ELEMS.forEach(a=>featOptions.push({id:'elemental-adept-'+a[0],label:o.label+' — '+a[1]}));
+      else featOptions.push({id:o.id,label:o.label});
+    });
+    featSel.innerHTML='<option value="">'+escapeHtml(uiCopy('— ไม่เลือก feat (ใช้ ASI ด้านบน) —','— No feat (use ASI above) —'))+'</option>'+featOptions.map(o=>'<option value="'+escapeHtml(o.id)+'">'+escapeHtml(o.label)+'</option>').join('');
+    featSel.onchange=()=>{ levelFeatPick=featSel.value||''; if(levelFeatPick){ Object.keys(asiState).forEach(k=>delete asiState[k]); paintAll(); } };
+    const featHint=document.createElement('div'); featHint.className='note'; featHint.style.cssText='text-align:left;margin-top:3px'; featHint.textContent=uiCopy('การเลือก feat จะล้างค่า ASI ที่กดไว้ และ server จะบันทึกเมื่อกดยืนยัน','Choosing a feat clears any ASI picks; the server saves it when you confirm.');
+    featBox.appendChild(featSel); featBox.appendChild(featHint); card.appendChild(featBox);
   }
   // v175: เลือก cantrip/เวทตามโควต้า D&D 5e — แยกนับ cantrip (level 0) กับเวทมีระดับ · server (levelUpGuard) เป็นกำแพงจริง
   // v183: Sacred Oath (paladin L3+ ที่ยังไม่สาบาน) — เลือกครั้งเดียว server ตรวจซ้ำ
@@ -5674,10 +5697,15 @@ async function renderLevelUpPanel(p){
   try{ const kn=new Set(); const r=await supa.from('skills').select('name').eq('character_id',myChar.id); (r.data||[]).forEach(x=>kn.add(String(x.name).toLowerCase())); feats=(SKILL_CAT||[]).filter(f=>(f.classes||[]).includes(ck)&&f.level===lvl&&!kn.has(String(f.name).toLowerCase())); }catch(e){}
   if(feats.length){ const fb=document.createElement('div'); fb.innerHTML='<div class="sectitle" style="margin-top:8px">ความสามารถใหม่ของเลเวลนี้ (ได้รับอัตโนมัติ)</div>'; feats.forEach(f=>{ const d=document.createElement('div'); d.className='note'; d.style.cssText='text-align:left;color:#9fe0a0;margin:1px 0'; d.innerHTML='\u2726 <b>'+escapeHtml(f.name)+'</b> <span class="muted" style="font-size:11px">'+escapeHtml(f.effect||'')+'</span>'; fb.appendChild(d); }); card.appendChild(fb); }
   const btn=document.createElement('button'); btn.className='btn'; btn.style.marginTop='10px'; btn.textContent='\u2713 ยืนยันเลเวลอัพ';
-  btn.onclick=()=>submitLevelUp(asiState, {cantrips:[...cantripPicks], spells:[...spellPicks], oath:oathPick, subclass:subclassPick}, feats, btn);   // v630 D5: +subclass
+  btn.onclick=()=>submitLevelUp(asiState, {cantrips:[...cantripPicks], spells:[...spellPicks], oath:oathPick, subclass:subclassPick, feat:levelFeatPick}, feats, btn);   // FE-01: ASI/feat ใช้ server gate เดียวกัน
   // v415: ฝังตัวเลือก Fighting Style ในหน้าเลเวลอัพ — Fighter/Paladin/Ranger ที่เพิ่งได้สไตล์เลือกได้ตรงนี้เลย (กันบั๊ก "ขึ้นมาให้ดูแต่เลือกไม่ได้" — เดิม selector อยู่ท้ายหน้า Stat/แท็บ Skills · gate พามาหน้านี้)
   try{ if(/fighter|paladin|ranger|นักรบ|นักสู้|พาลาดิน|อัศวิน|เรนเจอร์|พราน/i.test(myChar.class||'')) renderFightingStyleCard(card); }catch(e){}
   card.appendChild(btn); p.appendChild(card);
+}
+function resolverPlayerMessage(body,fallback){
+  const j=(body&&typeof body==='object')?body:{};
+  for(const key of ['player_note','note','message','error']){ const value=j[key]; if(typeof value==='string'&&value.trim()) return value.trim(); }
+  return fallback;
 }
 async function submitLevelUp(asiState, picks, feats, btn){
   if(btn){ btn.disabled=true; btn.textContent=uiCopy('กำลังบันทึก…','Saving…'); }
@@ -5685,7 +5713,8 @@ async function submitLevelUp(asiState, picks, feats, btn){
     // v180: ทุกอย่างผ่าน server (levelUpGuard) — ASI/เวท/feat ไม่เขียนฝั่ง client อีก (กติกาเหล็ก: server = กำแพงจริง)
     const cSlugs=(picks&&picks.cantrips)||[], sSlugs=(picks&&picks.spells)||[];
     const payload={char_id:myChar.id, cantrip_slugs:cSlugs, spell_slugs:sSlugs};
-    if(asiState && Object.keys(asiState).length) payload.asi=asiState;
+    if(picks && picks.feat) payload.feat_slug=picks.feat;
+    else if(asiState && Object.keys(asiState).length) payload.asi=asiState;
     if(picks && picks.oath) payload.oath=picks.oath;   // v183: Sacred Oath
     if(picks && picks.subclass) payload.subclass=picks.subclass;   // v630 D5: Subclass (server writer sheet.subclass)
     {
@@ -5693,7 +5722,7 @@ async function submitLevelUp(asiState, picks, feats, btn){
       const rr=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
         body:JSON.stringify({campaign_id:campaign.id, level_up_picks:payload})});
       const jr=await rr.json().catch(()=>({}));
-      if(!rr.ok) throw new Error(jr.error||'บันทึกเลเวลอัพไม่สำเร็จ');
+      if(!rr.ok||jr.error) throw new Error(resolverPlayerMessage(jr,uiCopy('บันทึกเลเวลอัพไม่สำเร็จ','Could not save level-up choices')));
       if(jr.rejected && jr.rejected.length){
         const asiRej=jr.rejected.find(x=>x.slug==='asi');
         toast(uiCopy('บางรายการถูกตัด (','Some picks were rejected (')+jr.rejected.length+')'+(asiRej?(' · ASI: '+asiRej.reason):''),true);
@@ -6394,14 +6423,25 @@ function equipSlotFor(name){
   if(/sword|dagger|axe|mace|bow|staff|spear|blade|hammer|club|rapier|scimitar|knife|wand|glaive|halberd|flail|whip|sling|crossbow|ดาบ|มีด|ขวาน|ธนู|ไม้เท้า|หอก|กระบอง|ค้อน|คทา|กริช|หน้าไม้|แส้/.test(s)) return 'weapon';
   return null;
 }
+function _sheetStableValue(value){
+  if(Array.isArray(value)) return value.map(_sheetStableValue);
+  if(value&&typeof value==='object'){ const out={}; Object.keys(value).sort().forEach(k=>{ if(value[k]!==undefined) out[k]=_sheetStableValue(value[k]); }); return out; }
+  return value;
+}
+function _sheetWriteMatches(requested,persisted){
+  try{ const clean=JSON.parse(JSON.stringify(requested||{})); return JSON.stringify(_sheetStableValue(clean))===JSON.stringify(_sheetStableValue(persisted||{})); }
+  catch(e){ return false; }
+}
 async function _saveSheet(sheet, prev){
   const now=new Date().toISOString();
   let q=supa.from('character_sheets').update({sheet,updated_at:now}).eq('character_id',myChar.id);
   if(prev) q=q.eq('updated_at',prev);              // optimistic lock: เขียนได้ก็ต่อเมื่อยังไม่มีใครแก้แทรก
-  const u=await q.select('updated_at');
+  const u=await q.select('sheet,updated_at');
   if(u.error) throw u.error;
-  if(prev && (!u.data||!u.data.length)){ const e=new Error('sheet changed'); e.code='SHEET_CONFLICT'; throw e; }
-  mySheet=sheet; mySheetUpdatedAt=now;
+  if(!u.data||!u.data.length){ const e=new Error(prev?'sheet changed':'sheet write returned no row'); e.code=prev?'SHEET_CONFLICT':'SHEET_WRITE_REJECTED'; throw e; }
+  const committed=u.data[0]||{};
+  if(!_sheetWriteMatches(sheet,committed.sheet)){ const e=new Error('sheet write was not persisted'); e.code='SHEET_WRITE_REJECTED'; e.persistedSheet=committed.sheet||{}; throw e; }
+  mySheet=committed.sheet||{}; mySheetUpdatedAt=committed.updated_at||now;
 }
 // สวมใส่: ย้ายของจากกระเป๋า → ช่อง equipment (ของเดิมในช่องเด้งกลับกระเป๋า)
 function useConsumable(name, effect){
@@ -6659,56 +6699,10 @@ function renderFeatCard(p){
   }).join('');
   if(used>=slots) html+='<div class="muted" style="font-size:.8em;margin-top:4px">ช่อง feat เต็ม — เลเวลขึ้นเพื่อปลดล็อกเพิ่ม</div>';
   card.innerHTML=html;
-  card.querySelectorAll('input[data-feat]').forEach(function(cb){
-    cb.onchange=async function(){
-      const id=cb.getAttribute('data-feat');
-      try{
-        const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle(); if(r.error) throw r.error;
-        const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at;
-        let fa=Array.isArray(sheet.feats)?sheet.feats.slice():[];
-        if(cb.checked){
-          if(id==='resilient'){ if(fa.map(_featMatch).indexOf('resilient')<0) fa.push('resilient-'+_resilientAbil(fa)); }   // v357: parameterized — default CON
-          else if(id==='elemental-adept'){ if(fa.map(_featMatch).indexOf('elemental-adept')<0) fa.push('elemental-adept-'+_elemAdeptType(fa)); }   // v366: parameterized — default fire
-          else if(fa.map(_featMatch).indexOf(id)<0) fa.push(id);
-        }
-        else { fa=fa.filter(function(x){ return _featMatch(x)!==id; }); }
-        sheet.feats=fa;
-        await _saveSheet(sheet, _prev); tick();
-        toast(cb.checked?uiCopy('เพิ่ม feat: '+((FEAT_OPTS.find(function(o){return o.id===id;})||{}).label||'')+' ✓ — มีผลตั้งแต่รอบถัดไป','Feat added: '+((FEAT_OPTS.find(function(o){return o.id===id;})||{}).label||'')+' ✓ — takes effect next round'):uiCopy('ลบ feat แล้ว','Feat removed'));
-        renderSkills();
-      }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ชีทเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderSkills(); } else { toast('บันทึกไม่สำเร็จ ลองใหม่',true); cb.checked=!cb.checked; } }
-    };
-  });
-  card.querySelectorAll('select[data-resab]').forEach(function(sel){   // v357 Resilient ability sub-picker → เขียน slug resilient-<ab>
-    sel.onchange=async function(){
-      try{
-        const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle(); if(r.error) throw r.error;
-        const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at;
-        let fa=Array.isArray(sheet.feats)?sheet.feats.slice():[];
-        fa=fa.filter(function(x){ return _featMatch(x)!=='resilient'; });
-        fa.push('resilient-'+sel.value);
-        sheet.feats=fa;
-        await _saveSheet(sheet, _prev); tick();
-        toast('Resilient: ชำนาญเซฟ '+String(sel.value).toUpperCase()+' ✓ (อย่าลืม +1 ค่าสถานะในชีท)');
-        renderSkills();
-      }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ชีทเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderSkills(); } else { toast('บันทึกไม่สำเร็จ ลองใหม่',true); } }
-    };
-  });
-  card.querySelectorAll('select[data-elemad]').forEach(function(sel){   // v366 Elemental Adept ธาตุ sub-picker → เขียน slug elemental-adept-<type>
-    sel.onchange=async function(){
-      try{
-        const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle(); if(r.error) throw r.error;
-        const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at;
-        let fa=Array.isArray(sheet.feats)?sheet.feats.slice():[];
-        fa=fa.filter(function(x){ return _featMatch(x)!=='elemental-adept'; });
-        fa.push('elemental-adept-'+sel.value);
-        sheet.feats=fa;
-        await _saveSheet(sheet, _prev); tick();
-        toast('Elemental Adept: ธาตุ '+String(sel.value).toUpperCase()+' ✓');
-        renderSkills();
-      }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ชีทเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderSkills(); } else { toast('บันทึกไม่สำเร็จ ลองใหม่',true); } }
-    };
-  });
+  card.querySelectorAll('input[data-feat],select[data-resab],select[data-elemad]').forEach(function(control){ control.disabled=true; });
+  const guidance=document.createElement('div'); guidance.className='note'; guidance.style.cssText='text-align:left;margin-top:7px;color:#FAC775';
+  guidance.textContent=uiCopy('แผงนี้อ่านอย่างเดียว · เลือก feat จากการ์ด LEVEL UP เมื่อถึงระดับ ASI แล้ว server จะบันทึกพร้อมการยืนยัน','This panel is read-only. Choose a feat from the LEVEL UP card at an ASI level; the server saves it when you confirm.');
+  card.appendChild(guidance);
   p.appendChild(card);
 }
 // v329 Hunter's Prey picker (Ranger L3+) — เขียน sheet.hunters_prey ให้ server (resolver v329) บังคับผล
