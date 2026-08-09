@@ -22,6 +22,7 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./character-content-en.js?v=20260720e4"></script>
 <script src="./grid-command-flow.js?v=822"></script>
 <script src="./grid-command-adapter.js?v=822"></script>
+<script src="./dice-fx.js?v=1220"></script>
 <script src="./music-playback-owner.js?v=847"></script>
 <script src="./music-v2-dark-launch.js?v=847"></script>
 <style>
@@ -2112,7 +2113,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608090133;   // FE-03: preserve raw/nested resolver correction bodies on spell-prepare rejection
+const FRONTEND_BUILD = 202608091220;   // DICE-01: server-face dice animation + synthesized WebAudio SFX
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2498,6 +2499,7 @@ function uiLanguage(){
 }
 function uiText(key,vars){ return UI18N.text(uiLanguage(),key,vars); }
 function uiCopy(th,en){ return uiLanguage()==='en'?en:th; }
+try{ window.DiceFx && window.DiceFx.init({t:uiCopy}); }catch(_diceFxInitError){}   // DICE-01: missing asset/localizer fails open
 // v755: legacy rounds may still contain an LLM-authored combat.range. Render
 // only the server vocabulary and localize units; unknown labels fail closed to
 // a non-numeric combat badge.
@@ -3278,6 +3280,30 @@ function mergeNarrative(row){
   if(i>=0) narrative[i]=row;
   else { narrative.push(row); narrative.sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)); }
   cacheSave('narrative_g'+terminalGroupForUi(),narrative);
+}
+const NARR_RECONCILE_LIMIT=20;
+// FE-05: one bounded tail query repairs narrative INSERT/UPDATE events missed
+// while realtime was disconnected. The cursor is always the actual cache tail;
+// .gte keeps equal-timestamp rows eligible and mergeNarrative owns id/group dedupe.
+async function reconcileNarrativeTail(){
+  if(!Array.isArray(narrative)||!narrative.length) return false;
+  const tail=narrative[narrative.length-1], cursor=String((tail&&tail.created_at)||'').trim();
+  if(!cursor||!campaign||!campaign.id) return false;
+  try{
+    const groupNo=terminalGroupForUi();
+    const {data,error}=await supa.from('narrative').select('*').eq('campaign_id',campaign.id)
+      .eq('group_no',groupNo).gte('created_at',cursor).order('created_at',{ascending:true}).limit(NARR_RECONCILE_LIMIT);
+    if(error) throw error;
+    let changed=false;
+    for(const row of (data||[])){
+      const before=narrative.find(n=>n.id===row.id), beforeSig=before?JSON.stringify(before):'';
+      mergeNarrative(row);
+      const after=narrative.find(n=>n.id===row.id);
+      if(after&&(!before||JSON.stringify(after)!==beforeSig)) changed=true;
+    }
+    if(changed&&activeTab()==='story') await renderStory();
+    return changed;
+  }catch(e){ return false; }
 }
 async function loadState(){
   try{ const r=await supa.from('campaign_state').select('*').eq('campaign_id',campaign.id).maybeSingle();
@@ -4989,13 +5015,18 @@ async function renderRoundbar(){
       const h=document.createElement('div'); h.className='copt-h'; h.textContent='— ระบบถาม: '+(_pd.prompt||'จะใช้บัฟช่วยการทอยหรือไม่?')+' —'; bx.appendChild(h);
       const mkB=(label,use)=>{ const b=document.createElement('button'); b.type='button'; b.textContent=label;
         b.onclick=async()=>{ b.disabled=true;
+          const _diceFx=window.DiceFx && window.DiceFx.pending({dice:[{die:'d20'}],label:_pd.prompt||uiCopy('ใช้ตัวช่วยกับผลทอย','Apply a roll modifier')});
           try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
             const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,buff_decision:{use:use}})});
-            const j=await r.json(); if(j.error){ toast(j.error,true); b.disabled=false; return; }
-            if(j.kind==='attack') toast(j.hit?('โดนแล้ว!'+(j.bi?' (Bardic +'+j.bi+')':'')+' ✓'):'ยังพลาด…', !j.hit);
-            else toast(j.pass?('เซฟผ่าน! ('+j.total+') ✓'):('เซฟไม่ผ่าน ('+j.total+')'), !j.pass);
-            await loadState(); renderRoundbar(); try{ resolveRound(false); }catch(e){}
-          }catch(e){ toast('ไม่สำเร็จ',true); b.disabled=false; }
+            const j=await r.json(); if(j.error){ failDiceFx(_diceFx); toast(j.error,true); b.disabled=false; return; }
+            const _finishBuff=async()=>{
+              if(j.kind==='attack') toast(j.hit?('โดนแล้ว!'+(j.bi?' (Bardic +'+j.bi+')':'')+' ✓'):'ยังพลาด…', !j.hit);
+              else toast(j.pass?('เซฟผ่าน! ('+j.total+') ✓'):('เซฟไม่ผ่าน ('+j.total+')'), !j.pass);
+              await loadState(); renderRoundbar(); try{ resolveRound(false); }catch(e){}
+            };
+            // DICE-02 will add the raw d20. Until then the authoritative response total is the displayed face; never infer a client roll.
+            settleDiceFx(_diceFx,{dice:[{die:'d20',value:j.total}],total:j.total,dc:j.dc??_pd.dc,pass:j.ask_buff?null:(j.kind==='attack'?!!j.hit:!!j.pass),label:_pd.prompt||uiCopy('ใช้ตัวช่วยกับผลทอย','Apply a roll modifier')},()=>{ _finishBuff().catch(()=>{ toast('ไม่สำเร็จ',true); b.disabled=false; }); });
+          }catch(e){ failDiceFx(_diceFx); toast('ไม่สำเร็จ',true); b.disabled=false; }
         }; return b; };
       const op=_pd.options||{};
       if(op.bi) bx.appendChild(mkB('ใช้ Bardic Inspiration (+1d6)','bi'));
@@ -5008,13 +5039,18 @@ async function renderRoundbar(){
       const sb=document.createElement('button'); sb.className='btn'; sb.style.cssText='display:block;width:100%;margin:6px 0';
       sb.textContent='🎲 ทอยเซฟ '+(_ps.ability||'')+' (DC '+(_ps.dc||'?')+')'+(_ps.reason?(' — '+String(_ps.reason).slice(0,42)):'');
       sb.onclick=async()=>{ sb.disabled=true; sb.textContent='🎲 กำลังทอย…';
+        const _diceFx=window.DiceFx && window.DiceFx.pending({dice:[{die:'d20'}],label:uiCopy('ทอยเซฟ ','Saving Throw ')+(_ps.ability||'')});
         try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
           const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,save_roll:true})});
-          const j=await r.json(); if(j.error){ toast(j.error,true); sb.disabled=false; return; }
-          if(j.ask_buff){ toast('ทอยได้ '+j.total+' — ไม่ผ่าน แต่มีตัวช่วย เลือกได้เลย'); await loadState(); renderRoundbar(); return; }
-          toast(j.pass?('เซฟผ่าน! ('+j.total+' vs DC '+_ps.dc+') ✓'):('ไม่ผ่าน ('+j.total+' vs DC '+_ps.dc+')'), !j.pass);
-          await loadState(); renderRoundbar(); try{ resolveRound(false); }catch(e){}
-        }catch(e){ toast('ทอยไม่สำเร็จ ลองใหม่',true); sb.disabled=false; sb.textContent='🎲 ทอยเซฟ '+(_ps.ability||''); }
+          const j=await r.json(); if(j.error){ failDiceFx(_diceFx); toast(j.error,true); sb.disabled=false; return; }
+          const _finishSave=async()=>{
+            if(j.ask_buff){ toast('ทอยได้ '+j.total+' — ไม่ผ่าน แต่มีตัวช่วย เลือกได้เลย'); await loadState(); renderRoundbar(); return; }
+            toast(j.pass?('เซฟผ่าน! ('+j.total+' vs DC '+_ps.dc+') ✓'):('ไม่ผ่าน ('+j.total+' vs DC '+_ps.dc+')'), !j.pass);
+            await loadState(); renderRoundbar(); try{ resolveRound(false); }catch(e){}
+          };
+          // DICE-02 will add the raw d20. Until then the authoritative response total is the displayed face; never infer a client roll.
+          settleDiceFx(_diceFx,{dice:[{die:'d20',value:j.total}],total:j.total,dc:_ps.dc,pass:j.ask_buff?null:!!j.pass,label:uiCopy('ทอยเซฟ ','Saving Throw ')+(_ps.ability||'')},()=>{ _finishSave().catch(()=>{ toast('ทอยไม่สำเร็จ ลองใหม่',true); sb.disabled=false; sb.textContent='🎲 ทอยเซฟ '+(_ps.ability||''); }); });
+        }catch(e){ failDiceFx(_diceFx); toast('ทอยไม่สำเร็จ ลองใหม่',true); sb.disabled=false; sb.textContent='🎲 ทอยเซฟ '+(_ps.ability||''); }
       };
       bar.appendChild(sb);
     }
@@ -5191,12 +5227,12 @@ async function renderRoundbar(){
       if(_rrItems.length>1){
         // v424: หลายสกิลใน roll_request = "ทางเลือก" ไม่ใช่ทอยรวดทุกอัน — ผู้เล่นเลือกทอย 'อันเดียว' (กันทอย Persuasion/Intimidation/Deception ออกมาพร้อมกัน 3 ค่า)
         dice.innerHTML='<span class="dicelbl">🎲 '+reason+' — เลือกแนวทางที่จะทอย (อย่างเดียว):</span>';
-        _rrItems.forEach(it=>{ const b=document.createElement('button'); b.className='btn ghost sm'; b.textContent='🎲 '+escapeHtml(String(it.label||'Roll'))+(it.ability?(' +'+escapeHtml(String(it.ability))):''); b.onclick=()=>rollDM([it]); dice.appendChild(b); });
+        _rrItems.forEach(it=>{ const b=document.createElement('button'); b.className='btn ghost sm'; b.textContent='🎲 '+escapeHtml(String(it.label||'Roll'))+(it.ability?(' +'+escapeHtml(String(it.ability))):''); b.onclick=()=>rollDM([it],dice); dice.appendChild(b); });
         const sf=document.createElement('button'); sf.className='btn ghost sm'; sf.textContent='ทอยเอง'; sf.onclick=rollSelf; dice.appendChild(sf);
       } else {
         const itemsTxt = _rrItems.length? (`${_rrItems[0].label||'Roll'} ${_rrItems[0].formula||'1d20'}${_rrItems[0].ability?(' +'+_rrItems[0].ability):''}`) : '';
         dice.innerHTML='<span class="dicelbl">🎲 DM ขอให้ทอย: '+reason+(itemsTxt?(' <span style="color:#9a9a9a">('+escapeHtml(itemsTxt)+')</span>'):'')+'</span>';
-        const dm=document.createElement('button'); dm.className='btn ghost sm'; dm.textContent='DM ทอยให้'; dm.onclick=()=>rollDM(_rrItems); dice.appendChild(dm);
+        const dm=document.createElement('button'); dm.className='btn ghost sm'; dm.textContent='DM ทอยให้'; dm.onclick=()=>rollDM(_rrItems,dice); dice.appendChild(dm);
         const sf=document.createElement('button'); sf.className='btn ghost sm'; sf.textContent='ทอยเอง'; sf.onclick=rollSelf; dice.appendChild(sf);
       }
       bar.appendChild(dice);
@@ -5265,26 +5301,66 @@ function markEconomyFromText(){
     c.className='econ '+(used?'used':'avail');
   });
 }
-// DM ทอยให้ — ถ้ามีหลายเต๋า (combat) ทอยรวดเดียวทั้งหมดผ่าน server
-async function rollDM(items){
+function settleDiceFx(handle,payload,onDone){
+  let handedOff=false;
+  try{ if(handle&&typeof handle.settle==='function') handedOff=handle.settle(Object.assign({},payload,{onDone:onDone}))!==false; }catch(e){}
+  if(!handedOff) onDone();
+}
+function failDiceFx(handle){ try{ if(handle&&typeof handle.fail==='function') handle.fail(); }catch(e){} }
+// DM ทอยให้ — หน้าเต๋าทุกลูกมาจาก RPC; สำหรับ 2-8 ลูกยิง RPC ลูกละหนึ่งครั้งแบบขนานเพื่อเก็บหน้าจริง
+async function rollDM(items,diceRow){
+  const _diceButtons=diceRow?Array.from(diceRow.querySelectorAll('button')):[];
+  const _setDiceDisabled=(disabled)=>_diceButtons.forEach(button=>{button.disabled=disabled;});
+  let _diceFx=null;
   try{
+    _setDiceDisabled(true);
     if(Array.isArray(items)&&items.length){
-      const parts=[];
+      const _previewDice=[];
+      items.forEach(it=>{ const f=String(it.formula||'1d20').toLowerCase(); const m=f.match(/(\d*)d(\d+)/); const cnt=m?Math.max(1,parseInt(m[1]||'1')):1; const sides=m?parseInt(m[2]):20; for(let i=0;i<Math.min(cnt,64);i++)_previewDice.push({die:'d'+sides}); });
+      _diceFx=window.DiceFx && window.DiceFx.pending({dice:_previewDice,label:items.map(it=>String(it.label||'Roll')+' '+String(it.formula||'1d20')).join(' · ')});
+      const parts=[], _settledDice=[];
+      let _flatTotal=0, _grandTotal=0;
       for(const it of items){
         const f=(it.formula||'1d20').toLowerCase(); const m=f.match(/(\d*)d(\d+)/);
-        let n;
-        if(m){ const cnt=parseInt(m[1]||'1'), sides=parseInt(m[2]); const r=await supa.rpc('roll_dice',{sides,dice:cnt}); n=r.error?'?':r.data; }
-        else { const r=await supa.rpc('roll_d20'); n=r.error?'?':r.data; }
+        let n, _faces=[], _flat=0;
+        if(m){
+          const cnt=Math.max(1,parseInt(m[1]||'1')), sides=parseInt(m[2]);
+          const _flatMatch=f.match(/([+-])\s*(\d+)\s*$/); _flat=_flatMatch?(_flatMatch[1]==='-'?-1:1)*parseInt(_flatMatch[2]):0;
+          if(cnt>=2&&cnt<=8){
+            const rolls=await Promise.all(Array.from({length:cnt},()=>supa.rpc('roll_dice',{sides,dice:1})));
+            const bad=rolls.find(r=>r.error); if(bad)throw bad.error;
+            _faces=rolls.map(r=>Number(r.data)); if(_faces.some(value=>!Number.isFinite(value)))throw new Error('invalid dice response');
+            n=_faces.reduce((sum,value)=>sum+value,0)+_flat;
+          }else{
+            const r=await supa.rpc('roll_dice',{sides,dice:cnt}); if(r.error)throw r.error;
+            const raw=Number(r.data); if(!Number.isFinite(raw))throw new Error('invalid dice response');
+            n=raw+_flat;
+            if(cnt>8){
+              const split=window.DiceFx && window.DiceFx._pure && window.DiceFx._pure.splitTotalCosmetic(raw,cnt,sides);
+              _faces=Array.isArray(split)?split:[raw];   // cosmetic split only; authoritative total remains the RPC value
+            }else _faces=[raw];
+          }
+          _faces.forEach(value=>_settledDice.push({die:'d'+sides,value:value}));
+        }else{
+          const r=await supa.rpc('roll_d20'); if(r.error)throw r.error;
+          n=Number(r.data); if(!Number.isFinite(n))throw new Error('invalid d20 response');
+          _settledDice.push({die:'d20',value:n});
+        }
+        _flatTotal+=_flat; _grandTotal+=n;
         parts.push(`${it.label||'Roll'} ${it.formula||'1d20'}=${n}${it.ability?(' +'+it.ability):''}`);
       }
-      insertRollMulti(parts.join(' · '),'DM');
+      settleDiceFx(_diceFx,{dice:_settledDice,flat:_flatTotal,label:items.map(it=>String(it.label||'Roll')).join(' · '),total:_grandTotal},()=>insertRollMulti(parts.join(' · '),'DM'));
     } else {
-      const { data, error }=await supa.rpc('roll_d20'); if(error) throw error; insertRoll(data,'DM');
+      _diceFx=window.DiceFx && window.DiceFx.pending({dice:[{die:'d20'}],label:'d20'});
+      const { data, error }=await supa.rpc('roll_d20'); if(error) throw error;
+      settleDiceFx(_diceFx,{dice:[{die:'d20',value:data}],total:data,label:'d20'},()=>insertRoll(data,'DM'));
     }
-  }catch(e){ toast('ทอยไม่สำเร็จ (รัน migration?)',true); }
+  }catch(e){ failDiceFx(_diceFx); _setDiceDisabled(false); toast('ทอยไม่สำเร็จ (รัน migration?)',true); }
 }
 function insertRollMulti(text,who){
   const ta=$('actInput'); if(!ta) return;
+  if(window._rolledRound===(curRound&&curRound.id)){ toast('รอบนี้ทอยไปแล้ว — ทอยได้ครั้งเดียว',true); return; }
+  window._rolledRound=curRound&&curRound.id;
   ta.value=(ta.value?ta.value.trim()+'\n':'')+`[ทอย (${who}): ${text}]`;
   toast('🎲 ทอยแล้ว');
 }
@@ -6189,6 +6265,15 @@ function questClueProjection(questRows,clueRows){
   const displayed_count=groups.reduce((n,group)=>n+group.evidence.length+group.related.length,0)+rest.length;
   return {groups,rest,displayed_count};
 }
+function questThreadRowsForUi(value){
+  return (Array.isArray(value)?value:[]).filter(t=>t&&String(t.title||'').trim());
+}
+function questFactionRowsForUi(factions,notoriety){
+  const facs=(Array.isArray(factions)?factions:[]).filter(f=>f&&f.name);
+  const noto=(notoriety&&typeof notoriety==='object')?notoriety:{};
+  const wanted=Object.entries(noto).filter(e=>(+e[1]||0)>=2);
+  return {factions:facs,wanted,hasSignal:facs.some(f=>(+f.rep||0)!==0)||wanted.length>0};
+}
 async function renderQuest(){
   // v87: แท็บ Quest ใช้งานจริง — เควส active พร้อม hint ที่ทยอยได้ (จาก clues ผูกชื่อเควส) + เควสที่จบแล้ว + เบาะแสอื่น
   const _hostQ=$('panel-quest'); _hostQ.innerHTML='<div class="sk-cols"></div>'; const p=_hostQ.firstElementChild;   /* v531c: multicol บน wrapper (มิเรอร์ skills) */
@@ -6229,7 +6314,7 @@ async function renderQuest(){
     const arc=(worldState&&worldState.settings||{}).story_arc;
     const actN=(arc&&+arc.act)||0;
     if(actN>=1){
-      const ACT_MOOD={1:['🕯️','เงาแรกทาบทับแผ่นดิน','โลกยังหมุนไปตามวิถีของมัน — แต่บางสิ่งเริ่มขยับตัวในความมืด'],2:['🌒','เงื้อมมือที่มองไม่เห็น','เหตุการณ์ต่างๆ เริ่มเชื่อมโยงถึงกัน ผู้คนกระซิบถึงสิ่งที่ไม่มีใครกล้าเอ่ยนาม'],3:['⛈️','พายุใกล้เข้ามา','ทุกย่างก้าวสั่นสะเทือนถึงเบื้องลึก — จุดจบของบางสิ่งใกล้เข้ามาเต็มที']};
+      const ACT_MOOD={1:['🕯️',uiCopy('เงาแรกทาบทับแผ่นดิน','The First Shadow Falls'),uiCopy('โลกยังหมุนไปตามวิถีของมัน — แต่บางสิ่งเริ่มขยับตัวในความมืด','The world turns on — but something stirs in the dark')],2:['🌒',uiCopy('เงื้อมมือที่มองไม่เห็น','The Unseen Hand'),uiCopy('เหตุการณ์ต่างๆ เริ่มเชื่อมโยงถึงกัน ผู้คนกระซิบถึงสิ่งที่ไม่มีใครกล้าเอ่ยนาม','Events begin to converge, and people whisper of what no one dares name')],3:['⛈️',uiCopy('พายุใกล้เข้ามา','The Storm Draws Near'),uiCopy('ทุกย่างก้าวสั่นสะเทือนถึงเบื้องลึก — จุดจบของบางสิ่งใกล้เข้ามาเต็มที','Every step shakes the depths — and an ending draws close') ]};
       const m=ACT_MOOD[Math.min(3,Math.max(1,actN))];
       const ab=document.createElement('div'); ab.className='item';
       ab.innerHTML='<div style="'+FONT+';font-size:13px;text-align:left;color:#c9b98a"><span style="font-size:15px">'+m[0]+'</span> <b>'+m[1]+'</b><div style="font-size:12px;color:#9a9a9a;margin-top:2px">'+m[2]+'</div></div>';
@@ -6238,33 +6323,30 @@ async function renderQuest(){
   }catch(e){}
   // ── v204 WORLD THREADS: เรื่องค้างคาในโลก (settings.threads) — โชว์แค่ชื่อปม open (เส้นตาย/ผลล่วงหน้า = ความลับ กัน meta-gaming) ──
   try{
-    const ths=Array.isArray((worldState&&worldState.settings||{}).threads)?worldState.settings.threads:[];
+    const ths=questThreadRowsForUi((worldState&&worldState.settings||{}).threads);
     const opens=ths.filter(t=>t&&t.status==='open');
     const recent=ths.filter(t=>t&&t.status!=='open').slice(-3).reverse();
     if(opens.length||recent.length){
       const wt=document.createElement('div'); wt.className='item';
-      let h='<div style="'+FONT+';font-size:15px;font-weight:700;text-align:left;padding:2px 0 6px;border-bottom:1px solid #444;margin-bottom:6px">🌍 เรื่องค้างคาในโลก <span style="font-weight:400;font-size:12px;color:#9a9a9a">โลกไม่รอใคร — บางเรื่องมีเวลาของมัน</span></div>';
+      let h='<div style="'+FONT+';font-size:15px;font-weight:700;text-align:left;padding:2px 0 6px;border-bottom:1px solid #444;margin-bottom:6px">'+uiCopy('🌍 เรื่องค้างคาในโลก','🌍 Unresolved World Threads')+' <span style="font-weight:400;font-size:12px;color:#9a9a9a">'+uiCopy('โลกไม่รอใคร — บางเรื่องมีเวลาของมัน','The world waits for no one — some matters have their own time')+'</span></div>';
       h+=opens.map(t=>'<div style="'+FONT+';font-size:13px;text-align:left;margin:3px 0">⏳ '+escapeHtml(String(t.title||''))+'</div>').join('');
       if(recent.length) h+=recent.map(t=>{const ic=t.status==='done'?'✓':t.status==='failed'?'✗':'⌛'; const cl=t.status==='done'?'#97C459':t.status==='failed'?'#E24B4A':'#9a9a9a';
-        return '<div style="'+FONT+';font-size:12px;text-align:left;margin:3px 0;color:'+cl+'">'+ic+' '+escapeHtml(String(t.title||''))+(t.status==='expired'?' — โลกขยับไปแล้ว':'')+'</div>';}).join('');
+        return '<div style="'+FONT+';font-size:12px;text-align:left;margin:3px 0;color:'+cl+'">'+ic+' '+escapeHtml(String(t.title||''))+(t.status==='expired'?uiCopy(' — โลกขยับไปแล้ว',' — the world has moved on'):'')+'</div>';}).join('');
       wt.innerHTML=h; p.appendChild(wt);
     }
   }catch(e){}
   // ── v252 FACTION Phase 2: ก้อน "⚖ ชื่อเสียงปาร์ตี้" ต่อฝ่าย (settings.factions rep −3..+3) + หมายหัว/ความฉาว (settings.notoriety) ──
   try{
     const fset=(worldState&&worldState.settings)||{};
-    const facs=Array.isArray(fset.factions)?fset.factions.filter(f=>f&&f.name):[];
-    const noto=(fset.notoriety&&typeof fset.notoriety==='object')?fset.notoriety:{};
-    const notoMax=Math.max(0,...Object.values(noto).map(v=>+v||0));
-    const hasSignal=facs.some(f=>(+f.rep||0)!==0)||notoMax>0;
+    const fview=questFactionRowsForUi(fset.factions,fset.notoriety);
+    const facs=fview.factions, wanted=fview.wanted, hasSignal=fview.hasSignal;
     if(hasSignal){
-      const repTier=(r)=>{ r=+r||0; return r>=3?['พันธมิตร','#97C459']:r>=1?['เป็นมิตร','#B6D88A']:r<=-3?['ศัตรู','#E24B4A']:r<=-1?['ระแวง','#E8915B']:['เป็นกลาง','#9a9a9a']; };
+      const repTier=(r)=>{ r=+r||0; return r>=3?[uiCopy('พันธมิตร','Allied'),'#97C459']:r>=1?[uiCopy('เป็นมิตร','Friendly'),'#B6D88A']:r<=-3?[uiCopy('ศัตรู','Hostile'),'#E24B4A']:r<=-1?[uiCopy('ระแวง','Wary'),'#E8915B']:[uiCopy('เป็นกลาง','Neutral'),'#9a9a9a']; };
       const fb=document.createElement('div'); fb.className='item';
-      let h='<div style="'+FONT+';font-size:15px;font-weight:700;text-align:left;padding:2px 0 6px;border-bottom:1px solid #444;margin-bottom:6px">⚖ ชื่อเสียงปาร์ตี้ <span style="font-weight:400;font-size:12px;color:#9a9a9a">การกระทำสร้างชื่อ</span></div>';
+      let h='<div style="'+FONT+';font-size:15px;font-weight:700;text-align:left;padding:2px 0 6px;border-bottom:1px solid #444;margin-bottom:6px">'+uiCopy('⚖ ชื่อเสียงปาร์ตี้','⚖ Party Reputation')+' <span style="font-weight:400;font-size:12px;color:#9a9a9a">'+uiCopy('การกระทำสร้างชื่อ','Deeds shape reputation')+'</span></div>';
       h+=facs.map(f=>{ const t=repTier(f.rep); const rv=(+f.rep||0);
         return '<div style="'+FONT+';font-size:13px;text-align:left;margin:3px 0;display:flex;justify-content:space-between;gap:8px"><span>'+escapeHtml(String(f.name))+'</span><span style="color:'+t[1]+';white-space:nowrap">'+t[0]+' ('+(rv>0?'+':'')+rv+')</span></div>'; }).join('');
-      const wanted=Object.entries(noto).filter(e=>(+e[1]||0)>=2);
-      if(wanted.length) h+=wanted.map(e=>'<div style="'+FONT+';font-size:12px;text-align:left;margin:4px 0 0;color:#E24B4A">⚠ ถูกหมายหัว: '+escapeHtml(String(e[0]))+' (ความฉาว '+(+e[1]||0)+')</div>').join('');
+      if(wanted.length) h+=wanted.map(e=>'<div style="'+FONT+';font-size:12px;text-align:left;margin:4px 0 0;color:#E24B4A">'+uiCopy('⚠ ถูกหมายหัว: ','⚠ Wanted by: ')+escapeHtml(String(e[0]))+' ('+uiCopy('ความฉาว ','notoriety ')+(+e[1]||0)+')</div>').join('');
       fb.innerHTML=h; p.appendChild(fb);
     }
   }catch(e){}
@@ -6292,13 +6374,13 @@ async function renderQuest(){
     p.appendChild(offers);
   }
   // v194: ป้ายความยากจาก quests.blueprint (server ทอยล็อกตอนรับเควส — ผู้เล่นเห็นแค่ป้าย+คำใบ้ ตัวเลขเป็นความลับผู้กำกับ)
-  const BP_BADGE={easy:['⭐ ง่าย','#97C459'],normal:['⭐⭐ ปกติ','#FAC775'],hard:['⭐⭐⭐ ยาก','#E8915B'],epic:['💀 มหาโหด','#E24B4A']};
+  const BP_BADGE={easy:[uiCopy('⭐ ง่าย','⭐ Easy'),'#97C459'],normal:[uiCopy('⭐⭐ ปกติ','⭐⭐ Normal'),'#FAC775'],hard:[uiCopy('⭐⭐⭐ ยาก','⭐⭐⭐ Hard'),'#E8915B'],epic:[uiCopy('💀 มหาโหด','💀 Epic'),'#E24B4A']};
   const bpBadge=(q)=>{
-    if(q.blueprint&&q.blueprint.kind==='standing') return ' <span style="font-weight:600;font-size:11px;color:#6cb6ff;border:1px solid #6cb6ff;border-radius:6px;padding:0 6px;white-space:nowrap">🛡 เฝ้าระวัง (ต่อเนื่อง)</span>';   // v431: เควสเฝ้าระวัง/ถาวร — ไม่ใช่ศึกครั้งเดียว
+    if(q.blueprint&&q.blueprint.kind==='standing') return ' <span style="font-weight:600;font-size:11px;color:#6cb6ff;border:1px solid #6cb6ff;border-radius:6px;padding:0 6px;white-space:nowrap">'+uiCopy('🛡 เฝ้าระวัง (ต่อเนื่อง)','🛡 Standing Watch (ongoing)')+'</span>';   // v431: เควสเฝ้าระวัง/ถาวร — ไม่ใช่ศึกครั้งเดียว
     const d=q.blueprint&&q.blueprint.diff; const x=BP_BADGE[d]; if(!x) return '';
     return ' <span style="font-weight:600;font-size:11px;color:'+x[1]+';border:1px solid '+x[1]+';border-radius:6px;padding:0 6px;white-space:nowrap">'+x[0]+'</span>'; };
   // v490 hook badge: ป้าย "ที่มาของเควส" จาก blueprint.hook (hook director ฝั่ง server stamp ตอนรับเควส)
-  const HOOK_BADGE={npc_plea:['🙏 คำขอร้อง','#B6D88A'],thread:['🕸 จากปมค้าง','#b09ae8'],faction_call:['⚔ งานฝ่าย','#6cb6ff'],rumor:['👂 ตามเบาะแส','#FAC775'],board:['🪧 กระดาน','#9a9a9a'],lore:['📜 จากตำนาน','#c9b98a']};   // v508: +lore (v507 เควสจากหนังสือ ingest — ป้ายฝั่ง frontend ที่ตกหล่น)
+  const HOOK_BADGE={npc_plea:[uiCopy('🙏 คำขอร้อง','🙏 A Plea'),'#B6D88A'],thread:[uiCopy('🕸 จากปมค้าง','🕸 World Thread'),'#b09ae8'],faction_call:[uiCopy('⚔ งานฝ่าย','⚔ Faction Call'),'#6cb6ff'],rumor:[uiCopy('👂 ตามเบาะแส','👂 Rumor'),'#FAC775'],board:[uiCopy('🪧 กระดาน','🪧 Quest Board'),'#9a9a9a'],lore:[uiCopy('📜 จากตำนาน','📜 From Lore'),'#c9b98a']};   // v508: +lore (v507 เควสจากหนังสือ ingest — ป้ายฝั่ง frontend ที่ตกหล่น)
   const hookBadge=(q)=>{
     const hk=q.blueprint&&q.blueprint.hook; const x=hk&&HOOK_BADGE[hk.channel]; if(!x) return '';
     const who=hk.npc?(' · '+String(hk.npc)):(hk.faction?(' · '+String(hk.faction)):'');
@@ -6330,11 +6412,11 @@ async function renderQuest(){
   if(ended.length){
     const det=document.createElement('details'); det.className='item'; det.style.cssText=FONT;
     const sum=document.createElement('summary'); sum.style.cssText='cursor:pointer;font-size:14px;font-weight:600;padding:4px 0;'+FONT;
-    sum.textContent='เควสที่จบแล้ว ('+ended.length+')';
+    sum.textContent=uiCopy('เควสที่จบแล้ว (','Finished quests (')+ended.length+')';
     det.appendChild(sum);
     ended.forEach(q=>{
       const row=document.createElement('div'); row.style.cssText=FONT+';border-top:1px solid #333;padding:6px 0;text-align:left';
-      row.innerHTML='<div style="font-size:14px;font-weight:600">'+bpTitle(q)+bpBadge(q)+hookBadge(q)+' <span style="font-weight:400;font-size:12px;color:'+(q.status==='completed'?'#97C459':'#E24B4A')+'">'+(q.status==='completed'?'สำเร็จ':'ล้มเหลว')+'</span></div>'+
+      row.innerHTML='<div style="font-size:14px;font-weight:600">'+bpTitle(q)+bpBadge(q)+hookBadge(q)+' <span style="font-weight:400;font-size:12px;color:'+(q.status==='completed'?'#97C459':'#E24B4A')+'">'+(q.status==='completed'?uiCopy('สำเร็จ','Completed'):uiCopy('ล้มเหลว','Failed'))+'</span></div>'+
                     (q.description?'<div style="font-size:13px;color:#9a9a9a">'+escapeHtml(q.description)+'</div>':'');
       det.appendChild(row);
     });
@@ -6467,11 +6549,17 @@ function _sheetStableValue(value){
   if(value&&typeof value==='object'){ const out={}; Object.keys(value).sort().forEach(k=>{ if(value[k]!==undefined) out[k]=_sheetStableValue(value[k]); }); return out; }
   return value;
 }
-function _sheetWriteMatches(requested,persisted){
-  try{ const clean=JSON.parse(JSON.stringify(requested||{})); return JSON.stringify(_sheetStableValue(clean))===JSON.stringify(_sheetStableValue(persisted||{})); }
+function _sheetWritableProjection(value,writableLeaves){
+  if(!Array.isArray(writableLeaves)||!writableLeaves.length) return value||{};
+  const source=value&&typeof value==='object'?value:{}; const out={};
+  writableLeaves.forEach(key=>{ if(typeof key==='string'&&Object.prototype.hasOwnProperty.call(source,key)) out[key]=source[key]; });
+  return out;
+}
+function _sheetWriteMatches(requested,persisted,writableLeaves){
+  try{ const clean=JSON.parse(JSON.stringify(_sheetWritableProjection(requested,writableLeaves))); const committed=JSON.parse(JSON.stringify(_sheetWritableProjection(persisted,writableLeaves))); return JSON.stringify(_sheetStableValue(clean))===JSON.stringify(_sheetStableValue(committed)); }
   catch(e){ return false; }
 }
-async function _saveSheet(sheet, prev){
+async function _saveSheet(sheet, prev, writableLeaves){
   const now=new Date().toISOString();
   let q=supa.from('character_sheets').update({sheet,updated_at:now}).eq('character_id',myChar.id);
   if(prev) q=q.eq('updated_at',prev);              // optimistic lock: เขียนได้ก็ต่อเมื่อยังไม่มีใครแก้แทรก
@@ -6479,7 +6567,7 @@ async function _saveSheet(sheet, prev){
   if(u.error) throw u.error;
   if(!u.data||!u.data.length){ const e=new Error(prev?'sheet changed':'sheet write returned no row'); e.code=prev?'SHEET_CONFLICT':'SHEET_WRITE_REJECTED'; throw e; }
   const committed=u.data[0]||{};
-  if(!_sheetWriteMatches(sheet,committed.sheet)){ const e=new Error('sheet write was not persisted'); e.code='SHEET_WRITE_REJECTED'; e.persistedSheet=committed.sheet||{}; throw e; }
+  if(!_sheetWriteMatches(sheet,committed.sheet,writableLeaves)){ const e=new Error('sheet write was not persisted'); e.code='SHEET_WRITE_REJECTED'; e.persistedSheet=committed.sheet||{}; throw e; }
   mySheet=committed.sheet||{}; mySheetUpdatedAt=committed.updated_at||now;
 }
 // สวมใส่: ย้ายของจากกระเป๋า → ช่อง equipment (ของเดิมในช่องเด้งกลับกระเป๋า)
@@ -6509,7 +6597,7 @@ async function equipItem(name){
       sheet.equipment[slot]=name;
     }
     sheet.inventory=inv;
-    persistCombatStats(sheet, myChar.class); await _saveSheet(sheet, _prev); tick(); toast('สวมใส่ '+name+' ✓'); renderItems();
+    persistCombatStats(sheet, myChar.class); await _saveSheet(sheet, _prev, ['equipment','inventory']); tick(); toast('สวมใส่ '+name+' ✓'); renderItems();
   }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ของเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderItems(); } else toast('สวมใส่ไม่สำเร็จ',true); }
 }
 // v365 #10: ใส่อาวุธ light ช่องมือรอง (Two-Weapon Fighting — resolver v363 อ่าน equipment.offhand)
@@ -6524,7 +6612,7 @@ async function equipOffhand(name){
     if(idx>=0){ const it=inv[idx]; if(typeof it!=='string' && +it.qty>1){ inv[idx]={...it,qty:+it.qty-1}; } else { inv.splice(idx,1); } }
     const prev=sheet.equipment.offhand; if(prev) inv.push({name:prev,qty:1});
     sheet.equipment.offhand=name; sheet.inventory=inv;
-    persistCombatStats(sheet, myChar.class); await _saveSheet(sheet, _prev); tick(); toast('ใส่มือรอง '+name+' ✓'); renderItems();
+    persistCombatStats(sheet, myChar.class); await _saveSheet(sheet, _prev, ['equipment','inventory']); tick(); toast('ใส่มือรอง '+name+' ✓'); renderItems();
   }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ของเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderItems(); } else toast('ใส่มือรองไม่สำเร็จ',true); }
 }
 async function unequipAccessory(name){
@@ -6538,7 +6626,7 @@ async function unequipAccessory(name){
     if(i>=0){ acc.splice(i,1); removed=true; } else if(sheet.equipment.accessory===name){ sheet.equipment.accessory=''; removed=true; }
     sheet.equipment.accessories=acc; if(!removed) return;
     let inv=Array.isArray(sheet.inventory)?sheet.inventory.slice():[]; inv.push({name,qty:1}); sheet.inventory=inv;
-    persistCombatStats(sheet, myChar.class); await _saveSheet(sheet, _prev); tick(); toast('ถอด '+name+' ✓'); renderItems();
+    persistCombatStats(sheet, myChar.class); await _saveSheet(sheet, _prev, ['equipment','inventory']); tick(); toast('ถอด '+name+' ✓'); renderItems();
   }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ของเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderItems(); } else toast('ถอดไม่สำเร็จ',true); }
 }
 // ถอด: ย้ายจากช่อง equipment → กระเป๋า
@@ -6551,7 +6639,7 @@ async function unequipItem(slot){
     const val=sheet.equipment[slot]; if(!val) return;
     let inv=Array.isArray(sheet.inventory)?sheet.inventory.slice():[]; inv.push({name:val,qty:1});
     sheet.equipment[slot]=''; sheet.inventory=inv;
-    persistCombatStats(sheet, myChar.class); await _saveSheet(sheet, _prev); tick(); toast('ถอด '+val+' ✓'); renderItems();
+    persistCombatStats(sheet, myChar.class); await _saveSheet(sheet, _prev, ['equipment','inventory']); tick(); toast('ถอด '+val+' ✓'); renderItems();
   }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ของเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderItems(); } else toast('ถอดไม่สำเร็จ',true); }
 }
 // ───────── render: skills (ตาราง skills + fallback) ─────────
@@ -8943,7 +9031,7 @@ function dunMapHtml(dHit, st){
           +'<div style="font-size:10px;color:'+(hereR?'#FAC775':'#fff')+';text-shadow:0 0 3px #000,0 0 4px #000;white-space:nowrap;margin-top:1px;font-weight:600">'+lbl+(ic?' '+ic:'')+'</div></div>';
       });
       ph+='</div>';
-      return '<div class="note" style="text-align:left;padding:2px 2px 0">'+escapeHtml(dHit.name)+' 🗺</div>'+ph+'<div class="note" style="text-align:left;padding:4px 2px;font-size:11px">🟡 ห้องปัจจุบัน · 🟢 เคลียร์/เก็บแล้ว · ? = เห็นทางแต่ยังไม่สำรวจ · 🗝 ห้องลับ · ☠ ห้องลึกสุด</div>';
+      return '<div class="note" style="text-align:left;padding:2px 2px 0">'+escapeHtml(dHit.name)+' 🗺</div>'+ph+'<div class="note" style="text-align:left;padding:4px 2px;font-size:11px">'+uiCopy('🟡 ห้องปัจจุบัน · 🟢 เคลียร์/เก็บแล้ว · ? = เห็นทางแต่ยังไม่สำรวจ · 🗝 ห้องลับ · ☠ ห้องลึกสุด','🟡 Current room · 🟢 Cleared / looted · ? = Route seen but unexplored · 🗝 Secret room · ☠ Deepest room')+'</div>';
     }
     const cols={}; ids.forEach(id=>{const d2=Math.max(0,Math.floor(+byId[id].depth||0)); (cols[d2]=cols[d2]||[]).push(id);});
     const depths=Object.keys(cols).map(Number).sort((a,b)=>a-b);
@@ -8965,7 +9053,7 @@ function dunMapHtml(dHit, st){
       }
     });
     svg3+='</svg>';
-    return '<div class="note" style="text-align:left;padding:2px 2px 0">'+escapeHtml(dHit.name)+'</div>'+svg3+'<div class="note" style="text-align:left;padding:4px 2px;font-size:11px">🟡 ห้องปัจจุบัน · 🟢 เคลียร์/เก็บแล้ว · ? = เห็นทางแต่ยังไม่สำรวจ · 🗝 ห้องลับ · ☠ ห้องลึกสุด · ⚔️ เคลียร์ศัตรู · 💰 เก็บสมบัติ</div>';
+    return '<div class="note" style="text-align:left;padding:2px 2px 0">'+escapeHtml(dHit.name)+'</div>'+svg3+'<div class="note" style="text-align:left;padding:4px 2px;font-size:11px">'+uiCopy('🟡 ห้องปัจจุบัน · 🟢 เคลียร์/เก็บแล้ว · ? = เห็นทางแต่ยังไม่สำรวจ · 🗝 ห้องลับ · ☠ ห้องลึกสุด · ⚔️ เคลียร์ศัตรู · 💰 เก็บสมบัติ','🟡 Current room · 🟢 Cleared / looted · ? = Route seen but unexplored · 🗝 Secret room · ☠ Deepest room · ⚔️ Enemies cleared · 💰 Treasure collected')+'</div>';
   }catch(e){ return null; }
 }
 async function renderMap(){
@@ -8986,20 +9074,20 @@ async function renderMap(){
   if(locLine){ const ll=document.createElement('div'); ll.className='note'; ll.style.cssText='text-align:left;padding:2px 2px 6px'; ll.textContent='📍 '+locLine+(st.current_room?(' — '+st.current_room):''); cur.appendChild(ll); }
   if(mapPath){
     // v241: แผนที่ปิดเริ่มต้น — โหลดรูปเมื่อกดเปิดเท่านั้น (กันรูปแลบออกแล้วหุบกลับเวลา 404 + ผู้เล่นคุมเองว่าจะเปิดเมื่อไหร่)
-    const btn=document.createElement('button'); btn.type='button'; btn.className='btn ghost sm'; btn.style.cssText='margin-top:6px'; btn.textContent='🗺 เปิดแผนที่';
+    const btn=document.createElement('button'); btn.type='button'; btn.className='btn ghost sm'; btn.style.cssText='margin-top:6px'; btn.textContent=uiCopy('🗺 เปิดแผนที่','🗺 Open map');
     const holder=document.createElement('div'); holder.style.display='none'; let _loaded=false;
     btn.onclick=function(){
       if(!_loaded){ _loaded=true;
         const img=document.createElement('img'); img.src=PUBLIC_URL+'maps/'+mapPath; img.style.cssText='width:100%;border:2px solid #fff;image-rendering:pixelated;margin-top:6px';
-        img.onerror=function(){ holder.innerHTML='<div class="note" style="text-align:left;padding:6px 2px">โหลดรูปแผนที่ไม่ได้ (ตรวจว่าไฟล์ถูกอัปแล้ว)</div>'; };
+        img.onerror=function(){ holder.innerHTML='<div class="note" style="text-align:left;padding:6px 2px">'+uiCopy('โหลดรูปแผนที่ไม่ได้ (ตรวจว่าไฟล์ถูกอัปแล้ว)','Could not load the map image. Check that the file was uploaded.')+'</div>'; };
         holder.appendChild(img);
-        if(matched){ const mn=document.createElement('div'); mn.className='note'; mn.style.cssText='text-align:left;padding:6px 2px'; mn.textContent='🗺 แผนที่: '+matched; holder.appendChild(mn); }
+        if(matched){ const mn=document.createElement('div'); mn.className='note'; mn.style.cssText='text-align:left;padding:6px 2px'; mn.textContent=uiCopy('🗺 แผนที่: ','🗺 Map: ')+matched; holder.appendChild(mn); }
       }
-      const show=holder.style.display==='none'; holder.style.display=show?'':'none'; btn.textContent=show?'🗺 ซ่อนแผนที่':'🗺 เปิดแผนที่';
+      const show=holder.style.display==='none'; holder.style.display=show?'':'none'; btn.textContent=show?uiCopy('🗺 ซ่อนแผนที่','🗺 Hide map'):uiCopy('🗺 เปิดแผนที่','🗺 Open map');
     };
     cur.appendChild(btn); cur.appendChild(holder);
   } else {
-    const e=document.createElement('div'); e.className='note'; e.style.cssText='text-align:left;padding:6px 2px'; e.textContent= locLine? 'ยังไม่มีรูปแผนที่ของที่นี่ — อัปในแท็บ Files แล้วตั้งชื่อดันเจียนให้ตรงกับสถานที่ จะขึ้นอัตโนมัติ' : 'ยังไม่อยู่ในดันเจียน — DM จะเผยแผนที่เมื่อถึงเวลา'; cur.appendChild(e);
+    const e=document.createElement('div'); e.className='note'; e.style.cssText='text-align:left;padding:6px 2px'; e.textContent=locLine?uiCopy('ยังไม่มีรูปแผนที่ของที่นี่ — อัปในแท็บ Files แล้วตั้งชื่อดันเจียนให้ตรงกับสถานที่ จะขึ้นอัตโนมัติ','No map image is available here yet. Upload one in Files and match the dungeon name to this location for automatic display.'):uiCopy('ยังไม่อยู่ในดันเจียน — DM จะเผยแผนที่เมื่อถึงเวลา','The party is not in a dungeon. The DM will reveal a map when the time is right.'); cur.appendChild(e);
   }
   p.appendChild(cur);
   // ── v201: DUNGEON MAP — กราฟห้องจริงจาก dungeons.data.graph (server เป็นเจ้าของผัง — mapGuard บังคับเดินตามนี้) ──
@@ -9040,7 +9128,7 @@ async function renderMap(){
       if(/มหานคร|นคร|เมืองหลวง|city|capital/.test(s))return 'town_l';
       return (towns[n]||0)>=4?'town_l':'town_s';};
     const KCOL={town_l:'#5B8DEF',town_s:'#9aa0a8',cave:'#9B6BD3',tower:'#E0A14C',fort:'#C75B5B',temple:'#6BC1B8',ruin:'#A0784A'};
-    const KLBL={town_l:'เมืองใหญ่',town_s:'หมู่บ้าน/เมืองเล็ก',cave:'ถ้ำ',tower:'หอคอย',fort:'ป้อม/ค่าย',temple:'วิหาร',ruin:'ซาก/ดันเจี้ยน'};
+    const KLBL={town_l:uiCopy('เมืองใหญ่','City'),town_s:uiCopy('หมู่บ้าน/เมืองเล็ก','Village / Town'),cave:uiCopy('ถ้ำ','Cave'),tower:uiCopy('หอคอย','Tower'),fort:uiCopy('ป้อม/ค่าย','Fort / Camp'),temple:uiCopy('วิหาร','Temple'),ruin:uiCopy('ซาก/ดันเจี้ยน','Ruin / Dungeon')};
     // node = ทุก settlement + สถานที่พิเศษที่ 'ไม่มีเมืองแม่' (มีเมืองแม่ = บรรทัด ⛏ ในกล่องเมืองนั้น)
     const nodeNames=Object.keys(towns).concat(Object.keys(sites).filter(n=>!(sites[n]&&towns[sites[n]])).slice(0,10));
     if(nodeNames.length&&!inDunMap){   // v201: อยู่ในดันเจี้ยน = โชว์ DUNGEON MAP แทน
@@ -9068,7 +9156,7 @@ async function renderMap(){
       const colKeys=Object.keys(colNodes).map(Number).sort((a,b)=>a-b);
       const collapse=nodeNames.length>12;   // spec: >12 เมือง → คอลัมน์ 3+ ยุบเป็นแถวชื่อล้วน
       const isCollapsed=c2=>collapse&&c2>=3;
-      const hdrOf=c2=>c2===0?'ปัจจุบัน':c2===FAR?(cur?'ยังไม่เชื่อมเส้นทาง':'เมืองที่รู้จัก'):c2===3?'3+ การเดินทาง':(c2+' การเดินทาง');
+      const hdrOf=c2=>c2===0?uiCopy('ปัจจุบัน','Current'):c2===FAR?(cur?uiCopy('ยังไม่เชื่อมเส้นทาง','Not yet connected'):uiCopy('เมืองที่รู้จัก','Known settlements')):c2===3?uiCopy('3+ การเดินทาง','3+ journeys'):(c2+uiCopy(' การเดินทาง',' journeys'));
       // บรรทัดในกล่อง: (ชนิด) · site เด่น top-3 ตาม visits · ⛏ ดันเจี้ยน/ที่พิเศษใต้เมือง
       const boxLines=n=>{
         const out=[{t:'('+(KLBL[kindOf(n)]||'')+')',c:'#8a8f98'}];
@@ -9076,10 +9164,10 @@ async function renderMap(){
           const subs=plRows.filter(x=>String(x.settlement||'').trim()===n&&String(x.name||'').trim()&&String(x.name||'').trim().toLowerCase()!==n.toLowerCase()&&!(String(x.name||'').trim() in sites));
           subs.sort((a,b)=>(+b.visits||0)-(+a.visits||0));
           subs.slice(0,3).forEach(x=>{const v=+x.visits||0; out.push({t:'· '+String(x.name).trim().slice(0,17)+(v>1?' ×'+v:''),c:'#cfd3da'});});
-          if(subs.length>3) out.push({t:'+'+(subs.length-3)+' แห่ง',c:'#8a8f98'});
+          if(subs.length>3) out.push({t:'+'+(subs.length-3)+uiCopy(' แห่ง',' more'),c:'#8a8f98'});
           const duns=Object.keys(sites).filter(x=>sites[x]===n);
           duns.slice(0,2).forEach(x=>out.push({t:'⛏ '+String(x).slice(0,17),c:'#A0784A'}));
-          if(duns.length>2) out.push({t:'⛏ +'+(duns.length-2)+' แห่ง',c:'#A0784A'});
+          if(duns.length>2) out.push({t:'⛏ +'+(duns.length-2)+uiCopy(' แห่ง',' more'),c:'#A0784A'});
         }
         return out;
       };
@@ -9103,7 +9191,7 @@ async function renderMap(){
         const y1=Lb.y+Lb.h/2,y2=Rb.y+Rb.h/2;
         if(Rb.x>Lb.x+Lb.w){const x1=Lb.x+Lb.w,x2=Rb.x,mx=Math.round((x1+x2)/2);
           svg+=`<path d="M${x1} ${y1.toFixed(0)} L${mx} ${y1.toFixed(0)} L${mx} ${y2.toFixed(0)} L${x2} ${y2.toFixed(0)}" fill="none" stroke="#6b5a33" stroke-width="2" stroke-dasharray="6 4"/>`;
-          if(pr2[2]) svg+=`<text x="${Math.round((x1+mx)/2)}" y="${(y1-5).toFixed(0)}" text-anchor="middle" font-size="9" fill="#8a8f98" font-family="'IBM Plex Sans Thai',sans-serif">${pr2[2]} วัน</text>`;   /* v546: เวลาเดินทางจริงบนเส้น */}
+          if(pr2[2]) svg+=`<text x="${Math.round((x1+mx)/2)}" y="${(y1-5).toFixed(0)}" text-anchor="middle" font-size="9" fill="#8a8f98" font-family="'IBM Plex Sans Thai',sans-serif">${pr2[2]}${uiCopy(' วัน',' days')}</text>`;   /* v546: เวลาเดินทางจริงบนเส้น */}
         else {const xr=Math.max(Lb.x+Lb.w,Rb.x+Rb.w)+12;
           svg+=`<path d="M${Lb.x+Lb.w} ${y1.toFixed(0)} L${xr} ${y1.toFixed(0)} L${xr} ${y2.toFixed(0)} L${Rb.x+Rb.w} ${y2.toFixed(0)}" fill="none" stroke="#6b5a33" stroke-width="1.5" stroke-dasharray="4 4" opacity=".6"/>`;}
       });
@@ -9121,7 +9209,7 @@ async function renderMap(){
       wm.innerHTML='<div class="sectitle">WORLD MAP</div>'
         +(realm?'<div class="note" style="text-align:left;padding:2px 2px 0">【 '+escapeHtml(realm)+' 】</div>':'')
         +svg
-        +'<div class="note" style="text-align:left;padding:4px 2px;font-size:11px">คอลัมน์ = จำนวนการเดินทางจากเมืองปัจจุบัน · ในกล่อง: สถานที่เด่น (×N = แวะบ่อย) · ⛏ ดันเจี้ยน/ที่สำรวจใต้เมือง · เส้นประ = เส้นทางที่เคยเดิน · สีชื่อ = ชนิดสถานที่ · โผล่เมื่อค้นพบจริง</div>';
+        +'<div class="note" style="text-align:left;padding:4px 2px;font-size:11px">'+uiCopy('คอลัมน์ = จำนวนการเดินทางจากเมืองปัจจุบัน · ในกล่อง: สถานที่เด่น (×N = แวะบ่อย) · ⛏ ดันเจี้ยน/ที่สำรวจใต้เมือง · เส้นประ = เส้นทางที่เคยเดิน · สีชื่อ = ชนิดสถานที่ · โผล่เมื่อค้นพบจริง','Columns = journeys from the current settlement · Boxes show notable sites (×N = frequent visits) · ⛏ marks dungeons or explored sites · Dashed lines are traveled routes · Name color shows location type · Places appear only after discovery')+'</div>';
       p.appendChild(wm);
     }
   }catch(e){}
@@ -9134,17 +9222,18 @@ async function renderMap(){
       const sites=q0.blueprint.sites; const bpq=(st.settings||{}).bpq||{}; const sceneI=Math.max(0,Math.floor(+bpq.scene_i||0));
       const _dpR2=((st.settings||{}).dungeon_progress)||{}; const dprog=Object.assign({},_dpR2.rooms||{}); if(_dpR2.byDungeon&&typeof _dpR2.byDungeon==='object'){for(const _id in _dpR2.byDungeon){const _rm=_dpR2.byDungeon[_id]&&_dpR2.byDungeon[_id].rooms; if(_rm&&typeof _rm==='object')Object.assign(dprog,_rm);}}   // M9 (v414): รวมทุก byDungeon + legacy flat (quest route ข้ามดันเจี้ยน)
       const W2=640,H2=112,n2=sites.length,gap=n2>1?(W2-90)/(n2-1):0;
-      let svg2=`<svg viewBox="0 0 ${W2} ${H2}" style="width:100%;background:#10131c;border:2px solid #fff;border-radius:6px;margin-top:4px">`;
+      let svg2=`<div class="quest-route-scroll" style="overflow-x:auto;max-width:100%"><svg viewBox="0 0 ${W2} ${H2}" width="${W2}" height="${H2}" style="display:block;width:${W2}px;max-width:none;background:#10131c;border:2px solid #fff;border-radius:6px;margin-top:4px">`;
       for(let i=0;i<n2-1;i++){const x1=45+i*gap,x2=45+(i+1)*gap; svg2+=`<line x1="${x1.toFixed(0)}" y1="56" x2="${x2.toFixed(0)}" y2="56" stroke="${i<sceneI?'#97C459':'#3a3f4b'}" stroke-width="3"/>`;}
       for(let i=0;i<n2;i++){const x=45+i*gap; const revealed=i<=sceneI; const next=i===sceneI+1; const here=i===sceneI;
         svg2+=`<circle cx="${x.toFixed(0)}" cy="56" r="${here?10:7}" fill="${i<sceneI?'#97C459':here?'#FAC775':'#3a3f4b'}" stroke="#000" stroke-width="1.5">${here?'<animate attributeName="r" values="9;12;9" dur="1.6s" repeatCount="indefinite"/>':''}</circle>`;
         const lbl=revealed?String(sites[i]).slice(0,20):(next?'?':'·');
-        svg2+=`<text x="${x.toFixed(0)}" y="${i%2?'92':'32'}" text-anchor="middle" font-size="10" fill="${here?'#FAC775':revealed?'#ddd':'#777'}" font-family="'IBM Plex Sans Thai',sans-serif">${escapeHtml(lbl)}</text>`;
+        const routeAnchor=i===0?'start':i===n2-1?'end':'middle';
+        svg2+=`<text x="${x.toFixed(0)}" y="${i%2?'92':'32'}" text-anchor="${routeAnchor}" font-size="10" fill="${here?'#FAC775':revealed?'#ddd':'#777'}" font-family="'IBM Plex Sans Thai',sans-serif">${escapeHtml(lbl)}</text>`;
         const sr=dprog[sites[i]]||{};
         if(revealed&&(sr.cleared||sr.looted)) svg2+=`<text x="${x.toFixed(0)}" y="${i%2?'104':'18'}" text-anchor="middle" font-size="10">${sr.cleared?'⚔️':''}${sr.looted?'💰':''}</text>`;}
-      svg2+='</svg>';
+      svg2+='</svg></div>';
       const qm=document.createElement('div'); qm.className='item';
-      qm.innerHTML='<div class="sectitle">QUEST ROUTE</div><div class="note" style="text-align:left;padding:2px 2px 0">'+escapeHtml(String(q0.title||'').replace(/^[\s💀⭐]+/,''))+'</div>'+svg2+'<div class="note" style="text-align:left;padding:4px 2px;font-size:11px">🟢 ผ่านแล้ว · 🟡 ฉากปัจจุบัน · ? = ฉากถัดไป (ยังไม่เปิดเผย) · ⚔️ เคลียร์ศัตรู · 💰 เก็บสมบัติแล้ว</div>';
+      qm.innerHTML='<div class="sectitle">QUEST ROUTE</div><div class="note" style="text-align:left;padding:2px 2px 0">'+escapeHtml(String(q0.title||'').replace(/^[\s💀⭐]+/,''))+'</div>'+svg2+'<div class="note" style="text-align:left;padding:4px 2px;font-size:11px">'+uiCopy('🟢 ผ่านแล้ว · 🟡 ฉากปัจจุบัน · ? = ฉากถัดไป (ยังไม่เปิดเผย) · ⚔️ เคลียร์ศัตรู · 💰 เก็บสมบัติแล้ว','🟢 Completed · 🟡 Current scene · ? = Next scene (not yet revealed) · ⚔️ Enemies cleared · 💰 Treasure collected')+'</div>';
       p.appendChild(qm);
     }
   }catch(e){}
@@ -9160,13 +9249,13 @@ async function renderMap(){
       const body=document.createElement('div'); det.appendChild(body); let _rendered=false;
       det.addEventListener('toggle',function(){ if(!det.open||_rendered) return; _rendered=true;
         const h=dunMapHtml(d2,st);
-        body.innerHTML=h||'<div class="note" style="text-align:left;padding:6px 2px">ยังไม่เคยสำรวจดันเจี้ยนนี้ — ผังจะเผยเมื่อได้เข้าไปจริง</div>';
+        body.innerHTML=h||'<div class="note" style="text-align:left;padding:6px 2px">'+uiCopy('ยังไม่เคยสำรวจดันเจี้ยนนี้ — ผังจะเผยเมื่อได้เข้าไปจริง','This dungeon has not been explored. Its layout will appear after the party enters it.')+'</div>';
       });
       dl.appendChild(det);
     });
     p.appendChild(dl);
   } else {
-    const e=document.createElement('div'); e.className='note'; e.style.cssText='text-align:left;padding:6px 2px'; e.textContent='ยังไม่มีดันเจียน — เพิ่มได้ในแท็บ Files'; p.appendChild(e);
+    const e=document.createElement('div'); e.className='note'; e.style.cssText='text-align:left;padding:6px 2px'; e.textContent=uiCopy('ยังไม่มีดันเจียน — เพิ่มได้ในแท็บ Files','No dungeons yet — add one in the Files tab'); p.appendChild(e);
   }
   // ── v69/v72: สมุดบันทึกโลก — กดชื่อเมือง → สถานที่ที่เคยไป + ร้านค้า/สินค้า/ราคา (ฟอนต์ปกติ ไม่มีไอคอน · NPC ดูที่หน้า NPC) ──
   try{
@@ -9178,29 +9267,30 @@ async function renderMap(){
     if(pls.length||shs.length){
       const FONT="font-family:inherit";   /* v610f: inherit — classic ได้ IBM Plex จาก body เท่าเดิม · สกิน paper cascade Trirong ได้ (เดิม inline ทับทุกสกิน) */
       const wc=document.createElement('div'); wc.className='item';
-      wc.innerHTML='<div style="'+FONT+';font-size:15px;font-weight:700;padding:2px 0 6px;border-bottom:1px solid #444;margin-bottom:6px;text-align:left">สมุดบันทึกโลก <span style="font-weight:400;font-size:12px;color:#9a9a9a">สถานที่และร้านค้าที่เคยพบ</span></div>';
+      wc.innerHTML='<div style="'+FONT+';font-size:15px;font-weight:700;padding:2px 0 6px;border-bottom:1px solid #444;margin-bottom:6px;text-align:left">'+uiCopy('สมุดบันทึกโลก','World Journal')+' <span style="font-weight:400;font-size:12px;color:#9a9a9a">'+uiCopy('สถานที่และร้านค้าที่เคยพบ','Places and shops the party has discovered')+'</span></div>';
       const towns={};
-      const keyOf=s=>{const t=String(s||'').trim();return t||'ไม่ระบุเมือง';};
+      const unknownTown=uiCopy('ไม่ระบุเมือง','Unspecified settlement');
+      const keyOf=s=>{const t=String(s||'').trim();return t||unknownTown;};
       pls.forEach(x=>{const k=keyOf(x.settlement);(towns[k]=towns[k]||{p:[],s:[]}).p.push(x);});
       shs.forEach(x=>{const k=keyOf(x.place);(towns[k]=towns[k]||{p:[],s:[]}).s.push(x);});
-      Object.keys(towns).sort((a,b)=>a==='ไม่ระบุเมือง'?1:b==='ไม่ระบุเมือง'?-1:a.localeCompare(b)).forEach(town=>{
+      Object.keys(towns).sort((a,b)=>a===unknownTown?1:b===unknownTown?-1:a.localeCompare(b)).forEach(town=>{
         const t=towns[town];
         const det=document.createElement('details'); det.style.cssText='border:1px solid #444;border-radius:8px;margin:6px 0;padding:4px 10px;'+FONT;
         const sum=document.createElement('summary');
         sum.style.cssText='cursor:pointer;font-size:14px;font-weight:600;padding:5px 0;'+FONT;
-        sum.textContent=town+' ('+t.p.length+' สถานที่ · '+t.s.length+' ร้านค้า)';
+        sum.textContent=town+' ('+t.p.length+uiCopy(' สถานที่ · ',' places · ')+t.s.length+uiCopy(' ร้านค้า',' shops')+')';
         det.appendChild(sum);
         const body=document.createElement('div'); body.style.cssText=FONT+';font-size:13px;line-height:1.7;padding:2px 0 8px;text-align:left';
         let h='';
         if(t.p.length){
-          h+='<div style="font-weight:600;margin-top:4px;color:#ccc">สถานที่ที่เคยไป</div>';
-          h+=t.p.map(x=>'<div style="margin:2px 0 6px"><span style="font-weight:600">'+escapeHtml(x.name)+'</span>'+(x.visits>1?' <span style="color:#9a9a9a;font-size:12px">(มา '+x.visits+' ครั้ง)</span>':'')+'<br><span style="color:#9a9a9a">'+escapeHtml(String(x.description||'').slice(0,140))+(String(x.description||'').length>140?'…':'')+'</span></div>').join('');
+          h+='<div style="font-weight:600;margin-top:4px;color:#ccc">'+uiCopy('สถานที่ที่เคยไป','Visited places')+'</div>';
+          h+=t.p.map(x=>'<div style="margin:2px 0 6px"><span style="font-weight:600">'+escapeHtml(x.name)+'</span>'+(x.visits>1?' <span style="color:#9a9a9a;font-size:12px">('+uiCopy('มา ','visited ')+x.visits+uiCopy(' ครั้ง',' times')+')</span>':'')+'<br><span style="color:#9a9a9a">'+escapeHtml(String(x.description||'').slice(0,140))+(String(x.description||'').length>140?'…':'')+'</span></div>').join('');
         }
         if(t.s.length){
-          h+='<div style="font-weight:600;margin-top:8px;color:#ccc">ร้านค้า · สินค้า · ราคา</div>';
+          h+='<div style="font-weight:600;margin-top:8px;color:#ccc">'+uiCopy('ร้านค้า · สินค้า · ราคา','Shops · Goods · Prices')+'</div>';
           h+=t.s.map(x=>{
             const notes=(Array.isArray(x.notes)?x.notes:[]).slice(-5);
-            return '<div style="margin:2px 0 6px"><span style="font-weight:600">'+escapeHtml(x.name)+'</span>'+(notes.length?('<br>'+notes.map(n=>'<span style="color:#9a9a9a">– '+escapeHtml(String(n))+'</span>').join('<br>')):'<br><span style="color:#9a9a9a">– ยังไม่มีรายการสินค้าที่เปิดเผย</span>');
+            return '<div style="margin:2px 0 6px"><span style="font-weight:600">'+escapeHtml(x.name)+'</span>'+(notes.length?('<br>'+notes.map(n=>'<span style="color:#9a9a9a">– '+escapeHtml(String(n))+'</span>').join('<br>')):'<br><span style="color:#9a9a9a">– '+uiCopy('ยังไม่มีรายการสินค้าที่เปิดเผย','No revealed inventory yet')+'</span>');
           }).join('');
         }
         body.innerHTML=h; det.appendChild(body); wc.appendChild(det);
@@ -9216,7 +9306,7 @@ async function renderMap(){
       const key='mapfold_'+String(t.textContent||'').replace(/^[▸▾]\s*/,'').trim().slice(0,24);
       const apply=()=>{ let fold=false; try{ fold=localStorage.getItem(key)==='1'; }catch(e){}
         [...it.children].forEach(ch=>{ if(ch!==t) ch.style.display=fold?'none':''; });
-        t.style.cursor='pointer'; t.title=fold?'คลิกเพื่อขยาย':'คลิกเพื่อย่อ';
+        t.style.cursor='pointer'; t.title=fold?uiCopy('คลิกเพื่อขยาย','Click to expand'):uiCopy('คลิกเพื่อย่อ','Click to collapse');
         t.innerHTML=(fold?'▸ ':'▾ ')+base; };
       t.onclick=()=>{ try{ localStorage.setItem(key, localStorage.getItem(key)==='1'?'0':'1'); }catch(e){} apply(); };
       apply();
@@ -9564,25 +9654,25 @@ async function renderChronicle(){
   try{ const r=await supa.from('chronicles').select('*').eq('campaign_id',campaign.id).order('idx',{ascending:true}); if(!r.error) chroniclesData=r.data||[]; }catch(e){ chroniclesData=[]; }
 
   const head=document.createElement('div'); head.className='item';
-  head.innerHTML='<div class="nm">Adventure Chronicle <span class="meta-inline">'+chroniclesData.length+' บท</span></div><div class="note" style="text-align:left;padding:4px 2px 0">บทสรุปรวบยอดโดย DM — สร้างอัตโนมัติเมื่อเดินทางข้ามเมือง จบรอบเควส สิ้นเดือนในเกม หรือจบ session</div>';
+  head.innerHTML='<div class="nm">Adventure Chronicle <span class="meta-inline">'+chroniclesData.length+uiCopy(' บท',' chapters')+'</span></div><div class="note" style="text-align:left;padding:4px 2px 0">'+uiCopy('บทสรุปรวบยอดโดย DM — สร้างอัตโนมัติเมื่อเดินทางข้ามเมือง จบรอบเควส สิ้นเดือนในเกม หรือจบ session','DM-curated summaries are created automatically after travel between settlements, quest arcs, in-world months, or sessions')+'</div>';
   const exp=document.createElement('button'); exp.className='btn ghost sm'; exp.style.marginTop='9px'; exp.textContent='Export as file (HTML)'; exp.onclick=exportChronicle;
   head.appendChild(exp); p.appendChild(head);
 
   const log=document.createElement('div'); log.className='item';
   if(!chroniclesData.length){
-    log.innerHTML='<div class="muted">ยังไม่มีบทสรุป — บทแรกจะถูกสร้างเมื่อปาร์ตี้เดินทางข้ามเมือง หรือจบการต่อสู้ครั้งแรก</div>';
+    log.innerHTML='<div class="muted">'+uiCopy('ยังไม่มีบทสรุป — บทแรกจะถูกสร้างเมื่อปาร์ตี้เดินทางข้ามเมือง หรือจบการต่อสู้ครั้งแรก','No chronicle entries yet — the first is created after the party travels between settlements or completes its first combat')+'</div>';
   } else {
     const kindIcon={travel:'🧭',combat:'⚔',manual:'📜',month:'📅',quest_arc:'🏆',session:'🎬',auto:'✍️'};   // v494: icon ครบทุกชนิด
     chroniclesData.forEach(ch=>{
       // v494: "เล่ม" (รวบทุก 10 บท) — การ์ดคั่นพิเศษ อ่านเป็นสารบบอดีตไกล
       if(ch.kind==='volume'){
         const v=document.createElement('div'); v.style.cssText='margin:12px 0 8px;padding:9px 12px;border:1px solid #6b5b3e;border-radius:8px;background:rgba(201,185,138,.07)';
-        v.innerHTML='<div class="nm" style="color:#c9b98a;margin-bottom:4px">'+escapeHtml(ch.title||'เล่ม')+'</div><div class="chron-text" style="font-size:13px;color:#bfb69f">'+colorizeNarr(ch.summary)+'</div>';
+        v.innerHTML='<div class="nm" style="color:#c9b98a;margin-bottom:4px">'+escapeHtml(ch.title||uiCopy('เล่ม','Volume'))+'</div><div class="chron-text" style="font-size:13px;color:#bfb69f">'+colorizeNarr(ch.summary)+'</div>';
         log.appendChild(v); return;
       }
       const m=document.createElement('div'); m.className='chron-meta';
-      m.textContent=(kindIcon[ch.kind]||'📖')+' บทที่ '+ch.idx+(ch.to_round?(' · ถึงรอบ '+ch.to_round):'');
-      const ti=document.createElement('div'); ti.className='nm'; ti.style.margin='2px 0 4px'; ti.textContent=ch.title||('บทที่ '+ch.idx);
+      m.textContent=(kindIcon[ch.kind]||'📖')+uiCopy(' บทที่ ',' Chapter ')+ch.idx+(ch.to_round?(uiCopy(' · ถึงรอบ ',' · through round ')+ch.to_round):'');
+      const ti=document.createElement('div'); ti.className='nm'; ti.style.margin='2px 0 4px'; ti.textContent=ch.title||(uiCopy('บทที่ ','Chapter ')+ch.idx);
       const t=document.createElement('div'); t.className='chron-text'; t.innerHTML=colorizeNarr(ch.summary);
       log.appendChild(m); log.appendChild(ti); log.appendChild(t);
     });
@@ -9592,7 +9682,7 @@ async function renderChronicle(){
   // ดูบทสนทนาเต็ม (ทางเลือก — ซ่อนไว้ ไม่รก)
   if(narrative.length){
     const det=document.createElement('details'); det.className='item'; det.style.cursor='pointer';
-    const sm=document.createElement('summary'); sm.textContent='ดูเนื้อเรื่องเต็มทุกตอน ('+narrative.length+')'; sm.style.cssText='font-weight:600;padding:4px 0';
+    const sm=document.createElement('summary'); sm.textContent=uiCopy('ดูเนื้อเรื่องเต็มทุกตอน (','View every full story entry (')+narrative.length+')'; sm.style.cssText='font-weight:600;padding:4px 0';
     det.appendChild(sm);
     narrative.forEach((n,i)=>{ const t=document.createElement('div'); t.className='chron-text'; t.style.marginTop='8px'; t.innerHTML=narrDraw(n); det.appendChild(t); });
     p.appendChild(det);
@@ -9602,34 +9692,34 @@ async function renderChronicle(){
 }
 // สร้าง prompt ภาพจากเนื้อเรื่องล่าสุด (ผ่าน dynamic-task = text ราคาถูก) ไว้เอาไป gen ข้างนอก
 async function genScenePrompt(btn,out){
-  if(!narrative.length){ toast('ยังไม่มีเนื้อเรื่อง',true); return; }
-  btn.disabled=true; btn.textContent='กำลังสร้าง…';
+  if(!narrative.length){ toast(uiCopy('ยังไม่มีเนื้อเรื่อง','No story entries yet'),true); return; }
+  btn.disabled=true; btn.textContent=uiCopy('กำลังสร้าง…','Generating…');
   try{
     const recent=narrative.slice(-3).map(n=>narrText(n)).join('\n\n').slice(0,3000);
-    const ask='จากฉากนี้ในเกม D&D แนว pixel art / fantasy ให้เขียน "image generation prompt" ภาษาอังกฤษ 1 ย่อหน้า (บรรยายฉาก ตัวละคร แสง บรรยากาศ สไตล์ภาพ) สำหรับเอาไปสร้างภาพใน AI ภายนอก ตอบเฉพาะตัว prompt เท่านั้น ไม่ต้องมีคำอธิบายอื่น:\n\n'+recent;
+    const ask=uiCopy('จากฉากนี้ในเกม D&D แนว pixel art / fantasy ให้เขียน "image generation prompt" ภาษาอังกฤษ 1 ย่อหน้า (บรรยายฉาก ตัวละคร แสง บรรยากาศ สไตล์ภาพ) สำหรับเอาไปสร้างภาพใน AI ภายนอก ตอบเฉพาะตัว prompt เท่านั้น ไม่ต้องมีคำอธิบายอื่น:\n\n','From this D&D pixel-art / fantasy scene, write one English image-generation prompt describing the setting, characters, lighting, mood, and visual style. Return only the prompt with no explanation:\n\n')+recent;
     const token=(await supa.auth.getSession()).data.session?.access_token;
     const r=await fetch(DYNAMIC_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
       body:JSON.stringify({campaign_id:campaign.id, model:'gemini-flash-latest', stream:false, body:{contents:[{role:'user',parts:[{text:ask}]}],generationConfig:{temperature:0.8,maxOutputTokens:400}}})});
     const j=await r.json();
     const txt=j?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    if(!txt){ toast('สร้างไม่สำเร็จ (โควต้า?)',true); btn.disabled=false; btn.textContent='🖼 สร้าง prompt ภาพ'; return; }
+    if(!txt){ toast(uiCopy('สร้างไม่สำเร็จ (โควต้า?)','Could not generate the prompt (quota?)'),true); btn.disabled=false; btn.textContent=uiCopy('🖼 สร้าง prompt ภาพ','🖼 Generate image prompt'); return; }
     out.value=txt.trim(); out.style.display='block';
-  }catch(e){ toast('ผิดพลาด: '+(e.message||e),true); }
-  finally{ btn.disabled=false; btn.textContent='🖼 สร้าง prompt ภาพ'; }
+  }catch(e){ toast(uiCopy('ผิดพลาด: ','Error: ')+(e.message||e),true); }
+  finally{ btn.disabled=false; btn.textContent=uiCopy('🖼 สร้าง prompt ภาพ','🖼 Generate image prompt'); }
 }
 async function chronAlbumCard(p){
   const c=document.createElement('div'); c.className='item';
-  c.innerHTML='<div class="sectitle">SCENE ALBUM</div><div class="note" style="text-align:left;padding:4px 2px 8px">สร้าง prompt ฉากแล้วเอาไป gen ภาพใน AI ภายนอก → อัปกลับมาเก็บที่นี่ ทุกคนดาวน์โหลดได้</div>';
+  c.innerHTML='<div class="sectitle">SCENE ALBUM</div><div class="note" style="text-align:left;padding:4px 2px 8px">'+uiCopy('สร้าง prompt ฉากแล้วเอาไป gen ภาพใน AI ภายนอก → อัปกลับมาเก็บที่นี่ ทุกคนดาวน์โหลดได้','Generate a scene prompt for an external image tool, then upload the result here for everyone to download')+'</div>';
   // prompt generator
-  const pbtn=document.createElement('button'); pbtn.className='btn ghost sm'; pbtn.textContent='🖼 สร้าง prompt ภาพ';
+  const pbtn=document.createElement('button'); pbtn.className='btn ghost sm'; pbtn.textContent=uiCopy('🖼 สร้าง prompt ภาพ','🖼 Generate image prompt');
   const pout=document.createElement('textarea'); pout.readOnly=true; pout.style.cssText='display:none;width:100%;min-height:80px;margin-top:7px;background:#000;color:#fff;border:2px solid #fff;font-family:inherit;font-size:14px;padding:6px';
   pbtn.onclick=()=>genScenePrompt(pbtn,pout);
-  const cpy=document.createElement('button'); cpy.className='btn ghost sm'; cpy.style.marginLeft='8px'; cpy.textContent='Copy'; cpy.onclick=()=>{ if(pout.value){ navigator.clipboard?.writeText(pout.value); toast('คัดลอกแล้ว'); } };
+  const cpy=document.createElement('button'); cpy.className='btn ghost sm'; cpy.style.marginLeft='8px'; cpy.textContent='Copy'; cpy.onclick=()=>{ if(pout.value){ navigator.clipboard?.writeText(pout.value); toast(uiCopy('คัดลอกแล้ว','Copied')); } };
   c.appendChild(pbtn); c.appendChild(cpy); c.appendChild(pout);
   // upload image (any member)
   const urow=document.createElement('div'); urow.style.cssText='display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px';
   const fi=document.createElement('input'); fi.type='file'; fi.accept='image/*'; fi.style.cssText='color:#fff;font-size:13px;max-width:170px';
-  const cap=mkInput('คำบรรยาย (optional)');
+  const cap=mkInput(uiCopy('คำบรรยาย (optional)','Caption (optional)'));
   const ub=document.createElement('button'); ub.className='btn sm'; ub.textContent='Upload to album'; ub.onclick=()=>uploadCapture(fi,cap,ub);
   urow.appendChild(fi); urow.appendChild(cap); urow.appendChild(ub); c.appendChild(urow);
   // album grid
@@ -9652,30 +9742,30 @@ async function chronAlbumCard(p){
   p.appendChild(c);
 }
 async function uploadCapture(fi,cap,btn){
-  const file=fi.files&&fi.files[0]; if(!file){ toast('เลือกรูปก่อน',true); return; }
-  if(file.size>10000000){ toast('รูปใหญ่เกิน 10MB',true); return; }
+  const file=fi.files&&fi.files[0]; if(!file){ toast(uiCopy('เลือกรูปก่อน','Choose an image first'),true); return; }
+  if(file.size>10000000){ toast(uiCopy('รูปใหญ่เกิน 10MB','The image exceeds 10 MB'),true); return; }
   btn.disabled=true;
   try{
     const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_'); const path=campaign.id+'/'+Date.now()+'_'+safe;
     const up=await supa.storage.from('captures').upload(path,file,{upsert:false}); if(up.error) throw up.error;
     const ins=await supa.from('scene_captures').insert({campaign_id:campaign.id,image_path:path,caption:cap.value.trim()||null,round:(curRound&&curRound.round_number)||null,created_by:me.id}); if(ins.error) throw ins.error;
-    toast('เพิ่มรูปแล้ว ✓'); renderChronicle();
-  }catch(e){ toast(e.message||'อัปรูปล้มเหลว',true); btn.disabled=false; }
+    toast(uiCopy('เพิ่มรูปแล้ว ✓','Image added ✓')); renderChronicle();
+  }catch(e){ toast(e.message||uiCopy('อัปรูปล้มเหลว','Image upload failed'),true); btn.disabled=false; }
 }
 async function deleteCapture(id,path){
-  if(!confirm('ลบรูปนี้?')) return;
+  if(!confirm(uiCopy('ลบรูปนี้?','Delete this image?'))) return;
   if(path){ try{ await supa.storage.from('captures').remove([path]); }catch(e){} }
   const {error}=await supa.from('scene_captures').delete().eq('id',id); if(error){ toast(error.message,true); return; }
-  toast('ลบแล้ว'); renderChronicle();
+  toast(uiCopy('ลบแล้ว','Deleted')); renderChronicle();
 }
 function exportChronicle(){
   // v494 fix: export "พงศาวดารจริง" เป็นหนังสือ (เดิมหยิบ narrative ดิบทั้งหมด — ปุ่มชื่อ Chronicle แต่ได้ Entry 1,2,3...) · ไม่มีบท = fallback เนื้อเรื่องเต็มแบบเดิม
   const body=chroniclesData.length
     ? chroniclesData.map(ch=> ch.kind==='volume'
-        ? '<h2 style="border-bottom:2px solid #999;padding-bottom:4px;margin-top:28px">'+escapeHtml(ch.title||'เล่ม')+'</h2><p><em>'+escapeHtml(ch.summary).replace(/\n/g,'<br>')+'</em></p>'
-        : '<h3 style="margin-top:20px">บทที่ '+ch.idx+' — '+escapeHtml(ch.title||'')+'</h3><p>'+escapeHtml(ch.summary).replace(/\n/g,'<br>')+'</p>').join('')
+        ? '<h2 style="border-bottom:2px solid #999;padding-bottom:4px;margin-top:28px">'+escapeHtml(ch.title||uiCopy('เล่ม','Volume'))+'</h2><p><em>'+escapeHtml(ch.summary).replace(/\n/g,'<br>')+'</em></p>'
+        : '<h3 style="margin-top:20px">'+uiCopy('บทที่ ','Chapter ')+ch.idx+' — '+escapeHtml(ch.title||'')+'</h3><p>'+escapeHtml(ch.summary).replace(/\n/g,'<br>')+'</p>').join('')
     : narrative.map((n,i)=>'<h3>Entry '+(i+1)+'</h3><p>'+escapeHtml(narrText(n)).replace(/\n/g,'<br>')+'</p>').join('');
-  const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>'+escapeHtml(campaign.name)+'</title></head><body style="font-family:sans-serif;max-width:720px;margin:auto;padding:24px;line-height:1.8;background:#fff;color:#111"><h1>'+escapeHtml(campaign.name)+(chroniclesData.length?' — พงศาวดาร':'')+'</h1>'+body+'</body></html>';
+  const html='<!DOCTYPE html><html lang="'+uiLanguage()+'"><head><meta charset="utf-8"><title>'+escapeHtml(campaign.name)+'</title></head><body style="font-family:sans-serif;max-width:720px;margin:auto;padding:24px;line-height:1.8;background:#fff;color:#111"><h1>'+escapeHtml(campaign.name)+(chroniclesData.length?uiCopy(' — พงศาวดาร',' — Chronicle'):'')+'</h1>'+body+'</body></html>';
   const blob=new Blob([html],{type:'text/html'}); const url=URL.createObjectURL(blob);
   const a=document.createElement('a'); a.href=url; a.download='chronicle.html'; a.click(); URL.revokeObjectURL(url); toast('Saved ✓');
 }
@@ -9728,7 +9818,7 @@ function subscribeRealtime(){
       if(activeTab()==='story') renderStory(); if(activeTab()==='quest') renderQuest(); if(typeof scheduleBattleScene==='function') scheduleBattleScene(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'quests',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='quest') renderQuest(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'quest_reward_jobs',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='quest') renderQuest(); })
-    .on('postgres_changes',{event:'*',schema:'public',table:'rounds',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); await loadRound(); if(activeTab()==='story') renderStory(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'rounds',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); await loadRound(); const _narrTailChanged=await reconcileNarrativeTail(); if(activeTab()==='story'&&!_narrTailChanged) renderStory(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'actions',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'character_sheets',filter:'character_id=eq.'+((myChar&&myChar.id)||'00000000-0000-0000-0000-000000000000')}, async()=>{ rtLastSyncTs=Date.now(); await reloadMySheet(); await refreshCombatTurn(); if(activeTab()==='story') renderRoundbar(); if(activeTab()==='me') renderMe(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'characters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ var _oldGroup=terminalGroupForUi(); await loadCharacters(); myChar=characters.find(c=>c.user_id===me.id)||null; if(_oldGroup!==terminalGroupForUi()){ window._combatActive=undefined; window.gEncId=null; await Promise.all([loadRound(),loadNarrative(),updateCombatBadge(),refreshCombatTurn()]); } if(activeTab()==='party') renderParty(); if(typeof scheduleBattleScene==='function') scheduleBattleScene(); })   // v739 FZ-2: group move rebinds scoped round/story/combat before render
@@ -9767,19 +9857,21 @@ function subscribeRealtime(){
   startRtFallback();
 }
 // ── มือถือ-resilient: re-sync สถานะหลักเมื่อ realtime ตกหล่น (Safari ตัด websocket ตอนพับแอป) ──
-let _narrSig='', _roundSig='', _rtPoll=null;
-let _rsRunning=false, _rsQueuedForce=null;   /* v663 X4-06: single-flight (poll 8s + visibility/online/pageshow ซ้อนกันได้ — เก่าจบทีหลังเขียน globals ย้อนสถานะ) */
-async function resyncAll(force){
+let _narrSig='', _roundSig='', _rtPoll=null, _narrVisibleReconcileTs=0;
+let _rsRunning=false, _rsQueuedForce=null, _rsQueuedNarrTail=null;   /* v663 X4-06: single-flight (poll 8s + visibility/online/pageshow ซ้อนกันได้ — เก่าจบทีหลังเขียน globals ย้อนสถานะ) */
+async function resyncAll(force,narrativeTailOnly){
   if(worldSwitchReloading||typeof campaign==='undefined' || !campaign || !campaign.id) return;
-  if(_rsRunning){ _rsQueuedForce = (_rsQueuedForce===true) || !!force; return; }
+  if(_rsRunning){ _rsQueuedForce = (_rsQueuedForce===true) || !!force; _rsQueuedNarrTail=_rsQueuedNarrTail===null?!!narrativeTailOnly:(_rsQueuedNarrTail&&!!narrativeTailOnly); return; }
   _rsRunning = true;
+  let _tailChanged=false;
   try{
     var _groupBeforeResync=terminalGroupForUi();
     await Promise.all([loadCharacters(), loadState()]);
     myChar=characters.find(c=>c.user_id===me.id)||null;
     await reloadMySheet();
     if(_groupBeforeResync!==terminalGroupForUi()){ window._combatActive=undefined; window.gEncId=null; }
-    await Promise.all([loadRound(), loadNarrative()]);
+    if(narrativeTailOnly){ await loadRound(); _tailChanged=await reconcileNarrativeTail(); }
+    else await Promise.all([loadRound(), loadNarrative()]);
     if(typeof updateCombatBadge==='function'){ try{ await updateCombatBadge(); }catch(e){} }   /* v271 H4: poll/visibility/online ดึง _combatActive ใหม่ (กัน input-mode ค้างหลังศึกจบ) */
     if(typeof refreshCombatTurn==='function'){ try{ await refreshCombatTurn(); }catch(e){} }
     if(typeof scheduleBattleScene==='function'){ try{ scheduleBattleScene(); }catch(e){} }
@@ -9789,14 +9881,14 @@ async function resyncAll(force){
     const changed = force || narrSig!==_narrSig || roundSig!==_roundSig;
     _narrSig=narrSig; _roundSig=roundSig;
     const t=activeTab();
-    if(t==='story'){ if(changed) renderStory(); renderRoundbar(); renderClock(); }
+    if(t==='story'){ if(changed&&!_tailChanged) renderStory(); renderRoundbar(); renderClock(); }
     else if(t==='party'){ if(changed) renderParty(); }
     else if(t==='map'){ if(changed){ try{applyMood();}catch(e){} renderMap(); } }
     else if(t==='mon'){ renderCombat(); }
   }catch(e){}
   finally{
     _rsRunning=false;
-    if(_rsQueuedForce!==null){ const f=_rsQueuedForce===true; _rsQueuedForce=null; resyncAll(f); }
+    if(_rsQueuedForce!==null){ const f=_rsQueuedForce===true, nt=_rsQueuedNarrTail===true; _rsQueuedForce=null; _rsQueuedNarrTail=null; resyncAll(f,nt); }
   }
 }
 function ensureRtAlive(){
@@ -9818,7 +9910,7 @@ function startRtFallback(){
   (function(){ var _hb=Date.now(); document.addEventListener('visibilitychange',function(){ _hb=Date.now(); }); setInterval(function(){ var now=Date.now(), gap=now-_hb; _hb=now; if(document.hidden) return; if(gap>4000 && gap<120000){ try{ var lg=JSON.parse(localStorage.getItem('_freezeLog')||'[]'); lg.push({t:new Date().toISOString(), blockedMs:gap, battle:!!window._bsShown, lastRenderMs:window._bsLastDur||0}); localStorage.setItem('_freezeLog', JSON.stringify(lg.slice(-20))); console.warn('[freezeDetect] main thread ถูกบล็อก ~'+gap+'ms (battle='+(!!window._bsShown)+')'); }catch(e){} } }, 1000); })();
   // v728 free-tier: ช่อง joined ที่ "ไม่มี event" คือสภาวะปกติ ไม่ใช่ socket ตาย — full resync สูงสุดนาทีละครั้ง; disconnected ยัง recovery เร็ว
   _rtPoll=setInterval(()=>{ if(document.hidden) return; const joined=!!(rtChannel&&rtChannel.state==='joined'); const stale=Date.now()-rtLastSyncTs; if(stale>(joined?60000:7000)) resyncAll(false); }, 10000);
-  document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ ensureRtAlive(); resyncAll(true); } });
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ ensureRtAlive(); const now=Date.now(); if(now-_narrVisibleReconcileTs>=5000){ _narrVisibleReconcileTs=now; resyncAll(true,true); } } });
   window.addEventListener('online',()=>{ ensureRtAlive(); resyncAll(true); });
   window.addEventListener('pageshow',()=>{ ensureRtAlive(); resyncAll(true); });
 }
