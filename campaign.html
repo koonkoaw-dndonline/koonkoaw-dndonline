@@ -2113,7 +2113,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608091220;   // DICE-01: server-face dice animation + synthesized WebAudio SFX
+const FRONTEND_BUILD = 202608092300;   // FE-06: fail-closed quest-affordance receipt freshness
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2165,36 +2165,71 @@ function questAffordanceNormalize(affordance, source){
   if(!id||!sourceKind||!sourceId||!publicTitle){ questAffordanceLogReject('invalid_wire_shape',affordance,source); return null; }
   return {id:id,operation:operation,source_kind:sourceKind,source_id:sourceId,public_title:publicTitle,public_premise:String(affordance.public_premise||'').trim(),label_th:labelTh,label_en:labelEn};
 }
-function setQuestAffordancesFromResponse(payload, source){
-  if(!payload||typeof payload!=='object'||!Object.prototype.hasOwnProperty.call(payload,'affordances')) return {present:false,count:(window._questAffordances||[]).length};
-  if(!Array.isArray(payload.affordances)){ questAffordanceLogReject('affordances_not_array',null,source); window._questAffordances=[]; persistQuestAffordances([]); return {present:true,count:0}; }
+function setQuestAffordancesFromResponse(payload, source, nowMs){
+  const isPayload=!!payload&&typeof payload==='object', hasAffordances=isPayload&&Object.prototype.hasOwnProperty.call(payload,'affordances'), hasReceipt=isPayload&&Object.prototype.hasOwnProperty.call(payload,'affordance_surface_receipt');
+  if(!hasAffordances&&!hasReceipt) return {present:false,count:(window._questAffordances||[]).length};
+  const sourceKey=String(source||'unknown'), expectedVersion=sourceKey==='hydrated_cache'?questAffordanceObservedResolverVersion():'', freshness=questAffordanceFreshnessVerdict(payload&&payload.affordance_surface_receipt,expectedVersion,nowMs===undefined?Date.now():nowMs,sourceKey);
+  if(!freshness.fresh){ questAffordanceLogReject(freshness.reason,null,sourceKey); invalidateQuestAffordanceHydration(); return {present:hasAffordances,count:0}; }
+  if(sourceKey!=='hydrated_cache'){
+    const priorVersion=String(window._questAffordanceSurfaceReceipt&&window._questAffordanceSurfaceReceipt.resolver_version||questAffordanceObservedResolverVersion()||'');
+    questAffordanceRememberResolverVersion(freshness.resolver_version);
+    if(priorVersion&&priorVersion!==freshness.resolver_version) invalidateQuestAffordanceHydration();
+  }
+  if(!hasAffordances) return {present:false,count:(window._questAffordances||[]).length};
+  const surfaceReceipt={resolver_version:freshness.resolver_version,emitted_at:freshness.emitted_at};
+  if(!Array.isArray(payload.affordances)){ questAffordanceLogReject('affordances_not_array',null,source); window._questAffordances=[]; window._questAffordanceSurfaceReceipt=surfaceReceipt; persistQuestAffordances([],surfaceReceipt); return {present:true,count:0}; }
   const candidates=payload.affordances.filter(aff=>aff&&(aff.operation==='accept'||aff.operation==='turn_in'));
   if(payload.affordances.length&&!candidates.length) return {present:false,count:(window._questAffordances||[]).length};   // an inventory-only preserve response does not overwrite the quest surface
   const seen=new Set(), next=[];
   candidates.forEach(raw=>{ const aff=questAffordanceNormalize(raw,source); if(!aff) return; const key=aff.operation+':'+aff.id; if(seen.has(key)) return; seen.add(key); next.push(aff); });
   window._questAffordances=next;
-  persistQuestAffordances(next);
+  window._questAffordanceSurfaceReceipt=surfaceReceipt;
+  persistQuestAffordances(next,surfaceReceipt);
   return {present:true,count:next.length};
 }
 // v858 HYDRATION (ราก R7): resolver ยิง turn_in affordance 30 ครั้งแต่ state ปุ่มอยู่ในหน่วยความจำ
 // ต่อแท็บเท่านั้น — refresh แล้วปุ่มหายทั้งที่เควสยัง active และไม่มี request ใดถูกส่งอีก.
 // แคชเก็บเฉพาะแถวที่ "ผ่านกำแพง wire ของ server มาแล้ว" และตอน hydrate ก็เล่นซ้ำผ่านกำแพงเดิม
 // (questAffordanceNormalize ใน setQuestAffordancesFromResponse) — จอจึงยังไม่เคยตัดสินสิทธิ์เอง.
-const QUEST_AFFORDANCE_CACHE_TTL_MS=48*60*60*1000;   // กันปุ่มผีข้ามวัน — resolve ถัดไปเขียนทับด้วยของจริงเสมอ (รวมค่า [] ที่ล้างปุ่ม)
-function questAffordanceCacheKey(){ try{ return (campaign&&campaign.id)?('qaff_v1:'+String(campaign.id)):null; }catch(e){ return null; } }
-function persistQuestAffordances(list){
-  const key=questAffordanceCacheKey(); if(!key) return;
-  try{ localStorage.setItem(key,JSON.stringify({saved_at:Date.now(),affordances:Array.isArray(list)?list:[]})); }catch(e){}
+const QUEST_AFFORDANCE_CACHE_TTL_MS=10*60*1000;   // FE-06: อายุเฉพาะปุ่ม hydrate; สิทธิ์จริงและ response สดยังเป็นของ server
+function questAffordanceFreshnessVerdict(receipt, latestResolverVersion, nowMs, source){
+  const resolverVersion=String(receipt&&receipt.resolver_version||'').trim(), emittedAt=String(receipt&&receipt.emitted_at||'').trim();
+  if(!resolverVersion||!emittedAt) return {fresh:false,reason:'surface_receipt_missing',resolver_version:resolverVersion,emitted_at:emittedAt};
+  const emittedMs=Date.parse(emittedAt);
+  if(!Number.isFinite(emittedMs)) return {fresh:false,reason:'surface_receipt_time_invalid',resolver_version:resolverVersion,emitted_at:emittedAt};
+  if(String(source||'')!=='hydrated_cache') return {fresh:true,reason:'fresh_response',resolver_version:resolverVersion,emitted_at:emittedAt};
+  const expectedVersion=String(latestResolverVersion||'').trim();
+  if(expectedVersion&&resolverVersion!==expectedVersion) return {fresh:false,reason:'surface_receipt_version_stale',resolver_version:resolverVersion,emitted_at:emittedAt};
+  const clockMs=Number(nowMs);
+  if(!Number.isFinite(clockMs)||clockMs-emittedMs>=QUEST_AFFORDANCE_CACHE_TTL_MS) return {fresh:false,reason:'surface_receipt_ttl_stale',resolver_version:resolverVersion,emitted_at:emittedAt};
+  return {fresh:true,reason:'hydrated_receipt_fresh',resolver_version:resolverVersion,emitted_at:emittedAt};
 }
-function hydrateQuestAffordancesFromCache(){
-  const key=questAffordanceCacheKey(); if(!key) return {present:false,count:(window._questAffordances||[]).length};
+function questAffordanceCacheKey(){ try{ return (campaign&&campaign.id)?('qaff_v1:'+String(campaign.id)):null; }catch(e){ return null; } }
+function questAffordanceObservedResolverVersion(){
+  const key=questAffordanceCacheKey(); if(!key) return '';
+  try{ return String(window._questAffordanceResolverVersionByKey&&window._questAffordanceResolverVersionByKey[key]||''); }catch(e){ return ''; }
+}
+function questAffordanceRememberResolverVersion(version){
+  const key=questAffordanceCacheKey(), value=String(version||'').trim(); if(!key||!value) return;
+  try{ if(!window._questAffordanceResolverVersionByKey) window._questAffordanceResolverVersionByKey={}; window._questAffordanceResolverVersionByKey[key]=value; }catch(e){}
+}
+function invalidateQuestAffordanceHydration(){
+  window._questAffordances=[]; window._questAffordanceSurfaceReceipt=null;
+  const key=questAffordanceCacheKey(); if(!key) return;
+  try{ localStorage.removeItem(key); }catch(e){}
+}
+function persistQuestAffordances(list, surfaceReceipt){
+  const key=questAffordanceCacheKey(); if(!key) return;
+  try{ localStorage.setItem(key,JSON.stringify({saved_at:Date.now(),affordances:Array.isArray(list)?list:[],affordance_surface_receipt:{resolver_version:String(surfaceReceipt&&surfaceReceipt.resolver_version||''),emitted_at:String(surfaceReceipt&&surfaceReceipt.emitted_at||'')}})); }catch(e){}
+}
+function hydrateQuestAffordancesFromCache(nowMs){
+  const key=questAffordanceCacheKey(); if(!key){ invalidateQuestAffordanceHydration(); return {present:false,count:0}; }
   try{
-    const raw=localStorage.getItem(key); if(!raw) return {present:false,count:0};
+    const raw=localStorage.getItem(key); if(!raw){ window._questAffordances=[]; window._questAffordanceSurfaceReceipt=null; return {present:false,count:0}; }
     const parsed=JSON.parse(raw);
-    if(!parsed||typeof parsed!=='object'||!Array.isArray(parsed.affordances)) return {present:false,count:0};
-    if(!(Date.now()-Number(parsed.saved_at||0)<QUEST_AFFORDANCE_CACHE_TTL_MS)) return {present:false,count:0};
-    return setQuestAffordancesFromResponse({affordances:parsed.affordances},'hydrated_cache');
-  }catch(e){ return {present:false,count:0}; }
+    if(!parsed||typeof parsed!=='object'||!Array.isArray(parsed.affordances)){ invalidateQuestAffordanceHydration(); return {present:false,count:0}; }
+    return setQuestAffordancesFromResponse({affordances:parsed.affordances,affordance_surface_receipt:parsed.affordance_surface_receipt},'hydrated_cache',nowMs===undefined?Date.now():nowMs);
+  }catch(e){ invalidateQuestAffordanceHydration(); return {present:false,count:0}; }
 }
 if(typeof window.addEventListener==='function') window.addEventListener('storage',(ev)=>{ try{   // v858: แท็บอื่น resolve/accept/turn-in → แท็บนี้อัปเดตปุ่มตาม (ปิดอาการปุ่มค้างข้ามแท็บของ R6) · guard เพื่อ harness เทสที่ stub window
   const key=questAffordanceCacheKey(); if(!key||!ev||ev.key!==key) return;
