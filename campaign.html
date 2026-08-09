@@ -2112,7 +2112,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608081903;   // FE-02: preserve raw/nested resolver correction bodies on level-up rejection
+const FRONTEND_BUILD = 202608090133;   // FE-03: preserve raw/nested resolver correction bodies on spell-prepare rejection
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -5726,6 +5726,7 @@ function resolverPlayerMessage(body,fallback){
   const add=(value,key)=>{
     if(typeof value!=='string') return;
     const text=value.trim(); if(!text||/^\s*(?:<!doctype|<html|<body)/i.test(text)) return;
+    if(/edge function returned a non-2xx status code/i.test(text)) return;
     if(/^\s*(?:\(แก้:|\(Fixed:)/i.test(text)||['player_note','note','note_th','note_en'].includes(key)) corrections.push(text);
     else messages.push(text);
   };
@@ -5883,14 +5884,15 @@ async function submitSpellPrepare(slugs, btn){
   try{
     const tok=(await supa.auth.getSession()).data.session?.access_token;
     const rr=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id, spell_prepare:{char_id:myChar.id, spell_slugs:slugs}})});
-    const jr=await rr.json().catch(()=>({}));
-    if(!rr.ok) throw new Error(uiCopy(jr.error||'เตรียมไม่สำเร็จ','Could not prepare spells.'));
+    const jrPayload=await resolverResponsePayload(rr);
+    const jr=(jrPayload&&typeof jrPayload==='object')?jrPayload:{};
+    if(!rr.ok||jr.error) throw new Error(resolverPlayerMessage(jrPayload,uiCopy('เตรียมไม่สำเร็จ','Could not prepare spells.')));
     if(worldState&&worldState.settings&&worldState.settings.prepare_due&&Array.isArray(worldState.settings.prepare_due.ids)){ worldState.settings.prepare_due.ids=worldState.settings.prepare_due.ids.filter(id=>id!==myChar.id); }
     window._rulesInfo=null;
     toast(jr.kept?uiCopy('ใช้ชุดเวทเดิม ✓ ('+((jr.prepared&&jr.prepared.length)||0)+' เวท)','Kept the current spell set ✓ ('+((jr.prepared&&jr.prepared.length)||0)+' spells)'):uiCopy('เตรียมเวทแล้ว ✓ '+((jr.prepared&&jr.prepared.length)||slugs.length)+' เวท'+(jr.rejected&&jr.rejected.length?(' (ตัด '+jr.rejected.length+')'):''),'Spells prepared ✓ '+((jr.prepared&&jr.prepared.length)||slugs.length)+(jr.rejected&&jr.rejected.length?(' ('+jr.rejected.length+' rejected)'):'')));
     await refreshAll(); renderMe();
     try{ renderRoundbar(); if(activeTab()==='skills') renderSkills(); refreshSelectionGate(); }catch(e){}   // v717 B5: prepare_due clearing must repaint the story gate even while another tab is active
-  }catch(e){ toast(uiLanguage()==='en'?uiCopy('เตรียมไม่สำเร็จ','Could not prepare spells.'):(e.message||'เตรียมไม่สำเร็จ'),true); if(btn){ btn.disabled=false; btn.textContent=uiCopy('✓ เตรียมเวท','✓ Prepare spells'); } }
+  }catch(e){ toast(e.message||uiCopy('เตรียมไม่สำเร็จ','Could not prepare spells.'),true); if(btn){ btn.disabled=false; btn.textContent=uiCopy('✓ เตรียมเวท','✓ Prepare spells'); } }
 }
 // v320 fix: กัน render ซ้อน (re-entrancy) — realtime ยิงรัว (เคสจริง: เลเวลอัพยกปาร์ตี้ → campaign_state/characters อัปเดตหลายครั้งติด)
 //   ฟังก์ชัน async ที่ทำ innerHTML='' แล้ว await (renderLevelUpPanel→loadCatalogs/fetchRulesInfo / loadChat) รันพร้อมกัน → append แทรกกันหลัง await = การ์ด/สถานะซ้ำ 4 ชุดเวลา scroll
