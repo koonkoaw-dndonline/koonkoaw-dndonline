@@ -64,8 +64,25 @@
     let volume = Math.max(0, Math.min(1, Number(options.volume == null ? 0.5 : options.volume)));
     let mediaStartTimer = null;
     let mediaStartElement = null;
+    let uiPathStatus = null;
     const reported = new Set();
     const started = new Set();
+
+    // FE-09: read-only UI-path evidence from the exact selection held by the
+    // player. This callback never selects, rewrites, or reports a track.
+    function publishUIPath(status) {
+      const nextStatus = status === 'playing' || status === 'paused' || status === 'blocked' ? status : null;
+      uiPathStatus = nextStatus;
+      const payload = current && nextStatus ? {
+        trackKey: current.trackKey,
+        epoch: current.epoch,
+        origin: current.origin,
+        selectionKey: current.selectionKey,
+        status: nextStatus,
+      } : null;
+      try { if (options.onUIPath) options.onUIPath(payload); } catch (_) {}
+      return payload;
+    }
 
     function persist() {
       if (!store || !current || active < 0) return;
@@ -113,6 +130,7 @@
       if (reported.has(key)) return;
       reported.add(key);
       try { el.pause(); } catch (_) {}
+      publishUIPath(null);
       const exposure = {
         schema: 'music_v2_playback_exposure_v1',
         playback_exposures: { numerator: 1, denominator: 1 },
@@ -133,6 +151,7 @@
     function notifyStarted(el) {
       if (!current || slots[active] !== el) return;
       clearMediaStartTimeout(el);
+      publishUIPath('playing');
       const key = current.trackKey + '|' + current.epoch + '|' + current.asset.asset_key;
       if (started.has(key)) return;
       started.add(key);
@@ -174,7 +193,8 @@
         el.preload = 'metadata';
         if (el.addEventListener) {
           el.addEventListener('playing', function () { notifyStarted(el); });
-          el.addEventListener('ended', function () { clearMediaStartTimeout(el); });
+          el.addEventListener('pause', function () { if (current && slots[active] === el && uiPathStatus !== null) publishUIPath('paused'); });
+          el.addEventListener('ended', function () { clearMediaStartTimeout(el); if (slots[active] === el) publishUIPath(null); });
           el.addEventListener('error', function () { notifyFailure(el); });
           el.addEventListener('timeupdate', persist);
         }
@@ -185,6 +205,7 @@
     function handlePlayRejection(el, error) {
       if (error && error.name === 'NotAllowedError') {
         clearMediaStartTimeout(el);
+        if (current && slots[active] === el) publishUIPath('blocked');
         if (options.onAutoplayBlocked) options.onAutoplayBlocked();
         return;
       }
@@ -223,7 +244,8 @@
       if (current && current.selectionKey === selectionKey) {
         suspended = false;
         stopOtherSlots(elements, elements[active]);
-        if (elements[active].paused) playElement(elements[active]);
+        if (elements[active].paused) { publishUIPath('paused'); playElement(elements[active]); }
+        else publishUIPath('playing');
         return { ok: true, reused: true, asset: current.asset };
       }
       persist();
@@ -240,6 +262,7 @@
         asset: asset,
       };
       suspended = false;
+      publishUIPath('paused');
       incoming.loop = asset.loop_enabled !== false;
       if (incoming.src !== asset.url) incoming.src = asset.url;
       restorePosition(incoming, selection);
@@ -253,11 +276,15 @@
       clearMediaStartTimeout();
       persist();
       if (slots && active >= 0) { try { slots[active].pause(); } catch (_) {} }
+      if (current) publishUIPath('paused');
     }
 
     function resume() {
       suspended = false;
-      if (slots && active >= 0 && slots[active].paused) playElement(slots[active]);
+      if (slots && active >= 0) {
+        if (slots[active].paused) { publishUIPath('paused'); playElement(slots[active]); }
+        else publishUIPath('playing');
+      }
     }
 
     function pause() {
@@ -265,6 +292,13 @@
       clearMediaStartTimeout();
       persist();
       if (slots) slots.forEach(function (el) { try { el.pause(); } catch (_) {} });
+      publishUIPath(null);
+    }
+
+    function syncUIPath() {
+      if (!current || !slots || active < 0 || uiPathStatus === null) return publishUIPath(null);
+      if (uiPathStatus === 'playing' && !slots[active].paused) return publishUIPath('playing');
+      return publishUIPath(uiPathStatus === 'blocked' ? 'blocked' : 'paused');
     }
 
     function setVolume(next) {
@@ -274,7 +308,7 @@
       }
     }
 
-    return { play, suspend, resume, pause, setVolume, current: function () { return current; }, isPlaying: function () { return !!slots && slots.some(function (el) { return !el.paused; }); } };
+    return { play, suspend, resume, pause, setVolume, syncUIPath, current: function () { return current; }, isPlaying: function () { return !!slots && slots.some(function (el) { return !el.paused; }); } };
   }
 
   function createDarkLaunchController(options) {
@@ -296,6 +330,7 @@
         setTimeout: options.setTimeout,
         clearTimeout: options.clearTimeout,
         onAutoplayBlocked: function () { options.onVisible(text(ctx.language, 'autoplay')); },
+        onUIPath: options.onUIPath,
         onPlaybackExposure: options.onPlaybackExposure,
         onPlaybackStarted: options.onPlaybackStarted,
         onError: reportError,
@@ -477,6 +512,7 @@
       resumeAfterPerformance: function () { void refresh(); },
       pause: function () { refreshSequence += 1; if (player) player.pause(); },
       setVolume: function (value) { if (player) player.setVolume(value); },
+      syncUIPath: function () { return player && player.syncUIPath ? player.syncUIPath() : null; },
       isPlaying: function () { return !!player && player.isPlaying(); },
     };
   }

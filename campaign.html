@@ -25,7 +25,7 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./dice-fx.js?v=1220"></script>
 <script src="./dice-canvas.js?v=1100"></script>
 <script src="./music-playback-owner.js?v=847"></script>
-<script src="./music-v2-dark-launch.js?v=847"></script>
+<script src="./music-v2-dark-launch.js?v=1211"></script>
 <style>
 /* ============================================================
    TTRPG CAMPAIGN — Dragon Quest (NES) monochrome re-skin (เฟส 5)
@@ -2114,7 +2114,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608101100;   // DICE-FE1 Phase B: Canvas-first wiring with legacy fallback
+const FRONTEND_BUILD = 202608101211;   // FE-09: music UI-path DOM observability
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -3668,6 +3668,32 @@ function _perfState(){ try{ return (worldState&&worldState.settings&&worldState.
 function _inCombatNow(){ try{ return !!window._combatActive || /battle|boss/i.test(String((worldState&&worldState.scene_mood)||'')); }catch(e){ return false; } }
 // MUSIC_V2_GATE5_CLIENT_START
 let _musicV2Controller=null;
+// MUSIC_UI_PATH_OBSERVABILITY_START: hidden DOM evidence only; no player copy.
+function _musicUIPathUpdate(event){
+  let marker=null;
+  try{marker=document.querySelector('[data-music-ui-path]');}catch(e){}
+  const trackKey=String(event&&event.trackKey||''),origin=String(event&&event.origin||''),selectionKey=String(event&&event.selectionKey||'');
+  const epoch=Number(event&&event.epoch),status=String(event&&event.status||'');
+  const valid=!!trackKey&&!!origin&&!!selectionKey&&Number.isSafeInteger(epoch)&&epoch>=0&&['playing','paused','blocked'].includes(status);
+  if(!valid){try{if(marker&&marker.parentNode)marker.parentNode.removeChild(marker);}catch(e){}return null;}
+  try{
+    if(!marker){marker=document.createElement('span');marker.hidden=true;marker.setAttribute('aria-hidden','true');marker.setAttribute('data-music-ui-path','v1');(document.body||document.documentElement).appendChild(marker);}
+    marker.dataset.musicTrackKey=trackKey;
+    marker.dataset.musicEpoch=String(epoch);
+    marker.dataset.musicOrigin=origin;
+    marker.dataset.musicStatus=status;
+    marker.dataset.musicSelectionKey=selectionKey;
+    return marker;
+  }catch(e){return null;}
+}
+function _musicUIPathRestore(){
+  try{
+    if(!musicOn||musicOverride||!_musicV2Enabled()||!_musicV2Controller||typeof _musicV2Controller.syncUIPath!=='function')return _musicUIPathUpdate(null);
+    return _musicV2Controller.syncUIPath();
+  }catch(e){return _musicUIPathUpdate(null);}
+}
+try{document.addEventListener('visibilitychange',function(){if(!document.hidden)_musicUIPathRestore();});window.addEventListener('pageshow',_musicUIPathRestore);}catch(e){}
+// MUSIC_UI_PATH_OBSERVABILITY_END
 function _musicV2Enabled(){ try{return !!(window.TTRPG_MUSIC_V2&&window.TTRPG_MUSIC_V2.enabled((worldState&&worldState.settings)||{}));}catch(e){return false;} }
 function _musicV2BuiltinAsset(ref){
   const key=String(ref||'').replace(/^builtin:legacy:/,''); const rows=DEFAULT_MUSIC[key]||[]; const row=rows[0]; if(!row)return null;
@@ -3684,7 +3710,7 @@ function _musicV2ControllerFor(){
   if(!_musicV2Controller)_musicV2Controller=window.TTRPG_MUSIC_V2.createDarkLaunchController({
     storage:window.sessionStorage,
     getContext:function(){return {settings:(worldState&&worldState.settings)||{},campaignId:campaign.id,groupNo:terminalGroupForUi(),language:uiLanguage(),volume:musicVol,supabase:supa,publicBase:PUBLIC_URL,resolveUrl:RESOLVE_FN,frontendBuild:FRONTEND_BUILD,frontendEpoch:FRONTEND_COMPAT_EPOCH,i18nAssetBuild:englishAssetBuildProof(),mood:(worldState&&worldState.scene_mood)||'forest',stateVersion:String(worldState&&worldState.updated_at||'')||null};},
-    playbackOwner:_musicPlaybackOwner,builtinAsset:_musicV2BuiltinAsset,onVisible:function(msg){try{toast(msg);}catch(e){}},onDegraded:_musicV2Degraded,onPlaybackStarted:function(e){const selected={selected_identity_status:'available',selected_origin:e.selected_origin,selected_logical_track_key:e.selected_track_key,selected_rotation_epoch:e.selected_rotation_epoch,selected_catalog_version:e.selected_catalog_version==null?null:e.selected_catalog_version,selected_unavailable_reason:null};void _reportMusicHeard(e.selected_track_key,e.observed_state_version,'scene_auto',selected);}
+    playbackOwner:_musicPlaybackOwner,builtinAsset:_musicV2BuiltinAsset,onVisible:function(msg){try{toast(msg);}catch(e){}},onDegraded:_musicV2Degraded,onUIPath:_musicUIPathUpdate,onPlaybackStarted:function(e){const selected={selected_identity_status:'available',selected_origin:e.selected_origin,selected_logical_track_key:e.selected_track_key,selected_rotation_epoch:e.selected_rotation_epoch,selected_catalog_version:e.selected_catalog_version==null?null:e.selected_catalog_version,selected_unavailable_reason:null};void _reportMusicHeard(e.selected_track_key,e.observed_state_version,'scene_auto',selected);}
   });
   if(_musicV2Controller&&_musicPlaybackOwner)_musicPlaybackOwner.register('v2',{stop:function(){_musicV2Controller.pause();},isPlaying:function(){return _musicV2Controller.isPlaying();}});
   return _musicV2Controller;
