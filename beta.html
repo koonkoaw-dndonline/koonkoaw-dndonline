@@ -2114,7 +2114,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608101211;   // FE-09: music UI-path DOM observability
+const FRONTEND_BUILD = 202608101424;   // DICE-FE2A: dormant receipt-gated ROLL / Continue UI
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -3446,7 +3446,7 @@ async function loadRound(){
   try{ const { data, error } = await supa.from('rounds').select('*').eq('campaign_id',campaign.id)
     .eq('group_no',terminalGroupForUi())
     .order('round_number',{ascending:false}).limit(1).maybeSingle();
-    if(error) throw error; curRound = data||null; cacheSave('round_g'+terminalGroupForUi(),curRound); playRoundDiceMeta(curRound,myChar);
+    if(error) throw error; curRound = data||null; cacheSave('round_g'+terminalGroupForUi(),curRound); playRoundDiceMeta(curRound,myChar); resumeDiceRollGate();
   }catch(e){ const c=cacheLoad('round_g'+terminalGroupForUi()); if(c) curRound=c; }
 }
 const NARR_WINDOW=50; let narrMore=false, _skipAutoScroll=false;
@@ -5295,6 +5295,7 @@ async function renderRoundbar(){
               else toast(j.pass?('เซฟผ่าน! ('+j.total+') ✓'):('เซฟไม่ผ่าน ('+j.total+')'), !j.pass);
               await loadState(); renderRoundbar(); try{ resolveRound(false); }catch(e){}
             };
+            if(handleDiceRollReceipt(j,_diceFx,_finishBuff)) return;
             // DICE-02 will add the raw d20. Until then the authoritative response total is the displayed face; never infer a client roll.
             settleDiceFx(_diceFx,{dice:[{die:'d20',value:j.total}],total:j.total,dc:j.dc??_pd.dc,pass:j.ask_buff?null:(j.kind==='attack'?!!j.hit:!!j.pass),label:_pd.prompt||uiCopy('ใช้ตัวช่วยกับผลทอย','Apply a roll modifier')},()=>{ _finishBuff().catch(()=>{ toast('ไม่สำเร็จ',true); b.disabled=false; }); });
           }catch(e){ failDiceFx(_diceFx); toast('ไม่สำเร็จ',true); b.disabled=false; }
@@ -5319,6 +5320,7 @@ async function renderRoundbar(){
             toast(j.pass?('เซฟผ่าน! ('+j.total+' vs DC '+_ps.dc+') ✓'):('ไม่ผ่าน ('+j.total+' vs DC '+_ps.dc+')'), !j.pass);
             await loadState(); renderRoundbar(); try{ resolveRound(false); }catch(e){}
           };
+          if(handleDiceRollReceipt(j,_diceFx,_finishSave)) return;
           // DICE-02 will add the raw d20. Until then the authoritative response total is the displayed face; never infer a client roll.
           settleDiceFx(_diceFx,{dice:[{die:'d20',value:j.total}],total:j.total,dc:_ps.dc,pass:j.ask_buff?null:!!j.pass,label:uiCopy('ทอยเซฟ ','Saving Throw ')+(_ps.ability||'')},()=>{ _finishSave().catch(()=>{ toast('ทอยไม่สำเร็จ ลองใหม่',true); sb.disabled=false; sb.textContent='🎲 ทอยเซฟ '+(_ps.ability||''); }); });
         }catch(e){ failDiceFx(_diceFx); toast('ทอยไม่สำเร็จ ลองใหม่',true); sb.disabled=false; sb.textContent='🎲 ทอยเซฟ '+(_ps.ability||''); }
@@ -5572,6 +5574,206 @@ function markEconomyFromText(){
     c.className='econ '+(used?'used':'avail');
   });
 }
+// ── DICE-FE2 Phase A: receipt-gated ROLL / Continue barrier ──
+// language-impact: th+en — every new control/status string is paired through uiCopy;
+// official roll titles/formulae remain the server-supplied English text.
+function createDiceRollGateController(deps){
+  const d=deps||{}; let active=null; const queued=[];
+  const copy=(th,en)=>typeof d.copy==='function'?d.copy(th,en):String(en||th||'');
+  const uuid=value=>/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value||''));
+  const integer=value=>Number.isSafeInteger(value);
+  const campaignId=()=>String(typeof d.campaignId==='function'?d.campaignId():'').trim();
+  const storageKey=()=>{ const id=campaignId(); return id?'ttrpg_dice_roll_gate_v1_'+id:''; };
+  function ledger(){
+    try{ const key=storageKey(),parsed=key?JSON.parse(d.storage.getItem(key)||'[]'):[]; return Array.isArray(parsed)?parsed.filter(row=>row&&uuid(row.eventId)&&uuid(row.batchId)).slice(-32):[]; }catch(_error){ return []; }
+  }
+  function store(entry){
+    try{
+      const key=storageKey(); if(!key)return; const rows=ledger().filter(row=>row.eventId!==entry.eventId);
+      rows.push({eventId:entry.eventId,batchId:entry.batchId,eventRevision:entry.eventRevision,batchRevision:entry.batchRevision,wallMode:'shadow',stage:entry.stage,animated:entry.animated===true});
+      d.storage.setItem(key,JSON.stringify(rows.slice(-32)));
+    }catch(_error){}
+  }
+  function receiptOf(response){
+    const raw=response&&response.roll_event;
+    if(!raw||raw.wall_mode!=='shadow'||!uuid(raw.event_id)||!uuid(raw.batch_id)||!integer(raw.event_revision)||raw.event_revision<0||!integer(raw.batch_revision)||raw.batch_revision<0) return null;
+    return {eventId:String(raw.event_id),batchId:String(raw.batch_id),eventRevision:raw.event_revision,batchRevision:raw.batch_revision,stage:'prepared',animated:false};
+  }
+  function rpcData(result){
+    if(!result||result.error) return {ok:false,error:String(result&&result.error&&result.error.message||'network_error')};
+    return result.data&&typeof result.data==='object'?result.data:{ok:false,error:'invalid_response'};
+  }
+  async function callRpc(name,args){ try{return rpcData(await d.rpc(name,args));}catch(_error){return {ok:false,error:'network_error'};} }
+  function complete(){
+    if(!active)return; const done=active.finish,view=active.view; active.stage='published'; store(active); active=null;
+    try{ view&&view.close(); }catch(_error){}
+    try{ if(typeof done==='function')done(); else if(typeof d.afterClose==='function')d.afterClose(); }catch(_error){}
+    const next=queued.shift(); if(next)activate(next.entry,next.finish,next.reconnect);
+  }
+  function payloadEnvelope(view,onDone){
+    const p=view&&view.payload;
+    if(!view||view.projection_kind!=='owner_raw'||!p||p.schema!=='roll-event-view/v1'||p.ruleset!=='dnd5e-2014'||!['save','buff'].includes(p.kind)||p.visibility!=='owner'||typeof p.title!=='string'||!p.title.trim()||typeof p.ability!=='string'||!p.ability.trim()||typeof p.formula!=='string'||!p.formula.trim()||!Array.isArray(p.groups)||!p.groups.length||!Array.isArray(p.modifiers)||!p.modifiers.every(row=>row&&typeof row.label==='string'&&typeof row.source==='string'&&integer(row.value))||!Array.isArray(p.calculation)||!Array.isArray(p.resources)||!Array.isArray(p.ruleRefs)||!p.ruleRefs.every(ref=>typeof ref==='string'&&!!ref.trim())||!p.result||!integer(p.result.total)||!integer(p.result.dc)||typeof p.result.pass!=='boolean') return null;
+    const dice=[];
+    for(const group of p.groups){
+      const die=String(group&&group.die||'').toLowerCase(),max=Number(die.slice(1));
+      if(!/^d(?:4|6|8|10|12|20|100)$/.test(die)||!Array.isArray(group.rolls)||!group.rolls.length||!integer(group.subtotal)||typeof group.source!=='string'||!group.source.trim()||!['add','subtract'].includes(group.operator)) return null;
+      for(const value of group.rolls){ if(!integer(value)||value<1||value>max)return null; dice.push({die:die,value:value}); }
+    }
+    const modifierStage=p.calculation.find(row=>row&&row.stage==='modifiers');
+    return {eventId:'roll-event:'+String(view.id||active.eventId),dice:dice,flat:modifierStage&&Number.isFinite(modifierStage.delta)?modifierStage.delta:0,total:p.result.total,dc:p.result.dc,pass:p.result.pass,label:p.title,kind:p.kind,role:'save',formula:p.formula,onDone:onDone};
+  }
+  function payloadDetail(view){
+    const p=view&&view.payload;if(!p||!Array.isArray(p.groups))return '';
+    return p.formula+' · '+p.groups.map(group=>String(group.source||group.die)+': ['+(Array.isArray(group.rolls)?group.rolls.join(', '):'')+']').join(' · ');
+  }
+  function paint(model){ try{ if(active&&active.view)active.view.update(model); }catch(_error){} }
+  function hostModel(){ return {hostVisible:!!(typeof d.isHost==='function'&&d.isHost()),hostDisabled:false,hostLabel:copy('ให้โฮสต์ดำเนินผล','Resolve Roll'),hostDeadline:active&&active.deadlineAt||'',hostCountdownSuffix:copy(' วิ','s'),onHost:hostOverride}; }
+  function showRoll(status){
+    if(!active)return; active.stage='prepared'; store(active);
+    paint(Object.assign({title:copy('เต๋าพร้อมแล้ว','Dice ready'),formula:'',detail:'',status:status||copy('Server ปิดผนึกผลแล้ว','The server result is sealed.'),primaryLabel:copy('ROLL','ROLL'),primaryDisabled:false,onPrimary:reveal},hostModel()));
+  }
+  function showContinue(view,status,disabled){
+    if(!active)return; active.stage='revealed'; store(active);
+    paint(Object.assign({title:String(view&&view.payload&&view.payload.title||copy('ผลเต๋า','Dice result')),formula:String(view&&view.payload&&view.payload.formula||''),detail:payloadDetail(view),status:status||copy('ผลพร้อมแล้ว','Result ready.'),primaryLabel:copy('ไปต่อ','Continue'),primaryDisabled:disabled===true,onPrimary:continueRoll},hostModel()));
+  }
+  function showWaiting(status){
+    if(!active)return; active.stage='waiting'; store(active);
+    paint({title:copy('รอผู้เล่นอื่น','Waiting for other players'),formula:'',detail:'',status:status||copy('ระบบจะเปิดผลพร้อมกันเมื่อทุกคนพร้อม','The batch will publish when everyone is ready.'),primaryLabel:copy('ตรวจสถานะ','Check status'),primaryDisabled:false,onPrimary:checkBatch,hostVisible:false});
+  }
+  async function checkBatch(){
+    if(!active||active.busy)return; active.busy=true; paint({primaryDisabled:true,status:copy('กำลังตรวจสถานะ…','Checking status…')});
+    const batch=await callRpc('roll_batch_view',{p_batch_id:active.batchId}); active.busy=false;
+    if(!active)return;
+    if(!batch.ok||!integer(batch.revision)){ showWaiting(copy('ยังตรวจสถานะไม่ได้ — ลองอีกครั้ง','Could not check status — try again.')); return; }
+    active.batchRevision=batch.revision; store(active);
+    if(batch.state==='published'){ complete(); return; }
+    if(batch.state!=='ready'){ showWaiting(); return; }
+    await promote(batch);
+  }
+  async function promote(batch){
+    if(!active||active.promoteInFlight)return; active.promoteInFlight=true; paint({primaryDisabled:true,status:copy('DM กำลังเปิดผล…','The DM is publishing the result…')});
+    let result=null; try{result=await d.promote(active.batchId,batch.revision);}catch(_error){} if(!active)return; active.promoteInFlight=false;
+    if(result&&result.ok!==false&&(result.promoted===true||result.state==='published')){ complete(); return; }
+    if(result&&result.ok!==false&&result.promoted===false){ showWaiting(copy('DM กำลังประมวลผล…','DM is processing…')); return; }
+    showWaiting(copy('การเชื่อมต่อสะดุด — กดตรวจสถานะอีกครั้ง','Connection interrupted — check status again.'));
+  }
+  function animateView(view){
+    if(!active)return; const entry=ledger().find(row=>row.eventId===active.eventId);
+    const done=()=>{ if(active)showContinue(view); };
+    const envelope=payloadEnvelope(view,done);
+    if(!envelope){ showContinue(view,copy('ไม่มีรายละเอียดเต๋าที่ใช้แสดงผล','Dice details are unavailable.'),false); return; }
+    if((entry&&entry.animated)||active.animated){ active.animated=true; store(active); showContinue(view,copy('แสดงผลนี้แล้ว','This result was already shown.'),false); return; }
+    active.animated=true; store(active); showContinue(view,copy('กำลังแสดงผล…','Revealing result…'),true);
+    try{ if(typeof d.animate==='function'&&d.animate(envelope)!==false)return; }catch(_error){} done();
+  }
+  async function applyEventView(view){
+    if(!active||!view||view.ok!==true||String(view.id||'')!==active.eventId){ showRoll(copy('ยังเปิดผลไม่ได้ — ลองอีกครั้ง','Could not reveal the result — try again.')); return; }
+    if(integer(view.revision))active.eventRevision=view.revision; if(typeof view.deadline_at==='string')active.deadlineAt=view.deadline_at; active.lastView=view; store(active);
+    if(view.state==='ready'||view.state==='published'){ await checkBatch(); return; }
+    if(view.state==='prepared'||view.projection_kind==='owner_pending'){ showRoll(); return; }
+    animateView(view);
+  }
+  async function reconcileEvent(){ return await callRpc('roll_event_view',{p_event_id:active.eventId}); }
+  async function reveal(){
+    if(!active||active.busy)return; active.busy=true; paint({primaryDisabled:true,status:copy('กำลังเปิดผล…','Revealing…')});
+    const result=await callRpc('roll_event_reveal',{p_event_id:active.eventId,p_expected_revision:active.eventRevision});
+    if(!active)return; active.busy=false;
+    if(!result.ok&&result.error!=='revision_conflict'){ showRoll(copy('เปิดผลไม่สำเร็จ — ลองอีกครั้ง','Reveal failed — try again.')); return; }
+    if(integer(result.revision))active.eventRevision=result.revision;
+    await applyEventView(await reconcileEvent());
+  }
+  async function continueRoll(){
+    if(!active||active.busy)return; active.busy=true; paint({primaryDisabled:true,status:copy('กำลังดำเนินการ…','Continuing…')});
+    const result=await callRpc('roll_event_continue',{p_event_id:active.eventId,p_expected_revision:active.eventRevision});
+    if(!active)return; active.busy=false;
+    if(!result.ok&&result.error==='continue_too_early'){ showContinue(active.lastView,copy('ผลถูกล็อกอย่างน้อย 2 วินาที — ลองอีกครั้ง','The result is locked for at least 2 seconds — try again.'),false); return; }
+    if(!result.ok&&result.error!=='revision_conflict'){ showContinue(active.lastView,copy('ยังดำเนินการไม่ได้ — ลองอีกครั้ง','Could not continue — try again.'),false); return; }
+    if(!result.ok&&result.error==='revision_conflict'){ const view=await reconcileEvent(); if(active)active.lastView=view; await applyEventView(view); return; }
+    if(integer(result.revision))active.eventRevision=result.revision;
+    await checkBatch();
+  }
+  async function hostOverride(){
+    if(!active||active.busy)return; const priorStage=active.stage; active.busy=true; paint({hostDisabled:true,status:copy('กำลังขอให้โฮสต์ดำเนินผล…','Requesting Host resolution…')});
+    const result=await callRpc('roll_event_host_override',{p_event_id:active.eventId,p_expected_revision:active.eventRevision});
+    if(!active)return; active.busy=false;
+    if(!result.ok&&result.error==='deadline_not_reached'){
+      if(typeof result.deadline_at==='string')active.deadlineAt=result.deadline_at;
+      const note=copy('ยังไม่ถึงเวลา Host override — ระบบเป็นผู้ตัดสินเวลา','Host override is not available yet — the server controls the deadline.');
+      if(priorStage==='revealed')showContinue(active.lastView,note,false);else if(priorStage==='waiting')showWaiting(note);else showRoll(note); return;
+    }
+    if(!result.ok&&result.error!=='revision_conflict'){ const note=copy('Host override ไม่สำเร็จ — ลองอีกครั้ง','Host override failed — try again.'); if(priorStage==='revealed')showContinue(active.lastView,note,false);else if(priorStage==='waiting')showWaiting(note);else showRoll(note); return; }
+    if(integer(result.revision))active.eventRevision=result.revision;
+    const view=await reconcileEvent(); if(active)active.lastView=view; await applyEventView(view);
+  }
+  function activate(entry,finish,reconnect){
+    if(active){
+      if(active.eventId===entry.eventId){if(!active.finish&&finish)active.finish=finish;return true;}
+      const same=queued.find(row=>row.entry.eventId===entry.eventId); if(same){same.entry=entry;if(!same.finish&&finish)same.finish=finish;}else queued.push({entry:entry,finish:finish||null,reconnect:reconnect}); return true;
+    }
+    active=Object.assign({},entry,{finish:finish||null,busy:false,promoteInFlight:false,lastView:null,deadlineAt:''});
+    try{active.view=d.mount();}catch(_error){active.view=null;}
+    if(!active.view){ const done=active.finish; active=null; try{if(done)done();}catch(_error){} return true; }
+    if(reconnect){ paint({title:copy('กำลังกู้ผลเต๋า','Restoring dice result'),status:copy('กำลังตรวจสถานะจาก Server…','Checking server state…'),primaryDisabled:true,hostVisible:false}); reconcileEvent().then(view=>{if(active){active.lastView=view;applyEventView(view);}}); }
+    else showRoll();
+    return true;
+  }
+  function handleResponse(response,pending,finish){
+    if(!response||!Object.prototype.hasOwnProperty.call(response,'roll_event')) return false; // WALL GATE: first side-effect boundary
+    try{ if(typeof d.failPending==='function')d.failPending(pending); }catch(_error){}
+    const receipt=receiptOf(response); if(!receipt){try{if(finish)finish();}catch(_error){}return true;}
+    const old=ledger().find(row=>row.eventId===receipt.eventId);
+    if(old&&old.stage==='published'){try{if(finish)finish();}catch(_error){}return true;}
+    const entry=Object.assign({},receipt,old||{},receipt,{animated:!!(old&&old.animated)}); store(entry); return activate(entry,finish,!!old&&old.stage!=='prepared');
+  }
+  function resume(){
+    if(active)return false; const rows=ledger().filter(row=>row.wallMode==='shadow'&&row.stage!=='published'); if(!rows.length)return false;
+    return activate(rows[rows.length-1],null,true);
+  }
+  return Object.freeze({handleResponse:handleResponse,resume:resume});
+}
+function mountDiceRollGateUi(){
+  const prior=document.activeElement,oldOverflow=document.body.style.overflow;
+  const overlay=document.createElement('div'); overlay.id='diceRollGate'; overlay.setAttribute('role','dialog'); overlay.setAttribute('aria-modal','true'); overlay.tabIndex=-1;
+  overlay.style.cssText='position:fixed;inset:0;z-index:2147482000;display:grid;place-items:center;padding:18px;background:rgba(3,7,14,.82);color:#f7f8fb;font:600 15px/1.5 system-ui,sans-serif';
+  const card=document.createElement('div'); card.style.cssText='width:min(92vw,560px);max-height:88vh;overflow:auto;border:1px solid #7d8fa8;border-radius:14px;background:#101722;padding:20px;box-shadow:0 18px 60px #000';
+  const title=document.createElement('h2'); title.style.cssText='margin:0 0 8px;font-size:22px';
+  const formula=document.createElement('div'); formula.style.cssText='font:700 16px/1.5 ui-monospace,monospace;color:#d7e6ff';
+  const detail=document.createElement('div'); detail.style.cssText='margin-top:8px;font:500 13px/1.6 ui-monospace,monospace;color:#b9c5d6;word-break:break-word';
+  const status=document.createElement('div'); status.setAttribute('role','status'); status.setAttribute('aria-live','polite'); status.style.cssText='margin:14px 0;color:#f0d68a';
+  const actions=document.createElement('div'); actions.style.cssText='display:flex;gap:10px;flex-wrap:wrap';
+  const primary=document.createElement('button'); primary.type='button'; primary.className='btn';
+  const host=document.createElement('button'); host.type='button'; host.className='btn warn';
+  actions.appendChild(primary); actions.appendChild(host); card.appendChild(title); card.appendChild(formula); card.appendChild(detail); card.appendChild(status); card.appendChild(actions); overlay.appendChild(card); document.body.appendChild(overlay); document.body.style.overflow='hidden'; setTimeout(()=>{try{primary.focus();}catch(_error){}},0);
+  let deadline='',hostBase='',hostSuffix='s',ticker=null;
+  const repaintHost=()=>{ if(!hostBase)return; const left=Math.max(0,Math.ceil((Date.parse(deadline)-new Date().getTime())/1000)); host.textContent=hostBase+(Number.isFinite(left)&&left>0?' · '+left+hostSuffix:''); };
+  const setTicker=()=>{ if(ticker){clearInterval(ticker);ticker=null;} if(deadline&&host.style.display!=='none'){repaintHost();ticker=setInterval(repaintHost,250);} };
+  overlay.addEventListener('keydown',event=>{ if(event.key==='Escape')event.preventDefault(); });
+  return {update:model=>{
+    model=model||{}; if(Object.prototype.hasOwnProperty.call(model,'title'))title.textContent=String(model.title||''); if(Object.prototype.hasOwnProperty.call(model,'formula'))formula.textContent=String(model.formula||''); if(Object.prototype.hasOwnProperty.call(model,'detail'))detail.textContent=String(model.detail||''); if(Object.prototype.hasOwnProperty.call(model,'status'))status.textContent=String(model.status||'');
+    if(Object.prototype.hasOwnProperty.call(model,'primaryLabel'))primary.textContent=String(model.primaryLabel||''); if(Object.prototype.hasOwnProperty.call(model,'primaryDisabled'))primary.disabled=!!model.primaryDisabled; if(typeof model.onPrimary==='function')primary.onclick=model.onPrimary;
+    if(Object.prototype.hasOwnProperty.call(model,'hostVisible'))host.style.display=model.hostVisible?'':'none'; if(Object.prototype.hasOwnProperty.call(model,'hostDisabled'))host.disabled=!!model.hostDisabled; if(typeof model.onHost==='function')host.onclick=model.onHost; if(Object.prototype.hasOwnProperty.call(model,'hostLabel'))hostBase=String(model.hostLabel||''); if(Object.prototype.hasOwnProperty.call(model,'hostDeadline'))deadline=String(model.hostDeadline||''); if(Object.prototype.hasOwnProperty.call(model,'hostCountdownSuffix'))hostSuffix=String(model.hostCountdownSuffix||''); setTicker();
+  },close:()=>{if(ticker)clearInterval(ticker);overlay.remove();document.body.style.overflow=oldOverflow;try{if(prior&&typeof prior.focus==='function')prior.focus();}catch(_error){}}};
+}
+let _diceRollGate=null;
+function diceRollGateController(){
+  if(_diceRollGate)return _diceRollGate;
+  _diceRollGate=createDiceRollGateController({
+    copy:uiCopy,campaignId:()=>campaign&&campaign.id,storage:localStorage,isHost:()=>!!isHost,mount:mountDiceRollGateUi,failPending:failDiceFx,
+    rpc:(name,args)=>supa.rpc(name,args),
+    animate:envelope=>{ const fx=window.DiceFx; if(!fx||typeof fx.roll!=='function')return false; fx.roll(envelope); return true; },
+    promote:async(batchId,revision)=>{ const token=(await supa.auth.getSession()).data.session?.access_token; const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({campaign_id:campaign.id,dice_roll_promote:{batch_id:batchId,expected_revision:revision}})}); return await r.json(); },
+    afterClose:()=>{refreshAll().then(()=>{renderStory();renderRoundbar();}).catch(()=>{});}
+  });
+  return _diceRollGate;
+}
+function handleDiceRollReceipt(response,pending,finish){
+  if(!response||!Object.prototype.hasOwnProperty.call(response,'roll_event')) return false;
+  return diceRollGateController().handleResponse(response,pending,finish);
+}
+function resumeDiceRollGate(){
+  try{ const key=campaign&&campaign.id?'ttrpg_dice_roll_gate_v1_'+campaign.id:''; if(!key||!localStorage.getItem(key))return false; return diceRollGateController().resume(); }catch(_error){return false;}
+}
+// ── /DICE-FE2 Phase A ──
 function settleDiceFx(handle,payload,onDone){
   let handedOff=false;
   try{ if(handle&&typeof handle.settle==='function') handedOff=handle.settle(Object.assign({},payload,{onDone:onDone}))!==false; }catch(e){}
