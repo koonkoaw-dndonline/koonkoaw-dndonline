@@ -22,6 +22,7 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./character-content-en.js?v=20260720e4"></script>
 <script src="./grid-command-flow.js?v=822"></script>
 <script src="./grid-command-adapter.js?v=822"></script>
+<script src="./grid-board-replacement-lease.js?v=202608110249"></script>
 <script src="./dice-fx.js?v=1220"></script>
 <script src="./dice-canvas.js?v=1100"></script>
 <script src="./music-playback-owner.js?v=847"></script>
@@ -2114,7 +2115,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608101424;   // DICE-FE2A: dormant receipt-gated ROLL / Continue UI
+const FRONTEND_BUILD = 202608110249;   // FE-11: grid pick lease wiring · dormant Pages build (landing cache key ยังไม่ขยับ)
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2797,6 +2798,145 @@ let aoeMode=null, aoeCenter=null, pendingAoE=null, aoePickOpen=false, _lastGrid=
 let moveMode=null, moveSel=null;  // โหมดแตะกริดเลือกช่องเดินเอง
 let _gridCache=null, _gridUseCache=false;  // (06-10) cache ข้อมูลสนามรบ — แตะเลือกช่องวาดใหม่ทันทีไม่ยิง query (แก้หน่วง)
 let gridCommandAdapter=null, gridCommandFlow=null, gridCommandSession=null;
+
+// ── FE-11: one module-owned replacement lease per live board scope ──
+// language-impact: none — machine-only picker/render lifecycle; no runtime copy.
+function createGridPickLeaseHost(deps){
+  const d=deps||{}, ttl=Math.max(1000,Number(d.ttlMs)||20000);
+  let controller=null, scopeKey='', active=null, pending=null, renderSequence=0, activitySequence=0, timer=null;
+  const execute=function(effect){
+    if(typeof effect!=='function') return Promise.resolve(false);
+    try{ return Promise.resolve(effect()); }catch(error){ return Promise.reject(error); }
+  };
+  const clearLeaseTimer=function(){ if(timer!==null){ try{ d.clearTimer(timer); }catch(error){} timer=null; } };
+  const disconnectController=function(){ if(controller){ try{ controller.disconnect(); }catch(error){} } controller=null; scopeKey=''; };
+  const failOpen=function(effect){
+    const latest=typeof effect==='function'?effect:(pending&&pending.effect);
+    clearLeaseTimer(); active=null; pending=null; disconnectController();
+    try{ if(typeof d.onFailOpen==='function') d.onFailOpen(); }catch(error){}
+    return execute(latest);
+  };
+  const apiAndIdentity=function(rawIdentity){
+    try{
+      const api=typeof d.api==='function'?d.api():null;
+      if(!api||typeof api.normalizeIdentity!=='function'||typeof api.create!=='function') return null;
+      const identity=api.normalizeIdentity(rawIdentity);
+      return identity?{api:api,identity:identity}:null;
+    }catch(error){ return null; }
+  };
+  const ensureController=function(api,identity){
+    const nextScope=identity.campaignId+'|'+identity.groupNo;
+    if(controller&&scopeKey===nextScope) return controller;
+    clearLeaseTimer(); active=null; pending=null; disconnectController();
+    const next=api.create({campaignId:identity.campaignId,groupNo:identity.groupNo});
+    if(!next||typeof next.enterPicker!=='function'||typeof next.requestRender!=='function'||typeof next.pickerActivity!=='function'||typeof next.exitPicker!=='function'||typeof next.disconnect!=='function') throw new Error('grid-pick-lease-controller-invalid');
+    controller=next; scopeKey=nextScope; return controller;
+  };
+  const armLeaseTimer=function(){
+    clearLeaseTimer();
+    if(!active||typeof d.setTimer!=='function') return;
+    timer=d.setTimer(function(){ timer=null; exitPicker('fallback'); },ttl);
+  };
+  function requestRender(trigger,rawIdentity,effect){
+    if(typeof effect!=='function') return Promise.resolve(false);
+    const found=apiAndIdentity(rawIdentity);
+    if(!found||!found.api.renderTriggers||!Array.prototype.includes.call(found.api.renderTriggers,trigger)) return failOpen(effect);
+    let ctl; try{ ctl=ensureController(found.api,found.identity); }catch(error){ return failOpen(effect); }
+    const request={identity:found.identity,requestKey:'grid-render-'+(++renderSequence),sequence:renderSequence,trigger:trigger};
+    let disposition; try{ disposition=ctl.requestRender(request); }catch(error){ return failOpen(effect); }
+    if(!disposition||typeof disposition.kind!=='string') return failOpen(effect);
+    if(disposition.kind==='permit_render'){
+      pending=null; active=null; clearLeaseTimer(); return execute(effect);
+    }
+    if(disposition.kind==='invalidate_picker_and_render'){
+      pending=null; active=null; clearLeaseTimer();
+      try{ if(typeof d.onAuthoritativeRevision==='function') d.onAuthoritativeRevision(found.identity); }catch(error){}
+      return execute(effect);
+    }
+    if(disposition.kind==='defer_render'){
+      pending={requestKey:request.requestKey,effect:effect}; return Promise.resolve(false);
+    }
+    if(disposition.kind==='noop'||disposition.kind==='reject') return Promise.resolve(false);
+    return failOpen(effect);
+  }
+  function enterPicker(pickerId,rawIdentity){
+    const found=apiAndIdentity(rawIdentity);
+    if(!found||!pickerId) return false;
+    let ctl; try{ ctl=ensureController(found.api,found.identity); }catch(error){ return false; }
+    let disposition; try{ disposition=ctl.enterPicker({pickerId:String(pickerId),identity:found.identity}); }catch(error){ return false; }
+    if(!disposition||!disposition.lease||(disposition.kind!=='lease_acquired'&&disposition.kind!=='lease_replaced'&&disposition.kind!=='noop')) return false;
+    active={leaseToken:disposition.lease.leaseToken,identity:disposition.lease.identity};
+    if(disposition.kind!=='noop') activitySequence=0;
+    armLeaseTimer(); return true;
+  }
+  function pickerActivity(activityCode){
+    if(!active||!controller) return false;
+    let disposition;
+    try{ disposition=controller.pickerActivity({leaseToken:active.leaseToken,identity:active.identity,activityCode:activityCode,sequence:++activitySequence}); }
+    catch(error){ void failOpen(); return false; }
+    if(disposition&&disposition.kind==='activity_accepted'){ armLeaseTimer(); return true; }
+    if(disposition&&disposition.kind==='noop') return false;
+    void failOpen(); return false;
+  }
+  function exitPicker(exitReason){
+    if(!active||!controller) return Promise.resolve(false);
+    const lease=active; let disposition;
+    try{ disposition=controller.exitPicker({leaseToken:lease.leaseToken,identity:lease.identity,exitReason:exitReason}); }
+    catch(error){ return failOpen(); }
+    clearLeaseTimer(); active=null;
+    if(disposition&&disposition.kind==='flush_queued_render'){
+      const queued=pending; pending=null;
+      if(!queued||!disposition.request||queued.requestKey!==disposition.request.requestKey) return failOpen(queued&&queued.effect);
+      return execute(queued.effect);
+    }
+    if(disposition&&(disposition.kind==='picker_released'||disposition.kind==='noop')){ pending=null; return Promise.resolve(true); }
+    return failOpen();
+  }
+  function disconnect(){ clearLeaseTimer(); active=null; pending=null; disconnectController(); return true; }
+  function state(){ return {active:!!active,pending:!!pending,scopeKey:scopeKey,renderSequence:renderSequence,activitySequence:activitySequence}; }
+  return Object.freeze({requestRender:requestRender,enterPicker:enterPicker,pickerActivity:pickerActivity,exitPicker:exitPicker,disconnect:disconnect,state:state});
+}
+
+function gridBoardLeaseIdentity(){ try{ return gridCommandAdapter&&gridCommandAdapter.readIdentity?gridCommandAdapter.readIdentity():null; }catch(error){ return null; } }
+function gridPickLeaseInvalidateFlow(reason){
+  try{ if(gridCommandAdapter&&gridCommandFlow){ const next=gridCommandAdapter.readIdentity(); gridCommandFlow.invalidate(next||null,reason); gridCommandSession=null; } }catch(error){}
+}
+const gridPickLeaseHost=createGridPickLeaseHost({
+  api:()=>window.TTRPG_GRID_BOARD_REPLACEMENT_LEASE,
+  ttlMs:20000,
+  setTimer:(fn,ms)=>setTimeout(fn,ms),
+  clearTimer:(id)=>clearTimeout(id),
+  onFailOpen:()=>gridPickLeaseInvalidateFlow('lease-fail-open'),
+  onAuthoritativeRevision:()=>gridPickLeaseInvalidateFlow('lease-authoritative-revision')
+});
+function gridBoardRequestRender(trigger,effect){ return gridPickLeaseHost.requestRender(trigger,gridBoardLeaseIdentity(),effect); }
+function gridPickLeaseEnter(pickerId,identity){ return gridPickLeaseHost.enterPicker(pickerId,identity||gridBoardLeaseIdentity()); }
+function gridPickLeaseActivity(code){ return gridPickLeaseHost.pickerActivity(code); }
+function gridPickLeaseExit(reason){ return gridPickLeaseHost.exitPicker(reason); }
+function gridPickLeaseDisconnect(){ return gridPickLeaseHost.disconnect(); }
+function gridPickLeaseAdapter(base){
+  const wrapped=Object.create(base);
+  wrapped.mountPicker=function(view){
+    const handlers=view&&view.handlers;
+    const next=handlers?Object.assign({},view,{handlers:Object.freeze({
+      select:function(cell){ gridPickLeaseActivity('select'); return handlers.select(cell); },
+      confirm:function(){ gridPickLeaseActivity('confirm_attempt'); return handlers.confirm(); },
+      cancel:function(){ gridPickLeaseActivity('tap'); return handlers.cancel(); }
+    })}):view;
+    const mounted=base.mountPicker(next);
+    if(mounted!==false&&view&&view.snapshot) gridPickLeaseEnter('grid-command-'+view.sessionId,view.snapshot.identity);
+    return mounted;
+  };
+  wrapped.unmountPicker=function(info){
+    const unmounted=base.unmountPicker(info);
+    const why=info&&info.reason;
+    void gridPickLeaseExit(why==='confirmed'?'confirmed':(why==='user'||why==='cancelled'?'cancelled':'fallback'));
+    return unmounted;
+  };
+  return wrapped;
+}
+window.addEventListener('pagehide',function(){ gridPickLeaseDisconnect(); });
+// ── /FE-11 ──
 try{
   if(window.TTRPG_GRID_COMMAND_ADAPTER&&window.TTRPG_GRID_COMMAND_FLOW){
     gridCommandAdapter=window.TTRPG_GRID_COMMAND_ADAPTER.create({
@@ -2811,12 +2951,14 @@ try{
       closeCommandSheet:()=>{ if(typeof bsCloseSheets!=='function') return false; bsCloseSheets(); return true; },
       announce:(info)=>{ if(!info||!info.text||typeof toast!=='function') return false; toast(info.text,info.level==='error'); return true; }
     });
+    gridCommandAdapter=gridPickLeaseAdapter(gridCommandAdapter);
     gridCommandFlow=window.TTRPG_GRID_COMMAND_FLOW.createController(gridCommandAdapter);
   }
 }catch(_gridWireError){ gridCommandAdapter=null; gridCommandFlow=null; }
 
 function gridCommandInvalidate(reason){
   if(!gridCommandAdapter||!gridCommandFlow) return false;
+  gridPickLeaseDisconnect();
   gridCommandAdapter.bumpRevision();
   const next=gridCommandAdapter.readIdentity();
   gridCommandFlow.invalidate(next||null,reason);
@@ -2827,6 +2969,7 @@ function gridCommandInvalidate(reason){
 function gridCommandDelegate(kind,action,arg){
   const session=gridCommandSession;
   if(!session||session.kind!==kind||!session.handlers||typeof session.handlers[action]!=='function') return false;
+  if(action==='select') gridPickLeaseActivity('select'); else if(action==='confirm') gridPickLeaseActivity('confirm_attempt'); else if(action==='cancel') gridPickLeaseActivity('tap');
   const result=session.handlers[action](arg);
   if(action!=='select'&&result&&(result.ok||result.reason==='context-changed'||result.reason==='stale-session')) gridCommandSession=null;
   return true;
@@ -3520,6 +3663,67 @@ function mergeNarrative(row){
   else { narrative.push(row); narrative.sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)); }
   cacheSave('narrative_g'+terminalGroupForUi(),narrative);
 }
+// ── FE-10 Phase A: dormant narration hold surface + exact-ID reconcile ──
+// The next frontend slice supplies adapter parameters after the S3-B contract exists.
+// Today enabled() is always false, so this block creates no DOM/query/storage/render work.
+function createNarrationHoldPhaseA(deps){
+  const d=deps||{};
+  const enabled=()=>typeof d.enabled==='function'&&d.enabled()===true;
+  const rows=()=>{const value=typeof d.rows==='function'?d.rows():[];return Array.isArray(value)?value:[];};
+  const rowSig=row=>JSON.stringify(row||null);
+  async function repaintIfChanged(before,id){
+    const after=rows().find(row=>String(row&&row.id||'')===id);
+    const changed=!!after&&(!before||rowSig(after)!==rowSig(before));
+    if(changed&&typeof d.isStoryActive==='function'&&d.isStoryActive()&&typeof d.render==='function') await d.render();
+    return changed;
+  }
+  async function reconcileExactId(narrativeId){
+    if(!enabled()) return false; // WALL GATE: first query/state/render boundary
+    const id=String(narrativeId||'').trim();
+    if(!id||typeof d.loadById!=='function'||typeof d.mergeNarrative!=='function') return false;
+    try{
+      const before=rows().find(row=>String(row&&row.id||'')===id), data=await d.loadById(id);
+      if(!data||String(data.id||'')!==id) return false;
+      d.mergeNarrative(data);
+      return await repaintIfChanged(before,id);
+    }catch(_error){return false;}
+  }
+  function waitingCopy(waitKind){
+    const waitingForPlayers=waitKind==='waiting_for_players';
+    return typeof d.copy==='function'?d.copy(
+      waitingForPlayers?'กำลังรอผู้เล่นอื่น — บทจะปรากฏเมื่อทุกคนพร้อม':'ระบบกำลังประมวลผล — บทจะปรากฏเมื่อพร้อม',
+      waitingForPlayers?'Waiting for other players — narration will appear when everyone is ready.':'The system is processing — narration will appear when ready.'
+    ):'';
+  }
+  async function showWaiting(narrativeId,waitKind){
+    if(!enabled()) return false; // WALL GATE: first state/render boundary
+    const id=String(narrativeId||'').trim(), before=rows().find(row=>String(row&&row.id||'')===id);
+    if(!id||!before||typeof d.mergeNarrative!=='function') return false;
+    const content=waitingCopy(waitKind); if(!content)return false;
+    d.mergeNarrative(Object.assign({},before,{status:'placeholder',author:'system',content:content}));
+    return await repaintIfChanged(before,id);
+  }
+  return Object.freeze({reconcileExactId:reconcileExactId,showWaiting:showWaiting});
+}
+function narrationHoldPhaseAEnabled(){return false;}
+let _narrationHoldPhaseA=null;
+function narrationHoldPhaseAController(){
+  if(_narrationHoldPhaseA)return _narrationHoldPhaseA;
+  _narrationHoldPhaseA=createNarrationHoldPhaseA({
+    enabled:narrationHoldPhaseAEnabled,rows:()=>narrative,mergeNarrative:mergeNarrative,
+    loadById:async id=>{
+      if(!campaign||!campaign.id)return null;
+      const {data,error}=await supa.from('narrative').select('*').eq('campaign_id',campaign.id)
+        .eq('group_no',terminalGroupForUi()).eq('id',id).maybeSingle();
+      if(error)throw error;return data||null;
+    },
+    isStoryActive:()=>activeTab()==='story',render:()=>renderStory(),copy:uiCopy
+  });
+  return _narrationHoldPhaseA;
+}
+async function reconcileNarrativeExactId(narrativeId){return await narrationHoldPhaseAController().reconcileExactId(narrativeId);}
+async function showNarrationHoldSurface(narrativeId,waitKind){return await narrationHoldPhaseAController().showWaiting(narrativeId,waitKind);}
+// ── /FE-10 Phase A ──
 const NARR_RECONCILE_LIMIT=20;
 const NARR_RECONCILE_MARGIN_MS=15*1000;
 function narrativeReconcileWindowStart(cursor){
@@ -7952,7 +8156,7 @@ async function renderCombat(){
 }
 async function _renderCombatImpl(){
   const p=$('panel-mon'); p.innerHTML='';
-  await renderBattleGrid(p);          // สนามรบ 2.5D (บนสุด) — ย้ายมาจาก Map
+  await gridBoardRequestRender('full_render',async function(){ const gridMount=document.createElement('div'); await renderBattleGrid(gridMount); while(gridMount.lastChild) p.insertBefore(gridMount.lastChild,p.firstChild); });          // สนามรบ 2.5D (บนสุด) — ย้ายมาจาก Map
   await renderInitiativeTracker(p);   // initiative + HP bar + combat log (กลาง)
   let cs=null;
   try{ const r=await uiCombatStateRows('*, monsters(*)',true); if(!r.error) cs=r.data||[]; }catch(e){}
@@ -8236,22 +8440,7 @@ function buildDmToolsCard(withFrame){
   //   เหตุผล: (1) host หน้าใหม่กดมั่ว (2) ทุกโลกเบต้าต้องรันค่า default เดียวกัน รายงานบั๊กถึงเทียบกันได้
   if(BETA) return tools;
   // v296: ถอด pace control ออกจาก DM TOOLS — บลูพรินท์/ผู้กำกับลับคุมจังหวะเรื่องแทนแล้ว (เดิม v39 set_pace)
-  // v88: สไตล์การเล่าของ DM — preset 3 แบบ ทับซ้อนบน base DanMachi (มีผลรอบถัดไป)
-  const r3s=document.createElement('div'); r3s.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px';
-  const sLbl=document.createElement('span'); sLbl.style.cssText=DMF+';color:#9a9a9a'; sLbl.textContent=uiCopy('สไตล์ DM:','DM style:');
-  const sSel=styleCtl(document.createElement('select'));
-  [['off',uiCopy('ปกติ — base DanMachi','Standard — base DanMachi')],['mercer',uiCopy('Cinematic — ภาพยนตร์ · NPC จัดจ้าน · slow-burn','Cinematic — vivid NPCs and slow-burn drama')],['brennan',uiCopy('High-energy — ด้นสดรับลูก · ตลกสลับดราม่า','High-energy — responsive improvisation, comedy, and drama')],['woll',uiCopy('Intimate — อารมณ์ใกล้ชิด · สยองค่อยๆ บีบ','Intimate — close emotion and slowly tightening horror')]].forEach(([v,t])=>{ const o=document.createElement('option'); o.value=v; o.textContent=t; sSel.appendChild(o); });
-  try{ supa.from('campaign_state').select('settings').eq('campaign_id',campaign.id).maybeSingle().then(r=>{ const v=r&&r.data&&r.data.settings&&r.data.settings.dm_style; if(v) sSel.value=v; }); }catch(e){}
-  const sBtn=styleCtl(document.createElement('button')); sBtn.className='btn sm'; sBtn.textContent=uiCopy('ตั้งสไตล์','Set Style');
-  sBtn.onclick=async()=>{
-    sBtn.disabled=true;
-    try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
-      const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,set_style:sSel.value})});
-      const j=await r.json(); if(j.error) toast(j.error,true); else toast(uiCopy('สไตล์ DM → ','DM style → ')+j.style+uiCopy(' ✓ (มีผลรอบถัดไป)',' ✓ (applies next round)'));
-    }catch(e){ toast(uiCopy('ไม่สำเร็จ','Operation failed'),true); }
-    sBtn.disabled=false;
-  };
-  r3s.appendChild(sLbl); r3s.appendChild(sSel); r3s.appendChild(sBtn); tools.appendChild(r3s);
+  // 08-11: ตัด "สไตล์ DM" + "โครงเรื่อง session" ออกจาก DM TOOLS — Quest Blueprint/Hook Director/Story Acts คุมแนวเรื่องแทนแล้ว · endpoint set_style/set_plan ฝั่ง resolver คงอยู่ (โลกเก่าที่ตั้งค่าไว้ไม่ถูกรื้อ)
   // v617 PLAY MODES: สลับโหมดการเล่นกลางแคมเปญ — open ⇄ session เท่านั้น (oneshot ถาวร — ไม่มีในตัวเลือก · server gate อีกชั้น)
   if(campaign.play_mode!=='oneshot'){
     const rPm=document.createElement('div'); rPm.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px';
@@ -8270,20 +8459,6 @@ function buildDmToolsCard(withFrame){
     };
     rPm.appendChild(pmLbl); rPm.appendChild(pmSel); rPm.appendChild(pmBtn); tools.appendChild(rPm);
   }
-  // v73: โครงเรื่อง session — host วางเป้าหมาย+climax (ความลับของผู้กำกับ DM จะพาเรื่องไปแบบเนียน)
-  const r4=document.createElement('div'); r4.style.cssText='margin-top:8px';
-  const plLbl=document.createElement('div'); plLbl.style.cssText=DMF+';color:#9a9a9a;text-align:left'; plLbl.textContent=uiCopy('โครงเรื่อง session (ลับ — ผู้เล่นไม่เห็น):','Session plan (private — players cannot see it):'); r4.appendChild(plLbl);
-  const gIn=styleCtl(document.createElement('input')); gIn.type='text'; gIn.placeholder=uiCopy('เป้าหมาย เช่น พาปาร์ตี้ไปพบผู้เฒ่าในถ้ำ','Goal, e.g. lead the party to the elder in the cave'); gIn.style.width='100%'; gIn.style.margin='4px 0';
-  const cIn=styleCtl(document.createElement('input')); cIn.type='text'; cIn.placeholder=uiCopy('climax เช่น เผชิญหน้าหัวหน้าโจร','Climax, e.g. confront the bandit chief'); cIn.style.width='100%'; cIn.style.margin='0 0 4px';
-  const rowB=document.createElement('div'); rowB.style.cssText='display:flex;gap:6px';
-  const setP=styleCtl(document.createElement('button')); setP.className='btn sm'; setP.textContent=uiCopy('วางโครงเรื่อง','Set Plan');
-  const clrP=styleCtl(document.createElement('button')); clrP.className='btn ghost sm'; clrP.textContent=uiCopy('ล้าง','Clear');
-  const callPlan=async(v)=>{ try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
-    const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,set_plan:v})});
-    const j=await r.json(); if(j.error) toast(j.error,true); else toast(j.cleared?uiCopy('ล้างโครงเรื่องแล้ว ✓','Session plan cleared ✓'):uiCopy('วางโครงเรื่องแล้ว ✓ DM จะค่อยๆ พาเรื่องไป','Session plan saved ✓ The DM will guide the story gradually.')); }catch(e){ toast(uiCopy('ไม่สำเร็จ','Operation failed'),true); } };
-  setP.onclick=()=>{ const g=gIn.value.trim(); if(!g){ toast(uiCopy('ใส่เป้าหมายก่อน','Enter a goal first'),true); return; } callPlan(g+(cIn.value.trim()?' :: '+cIn.value.trim():'')); };
-  clrP.onclick=()=>{ if(confirm(uiCopy('ล้างโครงเรื่อง session?','Clear the session plan?'))) callPlan('clear'); };
-  rowB.appendChild(setP); rowB.appendChild(clrP); r4.appendChild(gIn); r4.appendChild(cIn); r4.appendChild(rowB); tools.appendChild(r4);
   return tools;
 }
 function ensureBattleScene(){
@@ -8339,8 +8514,8 @@ function relocateForBattle(on){
   }
 }
 // v618 B6: adaptive debounce — resolve หนึ่งรอบ server เขียน 6 ตาราง = realtime storm → render ถี่ · render ช้า (>400ms รวม query) = ถอยหลังตามจริง (สูงสุด 2s) กัน render ต่อคิวอิ่มตัว main thread (เคสจอค้าง ~10 นาที playtest 07-13 · เร็วปกติ = 300ms เดิม)
-function scheduleBattleScene(){ clearTimeout(_bsRenderT); var _d=300; try{ var _dur=window._bsLastDur||0, _since=Date.now()-(window._bsLastEnd||0); if(_dur>400) _d=Math.min(2000, Math.max(_d, Math.round(_dur*1.5), 900-_since)); }catch(e){} _bsRenderT=setTimeout(async function(){ var _t0=Date.now(); try{ await syncBattleScene(); } finally { window._bsLastEnd=Date.now(); window._bsLastDur=window._bsLastEnd-_t0; } }, _d); }   // รวบจังหวะ event ถี่ๆ ให้เป็น render เดียว (ลดกระตุก) — ข้อ 3 (06-08): 550→300ms ลดหน่วงภาพ
-async function syncBattleScene(){
+function scheduleBattleScene(trigger){ clearTimeout(_bsRenderT); var _trigger=trigger||'poll', _d=300; try{ var _dur=window._bsLastDur||0, _since=Date.now()-(window._bsLastEnd||0); if(_dur>400) _d=Math.min(2000, Math.max(_d, Math.round(_dur*1.5), 900-_since)); }catch(e){} _bsRenderT=setTimeout(async function(){ var _t0=Date.now(); try{ await syncBattleScene(_trigger); } finally { window._bsLastEnd=Date.now(); window._bsLastDur=window._bsLastEnd-_t0; } }, _d); }   // รวบจังหวะ event ถี่ๆ ให้เป็น render เดียว (ลดกระตุก) — ข้อ 3 (06-08): 550→300ms ลดหน่วงภาพ
+async function syncBattleScene(trigger){
   if(typeof campaign==='undefined' || !campaign) return;
   // v739 FZ-2: scope enemy truth through this viewer's encounter group
   let enc=null, livingEnemies=0, _queryFailed=false;
@@ -8357,7 +8532,7 @@ async function syncBattleScene(){
   if(active){
     window._bsMiss=0;
     if(!_bsShown && !_bsExiting){ enterBattleScene(); }
-    await renderBattleScene();
+    await renderBattleScene(trigger||'poll');
   } else if(_bsShown){
     // v467 B6: query ล้ม = 'ไม่รู้' → คงฉากไว้ retry ไม่นับ _bsMiss (เด้งออกเฉพาะตอนยืนยันจริงว่าไม่มีคอมแบต)
     if(_queryFailed){ setTimeout(function(){ try{ syncBattleScene(); }catch(e){} }, 900); return; }
@@ -8397,7 +8572,7 @@ function enterBattleScene(){
   _bsShown=true;
   // (06-08) safety re-sync: มือถือ realtime หลุดบ่อย → event 'จบศึก/หมากขยับ' อาจไม่ถึง ทำให้ฉากรบค้าง/กระดานไม่อัปเดต
   //   ตั้ง interval เบาๆ ทุก 8 วิ เช็คสถานะสดจาก DB → ออกฉากเมื่อศึกจบ + วาดกระดานใหม่ แม้พลาด event
-  try{ if(_bsSafetyTimer) clearInterval(_bsSafetyTimer); _bsSafetyTimer=setInterval(function(){ try{ syncBattleScene(); }catch(e){} }, 8000); }catch(e){}
+  try{ if(_bsSafetyTimer) clearInterval(_bsSafetyTimer); _bsSafetyTimer=setInterval(function(){ try{ syncBattleScene('safety_poll'); }catch(e){} }, 8000); }catch(e){}
   // เข้าฉากรบ = เพลง battle เสมอ (ไม่พึ่ง scene_mood ที่ DM มักลืมเปลี่ยนระหว่างศึก)
   try{ if(musicOn) playMood('battle','battle_scene'); }catch(e){}
   var el=ensureBattleScene();
@@ -8423,7 +8598,7 @@ function exitBattleScene(){
   try{ curMood=null; _moodNow(); }catch(e){}   // ออกจากฉากรบ → กลับเพลงตามบรรยากาศฉาก (reset กันค้างเพลง battle)
   try{ renderStory(); }catch(e){}
 }
-async function renderBattleScene(){
+async function renderBattleScene(trigger){
   if(!_bsShown) return;
   if(_bsRendering) return;   // กันเรนเดอร์ซ้อน (ต้นเหตุภาพกระพริบ)
   _bsRendering=true;
@@ -8446,7 +8621,7 @@ async function renderBattleScene(){
     }catch(e){}
     // เรนเดอร์ grid ลงกล่องชั่วคราวก่อน แล้วค่อยสลับทีเดียว (ไม่ให้จอว่างระหว่างโหลด = ไม่กระพริบ)
     var board=document.getElementById('bsBoard');
-    if(board){ var _tmp=document.createElement('div'); try{ await renderBattleGrid(_tmp); }catch(e){} if(!_tmp.children.length){ _tmp.innerHTML='<div class="note" style="text-align:center;padding:16px;color:#9a9a9a">— ยังไม่มีสนามรบ —</div>'; } var _bsig=_tmp.innerHTML; if(board.getAttribute('data-sig')!==_bsig){ board.setAttribute('data-sig',_bsig); board.replaceChildren.apply(board, Array.prototype.slice.call(_tmp.childNodes)); } }
+    if(board){ await gridBoardRequestRender(trigger||'poll',async function(){ var _tmp=document.createElement('div'); try{ await renderBattleGrid(_tmp); }catch(e){} if(!_tmp.children.length){ _tmp.innerHTML='<div class="note" style="text-align:center;padding:16px;color:#9a9a9a">— ยังไม่มีสนามรบ —</div>'; } var _bsig=_tmp.innerHTML; if(board.getAttribute('data-sig')!==_bsig){ board.setAttribute('data-sig',_bsig); board.replaceChildren.apply(board, Array.prototype.slice.call(_tmp.childNodes)); } }); }
     try{ await renderBattleInitLog(document.getElementById('bsInit'), document.getElementById('bsLog')); }catch(e){}
     // บรรยายเฉพาะการต่อสู้ (3 บทล่าสุด) — ไม่เอาเนื้อเรื่องเก่ามาแปะ
     try{
@@ -8609,15 +8784,15 @@ function aoeCellsFor(c,r){
 }
 // ── (06-10) วาดกระดานใหม่เร็ว: ใช้ cache (0 query) แทน re-render ทั้งฉาก — แก้หน่วงตอนแตะเลือกช่อง ──
 async function gridFastRefresh(){
-  _gridUseCache=true;
   try{
     if(_bsShown){
       const board=document.getElementById('bsBoard');
-      if(board){ const tmp=document.createElement('div'); await renderBattleGrid(tmp); if(tmp.children.length){ board.setAttribute('data-sig',tmp.innerHTML); board.replaceChildren.apply(board, Array.prototype.slice.call(tmp.childNodes)); } return; }
-      renderBattleScene(); return;
+      if(board){ await gridBoardRequestRender('manual',async function(){ _gridUseCache=true; const tmp=document.createElement('div'); await renderBattleGrid(tmp); if(tmp.children.length){ board.setAttribute('data-sig',tmp.innerHTML); board.replaceChildren.apply(board, Array.prototype.slice.call(tmp.childNodes)); } }); return; }
+      renderBattleScene('manual'); return;
     }
+    _gridUseCache=true;
     if(typeof renderCombat==='function') renderCombat();   // นอกฉากรบ: render panel ตามเดิม (กริดส่วนในยังเร็วขึ้นจาก cache)
-  }catch(e){ try{ if(_bsShown) renderBattleScene(); else renderCombat(); }catch(_e){} }
+  }catch(e){ try{ if(_bsShown) renderBattleScene('fallback'); else renderCombat(); }catch(_e){} }
 }
 function gridCellLabel(c,r){ const L="ABCDEFGHIJKLMNOPQRST"; return (L[c]||'?')+(r+1); }
 function gridAoeStatusText(c,r){
@@ -8700,7 +8875,7 @@ function gridPickPaint(kind,c,r){
   }catch(e){}
   return false;
 }
-function aoePickCell(c,r){ if(gridCommandDelegate('aoe','select',{c:c,r:r})) return; if(!aoeMode) return; aoeCenter={c:c,r:r}; if(!gridPickPaint('aoe',c,r)) gridFastRefresh(); }
+function aoePickCell(c,r){ if(gridCommandDelegate('aoe','select',{c:c,r:r})) return; if(!aoeMode) return; gridPickLeaseActivity('select'); aoeCenter={c:c,r:r}; if(!gridPickPaint('aoe',c,r)) gridFastRefresh(); }
 // เปิดตัวเลือกพื้นที่บน Map ให้ Command Menu (คืนผลผ่าน callback) — รัศมีจาก target เช่น sphere_20/cone_15/line_30
 function ccGridPick(target, cb){
   if(gridCommandAdapter&&gridCommandFlow){
@@ -8734,20 +8909,22 @@ function ccGridPick(target, cb){
   // v524 (เคสจริง Thunderwave): ต้องปิดชีตคำสั่ง + เข้าฉากรบก่อน — เดิมชีตคำสั่ง (mobile) บังกระดาน = แตะเลือกพื้นที่ไม่ติด (มิเรอร์ ccMovePick ที่ทำถูกอยู่แล้ว)
   try{ if(typeof bsCloseSheets==='function') bsCloseSheets(); }catch(e){}
   if(!_bsShown && typeof enterBattleScene==='function'){ try{ enterBattleScene(); }catch(e){} }
-  if(_bsShown){ renderBattleScene(); } else { switchTab('mon'); }
+  if(_bsShown){ Promise.resolve(renderBattleScene('manual')).catch(()=>false).then(()=>gridPickLeaseEnter('legacy-aoe',gridBoardLeaseIdentity())); } else { switchTab('mon'); setTimeout(()=>gridPickLeaseEnter('legacy-aoe',gridBoardLeaseIdentity()),0); }
   toast('แตะช่องศูนย์กลางบน Map แล้วกด ✓ ยืนยันพื้นที่');
 }
 function aoeConfirm(){
   if(gridCommandDelegate('aoe','confirm')) return;
+  gridPickLeaseActivity('confirm_attempt');
   if(!aoeMode||!aoeCenter){ toast('แตะช่องศูนย์กลางก่อน',true); return; }
   const L="ABCDEFGHIJKLMNOPQRST"; const center=(L[aoeCenter.c]||'?')+(aoeCenter.r+1);
   const cells=aoeCellsFor(aoeCenter.c,aoeCenter.r); const ft=aoeMode.radiusFt; const cb=aoeMode.cb;
   aoeMode=null; aoeCenter=null;
+  void gridPickLeaseExit('confirmed');
   if(cb){ if(!_bsShown) switchTab('story'); try{ cb({center:center, cells:cells, radiusFt:ft}); }catch(e){} if(_bsShown) gridFastRefresh(); return; }   // เส้นทาง Command Menu
   pendingAoE={centerCell:center, cells:cells, radiusFt:ft};
   switchTab('story'); toast('ปักพื้นที่แล้ว ✓ — พิมพ์คำสั่งแล้วกด Submit');
 }
-function aoeCancel(){ if(gridCommandDelegate('aoe','cancel')) return; const cb=aoeMode&&aoeMode.cb; aoeMode=null; aoeCenter=null; if(cb){ try{ cb(null); }catch(e){} gridFastRefresh(); return; } gridFastRefresh(); }
+function aoeCancel(){ if(gridCommandDelegate('aoe','cancel')) return; gridPickLeaseActivity('tap'); const cb=aoeMode&&aoeMode.cb; aoeMode=null; aoeCenter=null; void gridPickLeaseExit('cancelled'); if(cb){ try{ cb(null); }catch(e){} gridFastRefresh(); return; } gridFastRefresh(); }
 // ───────── เดินบนกริด: ผู้เล่นแตะเลือกช่องปลายทางเอง (ไฮไลต์ช่องในระยะความเร็ว) ─────────
 function ccMovePick(cb, instantBinding){
   if(gridCommandAdapter&&gridCommandFlow){
@@ -8781,20 +8958,22 @@ function ccMovePick(cb, instantBinding){
   moveMode={cb:cb}; moveSel=null;
   try{ if(typeof bsCloseSheets==='function') bsCloseSheets(); }catch(e){}   // ปิดชีตคำสั่งให้เห็นกระดาน
   if(!_bsShown && typeof enterBattleScene==='function'){ try{ enterBattleScene(); }catch(e){} }   // กันฉากรบหาย: เข้าฉากแทนการ navigate ออก
-  if(_bsShown){ renderBattleScene(); } else if(typeof renderCombat==='function'){ renderCombat(); }
+  if(_bsShown){ Promise.resolve(renderBattleScene('manual')).catch(()=>false).then(()=>gridPickLeaseEnter('legacy-move',gridBoardLeaseIdentity())); } else if(typeof renderCombat==='function'){ renderCombat(); setTimeout(()=>gridPickLeaseEnter('legacy-move',gridBoardLeaseIdentity()),0); }
   try{ toast('แตะช่องสีเขียวเพื่อเลือกที่จะเดินไป แล้วกด ✓'); }catch(e){}
 }
-function movePickCell(c,r){ if(gridCommandDelegate('move','select',{c:c,r:r})) return; if(!moveMode) return; moveSel={c:c,r:r}; if(!gridPickPaint('move',c,r)) gridFastRefresh(); }
+function movePickCell(c,r){ if(gridCommandDelegate('move','select',{c:c,r:r})) return; if(!moveMode) return; gridPickLeaseActivity('select'); moveSel={c:c,r:r}; if(!gridPickPaint('move',c,r)) gridFastRefresh(); }
 function moveConfirm(){
   if(gridCommandDelegate('move','confirm')) return;
+  gridPickLeaseActivity('confirm_attempt');
   if(!moveMode||!moveSel){ try{toast('แตะช่องปลายทางก่อน',true);}catch(e){} return; }
   const L="ABCDEFGHIJKLMNOPQRST"; const cell=(L[moveSel.c]||'?')+(moveSel.r+1); const cb=moveMode.cb;
   window._pendingMove={c:moveSel.c, r:moveSel.r, cell:cell};   // ข้อ 2: มาร์คปลายทางค้างบนกริดจนเทิร์นถูก resolve (token ถึงช่อง/ขึ้นรอบใหม่ = เคลียร์)
   moveMode=null; moveSel=null;
+  void gridPickLeaseExit('confirmed');
   if(cb){ try{ cb(cell); }catch(e){} }
   gridFastRefresh();
 }
-function moveCancel(){ if(gridCommandDelegate('move','cancel')) return; const cb=moveMode&&moveMode.cb; moveMode=null; moveSel=null; if(cb){ try{ cb(null); }catch(e){} } gridFastRefresh(); }
+function moveCancel(){ if(gridCommandDelegate('move','cancel')) return; gridPickLeaseActivity('tap'); const cb=moveMode&&moveMode.cb; moveMode=null; moveSel=null; void gridPickLeaseExit('cancelled'); if(cb){ try{ cb(null); }catch(e){} } gridFastRefresh(); }
 function aoeTag(sp){ if(!sp||!sp.area_shape) return ''; const M={sphere:'วง',cube:'ลูกบาศก์',cone:'กรวย',line:'เส้น',cylinder:'ทรงกระบอก',square:'สี่เหลี่ยม'}; return ' <span class="chip" style="background:#3a1a1a;color:#f09595;border-color:#f09595;font-size:10px">🎯 '+(sp.area_size?sp.area_size+'ft ':'')+(M[sp.area_shape]||sp.area_shape)+'</span>'; }
 
 // ───────── battle grid (2.5D squashed square — pattern จากเกม motley crews) ─────────
@@ -9132,7 +9311,7 @@ async function renderBattleGrid(p){
     if(c!==undefined) return c||1;
     _objFill[url]=0;
     try{ const im=new Image(); im.crossOrigin='anonymous';
-      im.onload=()=>{ try{ const cv=document.createElement('canvas'); cv.width=im.naturalWidth; cv.height=im.naturalHeight; const g=cv.getContext('2d'); g.drawImage(im,0,0); const d=g.getImageData(0,0,cv.width,cv.height).data; let x0=1e9,y0=1e9,x1=-1,y1=-1; for(let y=0;y<cv.height;y++)for(let x=0;x<cv.width;x++){ if(d[(y*cv.width+x)*4+3]>10){ if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; } } const f=Math.max((x1-x0+1)/cv.width,(y1-y0+1)/cv.height); _objFill[url]=(x1<0||!isFinite(f)||f<=0)?1:Math.max(0.8,Math.min(1.9,0.8/f)); }catch(e){ _objFill[url]=1; } try{ if(typeof scheduleBattleScene==='function') scheduleBattleScene(); }catch(e){} };   // v538 H5: repaint ผ่าน debounce (เดิม renderBattleGrid() ไร้ arg → p undefined → TypeError + full-fetch loop)
+      im.onload=()=>{ try{ const cv=document.createElement('canvas'); cv.width=im.naturalWidth; cv.height=im.naturalHeight; const g=cv.getContext('2d'); g.drawImage(im,0,0); const d=g.getImageData(0,0,cv.width,cv.height).data; let x0=1e9,y0=1e9,x1=-1,y1=-1; for(let y=0;y<cv.height;y++)for(let x=0;x<cv.width;x++){ if(d[(y*cv.width+x)*4+3]>10){ if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; } } const f=Math.max((x1-x0+1)/cv.width,(y1-y0+1)/cv.height); _objFill[url]=(x1<0||!isFinite(f)||f<=0)?1:Math.max(0.8,Math.min(1.9,0.8/f)); }catch(e){ _objFill[url]=1; } try{ if(typeof scheduleBattleScene==='function') scheduleBattleScene('fallback'); }catch(e){} };   // v538 H5: repaint ผ่าน debounce (เดิม renderBattleGrid() ไร้ arg → p undefined → TypeError + full-fetch loop)
       im.onerror=()=>{ _objFill[url]=1; };
       im.src=url;
     }catch(e){ _objFill[url]=1; }
@@ -9147,7 +9326,7 @@ async function renderBattleGrid(p){
     _monImg[url]=null;                                 // mark loading (กัน new Image ซ้ำทุก render)
     try{ const im=new Image();
       im.onload=()=>{ _monImg[url]=true; };            // โหลดได้ = คงรูป (แสดงอยู่แล้ว ไม่ต้อง repaint)
-      im.onerror=()=>{ _monImg[url]=false; try{ if(typeof scheduleBattleScene==='function') scheduleBattleScene(); }catch(e){} };   // โหลดไม่ได้ = สลับเป็น pawn (repaint 1 ครั้งผ่าน debounce)
+      im.onerror=()=>{ _monImg[url]=false; try{ if(typeof scheduleBattleScene==='function') scheduleBattleScene('fallback'); }catch(e){} };   // โหลดไม่ได้ = สลับเป็น pawn (repaint 1 ครั้งผ่าน debounce)
       im.src=url;
     }catch(e){ _monImg[url]=true; }                    // สร้าง Image ไม่ได้ = ปล่อยแสดงรูปตามเดิม
     return true; }
@@ -10245,6 +10424,7 @@ function exportChronicle(){
 
 // ───────── realtime ─────────
 async function teardownRealtimeForWorldSwitch(){
+  gridPickLeaseDisconnect();
   if(window._rtReconnT){clearTimeout(window._rtReconnT);window._rtReconnT=null;}
   if(_rtPoll){clearInterval(_rtPoll);_rtPoll=null;}
   if(window._combatWatchdog){clearInterval(window._combatWatchdog);window._combatWatchdog=null;}
@@ -10305,11 +10485,11 @@ function subscribeRealtime(){
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'combat_log',filter:'campaign_id=eq.'+campaign.id}, async()=>{ scheduleBattleScene(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'battle_grids',filter:'campaign_id=eq.'+campaign.id}, async()=>{
       gridCommandInvalidate('battle-grids-realtime');
-      scheduleBattleScene();
+      scheduleBattleScene('realtime_grid');
     })
     .on('postgres_changes',{event:'*',schema:'public',table:'grid_tokens',filter:'campaign_id=eq.'+campaign.id}, async()=>{
       gridCommandInvalidate('grid-tokens-realtime');
-      scheduleBattleScene();
+      scheduleBattleScene('realtime_token');
     })
     ;
   /* v663 X4-01/02/03/04 (BUGROOTS 07-18 · เคสสด 08:53 stack overflow): callback ปิดเหนือ instance ตัวเอง (_rtCh) ไม่ใช่ global — กัน ABA (callback เก่าของ A ลบ B) ·
@@ -10347,7 +10527,7 @@ async function resyncAll(force,narrativeTailOnly){
     else await Promise.all([loadRound(), loadNarrative()]);
     if(typeof updateCombatBadge==='function'){ try{ await updateCombatBadge(); }catch(e){} }   /* v271 H4: poll/visibility/online ดึง _combatActive ใหม่ (กัน input-mode ค้างหลังศึกจบ) */
     if(typeof refreshCombatTurn==='function'){ try{ await refreshCombatTurn(); }catch(e){} }
-    if(typeof scheduleBattleScene==='function'){ try{ scheduleBattleScene(); }catch(e){} }
+    if(typeof scheduleBattleScene==='function'){ try{ scheduleBattleScene('resync'); }catch(e){} }
     rtLastSyncTs=Date.now();
     const narrSig=narrative.length+'|'+((narrative[narrative.length-1]||{}).id||'');
     const roundSig=((curRound&&curRound.id)||'')+'|'+((curRound&&curRound.phase)||'');
@@ -11235,7 +11415,7 @@ window.cc = (function(){
       catch(e){ if(typeof toast==='function') toast(e.message||uiCopy('ส่งไม่สำเร็จ','Submit failed'),true); return false; }
       if (typeof toast==='function') toast('Action submitted ✓');
       // ข้อ 3 (06-08): optimistic — อัปเดตฉากรบทันทีหลังส่ง (มาร์คเดิน/สถานะ) ไม่รอ realtime เด้งกลับ
-      try{ if(typeof _bsShown!=='undefined' && _bsShown && typeof renderBattleScene==='function') renderBattleScene(); }catch(e){}
+      try{ if(typeof _bsShown!=='undefined' && _bsShown && typeof renderBattleScene==='function') renderBattleScene('manual'); }catch(e){}
       // ── B (review-r1 F15): การหัก skills.used max_uses ย้ายไป server แล้ว (structured block-and-strip · server-authoritative · กัน double-charge ที่เดิม client+server หักซ้ำ) — client ไม่หักเอง · UI รีเฟรชหลัง resolve ผ่าน loadRound ──
       try{ if (typeof loadRound==='function') await loadRound(); if (typeof renderRoundbar==='function') renderRoundbar(); }catch(e){}
       try{
