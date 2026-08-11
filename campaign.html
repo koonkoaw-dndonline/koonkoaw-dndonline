@@ -2116,7 +2116,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608111455;   // FE-15: bounded DOM-mirrored dice playback diagnostics
+const FRONTEND_BUILD = 202608111625;   // FE-16: evidence-bound post-flip freshness reconcile
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -3742,6 +3742,108 @@ function postFlipRoundRefetchController(){
 function triggerPostFlipRoundRefetch(row){try{return postFlipRoundRefetchController().trigger(row);}catch(_postFlipTriggerError){return Promise.resolve(false);}}
 function triggerPostFlipRoundRefetchFromRows(rows){try{return postFlipRoundRefetchController().triggerLatest(rows);}catch(_postFlipRowsError){return Promise.resolve(false);}}
 // ── /FE-14 ──
+// ── FE-16: evidence-bound post-flip surface reconcile ──
+// A round transition or a generic resolved response is not table-specific evidence.
+// Only durable narrative receipt families already emitted by the server, plus the
+// published NPC row event itself, may schedule a refresh.  No receipt is invented,
+// no timer/poll is added, and failures remain presentation-only.
+// language-impact: none — machine-only classification/orchestration; no runtime copy.
+const FE16_RECEIPT_SURFACE_RULES=Object.freeze([
+  {pattern:/^system:(?:inventory-action|item-charge|quest-reward|travel-challenge):[0-9a-z-]{8,}$/i,surfaces:Object.freeze(['character_sheets'])},
+  {pattern:/^system:companion-recruitment(?:-v\d+)?:[0-9a-z-]{8,}$/i,surfaces:Object.freeze(['companion_roster'])},
+  {pattern:/^system:quest-payoff:[0-9a-z-]{8,}$/i,surfaces:Object.freeze(['relationships'])}
+]);
+function freshnessReconcileEvidence(raw){
+  try{
+    const kind=String(raw&&raw.kind||'');
+    if(kind==='narrative_receipt'){
+      const row=raw&&raw.row;
+      if(!row||typeof row!=='object'||Array.isArray(row)||!String(row.id||'').trim())return null;
+      if(String(row.author||'').toLowerCase()!=='system'||String(row.status||'').toLowerCase()!=='final')return null;
+      const campaignId=String(raw&&raw.campaign_id||''),rowCampaignId=String(row.campaign_id||'');
+      if(campaignId&&rowCampaignId&&campaignId!==rowCampaignId)return null;
+      const groupNo=Number(raw&&raw.group_no); if(Number.isFinite(groupNo)&&Number(row.group_no||1)!==groupNo)return null;
+      const source=String(row.source_content||'').trim(),surfaces=[];
+      FE16_RECEIPT_SURFACE_RULES.forEach(rule=>{if(rule.pattern.test(source))rule.surfaces.forEach(surface=>surfaces.push(surface));});
+      if(!surfaces.length)return null;
+      return {key:'narrative|'+String(row.id)+'|'+source,surfaces:[...new Set(surfaces)],source:'narrative_receipt'};
+    }
+    if(kind==='npcs_realtime'){
+      const payload=raw&&raw.payload,eventType=String(payload&&payload.eventType||'').toUpperCase();
+      if(!['INSERT','UPDATE','DELETE'].includes(eventType))return null;
+      const row=(eventType==='DELETE'?(payload&&payload.old):((payload&&payload.new)||(payload&&payload.old)))||null;
+      if(!row||typeof row!=='object'||Array.isArray(row)||!String(row.id||'').trim())return null;
+      const campaignId=String(raw&&raw.campaign_id||''),rowCampaignId=String(row.campaign_id||'');
+      if(campaignId&&rowCampaignId&&campaignId!==rowCampaignId)return null;
+      const version=String(row.updated_at||row.created_at||eventType);
+      return {key:'npcs|'+eventType+'|'+String(row.id)+'|'+version,surfaces:['npcs'],source:'npcs_realtime'};
+    }
+  }catch(_freshnessEvidenceError){}
+  return null;
+}
+function createFreshnessReconciler(deps){
+  const d=deps||{},seen=new Set(),running=new Map();
+  const log=(reason,detail)=>{try{if(typeof d.log==='function')d.log(reason,detail||{});}catch(_freshnessLogError){}};
+  async function trigger(raw){
+    const classify=typeof d.classify==='function'?d.classify:freshnessReconcileEvidence;
+    let evidence=null; try{evidence=classify(raw);}catch(_freshnessClassifyError){return false;}
+    if(!evidence||!String(evidence.key||'')||!Array.isArray(evidence.surfaces)||!evidence.surfaces.length)return false;
+    const key=String(evidence.key); if(seen.has(key)||running.has(key))return false;
+    seen.add(key); if(seen.size>128)seen.delete(seen.values().next().value);
+    const task=(async()=>{
+      let refreshed=false;
+      for(const surface of [...new Set(evidence.surfaces)]){
+        try{
+          if(typeof d.relevant==='function'&&d.relevant(surface,evidence)!==true)continue;
+          if(typeof d.refresh!=='function')continue;
+          const result=await d.refresh(surface,evidence); if(result!==false)refreshed=true;
+        }catch(error){log('freshness_reconcile_error',{surface:String(surface),source:String(evidence.source||''),error:String(error&&error.message||error||'refresh_failed').slice(0,160)});}
+      }
+      return refreshed;
+    })();
+    running.set(key,task);
+    try{return await task;}catch(error){log('freshness_reconcile_error',{source:String(evidence.source||''),error:String(error&&error.message||error||'unexpected').slice(0,160)});return false;}
+    finally{running.delete(key);}
+  }
+  return Object.freeze({trigger:trigger,seenCount:()=>seen.size,pendingCount:()=>running.size});
+}
+let _freshnessReconcile=null;
+function freshnessReconcileController(){
+  if(_freshnessReconcile)return _freshnessReconcile;
+  _freshnessReconcile=createFreshnessReconciler({
+    classify:freshnessReconcileEvidence,
+    relevant:surface=>{
+      const tab=activeTab();
+      if(surface==='character_sheets')return !!myChar;
+      if(surface==='companion_roster')return tab==='companion'&&companionV2UiEnabled();
+      if(surface==='relationships')return tab==='npc'||(tab==='companion'&&companionV2UiEnabled());
+      if(surface==='npcs')return tab==='npc';
+      return false;
+    },
+    refresh:async surface=>{
+      const tab=activeTab();
+      if(surface==='character_sheets'){
+        if(!await reloadMySheet())throw new Error('sheet_refresh_failed');
+        if(tab==='me')renderMe(); else if(tab==='items')renderItems(); else if(tab==='party')renderParty(); else if(tab==='story')renderRoundbar();
+        return true;
+      }
+      if(surface==='companion_roster'){
+        _companionViewCache=null;_companionViewTs=0;await companionViewLoad(true);if(activeTab()==='companion')await renderCompanion();return true;
+      }
+      if(surface==='relationships'){
+        if(tab==='npc'){await renderNPCs();return true;}
+        if(tab==='companion'&&companionV2UiEnabled()){_companionViewCache=null;_companionViewTs=0;await companionViewLoad(true);await renderCompanion();return true;}
+        return false;
+      }
+      if(surface==='npcs'&&tab==='npc'){await renderNPCs();return true;}
+      return false;
+    },
+    log:(reason,detail)=>{try{console.debug('[FE16]',reason,detail);}catch(_freshnessConsoleError){}}
+  });
+  return _freshnessReconcile;
+}
+function triggerFreshnessReconcile(raw){try{return freshnessReconcileController().trigger(raw);}catch(_freshnessTriggerError){return Promise.resolve(false);}}
+// ── /FE-16 ──
 async function loadRound(source){
   const visibleSource=source==='realtime'?'realtime':'fetch';
   try{ const { data, error } = await supa.from('rounds').select('*').eq('campaign_id',campaign.id)
@@ -3823,6 +3925,7 @@ function mergeNarrative(row){
   else { narrative.push(row); narrative.sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)); }
   cacheSave('narrative_g'+terminalGroupForUi(),narrative);
   try{if(typeof triggerPostFlipRoundRefetch==='function')triggerPostFlipRoundRefetch(row);}catch(_postFlipMergeTriggerError){}
+  try{if(typeof triggerFreshnessReconcile==='function')triggerFreshnessReconcile({kind:'narrative_receipt',row:row,campaign_id:String(campaign&&campaign.id||''),group_no:terminalGroupForUi()});}catch(_freshnessMergeTriggerError){}
 }
 // ── FE-10 Phase A: dormant narration hold surface + exact-ID reconcile ──
 // The next frontend slice supplies adapter parameters after the S3-B contract exists.
@@ -10628,8 +10731,9 @@ function subscribeRealtime(){
   var _rtCh = supa.channel('camp-'+campaign.id)
     .on('postgres_changes',{event:'*',schema:'public',table:'narrative',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ rtLastSyncTs=Date.now(); if(payload&&payload.new&&payload.eventType!=='DELETE'){ mergeNarrative(payload.new); } else { await loadNarrative(); }
       /* v634ui DYN-29: บรรทัดระบบที่บอกว่าชีทเปลี่ยน (พัก/เงิน/ฟื้น/แพ้/ตื่น) → reload ชีท+สมาชิก (เดิม mySheet ไม่มี realtime — แท็บ Stat ค้าง HP/เงินเก่าจน reload หน้า · throttle 15s) */
-      try{ var _c634=String((payload&&payload.new&&payload.new.content)||''); if(/^(🛏|💰|⚠️|💀|💤)/.test(_c634) && (!window._shReloadTs || Date.now()-window._shReloadTs>15000)){ window._shReloadTs=Date.now(); refreshAll().then(function(){ if(activeTab()==='me') renderMe(); if(activeTab()==='party') renderParty(); }).catch(function(e){}); } }catch(e){}
+      try{ var _c634=String((payload&&payload.new&&payload.new.content)||''),_fe16Exact=freshnessReconcileEvidence({kind:'narrative_receipt',row:payload&&payload.new,campaign_id:String(campaign&&campaign.id||''),group_no:terminalGroupForUi()}); if(!_fe16Exact&&/^(🛏|💰|⚠️|💀|💤)/.test(_c634) && (!window._shReloadTs || Date.now()-window._shReloadTs>15000)){ window._shReloadTs=Date.now(); refreshAll().then(function(){ if(activeTab()==='me') renderMe(); if(activeTab()==='party') renderParty(); }).catch(function(e){}); } }catch(e){}
       if(activeTab()==='story') renderStory(); if(activeTab()==='quest') renderQuest(); if(typeof scheduleBattleScene==='function') scheduleBattleScene(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'npcs',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ rtLastSyncTs=Date.now(); await triggerFreshnessReconcile({kind:'npcs_realtime',payload:payload,campaign_id:String(campaign&&campaign.id||'')}); })
     .on('postgres_changes',{event:'*',schema:'public',table:'quests',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='quest') renderQuest(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'quest_reward_jobs',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='quest') renderQuest(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'rounds',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ rtLastSyncTs=Date.now(); try{const row=payload&&payload.new,receipts=row&&row.meta&&Array.isArray(row.meta.dice)?row.meta.dice:[];dicePlaybackLog('rounds_realtime_event',{roundId:String(row&&row.id||''),receiptCount:receipts.length,campaignId:String(campaign&&campaign.id||''),source:String(payload&&payload.eventType||'unknown').toLowerCase()});}catch(_roundsRealtimeLogError){} await loadRound('realtime'); const _narrTailChanged=await reconcileNarrativeTail(); if(activeTab()==='story'&&!_narrTailChanged) renderStory(); })
