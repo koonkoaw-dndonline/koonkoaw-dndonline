@@ -2115,7 +2115,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608110249;   // FE-11: grid pick lease wiring · dormant Pages build (landing cache key ยังไม่ขยับ)
+const FRONTEND_BUILD = 202608110634;   // FE-12: every visible round crosses the canvas playback door
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -3525,7 +3525,7 @@ function _catGet(kind){ try{ const s=localStorage.getItem('ttrpg_cat_'+kind); re
 function hydrateCache(){
   const m=cacheLoad('members'); if(m) members=m;
   const ch=cacheLoad('characters'); if(ch){ characters=ch; myChar=characters.find(c=>c.user_id===me.id)||null; }
-  const r=cacheLoad('round_g'+terminalGroupForUi()); if(r) curRound=r;
+  const r=cacheLoad('round_g'+terminalGroupForUi()); if(r) setVisibleRound(r,myChar);
   const n=cacheLoad('narrative_g'+terminalGroupForUi()); if(n) narrative=n;
   const s=cacheLoad('state'); if(s!==null) worldState=s;
   if(myChar){ const sh=cacheLoad('sheet_'+myChar.id); if(sh) mySheet=sh; }
@@ -3551,10 +3551,14 @@ async function loadCharacters(){
     if(error) throw error; characters = data||[]; cacheSave('characters',characters);
   }catch(e){ const c=cacheLoad('characters'); if(c) characters=c; }
 }
+function diceMetaOwnerKey(value){
+  try{ return String(value||'').normalize('NFC').replace(/[\u200B-\u200D\uFEFF]/g,'').trim().toLocaleLowerCase(); }
+  catch(_diceMetaOwnerKeyError){ return String(value||'').trim().toLocaleLowerCase(); }
+}
 function playRoundDiceMeta(round,character){
   try{
     const receipts=round&&round.meta&&Array.isArray(round.meta.dice)?round.meta.dice:[];
-    const ownName=String(character&&character.name||'').trim().toLocaleLowerCase();
+    const ownName=diceMetaOwnerKey(character&&character.name);
     const campaignId=String(campaign&&campaign.id||'');
     const roundId=String(round&&round.id||'');
     if(!receipts.length||!ownName||!campaignId||!roundId) return 0;
@@ -3566,7 +3570,7 @@ function playRoundDiceMeta(round,character){
     let played=0;
     receipts.forEach(function(receipt,index){
       try{
-        if(!receipt||String(receipt.who||'').trim().toLocaleLowerCase()!==ownName) return;
+        if(!receipt||diceMetaOwnerKey(receipt.who)!==ownName) return;
         const roll=receipt.roll;
         const total=receipt.total;
         if(!Number.isInteger(roll)||roll<1||roll>20||!Number.isFinite(total)) return;
@@ -3575,7 +3579,9 @@ function playRoundDiceMeta(round,character){
         seen.add(receiptKey); memorySeen.add(receiptKey); stored.push(receiptKey);
         if(stored.length>256) stored=stored.slice(-256);
         try{ localStorage.setItem(storageKey,JSON.stringify(stored)); }catch(_diceMetaWriteError){}
-        if(localStorage.getItem('dice_fx')==='off') return;
+        let diceFxOff=false;
+        try{ diceFxOff=localStorage.getItem('dice_fx')==='off'; }catch(_diceFxPrefReadError){}
+        if(diceFxOff) return;
         const diceFx=window.DiceFx;
         if(!diceFx||typeof diceFx.roll!=='function') return;
         diceFx.roll({eventId:'dice-meta:'+receiptKey,dice:[{die:'d20',value:roll}],flat:Number.isFinite(receipt.bonus)?receipt.bonus:0,total:total,dc:Number.isFinite(receipt.dc)?receipt.dc:null,pass:typeof receipt.pass==='boolean'?receipt.pass:null,tier:typeof receipt.tier==='string'?receipt.tier:'',label:String(receipt.skill||receipt.kind||'')});
@@ -3585,12 +3591,17 @@ function playRoundDiceMeta(round,character){
     return played;
   }catch(_diceMetaPlaybackError){ return 0; }
 }
+function setVisibleRound(nextRound,character){
+  curRound=nextRound||null;
+  playRoundDiceMeta(curRound,character);
+  return curRound;
+}
 async function loadRound(){
   try{ const { data, error } = await supa.from('rounds').select('*').eq('campaign_id',campaign.id)
     .eq('group_no',terminalGroupForUi())
     .order('round_number',{ascending:false}).limit(1).maybeSingle();
-    if(error) throw error; curRound = data||null; cacheSave('round_g'+terminalGroupForUi(),curRound); playRoundDiceMeta(curRound,myChar); resumeDiceRollGate();
-  }catch(e){ const c=cacheLoad('round_g'+terminalGroupForUi()); if(c) curRound=c; }
+    if(error) throw error; setVisibleRound(data||null,myChar); cacheSave('round_g'+terminalGroupForUi(),curRound); resumeDiceRollGate();
+  }catch(e){ const c=cacheLoad('round_g'+terminalGroupForUi()); if(c) setVisibleRound(c,myChar); }
 }
 const NARR_WINDOW=50; let narrMore=false, _skipAutoScroll=false;
 // v699: content remains the backward-compatible corrected rendering. Raw forensic
