@@ -2115,7 +2115,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608110634;   // FE-12: every visible round crosses the canvas playback door
+const FRONTEND_BUILD = 202608111031;   // FE-13: canvas playback observability + post-roll ledger burn
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -3525,7 +3525,7 @@ function _catGet(kind){ try{ const s=localStorage.getItem('ttrpg_cat_'+kind); re
 function hydrateCache(){
   const m=cacheLoad('members'); if(m) members=m;
   const ch=cacheLoad('characters'); if(ch){ characters=ch; myChar=characters.find(c=>c.user_id===me.id)||null; }
-  const r=cacheLoad('round_g'+terminalGroupForUi()); if(r) setVisibleRound(r,myChar);
+  const r=cacheLoad('round_g'+terminalGroupForUi()); if(r) setVisibleRound(r,myChar,'hydrate');
   const n=cacheLoad('narrative_g'+terminalGroupForUi()); if(n) narrative=n;
   const s=cacheLoad('state'); if(s!==null) worldState=s;
   if(myChar){ const sh=cacheLoad('sheet_'+myChar.id); if(sh) mySheet=sh; }
@@ -3555,53 +3555,96 @@ function diceMetaOwnerKey(value){
   try{ return String(value||'').normalize('NFC').replace(/[\u200B-\u200D\uFEFF]/g,'').trim().toLocaleLowerCase(); }
   catch(_diceMetaOwnerKeyError){ return String(value||'').trim().toLocaleLowerCase(); }
 }
-function playRoundDiceMeta(round,character){
+function dicePlaybackLedgerState(campaignId){
+  const id=String(campaignId||'');
+  const key=id?'ttrpg_dice_meta_seen_v1_'+id:'';
+  if(!key) return {key:'',ledger:[],error:''};
+  try{ const parsed=JSON.parse(localStorage.getItem(key)||'[]'); return {key:key,ledger:Array.isArray(parsed)?parsed.filter(value=>typeof value==='string').slice(-256):[],error:''}; }
+  catch(_dicePlaybackLedgerReadError){ return {key:key,ledger:[],error:'read_error'}; }
+}
+function dicePlaybackLog(reason,detail){
   try{
-    const receipts=round&&round.meta&&Array.isArray(round.meta.dice)?round.meta.dice:[];
-    const ownName=diceMetaOwnerKey(character&&character.name);
-    const campaignId=String(campaign&&campaign.id||'');
-    const roundId=String(round&&round.id||'');
-    if(!receipts.length||!ownName||!campaignId||!roundId) return 0;
-    const storageKey='ttrpg_dice_meta_seen_v1_'+campaignId;
-    let stored=[];
-    try{ const parsed=JSON.parse(localStorage.getItem(storageKey)||'[]'); if(Array.isArray(parsed)) stored=parsed.filter(value=>typeof value==='string').slice(-256); }catch(_diceMetaReadError){}
+    const d=detail&&typeof detail==='object'?detail:{};
+    const entry={at:new Date().toISOString(),roundId:String(d.roundId||''),receiptCount:Number.isInteger(d.receiptCount)?d.receiptCount:0,ownName:String(d.ownName||''),reason:String(reason||'unknown'),ledgerSize:Number.isInteger(d.ledgerSize)?d.ledgerSize:0,campaignId:String(d.campaignId||'')};
+    if(d.source!==undefined) entry.source=String(d.source||'unknown');
+    if(Number.isInteger(d.receiptIndex)) entry.receiptIndex=d.receiptIndex;
+    if(d.receiptWho!==undefined) entry.receiptWho=String(d.receiptWho||'');
+    if(d.ledgerError) entry.ledgerError=String(d.ledgerError);
+    const log=Array.isArray(window.__dicePlaybackLog)?window.__dicePlaybackLog:[];
+    log.push(entry); if(log.length>50) log.splice(0,log.length-50); window.__dicePlaybackLog=log;
+    try{ if(window.console&&typeof window.console.debug==='function') window.console.debug('[dice-playback]',entry); }catch(_dicePlaybackConsoleError){}
+    return entry;
+  }catch(_dicePlaybackLogError){ return null; }
+}
+window.__diceProbe=function(){
+  let campaignId='',round=null,receipts=[],probeError='';
+  try{ campaignId=String(campaign&&campaign.id||''); }catch(_diceProbeCampaignError){ probeError='campaign_read_error'; }
+  const ledgerState=dicePlaybackLedgerState(campaignId);
+  let diceFxSetting=null,settingError='';
+  try{ diceFxSetting=localStorage.getItem('dice_fx'); }catch(_diceProbeSettingError){ settingError='read_error'; }
+  try{ round=typeof curRound!=='undefined'?curRound:null; receipts=round&&round.meta&&Array.isArray(round.meta.dice)?round.meta.dice:[]; }catch(_diceProbeRoundError){ probeError=probeError||'round_read_error'; round=null; receipts=[]; }
+  return {at:new Date().toISOString(),campaignId:campaignId,roundId:String(round&&round.id||''),receiptCount:receipts.length,ledgerKey:ledgerState.key,ledger:ledgerState.ledger.slice(),ledgerSize:ledgerState.ledger.length,ledgerError:ledgerState.error,log:Array.isArray(window.__dicePlaybackLog)?window.__dicePlaybackLog.slice(-50):[],hasDiceFx:!!window.DiceFx,diceFxRoll:!!(window.DiceFx&&typeof window.DiceFx.roll==='function'),diceFxSetting:diceFxSetting,diceFxSettingError:settingError,probeError:probeError};
+};
+function playRoundDiceMeta(round,character){
+  let receipts=[],ownName='',campaignId='',roundId='',stored=[];
+  try{
+    receipts=round&&round.meta&&Array.isArray(round.meta.dice)?round.meta.dice:[];
+    ownName=diceMetaOwnerKey(character&&character.name);
+    campaignId=String(campaign&&campaign.id||'');
+    roundId=String(round&&round.id||'');
+    const ledgerState=dicePlaybackLedgerState(campaignId); stored=ledgerState.ledger;
+    const emit=function(reason,extra){ return dicePlaybackLog(reason,Object.assign({roundId:roundId,receiptCount:receipts.length,ownName:ownName,ledgerSize:stored.length,campaignId:campaignId,ledgerError:ledgerState.error},extra||{})); };
+    if(!receipts.length){ emit('no_receipts'); return 0; }
+    if(!ownName){ emit('no_own_name'); return 0; }
+    if(!campaignId){ emit('no_campaign'); return 0; }
+    if(!roundId){ emit('no_round'); return 0; }
     const seen=new Set(stored);
     const memorySeen=window._diceMetaSeenFallback instanceof Set?window._diceMetaSeenFallback:(window._diceMetaSeenFallback=new Set());
+    const inFlight=window._diceMetaInFlight instanceof Set?window._diceMetaInFlight:(window._diceMetaInFlight=new Set());
+    const burn=function(receiptKey){ seen.add(receiptKey); memorySeen.add(receiptKey); stored.push(receiptKey); if(stored.length>256) stored=stored.slice(-256); try{ localStorage.setItem(ledgerState.key,JSON.stringify(stored)); }catch(_diceMetaWriteError){} };
     let played=0;
     receipts.forEach(function(receipt,index){
       try{
-        if(!receipt||diceMetaOwnerKey(receipt.who)!==ownName) return;
+        if(!receipt||typeof receipt!=='object'){ emit('invalid_receipt',{receiptIndex:index}); return; }
+        if(diceMetaOwnerKey(receipt.who)!==ownName){ emit('not_my_receipt',{receiptIndex:index,receiptWho:receipt.who}); return; }
         const roll=receipt.roll;
         const total=receipt.total;
-        if(!Number.isInteger(roll)||roll<1||roll>20||!Number.isFinite(total)) return;
+        if(!Number.isInteger(roll)||roll<1||roll>20||!Number.isFinite(total)){ emit('invalid_receipt',{receiptIndex:index,receiptWho:receipt.who}); return; }
         const receiptKey=JSON.stringify([campaignId,roundId,index,String(receipt.who||''),String(receipt.kind||''),String(receipt.skill||''),roll,receipt.bonus,total,receipt.dc,receipt.tier,receipt.pass]);
-        if(seen.has(receiptKey)||memorySeen.has(receiptKey)) return;
-        seen.add(receiptKey); memorySeen.add(receiptKey); stored.push(receiptKey);
-        if(stored.length>256) stored=stored.slice(-256);
-        try{ localStorage.setItem(storageKey,JSON.stringify(stored)); }catch(_diceMetaWriteError){}
+        if(seen.has(receiptKey)||memorySeen.has(receiptKey)||inFlight.has(receiptKey)){ emit('already_seen',{receiptIndex:index,receiptWho:receipt.who}); return; }
         let diceFxOff=false;
         try{ diceFxOff=localStorage.getItem('dice_fx')==='off'; }catch(_diceFxPrefReadError){}
-        if(diceFxOff) return;
+        if(diceFxOff){ burn(receiptKey); emit('fx_disabled',{receiptIndex:index,receiptWho:receipt.who}); return; }
         const diceFx=window.DiceFx;
-        if(!diceFx||typeof diceFx.roll!=='function') return;
-        diceFx.roll({eventId:'dice-meta:'+receiptKey,dice:[{die:'d20',value:roll}],flat:Number.isFinite(receipt.bonus)?receipt.bonus:0,total:total,dc:Number.isFinite(receipt.dc)?receipt.dc:null,pass:typeof receipt.pass==='boolean'?receipt.pass:null,tier:typeof receipt.tier==='string'?receipt.tier:'',label:String(receipt.skill||receipt.kind||'')});
-        played++;
-      }catch(_diceMetaReceiptError){}
+        if(!diceFx||typeof diceFx.roll!=='function'){ emit('dicefx_missing',{receiptIndex:index,receiptWho:receipt.who}); return; }
+        inFlight.add(receiptKey);
+        try{ diceFx.roll({eventId:'dice-meta:'+receiptKey,dice:[{die:'d20',value:roll}],flat:Number.isFinite(receipt.bonus)?receipt.bonus:0,total:total,dc:Number.isFinite(receipt.dc)?receipt.dc:null,pass:typeof receipt.pass==='boolean'?receipt.pass:null,tier:typeof receipt.tier==='string'?receipt.tier:'',label:String(receipt.skill||receipt.kind||'')}); }
+        catch(_diceMetaRollError){ emit('roll_threw',{receiptIndex:index,receiptWho:receipt.who}); return; }
+        finally{ inFlight.delete(receiptKey); }
+        burn(receiptKey); played++; emit('played',{receiptIndex:index,receiptWho:receipt.who});
+      }catch(_diceMetaReceiptError){ emit('receipt_error',{receiptIndex:index}); }
     });
     return played;
-  }catch(_diceMetaPlaybackError){ return 0; }
+  }catch(_diceMetaPlaybackError){ dicePlaybackLog('playback_error',{roundId:roundId,receiptCount:receipts.length,ownName:ownName,ledgerSize:stored.length,campaignId:campaignId}); return 0; }
 }
-function setVisibleRound(nextRound,character){
+function setVisibleRound(nextRound,character,source){
   curRound=nextRound||null;
+  try{
+    const receipts=curRound&&curRound.meta&&Array.isArray(curRound.meta.dice)?curRound.meta.dice:[];
+    const campaignId=String(campaign&&campaign.id||'');
+    const ledgerState=dicePlaybackLedgerState(campaignId);
+    dicePlaybackLog('visible_round',{roundId:String(curRound&&curRound.id||''),receiptCount:receipts.length,ownName:diceMetaOwnerKey(character&&character.name),ledgerSize:ledgerState.ledger.length,campaignId:campaignId,ledgerError:ledgerState.error,source:String(source||'unknown')});
+  }catch(_diceVisibleRoundLogError){ dicePlaybackLog('visible_round_error',{roundId:'',receiptCount:0,ownName:'',ledgerSize:0,campaignId:'',source:String(source||'unknown')}); }
   playRoundDiceMeta(curRound,character);
   return curRound;
 }
-async function loadRound(){
+async function loadRound(source){
+  const visibleSource=source==='realtime'?'realtime':'fetch';
   try{ const { data, error } = await supa.from('rounds').select('*').eq('campaign_id',campaign.id)
     .eq('group_no',terminalGroupForUi())
     .order('round_number',{ascending:false}).limit(1).maybeSingle();
-    if(error) throw error; setVisibleRound(data||null,myChar); cacheSave('round_g'+terminalGroupForUi(),curRound); resumeDiceRollGate();
-  }catch(e){ const c=cacheLoad('round_g'+terminalGroupForUi()); if(c) setVisibleRound(c,myChar); }
+    if(error) throw error; setVisibleRound(data||null,myChar,visibleSource); cacheSave('round_g'+terminalGroupForUi(),curRound); resumeDiceRollGate();
+  }catch(e){ const c=cacheLoad('round_g'+terminalGroupForUi()); if(c) setVisibleRound(c,myChar,'catch'); }
 }
 const NARR_WINDOW=50; let narrMore=false, _skipAutoScroll=false;
 // v699: content remains the backward-compatible corrected rendering. Raw forensic
@@ -10482,7 +10525,7 @@ function subscribeRealtime(){
       if(activeTab()==='story') renderStory(); if(activeTab()==='quest') renderQuest(); if(typeof scheduleBattleScene==='function') scheduleBattleScene(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'quests',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='quest') renderQuest(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'quest_reward_jobs',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='quest') renderQuest(); })
-    .on('postgres_changes',{event:'*',schema:'public',table:'rounds',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); await loadRound(); const _narrTailChanged=await reconcileNarrativeTail(); if(activeTab()==='story'&&!_narrTailChanged) renderStory(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'rounds',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); await loadRound('realtime'); const _narrTailChanged=await reconcileNarrativeTail(); if(activeTab()==='story'&&!_narrTailChanged) renderStory(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'actions',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'character_sheets',filter:'character_id=eq.'+((myChar&&myChar.id)||'00000000-0000-0000-0000-000000000000')}, async()=>{ rtLastSyncTs=Date.now(); await reloadMySheet(); await refreshCombatTurn(); if(activeTab()==='story') renderRoundbar(); if(activeTab()==='me') renderMe(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'characters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ var _oldGroup=terminalGroupForUi(); await loadCharacters(); myChar=characters.find(c=>c.user_id===me.id)||null; if(_oldGroup!==terminalGroupForUi()){ window._combatActive=undefined; window.gEncId=null; await Promise.all([loadRound(),loadNarrative(),updateCombatBadge(),refreshCombatTurn()]); } if(activeTab()==='party') renderParty(); if(typeof scheduleBattleScene==='function') scheduleBattleScene(); })   // v739 FZ-2: group move rebinds scoped round/story/combat before render
