@@ -1785,6 +1785,7 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
 </style>
 </head>
 <body>
+<div id="dicePlaybackDiag" hidden aria-hidden="true" data-dice-playback-diag="v1">{"status":"initial","log":[],"truncated":false}</div>
 <button id="uiToggle" onclick="toggleUI()" title="ย่อ/ขยายเมนู" aria-label="ย่อ/ขยายเมนู">‹</button>
 <button id="scrollLatest" onclick="scrollToLatest()" title="ไปข้อความล่าสุด" aria-label="ไปข้อความล่าสุด">↓</button>
 
@@ -2115,7 +2116,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608111334;   // FE-14: exact-receipt bounded post-flip round re-fetch
+const FRONTEND_BUILD = 202608111455;   // FE-15: bounded DOM-mirrored dice playback diagnostics
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -3562,6 +3563,39 @@ function dicePlaybackLedgerState(campaignId){
   try{ const parsed=JSON.parse(localStorage.getItem(key)||'[]'); return {key:key,ledger:Array.isArray(parsed)?parsed.filter(value=>typeof value==='string').slice(-256):[],error:''}; }
   catch(_dicePlaybackLedgerReadError){ return {key:key,ledger:[],error:'read_error'}; }
 }
+const DICE_PLAYBACK_DIAG_MAX_CHARS=65536;
+function dicePlaybackDiagJson(){
+  const log=Array.isArray(window.__dicePlaybackLog)?window.__dicePlaybackLog.slice(-50):[];
+  let probe={};
+  try{ probe=typeof window.__diceProbe==='function'?window.__diceProbe():{}; }
+  catch(_dicePlaybackDiagProbeError){ probe={probeError:'probe_failed'}; }
+  const payload=probe&&typeof probe==='object'?Object.assign({},probe,{log:log,truncated:false}):{probeError:'probe_invalid',log:log,truncated:false};
+  const json=JSON.stringify(payload);
+  if(typeof json==='string'&&json.length<=DICE_PLAYBACK_DIAG_MAX_CHARS) return json;
+  const compactLog=log.map(function(value){
+    const entry=value&&typeof value==='object'?value:{};
+    const compact={at:String(entry.at||'').slice(0,64),roundId:String(entry.roundId||'').slice(0,128),receiptCount:Number.isInteger(entry.receiptCount)?entry.receiptCount:0,ownName:String(entry.ownName||'').slice(0,256),reason:String(entry.reason||'invalid_entry').slice(0,128),ledgerSize:Number.isInteger(entry.ledgerSize)?entry.ledgerSize:0,campaignId:String(entry.campaignId||'').slice(0,128)};
+    if(entry.source!==undefined) compact.source=String(entry.source||'unknown').slice(0,128);
+    if(Number.isInteger(entry.receiptIndex)) compact.receiptIndex=entry.receiptIndex;
+    if(entry.receiptWho!==undefined) compact.receiptWho=String(entry.receiptWho||'').slice(0,256);
+    if(entry.ledgerError) compact.ledgerError=String(entry.ledgerError).slice(0,128);
+    return compact;
+  });
+  const compact={at:String(payload.at||'').slice(0,64),campaignId:String(payload.campaignId||'').slice(0,128),roundId:String(payload.roundId||'').slice(0,128),receiptCount:Number.isInteger(payload.receiptCount)?payload.receiptCount:0,ledgerKey:String(payload.ledgerKey||'').slice(0,256),ledger:[],ledgerSize:Number.isInteger(payload.ledgerSize)?payload.ledgerSize:0,ledgerError:String(payload.ledgerError||'').slice(0,128),log:compactLog,hasDiceFx:!!payload.hasDiceFx,diceFxRoll:!!payload.diceFxRoll,diceFxSetting:payload.diceFxSetting===null?null:String(payload.diceFxSetting||'').slice(0,64),diceFxSettingError:String(payload.diceFxSettingError||'').slice(0,128),probeError:String(payload.probeError||'').slice(0,128),truncated:true,originalChars:typeof json==='string'?json.length:null};
+  let compactJson=JSON.stringify(compact);
+  if(compactJson.length>DICE_PLAYBACK_DIAG_MAX_CHARS){ compact.log=compact.log.slice(-10); compactJson=JSON.stringify(compact); }
+  return compactJson.length<=DICE_PLAYBACK_DIAG_MAX_CHARS?compactJson:'{"probeError":"diag_too_large","log":[],"truncated":true}';
+}
+function dicePlaybackDiagSync(){
+  try{
+    const node=document.getElementById('dicePlaybackDiag');
+    if(!node) return false;
+    const json=dicePlaybackDiagJson();
+    if(typeof json!=='string') return false;
+    node.textContent=json;
+    return true;
+  }catch(_dicePlaybackDiagSyncError){ return false; }
+}
 function dicePlaybackLog(reason,detail){
   try{
     const d=detail&&typeof detail==='object'?detail:{};
@@ -3572,6 +3606,7 @@ function dicePlaybackLog(reason,detail){
     if(d.ledgerError) entry.ledgerError=String(d.ledgerError);
     const log=Array.isArray(window.__dicePlaybackLog)?window.__dicePlaybackLog:[];
     log.push(entry); if(log.length>50) log.splice(0,log.length-50); window.__dicePlaybackLog=log;
+    try{ dicePlaybackDiagSync(); }catch(_dicePlaybackDiagMirrorError){}
     try{ if(window.console&&typeof window.console.debug==='function') window.console.debug('[dice-playback]',entry); }catch(_dicePlaybackConsoleError){}
     return entry;
   }catch(_dicePlaybackLogError){ return null; }
