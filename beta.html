@@ -2115,7 +2115,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608111031;   // FE-13: canvas playback observability + post-roll ledger burn
+const FRONTEND_BUILD = 202608111334;   // FE-14: exact-receipt bounded post-flip round re-fetch
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -3638,6 +3638,75 @@ function setVisibleRound(nextRound,character,source){
   playRoundDiceMeta(curRound,character);
   return curRound;
 }
+// ── FE-14: exact-receipt, bounded post-flip round re-fetch ──
+// earlyFlip can publish the next round before the background story-check tail writes
+// meta.dice. The existing system:story-check receipt is the authority that a retry is
+// useful; ordinary rounds therefore pay no extra rounds query.
+// language-impact: none — machine-only orchestration and diagnostics; no runtime copy.
+const POST_FLIP_REFETCH_DELAYS_MS=Object.freeze([150,350,700,1400,2800]);
+function createPostFlipRoundRefetch(deps){
+  const d=deps||{}, triggered=new Set(), running=new Map();
+  const delays=Array.isArray(d.delaysMs)&&d.delaysMs.length?d.delaysMs.slice():POST_FLIP_REFETCH_DELAYS_MS.slice();
+  const visibleRound=()=>typeof d.visibleRound==='function'?d.visibleRound():null;
+  const hasDice=round=>!!(round&&round.meta&&Array.isArray(round.meta.dice)&&round.meta.dice.length);
+  const log=(reason,detail)=>{try{if(typeof d.log==='function')d.log(reason,detail||{});}catch(_postFlipLogError){}};
+  function candidate(row){
+    try{
+      const visible=visibleRound(), roundId=String(visible&&visible.id||''), source=String(row&&row.source_content||'').trim();
+      if(!roundId||hasDice(visible)||!row||String(row.author||'').toLowerCase()!=='system'||String(row.status||'').toLowerCase()!=='final')return null;
+      if(Number(row.group_no)!==Number(typeof d.visibleGroup==='function'?d.visibleGroup():NaN)||String(row.round_id||'')!==roundId)return null;
+      if(!/^system:story-check:[0-9a-f-]{36}$/i.test(source))return null;
+      return {roundId:roundId,source:source,key:roundId+'|'+source};
+    }catch(_postFlipCandidateError){return null;}
+  }
+  async function trigger(row){
+    const match=candidate(row); if(!match||triggered.has(match.key)||running.has(match.key))return false;
+    triggered.add(match.key); if(triggered.size>64)triggered.delete(triggered.values().next().value);
+    const task=(async()=>{
+      log('post_flip_refetch_trigger',{roundId:match.roundId,source:'story_check_receipt'});
+      for(let attempt=0;attempt<delays.length;attempt++){
+        const before=visibleRound(); if(String(before&&before.id||'')!==match.roundId||hasDice(before))return hasDice(before);
+        try{const waitMs=Math.max(0,Number(delays[attempt])||0);if(waitMs&&typeof d.wait==='function')await d.wait(waitMs);}catch(_postFlipWaitError){return false;}
+        const current=visibleRound(); if(String(current&&current.id||'')!==match.roundId||hasDice(current))return hasDice(current);
+        try{
+          const fetched=typeof d.fetchRound==='function'?await d.fetchRound(match.roundId,'post_flip'):null;
+          if(fetched&&String(fetched.id||'')===match.roundId&&hasDice(fetched)){log('post_flip_refetch_ready',{roundId:match.roundId,source:'post_flip',attempt:attempt+1});return true;}
+        }catch(error){log('post_flip_refetch_error',{roundId:match.roundId,source:'post_flip',attempt:attempt+1,error:String(error&&error.message||error||'query_failed').slice(0,160)});}
+      }
+      log('post_flip_refetch_cap',{roundId:match.roundId,source:'post_flip',attempts:delays.length}); return false;
+    })();
+    running.set(match.key,task);
+    try{return await task;}catch(error){log('post_flip_refetch_error',{roundId:match.roundId,source:'post_flip',error:String(error&&error.message||error||'unexpected').slice(0,160)});return false;}
+    finally{running.delete(match.key);}
+  }
+  function triggerLatest(rows){
+    if(!Array.isArray(rows))return Promise.resolve(false);
+    for(let i=rows.length-1;i>=0;i--){if(candidate(rows[i]))return trigger(rows[i]);}
+    return Promise.resolve(false);
+  }
+  return Object.freeze({trigger:trigger,triggerLatest:triggerLatest,pendingCount:()=>running.size,triggeredCount:()=>triggered.size});
+}
+let _postFlipRoundRefetch=null;
+function postFlipRoundRefetchController(){
+  if(_postFlipRoundRefetch)return _postFlipRoundRefetch;
+  _postFlipRoundRefetch=createPostFlipRoundRefetch({
+    delaysMs:POST_FLIP_REFETCH_DELAYS_MS,visibleRound:()=>curRound,visibleGroup:()=>terminalGroupForUi(),wait:ms=>new Promise(resolve=>setTimeout(resolve,ms)),
+    fetchRound:async(roundId,source)=>{
+      const groupNo=terminalGroupForUi();
+      const {data,error}=await supa.from('rounds').select('*').eq('campaign_id',campaign.id).eq('group_no',groupNo).eq('id',roundId).maybeSingle();
+      if(error)throw error;
+      if(!data||String(curRound&&curRound.id||'')!==String(roundId))return null;
+      setVisibleRound(data,myChar,source); cacheSave('round_g'+groupNo,curRound); resumeDiceRollGate();
+      try{if(activeTab()==='story')renderRoundbar();}catch(_postFlipRenderError){}
+      return data;
+    },
+    log:(reason,detail)=>dicePlaybackLog(reason,Object.assign({campaignId:String(campaign&&campaign.id||'')},detail||{}))
+  });
+  return _postFlipRoundRefetch;
+}
+function triggerPostFlipRoundRefetch(row){try{return postFlipRoundRefetchController().trigger(row);}catch(_postFlipTriggerError){return Promise.resolve(false);}}
+function triggerPostFlipRoundRefetchFromRows(rows){try{return postFlipRoundRefetchController().triggerLatest(rows);}catch(_postFlipRowsError){return Promise.resolve(false);}}
+// ── /FE-14 ──
 async function loadRound(source){
   const visibleSource=source==='realtime'?'realtime':'fetch';
   try{ const { data, error } = await supa.from('rounds').select('*').eq('campaign_id',campaign.id)
@@ -3645,6 +3714,7 @@ async function loadRound(source){
     .order('round_number',{ascending:false}).limit(1).maybeSingle();
     if(error) throw error; setVisibleRound(data||null,myChar,visibleSource); cacheSave('round_g'+terminalGroupForUi(),curRound); resumeDiceRollGate();
   }catch(e){ const c=cacheLoad('round_g'+terminalGroupForUi()); if(c) setVisibleRound(c,myChar,'catch'); }
+  try{if(typeof triggerPostFlipRoundRefetchFromRows==='function')triggerPostFlipRoundRefetchFromRows(narrative);}catch(_postFlipLoadRoundTriggerError){}
 }
 const NARR_WINDOW=50; let narrMore=false, _skipAutoScroll=false;
 // v699: content remains the backward-compatible corrected rendering. Raw forensic
@@ -3697,6 +3767,7 @@ async function loadNarrative(){
     if(error) throw error; const rows=(data||[]); narrMore = rows.length>=NARR_WINDOW; narrative = rows.slice().reverse(); cacheSave('narrative_g'+terminalGroupForUi(),narrative);
   }catch(e){ const c=cacheLoad('narrative_g'+terminalGroupForUi()); if(c) narrative=c; }
   _cacheSet('ttrpg_chron_'+campaign.id, JSON.stringify(narrative.map(n=>narrText(n))));   // v680: canonical projection ผ่านงบ cache
+  try{if(typeof triggerPostFlipRoundRefetchFromRows==='function')triggerPostFlipRoundRefetchFromRows(narrative);}catch(_postFlipLoadNarrativeTriggerError){}
 }
 async function loadOlderNarrative(){
   if(!narrative.length) return;
@@ -3716,6 +3787,7 @@ function mergeNarrative(row){
   if(i>=0) narrative[i]=row;
   else { narrative.push(row); narrative.sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)); }
   cacheSave('narrative_g'+terminalGroupForUi(),narrative);
+  try{if(typeof triggerPostFlipRoundRefetch==='function')triggerPostFlipRoundRefetch(row);}catch(_postFlipMergeTriggerError){}
 }
 // ── FE-10 Phase A: dormant narration hold surface + exact-ID reconcile ──
 // The next frontend slice supplies adapter parameters after the S3-B contract exists.
@@ -10525,7 +10597,7 @@ function subscribeRealtime(){
       if(activeTab()==='story') renderStory(); if(activeTab()==='quest') renderQuest(); if(typeof scheduleBattleScene==='function') scheduleBattleScene(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'quests',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='quest') renderQuest(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'quest_reward_jobs',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='quest') renderQuest(); })
-    .on('postgres_changes',{event:'*',schema:'public',table:'rounds',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); await loadRound('realtime'); const _narrTailChanged=await reconcileNarrativeTail(); if(activeTab()==='story'&&!_narrTailChanged) renderStory(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'rounds',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ rtLastSyncTs=Date.now(); try{const row=payload&&payload.new,receipts=row&&row.meta&&Array.isArray(row.meta.dice)?row.meta.dice:[];dicePlaybackLog('rounds_realtime_event',{roundId:String(row&&row.id||''),receiptCount:receipts.length,campaignId:String(campaign&&campaign.id||''),source:String(payload&&payload.eventType||'unknown').toLowerCase()});}catch(_roundsRealtimeLogError){} await loadRound('realtime'); const _narrTailChanged=await reconcileNarrativeTail(); if(activeTab()==='story'&&!_narrTailChanged) renderStory(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'actions',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'character_sheets',filter:'character_id=eq.'+((myChar&&myChar.id)||'00000000-0000-0000-0000-000000000000')}, async()=>{ rtLastSyncTs=Date.now(); await reloadMySheet(); await refreshCombatTurn(); if(activeTab()==='story') renderRoundbar(); if(activeTab()==='me') renderMe(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'characters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ var _oldGroup=terminalGroupForUi(); await loadCharacters(); myChar=characters.find(c=>c.user_id===me.id)||null; if(_oldGroup!==terminalGroupForUi()){ window._combatActive=undefined; window.gEncId=null; await Promise.all([loadRound(),loadNarrative(),updateCombatBadge(),refreshCombatTurn()]); } if(activeTab()==='party') renderParty(); if(typeof scheduleBattleScene==='function') scheduleBattleScene(); })   // v739 FZ-2: group move rebinds scoped round/story/combat before render
@@ -10550,7 +10622,8 @@ function subscribeRealtime(){
      null-before-remove + _torn = re-enter จาก removeChannel เป็น no-op · reconnect timer เดียว (clear ก่อนตั้งใหม่) · assign ก่อน subscribe (กัน callback เร็วกว่า assignment) */
   _rtCh._createdAt = Date.now();
   rtChannel = _rtCh;
-  _rtCh.subscribe((status)=>{
+  _rtCh.subscribe((status,err)=>{
+    if(err){try{console.warn('[realtime] channel status',{status:String(status||'unknown'),error:String(err&&err.message||err).slice(0,220)});}catch(_rtStatusLogError){}}
     if(status==='SUBSCRIBED'){ rtLastSyncTs=Date.now(); return; }
     if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){
       if(_rtCh._torn) return;
