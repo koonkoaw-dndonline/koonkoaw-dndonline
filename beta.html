@@ -17,7 +17,7 @@
 <script>/* v610 skin: ตั้งคลาสก่อน CSS paint กันจอกะพริบ — default = paper (กระดาษนิยาย) · classic = ธีมพิกเซลเดิม */
 try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentElement.classList.add('skin-paper'); }catch(e){}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="./runtime-copy-en.js?v=20260720e4"></script>
+<script src="./runtime-copy-en.js?v=202608121715"></script>
 <script src="./i18n-runtime.js?v=20260720e4"></script>
 <script src="./character-content-en.js?v=20260720e4"></script>
 <script src="./grid-command-flow.js?v=822"></script>
@@ -2116,7 +2116,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608121300;   // v899fe: EN '—' labels + sprite fail-open
+const FRONTEND_BUILD = 202608121715;   // v902fe: emoji+Thai labels no longer blanked to '—' (mobile battle bar, EN)
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -8747,7 +8747,7 @@ function ensureBattleScene(){
         '</div>'+
       '</div>'+
       '<div class="bs-sheet-backdrop" id="bsSheetBackdrop"></div>'+
-      '<div class="bs-mobbar" id="bsMobBar"><button type="button" data-sheet="cmd">\u2694 \u0e2a\u0e31\u0e48\u0e07\u0e01\u0e32\u0e23</button><button type="button" data-sheet="init">\ud83c\udfb2 \u0e25\u0e33\u0e14\u0e31\u0e1a</button><button type="button" data-sheet="log">\ud83d\udcdc \u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01</button><button type="button" data-sheet="hud">\ud83d\uddfa \u0e2a\u0e16\u0e32\u0e19\u0e30</button><button type="button" data-sheet="chat">\ud83d\udcac \u0e41\u0e0a\u0e17</button></div>';
+      '<div class="bs-mobbar" id="bsMobBar"><button type="button" data-sheet="cmd">'+uiCopy('\u2694 \u0e2a\u0e31\u0e48\u0e07\u0e01\u0e32\u0e23','\u2694 Commands')+'</button><button type="button" data-sheet="init">'+uiCopy('\ud83c\udfb2 \u0e25\u0e33\u0e14\u0e31\u0e1a','\ud83c\udfb2 Initiative')+'</button><button type="button" data-sheet="log">'+uiCopy('\ud83d\udcdc \u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01','\ud83d\udcdc Log')+'</button><button type="button" data-sheet="hud">'+uiCopy('\ud83d\uddfa \u0e2a\u0e16\u0e32\u0e19\u0e30','\ud83d\uddfa Status')+'</button><button type="button" data-sheet="chat">'+uiCopy('\ud83d\udcac \u0e41\u0e0a\u0e17','\ud83d\udcac Chat')+'</button></div>';   /* v902fe: \u0e41\u0e16\u0e1a\u0e21\u0e37\u0e2d\u0e16\u0e37\u0e2d\u0e40\u0e1b\u0e47\u0e19 label \u0e44\u0e17\u0e22\u0e25\u0e49\u0e27\u0e19\u0e01\u0e25\u0e38\u0e48\u0e21\u0e2a\u0e38\u0e14\u0e17\u0e49\u0e32\u0e22\u0e43\u0e19 ensureBattleScene \u2014 display wall \u0e01\u0e27\u0e32\u0e14 text node \u0e17\u0e31\u0e49\u0e07\u0e01\u0e49\u0e2d\u0e19 (\u0e44\u0e2d\u0e04\u0e2d\u0e19\u0e2b\u0e32\u0e22\u0e14\u0e49\u0e27\u0e22) \u0e40\u0e2b\u0e25\u0e37\u0e2d '\u2014' \u0e43\u0e19\u0e42\u0e25\u0e01 EN */
     document.body.appendChild(el);
     try{ var _bsend=document.getElementById('bsChatSend'), _bin=document.getElementById('bsChatInput');
       if(_bsend) _bsend.onclick=sendBattleChat;

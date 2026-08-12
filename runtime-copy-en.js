@@ -96,11 +96,39 @@
   const thai=/[\u0E00-\u0E7F]/u;
   const metric=/\b\d+(?:\.\d+)?\s*(?:m|meters?|metres?|km|kilometers?|kilometres?|centimeters?|centimetres?)\b/iu;
   function invalidEnglish(value){const s=String(value==null?'':value);return thai.test(s)||metric.test(s);}
+  function lookupBody(body){
+    let out=exact[body];
+    if(out==null){for(const row of patterns){if(row[0].test(body)){out=body.replace(row[0],row[1]);break;}}}
+    return out;
+  }
+  // v902fe: UI labels are authored as "<emoji> <thai>" all over the app ("⚔ สั่งการ", "✕ ปิด",
+  // "🧹 ล้าง"). Whole-body exact match misses every one of them, and the display wall then blanks
+  // the entire text node to an em-dash — the icon disappears along with the word (mobile battle
+  // bar, EN world, reported 08-12). Retry on the letter core and re-attach the decoration verbatim.
+  // \p{M} MUST stay in the content class: Thai vowel/tone marks are marks, not letters, so a class
+  // of only \p{L}\p{N} strips the tone off "ที่" and corrupts both the lookup and the output.
+  const DECOR_SPLIT_RE=/^([^\p{L}\p{N}\p{M}]*)([\s\S]*?)([^\p{L}\p{N}\p{M}]*)$/u;
+  // Candidates run longest-core-first so a key that carries its own decoration ("จบการต่อสู้แล้ว ✓",
+  // "รอดมาได้!") still wins on its own terms; stripping is only ever a fallback. Purely additive:
+  // whatever matched before this change still matches at candidate 0.
+  function decorCandidates(body){
+    const m=DECOR_SPLIT_RE.exec(body);
+    const out=[['',body,'']];
+    if(!m||!m[2])return out;
+    const lead=m[1]||'', core=m[2], trail=m[3]||'';
+    if(lead) out.push([lead,core+trail,'']);
+    if(trail) out.push(['',lead+core,trail]);
+    if(lead&&trail) out.push([lead,core,trail]);
+    return out;
+  }
   function translateEnglishSystemText(value){
     const raw=String(value==null?'':value); if(!invalidEnglish(raw))return raw;
     const lead=(raw.match(/^\s*/)||[''])[0], trail=(raw.match(/\s*$/)||[''])[0], body=raw.slice(lead.length,raw.length-trail.length);
-    let out=exact[body];
-    if(out==null){for(const row of patterns){if(row[0].test(body)){out=body.replace(row[0],row[1]);break;}}}
+    let out=null;
+    for(const [pre,core,post] of decorCandidates(body)){
+      const hit=lookupBody(core);
+      if(hit!=null){ out=pre+hit+post; break; }
+    }
     return out!=null&&!invalidEnglish(out)?lead+out+trail:null;
   }
   root.TTRPG_RUNTIME_COPY=Object.freeze({build:'20260720e4',exact,patterns,invalidEnglish,translateEnglishSystemText});
