@@ -17,9 +17,9 @@
 <script>/* v610 skin: ตั้งคลาสก่อน CSS paint กันจอกะพริบ — default = paper (กระดาษนิยาย) · classic = ธีมพิกเซลเดิม */
 try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentElement.classList.add('skin-paper'); }catch(e){}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="./runtime-copy-en.js?v=202608121715"></script>
-<script src="./i18n-runtime.js?v=20260720e4"></script>
-<script src="./character-content-en.js?v=20260720e4"></script>
+<script src="./runtime-copy-en.js?v=20260813a1"></script>
+<script src="./i18n-runtime.js?v=20260813a1"></script>
+<script src="./character-content-en.js?v=20260813a1"></script>
 <script src="./grid-command-flow.js?v=822"></script>
 <script src="./grid-command-adapter.js?v=822"></script>
 <script src="./grid-board-replacement-lease.js?v=202608110249"></script>
@@ -1851,7 +1851,7 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
 <!-- LOBBY (v617 PLAY MODES: แยก HOST/JOIN → โหมดการเล่น 3 แบบ → สร้างโลก+แนวเนื้อเรื่อง 3 แบบ — docs/PLAY_MODES_PLAN.md §2) -->
 <div class="center hidden" id="lobbyScreen">
   <!-- WS-01: account-level world selection. Copy is rendered through uiCopy because no target-world language exists yet. -->
-  <div id="worldSwitcherScreen" class="hidden" style="width:100%;max-width:680px">
+  <div id="worldSwitcherScreen" class="hidden" style="width:100%;max-width:680px" data-runtime-origin="language-choice">
     <div class="card" style="max-width:680px">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
         <div><h2 id="worldSwitcherTitle" style="margin-bottom:5px"></h2><p class="sub" id="worldSwitcherSub" style="margin:0"></p></div>
@@ -1869,8 +1869,8 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
       <h2 data-i18n="language.title">เลือกภาษาของโลก / Choose World Language</h2>
       <p class="sub" data-i18n="language.sub">ภาษาจะถูกล็อกเมื่อสร้างหรือเข้าร่วมโลกแล้ว และเปลี่ยนภายหลังไม่ได้ / Your chosen language is locked when you create or join a world and cannot be changed later.</p>
       <div class="srow2" style="gap:10px;margin-top:14px">
-        <button type="button" class="btn" onclick="chooseGameLanguage('th')" data-i18n="language.th">ไทย / THAI</button>
-        <button type="button" class="btn hidden" id="englishLanguageBtn" onclick="chooseGameLanguage('en')" data-i18n="language.en">ENGLISH / อังกฤษ</button>
+        <button type="button" class="btn" onclick="chooseGameLanguage('th')" data-i18n="language.th" data-runtime-origin="language-choice">ไทย / THAI</button>
+        <button type="button" class="btn hidden" id="englishLanguageBtn" onclick="chooseGameLanguage('en')" data-i18n="language.en" data-runtime-origin="language-choice">ENGLISH / อังกฤษ</button>
       </div>
       <p class="note hidden" id="englishLanguageDisabled" data-i18n="language.enDisabled">English mode ยังไม่เปิดใช้งาน / English mode is not enabled yet.</p>
       <p class="note hidden" id="englishAssetUnavailable" style="color:#a11;white-space:pre-line"></p>
@@ -1878,9 +1878,9 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
   </div>
   <div id="englishAssetBlockScreen" class="hidden">
     <div class="card" style="max-width:560px;text-align:center">
-      <h2>⚠️ UI ภาษาอังกฤษไม่พร้อม / English UI unavailable</h2>
+      <h2 data-i18n="language.assetsTitle">⚠️ UI ภาษาอังกฤษไม่พร้อม</h2>
       <p class="sub" id="englishAssetBlockMessage" style="white-space:pre-line"></p>
-      <button type="button" class="btn" onclick="location.reload()">รีเฟรชหน้า / Reload</button>
+      <button type="button" class="btn" onclick="location.reload()" data-i18n="common.reload">รีเฟรชหน้า</button>
     </div>
   </div>
   <!-- จอ 1: เลือกบทบาท -->
@@ -1978,7 +1978,7 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
         <b>⛏ DUNGEON CRAWLER</b> <span class="note" style="display:inline" data-i18n="oneshot.dungeonDesc">— ดันเจี้ยนเดียว ดำดิ่งถึงก้น โค่นสิ่งที่เฝ้าอยู่</span>
       </div>
       <label class="fld" data-i18n-prefix="oneshot.premise">โจทย์ของเรื่อง (สั้นๆ พอ — DM ขยายเอง)<textarea id="osPremise" style="height:70px" data-i18n-placeholder="oneshot.premisePlaceholder" placeholder="เช่น ขุนนางถูกฆ่ากลางงานเลี้ยง ประตูปิดตาย ฆาตกรอยู่ในหมู่แขก"></textarea></label>
-      <div id="osLevelHelp" class="fld" style="margin-bottom:4px;font-size:13px;color:var(--gray);line-height:1.6">เป้าหมายเลเวลของปาร์ตี้ — ตัวละครเริ่มที่เลเวล 1 แล้วขึ้นทีละ 1 ผ่านการ์ด LEVEL UP; ผู้เล่นทุกคนต้องยืนยันแต่ละขั้นก่อนขึ้นขั้นถัดไป</div>
+      <div id="osLevelHelp" class="fld" style="margin-bottom:4px;font-size:13px;color:var(--gray);line-height:1.6" data-i18n="oneshot.levelHelp">เป้าหมายเลเวลของปาร์ตี้ — ตัวละครเริ่มที่เลเวล 1 แล้วขึ้นทีละ 1 ผ่านการ์ด LEVEL UP; ผู้เล่นทุกคนต้องยืนยันแต่ละขั้นก่อนขึ้นขั้นถัดไป</div>
       <div class="srow3" style="gap:8px">
         <div class="card lvlpick" data-lv="3" onclick="pickLevel(this,3)" style="cursor:pointer;text-align:center;padding:8px 4px"><b data-i18n="oneshot.level3">เลเวล 3</b><div class="note" data-i18n="oneshot.level3Note">เหมาะกับมือใหม่</div></div>
         <div class="card lvlpick" data-lv="5" onclick="pickLevel(this,5)" style="cursor:pointer;text-align:center;padding:8px 4px;outline:2px solid currentColor"><b data-i18n="oneshot.level5">เลเวล 5</b><div class="note" data-i18n="oneshot.level5Note">ช่วงสนุกสุดของ D&D</div></div>
@@ -2116,7 +2116,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608121715;   // v902fe: emoji+Thai labels no longer blanked to '—' (mobile battle bar, EN)
+const FRONTEND_BUILD = 202608130115;   // ASSETBUILD-01: EN asset ring 20260813a1 — FE-LANG-01 wall fixes reach screens
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2501,7 +2501,7 @@ async function betaAskBackupKeys(tok){
 }
 let campaign=null, members=[], myChar=null, characters=[], curRound=null, narrative=[], mySheet={}, mySheetUpdatedAt=null, worldState=null, chatMsgs=[];
 const ENGLISH_UI_ENABLED=true;   // Slice E: flipped 2026-07-19 — reviewer GO (catalog gate ok=true, 639/639 approved) + server flag english_mode_enabled=true. Needs frontend push + cache-bust to go live.
-const ENGLISH_ASSET_BUILD='20260720e4';
+const ENGLISH_ASSET_BUILD='20260813a1';
 let pendingGameLanguage=null, englishModeAvailable=false, englishModeServerEnabled=false;   // DB world language wins after create/JOIN; pending is pre-world only.
 let worldSwitcherLanguage='th', worldChoices=[], worldSwitchReloading=false;   // WS-01: account-level UI preference only; never used to infer a target world's language.
 function inspectEnglishAssets(){
@@ -3265,7 +3265,7 @@ function onMusicFiles(files){
 let pendingMode='open', pendingStyle='journey', pendingLevel=5;
 function lobbyGo(id){
   ['worldSwitcherScreen','languageScreen','englishAssetBlockScreen','roleScreen','joinScreen','hostModeScreen','hostCreateScreen','hostOneshotScreen'].forEach(s=>{ const el=$(s); if(el) el.classList.toggle('hidden', s!==id); });
-  const levelHelp=$('osLevelHelp'); if(levelHelp) levelHelp.textContent=uiCopy('เป้าหมายเลเวลของปาร์ตี้ — ตัวละครเริ่มที่เลเวล 1 แล้วขึ้นทีละ 1 ผ่านการ์ด LEVEL UP; ผู้เล่นทุกคนต้องยืนยันแต่ละขั้นก่อนขึ้นขั้นถัดไป','Party target level — characters start at level 1, then advance one level at a time through the LEVEL UP card; every player must confirm each step before the next begins.');
+  const levelHelp=$('osLevelHelp'); if(levelHelp) levelHelp.textContent=uiText('oneshot.levelHelp');
 }
 function pickMode(el,m){ pendingMode=m; document.querySelectorAll('#hostModeScreen .modepick').forEach(x=>x.style.outline=''); el.style.outline='2px solid currentColor'; }
 function modeNext(){
@@ -3893,9 +3893,16 @@ function narrText(n){
 function narrProjectionNote(n){
   return narrativeProjectionMode(n)==='enforce'&&n&&n.projection_status==='corrected'?stripNarrativeEditorialMeta(String(n.projection_note||'')):'';
 }
+function englishReleasedAttackNoteHtml(n,text){
+  if(!n||String(n.author||'dm').toLowerCase()!=='system') return null;
+  const split=globalThis.TTRPG_I18N&&globalThis.TTRPG_I18N.splitEnglishReleasedAttackPlayerTarget;
+  const parts=typeof split==='function'?split(text):null; if(!parts)return null;
+  return escapeHtml(parts.prefix)+'<span data-runtime-origin="user-source">'+escapeHtml(parts.target)+'</span>'+escapeHtml(parts.suffix);
+}
 function narrDraw(n){
   const note=narrProjectionNote(n);
-  return colorizeNarr(narrText(n))+(note?'<div class="note" style="margin-top:7px">'+escapeHtml(note)+'</div>':'');
+  const text=narrText(n), released=englishReleasedAttackNoteHtml(n,text);
+  return (released||colorizeNarr(text))+(note?'<div class="note" style="margin-top:7px">'+escapeHtml(note)+'</div>':'');
 }
 async function loadNarrative(){
   try{ const { data, error } = await supa.from('narrative').select('*').eq('campaign_id',campaign.id)
@@ -5160,7 +5167,7 @@ function chatNameFor(uid){
 }
 function renderChatList(){
   const list=$('chatList'); if(!list) return; list.innerHTML='';
-  if(!chatMsgs.length){ list.innerHTML='<div class="muted">ยังไม่มีข้อความ — เริ่มคุยได้เลย</div>'; return; }
+  if(!chatMsgs.length){ list.innerHTML='<div class="muted">'+uiCopy('ยังไม่มีข้อความ — เริ่มคุยได้เลย','No messages yet — start the conversation')+'</div>'; return; }
   chatMsgs.slice(-40).forEach(mm=>{ const mine=mm.user_id===me.id; const d=document.createElement('div'); d.className='chatmsg'+(mine?' mine':'');
     d.innerHTML=`<div class="chatname">${escapeHtml(chatNameFor(mm.user_id))}</div><div class="chatbody" data-runtime-origin="user-source">${escapeHtml(mm.body)}</div>`; list.appendChild(d); });
   list.scrollTop=list.scrollHeight;
@@ -6999,7 +7006,7 @@ async function _renderMeInner(){
   const initv=sign(mod(eAb.dex));
   const _thp=(cb&&Number.isFinite(+cb.temp_hp)&&+cb.temp_hp>0)?+cb.temp_hp:0;   // v446: temp HP (Heroism/False Life/Aid) — โชว์ให้ผู้เล่นเห็น
   const hp=((cb.maxhp!=null)?`${cb.hp??cb.maxhp}/${cb.maxhp}`:((myChar.public_status||{}).hp||dash))+(_thp?` (+${_thp} ชั่วคราว)`:'');
-  const sub=[sheet.race, sheet.sex, sheet.age?('อายุ '+sheet.age):'', myChar.class||'Adventurer', sheet.subclass||'', 'Lv.'+myChar.level].filter(Boolean).join(' · ');   // v183: โชว์ subclass (Oath)
+  const sub=[sheet.race, sheet.sex, sheet.age?uiCopy('อายุ '+sheet.age,'Age '+sheet.age):'', myChar.class||'Adventurer', sheet.subclass||'', 'Lv.'+myChar.level].filter(Boolean).join(' · ');   // v183: โชว์ subclass (Oath)
   const _derivedCombat759=derivedSheetCombatFacts(myChar,sheet);
   const bsum=[]; if(bon.add.attack) bsum.push('โจมตี '+sign(bon.add.attack)); if(bon.add.damage) bsum.push('ดาเมจ '+sign(bon.add.damage)); if(bon.add.save) bsum.push('save '+sign(bon.add.save)); if(bon.add.ability_check) bsum.push('ability check '+sign(bon.add.ability_check)); if(bon.add.spell_attack) bsum.push('spell atk '+sign(bon.add.spell_attack)); if(bon.add.spell_dc) bsum.push('spell DC '+sign(bon.add.spell_dc));
   const abil2=(lab,key)=>{ const sc=eAb[key]; const m=sign(mod(sc)); const boosted=(sc!=null && ab[key]!=null && sc!==ab[key]); const v=(sc==null?dash:`${sc}`)+(m?`  (${m})`:'')+(boosted?' ✦':''); return num(lab,v); };
@@ -7009,7 +7016,7 @@ async function _renderMeInner(){
     `<div class="sectitle">ABILITY SCORES</div><div class="grid2">`+abil2('STR','str')+abil2('DEX','dex')+abil2('CON','con')+abil2('INT','int')+abil2('WIS','wis')+abil2('CHA','cha')+`</div>`+
     `<div class="sectitle">COMBAT</div>`+num('Armor Class (AC)',acRes.ac)+
     `<div class="note" style="margin:-2px 0 4px;">AC = ${esc(acRes.label)}</div>`+
-    num('Hit Points (HP)',hp)+num('Hit Dice',_derivedCombat759.hitDice)+num('Initiative',initv)+num('Speed (ft)',_derivedCombat759.speed)+num('Proficiency',sign(prof))+num('Attunement (เวท)',bon.attune+'/3')+
+    num('Hit Points (HP)',hp)+num('Hit Dice',_derivedCombat759.hitDice)+num('Initiative',initv)+num('Speed (ft)',_derivedCombat759.speed)+num('Proficiency',sign(prof))+num(uiCopy('Attunement (เวท)','Attunement (magic items)'),bon.attune+'/3')+
     slotPillsHtml(sheet)+
     (bon.attune>3?'<div class="note" style="color:#FAC775">⚠ attunement เกิน 3 (กฎ 5e สูงสุด 3 ชิ้น)</div>':'')+
     (bsum.length?`<div class="note" style="margin:2px 0">โบนัสไอเทม: ${esc(bsum.join(' · '))}</div>`:'')+
@@ -7131,19 +7138,19 @@ async function _renderPartyInner(){
     const conds=Array.isArray(ps.conditions)?ps.conditions:[];
     const _cpc=conds.map(prettyCond).filter(Boolean); const chips=_cpc.length?'<div class="chips" style="margin-top:5px">'+_cpc.map(x=>`<span class="chip cond">${escapeHtml(x)}</span>`).join('')+'</div>':'';
     const info=document.createElement('div'); info.style.flex='1';
-    info.innerHTML=`<div class="nm">${escapeHtml(c.name)}${mine?' <span class="muted" style="font-size:13px">(คุณ)</span>':''}${c.is_companion?' <span class="chip" style="background:#1d3a5f;color:#9ad;border-color:#9ad">⚔ เพื่อนร่วมทาง</span>':''}${(c.public_status&&c.public_status.wildshape)?' <span class="chip" style="background:#2d5f3a;color:#9fe0a0;border-color:#9fe0a0"><span style="display:inline-block;width:12px;height:12px;vertical-align:-2px;margin-right:3px">'+beastIconSvg(c.public_status.wildshape)+'</span>'+escapeHtml(c.public_status.wildshape)+'</span>':''}</div>${c.epithet?'<div style="font-size:12px;color:#f5c542;font-style:italic;margin-top:2px">⚜ '+escapeHtml(c.epithet)+'</div>':''}<div class="sub">${escapeHtml(c.class||'-')} · Lv.${c.level}${hp}</div>`+chips;
+    info.innerHTML=`<div class="nm">${escapeHtml(c.name)}${mine?' <span class="muted" style="font-size:13px">'+uiCopy('(คุณ)','(You)')+'</span>':''}${c.is_companion?' <span class="chip" style="background:#1d3a5f;color:#9ad;border-color:#9ad">'+uiCopy('⚔ เพื่อนร่วมทาง','⚔ Companion')+'</span>':''}${(c.public_status&&c.public_status.wildshape)?' <span class="chip" style="background:#2d5f3a;color:#9fe0a0;border-color:#9fe0a0"><span style="display:inline-block;width:12px;height:12px;vertical-align:-2px;margin-right:3px">'+beastIconSvg(c.public_status.wildshape)+'</span>'+escapeHtml(c.public_status.wildshape)+'</span>':''}</div>${c.epithet?'<div style="font-size:12px;color:#f5c542;font-style:italic;margin-top:2px">⚜ '+escapeHtml(c.epithet)+'</div>':''}<div class="sub">${escapeHtml(c.class||'-')} · Lv.${c.level}${hp}</div>`+chips;
     // P1: บรรทัดสถานะออนไลน์ (จากกิจกรรมล่าสุดจริง)
     if(c.user_id){
       const ts=_lastSeen[c.user_id]; const seen=document.createElement('div'); seen.style.cssText='font-size:11px;margin-top:4px;color:#9a9a9a';
-      if(ts==null) seen.textContent='⚪ ยังไม่มีความเคลื่อนไหว';
+      if(ts==null) seen.textContent=uiCopy('⚪ ยังไม่มีความเคลื่อนไหว','⚪ No recent activity');
       else { const mins=Math.round((Date.now()-ts)/60000);
-        seen.textContent= mins<2?'🟢 ออนไลน์ (เมื่อครู่)': mins<30?('🟡 เคลื่อนไหวล่าสุด '+mins+' นาทีก่อน'):('⚪ เงียบไป '+(mins<120?(mins+' นาที'):(Math.round(mins/60)+' ชม.'))); }
+        seen.textContent= mins<2?uiCopy('🟢 ออนไลน์ (เมื่อครู่)','🟢 Online (just now)'): mins<30?uiCopy('🟡 เคลื่อนไหวล่าสุด '+mins+' นาทีก่อน','🟡 Last active '+mins+' minutes ago'):uiCopy('⚪ เงียบไป '+(mins<120?(mins+' นาที'):(Math.round(mins/60)+' ชม.')),'⚪ Quiet for '+(mins<120?(mins+' minutes'):(Math.round(mins/60)+' hours'))); }
       info.appendChild(seen);
     }
     row.appendChild(face); row.appendChild(info); it.appendChild(row); left.appendChild(it);
   });
   const noChar=members.filter(m=>!characters.find(c=>c.user_id===m.user_id));
-  if(noChar.length){ const d=document.createElement('div'); d.className='note'; d.textContent=`รอสร้างตัวละคร: ${noChar.length} คน`; left.appendChild(d); }
+  if(noChar.length){ const d=document.createElement('div'); d.className='note'; d.textContent=uiCopy(`รอสร้างตัวละคร: ${noChar.length} คน`,`Waiting for character creation: ${noChar.length}`); left.appendChild(d); }
   // ── P1: DM TOOLS (host เท่านั้น) — พับเก็บสีทองเหมือนเมนูย่อยในฉากรบ (จำสถานะกางไว้ข้ามการรีเฟรช) ──
   if(campaign.host_id===me.id){
     const dmCard=document.createElement('div'); dmCard.className='item';
@@ -7157,11 +7164,11 @@ async function _renderPartyInner(){
   }
   // ── แชตปาร์ตี้ (คอลัมน์ขวา — ข้อความล่าสุด) ──
   const chatCard=document.createElement('div'); chatCard.className='item';
-  chatCard.innerHTML='<div class="sectitle" style="display:flex;justify-content:space-between;align-items:center"><span>PARTY CHAT</span></div><div class="note" style="text-align:left;padding:2px 2px 6px">คุยวางแผนนอกเรื่อง (ข้อความล่าสุด)</div>';
-  { const cb=document.createElement('button'); cb.className='btn ghost sm'; cb.textContent='🧹 ล้างแชท'; cb.title='ซ่อนข้อความเก่าบนเครื่องนี้ (ไม่ลบของเพื่อน)'; cb.onclick=clearChatLocal; chatCard.querySelector('.sectitle').appendChild(cb); }
+  chatCard.innerHTML='<div class="sectitle" style="display:flex;justify-content:space-between;align-items:center"><span>PARTY CHAT</span></div><div class="note" style="text-align:left;padding:2px 2px 6px">'+uiCopy('คุยวางแผนนอกเรื่อง (ข้อความล่าสุด)','Out-of-character planning (latest messages)')+'</div>';
+  { const cb=document.createElement('button'); cb.className='btn ghost sm'; cb.textContent=uiCopy('🧹 ล้างแชท','🧹 Clear chat'); cb.title=uiCopy('ซ่อนข้อความเก่าบนเครื่องนี้ (ไม่ลบของเพื่อน)','Hide old messages on this device (does not delete them for others)'); cb.onclick=clearChatLocal; chatCard.querySelector('.sectitle').appendChild(cb); }
   const list=document.createElement('div'); list.id='chatList'; list.className='chatlist'; chatCard.appendChild(list);
   const inrow=document.createElement('div'); inrow.style.cssText='display:flex;gap:8px;align-items:flex-end;margin-top:8px';
-  const ta=document.createElement('textarea'); ta.id='chatInput'; ta.rows=2; ta.placeholder='พิมพ์คุย… Enter ส่ง, Shift+Enter ขึ้นบรรทัด'; ta.style.flex='1';
+  const ta=document.createElement('textarea'); ta.id='chatInput'; ta.rows=2; ta.placeholder=uiCopy('พิมพ์คุย… Enter ส่ง, Shift+Enter ขึ้นบรรทัด','Type a message… Enter sends, Shift+Enter adds a line'); ta.style.flex='1';
   ta.onkeydown=(e)=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendChat(); } };
   const sb=document.createElement('button'); sb.className='btn sm'; sb.textContent='Send'; sb.onclick=sendChat;
   inrow.appendChild(ta); inrow.appendChild(sb); chatCard.appendChild(inrow); right.appendChild(chatCard);
@@ -7588,16 +7595,17 @@ const _RACE_NAMES=(()=>{const x=new Set(['heroic inspiration','resourceful','แ
 const _CLASS_FNAMES=(()=>{const x=new Set();try{Object.values(CLASS_FEATURES).forEach(a=>a.forEach(f=>x.add((f.name||'').toLowerCase())));}catch(e){}return x;})();
 function skillCat(s){ const n=(s.name||'').toLowerCase(); if(_RACE_NAMES.has(n)) return 'race'; if(_CLASS_FNAMES.has(n)) return 'class'; return 'spell'; }
 function rechLabel(r){ return ({long:'LONG REST',short:'SHORT REST',atwill:'AT WILL',passive:'PASSIVE'})[r]||String(r||'').toUpperCase(); }
+function localizedRuleOption(o){ return Object.assign({},o,{label:uiCopy(o.label,o.labelEn||o.label),desc:uiCopy(o.desc,o.descEn||o.desc)}); }
 // v328 Fighting Style picker (Fighter/Paladin/Ranger) — เขียน sheet.fighting_style ให้ server (resolver v328) บังคับโบนัส
 const FIGHTING_STYLE_OPTS=[
-  {id:'', label:'— ยังไม่เลือก —', desc:uiCopy('เลือกรูปแบบการต่อสู้ของคุณ — โบนัสจะมีผลอัตโนมัติในการรบ','Choose your Fighting Style — its bonus applies automatically in combat')},
-  {id:'archery', label:'Archery (แม่นธนู)', desc:'+2 ค่าโจมตี เมื่อใช้อาวุธยิงไกล (ธนู/หน้าไม้) ✅ บังคับจริง'},
-  {id:'defense', label:'Defense (ตั้งรับ)', desc:'+1 AC ขณะสวมเกราะ ✅ บังคับจริง'},
-  {id:'dueling', label:'Dueling (ดาบเดี่ยว)', desc:'+2 ดาเมจ เมื่อถืออาวุธประชิดมือเดียว ไม่มีอาวุธรอง (มีโล่ได้) ✅ บังคับจริง'},
-  {id:'great-weapon', label:'Great Weapon Fighting (อาวุธสองมือ)', desc:'ทอยซ้ำเต๋าดาเมจอาวุธที่ออก 1-2 ครั้งเดียว (อาวุธสองมือ/versatile) ✅ บังคับจริง'},
-  {id:'two-weapon', label:'Two-Weapon Fighting (อาวุธคู่)', desc:'บวกค่าความสามารถใส่ดาเมจอาวุธมือรอง ✅ บังคับจริง · ใส่อาวุธ light ช่องมือรอง (ปุ่ม ⚔ มือรอง) + พิมพ์ "โจมตีมือรอง"'},
-  {id:'protection', label:'Protection (ปกป้อง)', desc:'reaction: ใช้โล่บังให้ศัตรูเสียเปรียบเมื่อโจมตีเพื่อนข้างตัว (≤5ft) ✅ บังคับจริง (ต้องมีกริด + โล่ · 1 reaction/รอบ)'},
-  {id:'interception', label:'Interception (สกัดกั้น)', desc:'reaction: ลดดาเมจที่เพื่อนข้างตัว (≤5ft) รับ 1d10+โบนัสความชำนาญ ✅ บังคับจริง (ต้องมีกริด · 1 reaction/รอบ)'},
+  {id:'', label:'— ยังไม่เลือก —', labelEn:'— Not selected —', desc:'เลือกรูปแบบการต่อสู้ของคุณ — โบนัสจะมีผลอัตโนมัติในการรบ', descEn:'Choose your Fighting Style — its bonus applies automatically in combat'},
+  {id:'archery', label:'Archery (แม่นธนู)', labelEn:'Archery', desc:'+2 ค่าโจมตี เมื่อใช้อาวุธยิงไกล (ธนู/หน้าไม้) ✅ บังคับจริง', descEn:'+2 to attack rolls with ranged weapons (bows/crossbows) ✅ enforced'},
+  {id:'defense', label:'Defense (ตั้งรับ)', labelEn:'Defense', desc:'+1 AC ขณะสวมเกราะ ✅ บังคับจริง', descEn:'+1 AC while wearing armor ✅ enforced'},
+  {id:'dueling', label:'Dueling (ดาบเดี่ยว)', labelEn:'Dueling', desc:'+2 ดาเมจ เมื่อถืออาวุธประชิดมือเดียว ไม่มีอาวุธรอง (มีโล่ได้) ✅ บังคับจริง', descEn:'+2 damage with a one-handed melee weapon and no off-hand weapon; a shield is allowed ✅ enforced'},
+  {id:'great-weapon', label:'Great Weapon Fighting (อาวุธสองมือ)', labelEn:'Great Weapon Fighting', desc:'ทอยซ้ำเต๋าดาเมจอาวุธที่ออก 1-2 ครั้งเดียว (อาวุธสองมือ/versatile) ✅ บังคับจริง', descEn:'Reroll one weapon damage die that shows 1–2 when using a two-handed or versatile weapon ✅ enforced'},
+  {id:'two-weapon', label:'Two-Weapon Fighting (อาวุธคู่)', labelEn:'Two-Weapon Fighting', desc:'บวกค่าความสามารถใส่ดาเมจอาวุธมือรอง ✅ บังคับจริง · ใส่อาวุธ light ช่องมือรอง (ปุ่ม ⚔ มือรอง) + พิมพ์ "โจมตีมือรอง"', descEn:'Add your ability modifier to off-hand weapon damage ✅ enforced · equip a light off-hand weapon and declare an off-hand attack'},
+  {id:'protection', label:'Protection (ปกป้อง)', labelEn:'Protection', desc:'reaction: ใช้โล่บังให้ศัตรูเสียเปรียบเมื่อโจมตีเพื่อนข้างตัว (≤5ft) ✅ บังคับจริง (ต้องมีกริด + โล่ · 1 reaction/รอบ)', descEn:'Reaction: impose disadvantage when an enemy attacks an adjacent ally (within 5 ft) ✅ enforced; requires the grid, a shield, and one reaction per round'},
+  {id:'interception', label:'Interception (สกัดกั้น)', labelEn:'Interception', desc:'reaction: ลดดาเมจที่เพื่อนข้างตัว (≤5ft) รับ 1d10+โบนัสความชำนาญ ✅ บังคับจริง (ต้องมีกริด · 1 reaction/รอบ)', descEn:'Reaction: reduce damage to an adjacent ally (within 5 ft) by 1d10 + proficiency bonus ✅ enforced; requires the grid and one reaction per round'},
 ];
 function _fsMatch(cur){   // มิเรอร์ server normalizeFightingStyle (combat-logic.ts) — รองรับ id/ชื่ออังกฤษ/ไทย
   const s=String(cur||'').toLowerCase(); if(!s.trim()) return '';
@@ -7627,38 +7635,38 @@ function renderFightingStyleCard(p){
   const key=_fsClassKey(myChar&&myChar.class); if(!key) return;
   const rule=_FS_CLASS_RULES[key]; const lvl=+(myChar&&myChar.level)||1;
   const card=document.createElement('div'); card.className='item'; card.style.cssText='margin-bottom:10px';
-  const head='<div class="sk-head">รูปแบบการต่อสู้ <span class="en">· FIGHTING STYLE</span></div>';
+  const head='<div class="sk-head">'+uiCopy('รูปแบบการต่อสู้','Fighting Style')+' <span class="en">· FIGHTING STYLE</span></div>';
   if(lvl<rule.minLevel){   // ยังไม่ถึงเลเวลที่ได้ Fighting Style (Fighter L1 · Paladin/Ranger L2)
-    card.innerHTML=head+'<div class="muted" style="font-size:.85em">🔒 ปลดล็อกเมื่อถึงเลเวล '+rule.minLevel+' (คลาส '+key.charAt(0).toUpperCase()+key.slice(1)+')</div>';
+    card.innerHTML=head+'<div class="muted" style="font-size:.85em">'+uiCopy('🔒 ปลดล็อกเมื่อถึงเลเวล '+rule.minLevel+' (คลาส '+key.charAt(0).toUpperCase()+key.slice(1)+')','🔒 Unlocks at level '+rule.minLevel+' ('+key.charAt(0).toUpperCase()+key.slice(1)+')')+'</div>';
     p.appendChild(card); return;
   }
   const cur=_fsMatch((mySheet||{}).fighting_style);
   const curValid=rule.styles.indexOf(cur)>=0?cur:'';   // สไตล์ที่บันทึกไว้แต่คลาสนี้เลือกไม่ได้ → ถือว่ายังไม่เลือก
   // v428: ล็อกถาวรหลังเลือกแล้ว — Fighting Style เลือกครั้งเดียว เปลี่ยนไม่ได้ (RAW PHB · server fightingStyleGuard ตรึง/คืนค่ากันแก้ผ่าน client)
   const _fsRenderLocked=(styleId)=>{   // วาดสถานะ "ล็อกแล้ว" ทับการ์ด (ใช้ทั้งตอน render + ทันทีหลังเลือก)
-    const _o=FIGHTING_STYLE_OPTS.find(o=>o.id===styleId)||{};
+    const _o=localizedRuleOption(FIGHTING_STYLE_OPTS.find(o=>o.id===styleId)||{});
     card.innerHTML=head+
       '<div style="margin:6px 0;padding:7px 9px;border-radius:8px;background:#161b25;border:1px solid #2c3344">🔒 <b>'+escapeHtml(_o.label||styleId)+'</b></div>'+
       '<div class="muted" style="font-size:.85em;line-height:1.4">'+escapeHtml(_o.desc||'')+'</div>'+
-      '<div class="muted" style="font-size:.8em;margin-top:5px;color:#f5c542">ล็อกแล้ว — Fighting Style เลือกได้ครั้งเดียว ถาวร (RAW)</div>';
+      '<div class="muted" style="font-size:.8em;margin-top:5px;color:#f5c542">'+uiCopy('ล็อกแล้ว — Fighting Style เลือกได้ครั้งเดียว ถาวร (RAW)','Locked — Fighting Style is a permanent one-time choice (RAW)')+'</div>';
   };
   if(curValid){ _fsRenderLocked(curValid); p.appendChild(card); return; }
-  const opts=FIGHTING_STYLE_OPTS.filter(o=>o.id===''||rule.styles.indexOf(o.id)>=0);   // เฉพาะสไตล์ที่คลาสนี้เลือกได้ (PHB)
+  const opts=FIGHTING_STYLE_OPTS.filter(o=>o.id===''||rule.styles.indexOf(o.id)>=0).map(localizedRuleOption);   // เฉพาะสไตล์ที่คลาสนี้เลือกได้ (PHB)
   const optsHtml=opts.map(o=>'<option value="'+o.id+'"'+(o.id===curValid?' selected':'')+'>'+escapeHtml(o.label)+'</option>').join('');
-  const curDesc=(FIGHTING_STYLE_OPTS.find(o=>o.id===curValid)||FIGHTING_STYLE_OPTS[0]).desc;
+  const curDesc=localizedRuleOption(FIGHTING_STYLE_OPTS.find(o=>o.id===curValid)||FIGHTING_STYLE_OPTS[0]).desc;
   card.innerHTML=head+
     '<select class="fs-sel" style="width:100%;margin:6px 0;padding:7px;border-radius:8px">'+optsHtml+'</select>'+
     '<div class="muted fs-desc" style="font-size:.85em;line-height:1.4">'+escapeHtml(curDesc)+'</div>';
   const sel=card.querySelector('.fs-sel'); const desc=card.querySelector('.fs-desc');
   sel.onchange=async()=>{
     const val=sel.value;
-    desc.textContent=(FIGHTING_STYLE_OPTS.find(o=>o.id===val)||FIGHTING_STYLE_OPTS[0]).desc;
+    desc.textContent=localizedRuleOption(FIGHTING_STYLE_OPTS.find(o=>o.id===val)||FIGHTING_STYLE_OPTS[0]).desc;
     try{
       const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle(); if(r.error) throw r.error;
       const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at;
       if(val) sheet.fighting_style=val; else delete sheet.fighting_style;
       await _saveSheet(sheet, _prev); tick();
-      toast(val?('ตั้งรูปแบบการต่อสู้: '+(FIGHTING_STYLE_OPTS.find(o=>o.id===val)||{}).label+' ✓'):'ล้างรูปแบบการต่อสู้แล้ว');
+      toast(val?uiCopy('ตั้งรูปแบบการต่อสู้: ','Fighting Style set: ')+localizedRuleOption(FIGHTING_STYLE_OPTS.find(o=>o.id===val)||{}).label+' ✓':uiCopy('ล้างรูปแบบการต่อสู้แล้ว','Fighting Style cleared'));
       if(val) _fsRenderLocked(val);   // v428: เลือกแล้วล็อกการ์ดทันที (ถาวร · กันเปลี่ยนกลับไปมาในหน้าเดียว)
     }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ชีทเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderSkills(); } else toast('บันทึกไม่สำเร็จ ลองใหม่',true); }
   };
@@ -7667,28 +7675,28 @@ function renderFightingStyleCard(p){
 // v353 Feats picker (RAW-ASI-gated · ทุกคลาส) — เขียน sheet.feats[] (slug) ให้ server (resolver v353 parseFeats) บังคับผล
 //   gating: ได้ feat 1 ช่องต่อ ASI (L4/8/12/16/19 + Fighter L6/14 + Rogue L10) · enforce จำนวน feat ≤ ช่อง ASI
 const FEAT_OPTS=[
-  {id:'tough', label:'Tough (อึด)', desc:'+2 HP ต่อเลเวล (ย้อนหลังทุกเลเวล) ✅ บังคับจริง'},
-  {id:'alert', label:'Alert (ตื่นตัว)', desc:'+5 initiative ✅ บังคับจริง · ไม่ถูกจู่โจมแบบ surprise (DM เล่า)'},
-  {id:'great-weapon-master', label:'Great Weapon Master (จอมอาวุธหนัก)', desc:'−5 โจมตี/+10 ดาเมจ อาวุธหนักประชิด ✅ บังคับจริง · พิมพ์ "ทุ่มสุดแรง"/"power attack" ในแอ็กชันเพื่อใช้'},
-  {id:'sharpshooter', label:'Sharpshooter (มือแม่นปืน)', desc:'−5 โจมตี/+10 ดาเมจ อาวุธยิงไกล · ข้ามที่กำบัง+ยิงไกลไม่ติด disadvantage ✅ บังคับจริง · พิมพ์ "เล็งจุดตาย"/"sharpshooter" ในแอ็กชันเพื่อใช้'},
-  {id:'lucky', label:'Lucky (ดวงเฮง)', desc:uiCopy('3 แต้มโชคต่อพักยาว · ทอย d20 ใหม่เมื่อโจมตีหรือเซฟพลาด แล้วเก็บค่าสูง ✅ มีผลจริง','3 luck points per long rest · reroll d20 after a failed attack or save and keep the higher roll ✅ active')},
-  {id:'war-caster', label:'War Caster (จอมเวทสนาม)', desc:'ได้เปรียบเซฟ CON รักษาสมาธิเวท (Bless/Hex/Hold Person ฯลฯ ไม่หลุดง่าย) ✅ บังคับจริง · ร่ายขณะถืออาวุธ/โล่ + ร่ายเป็น opportunity attack = DM เล่า'},
-  {id:'resilient', label:'Resilient (แกร่งทน)', desc:'+1 ค่าสถานะ (แก้ในชีทเอง) + ชำนาญเซฟของค่านั้น ✅ บังคับจริง · เลือกค่าสถานะ →', ability:true},
-  {id:'observant', label:'Observant (ช่างสังเกต)', desc:uiCopy('+5 passive Perception — ใช้ค่านี้ตัดสินสิ่งที่สังเกตเห็น · +1 INT/WIS เลือกในชีท','+5 passive Perception — this value determines what you notice · choose +1 INT or WIS on your sheet')},
-  {id:'durable', label:'Durable (ทนทาน)', desc:'พักสั้น: HP ฟื้นต่อ Hit Die อย่างน้อย 2×CON mod (ขั้นต่ำ 2) ✅ บังคับจริง'},
-  {id:'savage-attacker', label:'Savage Attacker (จู่โจมดุดัน)', desc:'1 ครั้ง/เทิร์น: ทอยเต๋าดาเมจอาวุธประชิดใหม่ เก็บค่าสูงกว่า ✅ บังคับจริง'},
-  {id:'sentinel', label:'Sentinel (ผู้พิทักษ์)', desc:'ศัตรูประชิดโจมตี "เพื่อน" (ไม่ใช่ตัวคุณ) → reaction ตีสวนผู้โจมตี 1 ครั้ง ✅ บังคับจริง (ต้องมีกริด · ยืนชิดผู้โจมตี ≤5ft · 1 reaction/รอบ) · OA ทะลุ Disengage (ศัตรูถอนตัวก็ยังโดนตีสวน) ✅ บังคับจริง · หยุดความเร็วเป้าที่โดน OA = เร็วๆ นี้'},
-  {id:'mobile', label:'Mobile (คล่องแคล่ว)', desc:'+10 ฟุต ความเร็ว ✅ บังคับจริง · ตีประชิดศัตรูตัวใดแล้วถอยจากตัวนั้น ไม่โดน Opportunity Attack ✅ (ต้องมีกริด) · Dash ผ่านพื้นยาก = DM เล่า'},
-  {id:'crossbow-expert', label:'Crossbow Expert (เชี่ยวชาญหน้าไม้)', desc:'ยิงหน้าไม้ระยะประชิดไม่ติด disadvantage ✅ บังคับจริง · bonus-action ยิงหน้าไม้มือ ✅ พิมพ์ "ยิงอีกนัด" · ข้าม Loading = DM เล่า'},
-  {id:'shield-master', label:'Shield Master (จอมโล่)', desc:'ถือโล่: +2 เซฟ DEX (ผลที่เจาะจงตัวเดียว) ✅ + เซฟ DEX สำเร็จ vs เวทพื้นที่ = รับ 0 ดาเมจ ✅ บังคับจริง · bonus-action ผลัก (shove push) ✅ พิมพ์ "ผลักออก"'},
-  {id:'polearm-master', label:'Polearm Master (จอมทวน)', desc:'ถืออาวุธทวน (ง้าว/halberd/pike/พลอง/หอก): ศัตรูที่ "รุกเข้า" ระยะเอื้อม → Opportunity Attack ✅ บังคับจริง (ต้องมีกริด · 1 reaction/รอบ · ง้าว/halberd/pike เอื้อม 10ft) · ตีก้านท้าย bonus action (1d4) ✅ พิมพ์ "ตีก้านท้าย"'},
-  {id:'crusher', label:'Crusher (จอมทุบ)', desc:'อาวุธทุบ (bludgeoning): crit → เป้าเปราะ ผู้โจมตีทุกคนได้เปรียบจนจบเทิร์นหน้า ✅ บังคับจริง · ผลัก 5ft เมื่อโดน = DM เล่า'},
-  {id:'piercer', label:'Piercer (จอมแทง)', desc:'อาวุธแทง (piercing): ทอยเต๋าดาเมจแทงใหม่ 1 ลูก/เทิร์น (เลือกลูกต่ำสุด) ✅ บังคับจริง · crit → +1 เต๋าแทง ✅ บังคับจริง'},
-  {id:'slasher', label:'Slasher (จอมเฉือน)', desc:'อาวุธเฉือน (slashing): crit → เป้าเสียเปรียบการโจมตีจนจบเทิร์นหน้า (DM ให้มอนตีแบบเสียเปรียบ) · ลดความเร็วเป้า 10ft = DM เล่า'},
-  {id:'elemental-adept', label:'Elemental Adept (จอมธาตุ)', desc:'เลือกธาตุ: เวทธาตุนั้นเพิกเฉย resistance ของเป้า + เลขเต๋าดาเมจที่ออก 1 นับเป็น 2 ✅ บังคับจริง · เลือกธาตุ →', element:true},
-  {id:'dual-wielder', label:'Dual Wielder (ทวิอาวุธ)', desc:'+1 AC ขณะถืออาวุธมือรอง (ใส่ช่อง ⚔ มือรอง) ✅ บังคับจริง · ถืออาวุธมือเดียวที่ไม่ light เป็นคู่ = DM เล่า'},
-  {id:'heavy-armor-master', label:'Heavy Armor Master (จอมเกราะหนัก)', desc:'สวมเกราะหนัก (Plate/Splint/Ring Mail/Chain Mail): ลดดาเมจ bludgeoning/piercing/slashing ที่ไม่ใช่เวท −3 ✅ บังคับจริง (RAW: ไม่มี +1 AC)'},
-  {id:'defensive-duelist', label:'Defensive Duelist (นักดวลรับ)', desc:'ถืออาวุธ finesse (กริช/ดาบสั้น/rapier/scimitar/whip): ถูกตีประชิด → reaction +โบนัสความชำนาญ AC (อาจพลิก โดน→พลาด) ✅ บังคับจริง (1 reaction/รอบ)'},
+  {id:'tough', label:'Tough (อึด)', labelEn:'Tough', desc:'+2 HP ต่อเลเวล (ย้อนหลังทุกเลเวล) ✅ บังคับจริง', descEn:'+2 HP per level, applied retroactively ✅ enforced'},
+  {id:'alert', label:'Alert (ตื่นตัว)', labelEn:'Alert', desc:'+5 initiative ✅ บังคับจริง · ไม่ถูกจู่โจมแบบ surprise (DM เล่า)', descEn:'+5 initiative ✅ enforced · you cannot be surprised (DM narration)'},
+  {id:'great-weapon-master', label:'Great Weapon Master (จอมอาวุธหนัก)', labelEn:'Great Weapon Master', desc:'−5 โจมตี/+10 ดาเมจ อาวุธหนักประชิด ✅ บังคับจริง · พิมพ์ "ทุ่มสุดแรง"/"power attack" ในแอ็กชันเพื่อใช้', descEn:'−5 to hit / +10 damage with a heavy melee weapon ✅ enforced · declare “power attack” in the action'},
+  {id:'sharpshooter', label:'Sharpshooter (มือแม่นปืน)', labelEn:'Sharpshooter', desc:'−5 โจมตี/+10 ดาเมจ อาวุธยิงไกล · ข้ามที่กำบัง+ยิงไกลไม่ติด disadvantage ✅ บังคับจริง · พิมพ์ "เล็งจุดตาย"/"sharpshooter" ในแอ็กชันเพื่อใช้', descEn:'−5 to hit / +10 damage with a ranged weapon; ignores cover and long-range disadvantage ✅ enforced · declare “sharpshooter” in the action'},
+  {id:'lucky', label:'Lucky (ดวงเฮง)', labelEn:'Lucky', desc:'3 แต้มโชคต่อพักยาว · ทอย d20 ใหม่เมื่อโจมตีหรือเซฟพลาด แล้วเก็บค่าสูง ✅ มีผลจริง', descEn:'3 luck points per long rest · reroll d20 after a failed attack or save and keep the higher roll ✅ active'},
+  {id:'war-caster', label:'War Caster (จอมเวทสนาม)', labelEn:'War Caster', desc:'ได้เปรียบเซฟ CON รักษาสมาธิเวท (Bless/Hex/Hold Person ฯลฯ ไม่หลุดง่าย) ✅ บังคับจริง · ร่ายขณะถืออาวุธ/โล่ + ร่ายเป็น opportunity attack = DM เล่า', descEn:'Advantage on CON saves to maintain concentration ✅ enforced · casting with occupied hands and casting as an opportunity attack are handled in narration'},
+  {id:'resilient', label:'Resilient (แกร่งทน)', labelEn:'Resilient', desc:'+1 ค่าสถานะ (แก้ในชีทเอง) + ชำนาญเซฟของค่านั้น ✅ บังคับจริง · เลือกค่าสถานะ →', descEn:'+1 to one ability (update it on the sheet) and proficiency in that saving throw ✅ enforced · choose the ability →', ability:true},
+  {id:'observant', label:'Observant (ช่างสังเกต)', labelEn:'Observant', desc:'+5 passive Perception — ใช้ค่านี้ตัดสินสิ่งที่สังเกตเห็น · +1 INT/WIS เลือกในชีท', descEn:'+5 passive Perception — this value determines what you notice · choose +1 INT or WIS on your sheet'},
+  {id:'durable', label:'Durable (ทนทาน)', labelEn:'Durable', desc:'พักสั้น: HP ฟื้นต่อ Hit Die อย่างน้อย 2×CON mod (ขั้นต่ำ 2) ✅ บังคับจริง', descEn:'Short rest: each Hit Die restores at least 2× CON modifier (minimum 2) ✅ enforced'},
+  {id:'savage-attacker', label:'Savage Attacker (จู่โจมดุดัน)', labelEn:'Savage Attacker', desc:'1 ครั้ง/เทิร์น: ทอยเต๋าดาเมจอาวุธประชิดใหม่ เก็บค่าสูงกว่า ✅ บังคับจริง', descEn:'Once per turn, reroll melee weapon damage dice and keep the higher result ✅ enforced'},
+  {id:'sentinel', label:'Sentinel (ผู้พิทักษ์)', labelEn:'Sentinel', desc:'ศัตรูประชิดโจมตี "เพื่อน" (ไม่ใช่ตัวคุณ) → reaction ตีสวนผู้โจมตี 1 ครั้ง ✅ บังคับจริง (ต้องมีกริด · ยืนชิดผู้โจมตี ≤5ft · 1 reaction/รอบ) · OA ทะลุ Disengage (ศัตรูถอนตัวก็ยังโดนตีสวน) ✅ บังคับจริง · หยุดความเร็วเป้าที่โดน OA = เร็วๆ นี้', descEn:'When a nearby enemy attacks an ally, use a reaction to strike it ✅ enforced; requires the grid, adjacency within 5 ft, and one reaction per round · opportunity attacks ignore Disengage ✅ enforced · stopping movement on an opportunity hit is coming soon'},
+  {id:'mobile', label:'Mobile (คล่องแคล่ว)', labelEn:'Mobile', desc:'+10 ฟุต ความเร็ว ✅ บังคับจริง · ตีประชิดศัตรูตัวใดแล้วถอยจากตัวนั้น ไม่โดน Opportunity Attack ✅ (ต้องมีกริด) · Dash ผ่านพื้นยาก = DM เล่า', descEn:'+10 ft speed ✅ enforced · after making a melee attack against a creature, moving away from it does not provoke an opportunity attack ✅ requires the grid · ignoring difficult terrain while Dashing is handled in narration'},
+  {id:'crossbow-expert', label:'Crossbow Expert (เชี่ยวชาญหน้าไม้)', labelEn:'Crossbow Expert', desc:'ยิงหน้าไม้ระยะประชิดไม่ติด disadvantage ✅ บังคับจริง · bonus-action ยิงหน้าไม้มือ ✅ พิมพ์ "ยิงอีกนัด" · ข้าม Loading = DM เล่า', descEn:'Crossbow attacks in melee do not have disadvantage ✅ enforced · declare “fire another shot” for the hand-crossbow bonus attack · ignoring Loading is handled in narration'},
+  {id:'shield-master', label:'Shield Master (จอมโล่)', labelEn:'Shield Master', desc:'ถือโล่: +2 เซฟ DEX (ผลที่เจาะจงตัวเดียว) ✅ + เซฟ DEX สำเร็จ vs เวทพื้นที่ = รับ 0 ดาเมจ ✅ บังคับจริง · bonus-action ผลัก (shove push) ✅ พิมพ์ "ผลักออก"', descEn:'While holding a shield: +2 to qualifying DEX saves and 0 damage on a successful DEX save against an area spell ✅ enforced · declare “shove away” for the bonus-action shove'},
+  {id:'polearm-master', label:'Polearm Master (จอมทวน)', labelEn:'Polearm Master', desc:'ถืออาวุธทวน (ง้าว/halberd/pike/พลอง/หอก): ศัตรูที่ "รุกเข้า" ระยะเอื้อม → Opportunity Attack ✅ บังคับจริง (ต้องมีกริด · 1 reaction/รอบ · ง้าว/halberd/pike เอื้อม 10ft) · ตีก้านท้าย bonus action (1d4) ✅ พิมพ์ "ตีก้านท้าย"', descEn:'With a polearm, an enemy entering your reach provokes an opportunity attack ✅ enforced; requires the grid and one reaction per round · declare “butt-end strike” for the 1d4 bonus attack'},
+  {id:'crusher', label:'Crusher (จอมทุบ)', labelEn:'Crusher', desc:'อาวุธทุบ (bludgeoning): crit → เป้าเปราะ ผู้โจมตีทุกคนได้เปรียบจนจบเทิร์นหน้า ✅ บังคับจริง · ผลัก 5ft เมื่อโดน = DM เล่า', descEn:'Bludgeoning critical hit makes the target vulnerable; attacks against it have advantage until the end of your next turn ✅ enforced · the 5 ft push is handled in narration'},
+  {id:'piercer', label:'Piercer (จอมแทง)', labelEn:'Piercer', desc:'อาวุธแทง (piercing): ทอยเต๋าดาเมจแทงใหม่ 1 ลูก/เทิร์น (เลือกลูกต่ำสุด) ✅ บังคับจริง · crit → +1 เต๋าแทง ✅ บังคับจริง', descEn:'Once per turn, reroll the lowest piercing damage die ✅ enforced · a critical hit adds one piercing damage die ✅ enforced'},
+  {id:'slasher', label:'Slasher (จอมเฉือน)', labelEn:'Slasher', desc:'อาวุธเฉือน (slashing): crit → เป้าเสียเปรียบการโจมตีจนจบเทิร์นหน้า (DM ให้มอนตีแบบเสียเปรียบ) · ลดความเร็วเป้า 10ft = DM เล่า', descEn:'A slashing critical hit gives the target disadvantage on attacks until the end of your next turn; the DM narrates this effect · reducing the target’s speed by 10 ft is handled in narration'},
+  {id:'elemental-adept', label:'Elemental Adept (จอมธาตุ)', labelEn:'Elemental Adept', desc:'เลือกธาตุ: เวทธาตุนั้นเพิกเฉย resistance ของเป้า + เลขเต๋าดาเมจที่ออก 1 นับเป็น 2 ✅ บังคับจริง · เลือกธาตุ →', descEn:'Choose an element: spells of that type ignore resistance, and damage dice showing 1 count as 2 ✅ enforced · choose the element →', element:true},
+  {id:'dual-wielder', label:'Dual Wielder (ทวิอาวุธ)', labelEn:'Dual Wielder', desc:'+1 AC ขณะถืออาวุธมือรอง (ใส่ช่อง ⚔ มือรอง) ✅ บังคับจริง · ถืออาวุธมือเดียวที่ไม่ light เป็นคู่ = DM เล่า', descEn:'+1 AC while an off-hand weapon is equipped ✅ enforced · dual-wielding one-handed weapons without the light property is handled in narration'},
+  {id:'heavy-armor-master', label:'Heavy Armor Master (จอมเกราะหนัก)', labelEn:'Heavy Armor Master', desc:'สวมเกราะหนัก (Plate/Splint/Ring Mail/Chain Mail): ลดดาเมจ bludgeoning/piercing/slashing ที่ไม่ใช่เวท −3 ✅ บังคับจริง (RAW: ไม่มี +1 AC)', descEn:'While wearing heavy armor, reduce nonmagical bludgeoning, piercing, and slashing damage by 3 ✅ enforced (RAW: no +1 AC)'},
+  {id:'defensive-duelist', label:'Defensive Duelist (นักดวลรับ)', labelEn:'Defensive Duelist', desc:'ถืออาวุธ finesse (กริช/ดาบสั้น/rapier/scimitar/whip): ถูกตีประชิด → reaction +โบนัสความชำนาญ AC (อาจพลิก โดน→พลาด) ✅ บังคับจริง (1 reaction/รอบ)', descEn:'While wielding a finesse weapon, use a reaction when hit in melee to add proficiency bonus to AC, possibly turning the hit into a miss ✅ enforced; one reaction per round'},
 ];
 const RESILIENT_ABILS=[['con','CON'],['dex','DEX'],['str','STR'],['wis','WIS'],['int','INT'],['cha','CHA']];
 function _resilientAbil(featsArr){   // ดึง ability ที่เลือกจาก slug resilient-<ab> (default con)
@@ -7743,29 +7751,30 @@ function renderFeatCard(p){
   const card=document.createElement('details'); card.className='item sk-cardgrp sk-fold sk-feats'; card.style.cssText='margin-bottom:10px';
   const _memF=sessionStorage.getItem('skfold_feats'); card.open = _memF!=null ? _memF==='1' : false;
   card.addEventListener('toggle',function(){ try{ sessionStorage.setItem('skfold_feats', card.open?'1':'0'); }catch(e){} });
-  const head='<summary><div class="sk-head">คุณสมบัติพิเศษ<span class="en">· FEATS</span><span class="sk-cnt">'+(slots<=0?'(🔒)':'('+used+'/'+slots+')')+'</span><span class="sk-arw">▸</span></div></summary>';
+  const head='<summary><div class="sk-head">'+uiCopy('คุณสมบัติพิเศษ','Special Traits')+'<span class="en">· FEATS</span><span class="sk-cnt">'+(slots<=0?'(🔒)':'('+used+'/'+slots+')')+'</span><span class="sk-arw">▸</span></div></summary>';
   if(slots<=0){
-    card.innerHTML=head+'<div class="muted" style="font-size:.85em">🔒 ยังไม่ได้ feat — ปลดล็อกครั้งแรกที่เลเวล 4 (Ability Score Improvement)'+(/fighter|นักรบ|นักสู้/i.test(cls)?' · Fighter เพิ่ม L6':'')+(/rogue|โจร/i.test(cls)?' · Rogue เพิ่ม L10':'')+'</div>';
+    card.innerHTML=head+'<div class="muted" style="font-size:.85em">'+uiCopy('🔒 ยังไม่ได้ feat — ปลดล็อกครั้งแรกที่เลเวล 4 (Ability Score Improvement)'+(/fighter|นักรบ|นักสู้/i.test(cls)?' · Fighter เพิ่ม L6':'')+(/rogue|โจร/i.test(cls)?' · Rogue เพิ่ม L10':''),'🔒 No feat yet — first unlock at level 4 (Ability Score Improvement)'+(/fighter|นักรบ|นักสู้/i.test(cls)?' · Fighter also gains one at L6':'')+(/rogue|โจร/i.test(cls)?' · Rogue also gains one at L10':''))+'</div>';
     p.appendChild(card); return;
   }
   const curIds=featsArr.map(_featMatch).filter(Boolean);
   const variantHumanNote=variantHumanBonus?uiCopy(' · +1 feat จากเผ่า Human สาย Variant (กฎ 2014 — เลือกได้ทุก feat ที่ระบบรองรับ)',' · +1 feat from Variant Human (2014 — choose any supported feat)'):'';
-  let html=head+'<div class="muted" style="font-size:.85em;margin-bottom:6px">ช่อง feat: <b>'+used+'/'+slots+'</b> ใช้แล้ว (1 ช่องต่อ ASI · L4/8/12/16/19'+(/fighter|นักรบ|นักสู้/i.test(cls)?' +Fighter L6/14':'')+(/rogue|โจร/i.test(cls)?' +Rogue L10':'')+variantHumanNote+')</div>';
+  let html=head+'<div class="muted" style="font-size:.85em;margin-bottom:6px">'+uiCopy('ช่อง feat: <b>'+used+'/'+slots+'</b> ใช้แล้ว (1 ช่องต่อ ASI · L4/8/12/16/19'+(/fighter|นักรบ|นักสู้/i.test(cls)?' +Fighter L6/14':'')+(/rogue|โจร/i.test(cls)?' +Rogue L10':'')+variantHumanNote+')','Feat slots: <b>'+used+'/'+slots+'</b> used (1 per ASI · L4/8/12/16/19'+(/fighter|นักรบ|นักสู้/i.test(cls)?' +Fighter L6/14':'')+(/rogue|โจร/i.test(cls)?' +Rogue L10':'')+variantHumanNote+')')+'</div>';
   html+=FEAT_OPTS.map(function(o){
+    const copy=localizedRuleOption(o);
     const on=curIds.indexOf(o.id)>=0;
     const dis=(!on) && used>=slots;
     let extra='';
     if(o.ability && on){   // v357 Resilient: เลือก ability ที่ชำนาญเซฟ (slug resilient-<ab>)
       const curAb=_resilientAbil(featsArr);
-      extra='<div style="margin-left:22px;margin-top:3px;margin-bottom:5px"><select data-resab="'+o.id+'" style="font-size:.85em;padding:2px 4px">'+RESILIENT_ABILS.map(function(a){return '<option value="'+a[0]+'"'+(a[0]===curAb?' selected':'')+'>'+a[1]+'</option>';}).join('')+'</select> <span class="muted" style="font-size:.78em">← ค่าสถานะที่ชำนาญเซฟ</span></div>';
+      extra='<div style="margin-left:22px;margin-top:3px;margin-bottom:5px"><select data-resab="'+o.id+'" style="font-size:.85em;padding:2px 4px">'+RESILIENT_ABILS.map(function(a){return '<option value="'+a[0]+'"'+(a[0]===curAb?' selected':'')+'>'+a[1]+'</option>';}).join('')+'</select> <span class="muted" style="font-size:.78em">'+uiCopy('← ค่าสถานะที่ชำนาญเซฟ','← Ability with save proficiency')+'</span></div>';
     }
     else if(o.element && on){   // v366 Elemental Adept: เลือกธาตุ (slug elemental-adept-<type>)
       const curEl=_elemAdeptType(featsArr);
-      extra='<div style="margin-left:22px;margin-top:3px;margin-bottom:5px"><select data-elemad="'+o.id+'" style="font-size:.85em;padding:2px 4px">'+ELEM_ADEPT_ELEMS.map(function(a){return '<option value="'+a[0]+'"'+(a[0]===curEl?' selected':'')+'>'+a[1]+'</option>';}).join('')+'</select> <span class="muted" style="font-size:.78em">← ธาตุที่เพิกเฉย resistance</span></div>';
+      extra='<div style="margin-left:22px;margin-top:3px;margin-bottom:5px"><select data-elemad="'+o.id+'" style="font-size:.85em;padding:2px 4px">'+ELEM_ADEPT_ELEMS.map(function(a){return '<option value="'+a[0]+'"'+(a[0]===curEl?' selected':'')+'>'+a[1]+'</option>';}).join('')+'</select> <span class="muted" style="font-size:.78em">'+uiCopy('← ธาตุที่เพิกเฉย resistance','← Element that ignores resistance')+'</span></div>';
     }
-    return '<label style="display:block;margin:5px 0;cursor:'+(dis?'not-allowed':'pointer')+';opacity:'+(dis?'.45':'1')+'"><input type="checkbox" data-feat="'+o.id+'"'+(on?' checked':'')+(dis?' disabled':'')+' style="margin-right:6px;vertical-align:top"><b>'+escapeHtml(o.label)+'</b><div class="muted" style="font-size:.8em;margin-left:22px;line-height:1.35">'+escapeHtml(o.desc)+'</div></label>'+extra;
+    return '<label style="display:block;margin:5px 0;cursor:'+(dis?'not-allowed':'pointer')+';opacity:'+(dis?'.45':'1')+'"><input type="checkbox" data-feat="'+o.id+'"'+(on?' checked':'')+(dis?' disabled':'')+' style="margin-right:6px;vertical-align:top"><b>'+escapeHtml(copy.label)+'</b><div class="muted" style="font-size:.8em;margin-left:22px;line-height:1.35">'+escapeHtml(copy.desc)+'</div></label>'+extra;
   }).join('');
-  if(used>=slots) html+='<div class="muted" style="font-size:.8em;margin-top:4px">ช่อง feat เต็ม — เลเวลขึ้นเพื่อปลดล็อกเพิ่ม</div>';
+  if(used>=slots) html+='<div class="muted" style="font-size:.8em;margin-top:4px">'+uiCopy('ช่อง feat เต็ม — เลเวลขึ้นเพื่อปลดล็อกเพิ่ม','Feat slots are full — gain levels to unlock more')+'</div>';
   card.innerHTML=html;
   card.querySelectorAll('input[data-feat],select[data-resab],select[data-elemad]').forEach(function(control){ control.disabled=true; });
   const guidance=document.createElement('div'); guidance.className='note'; guidance.style.cssText='text-align:left;margin-top:7px;color:#FAC775';
@@ -8190,7 +8199,8 @@ async function renderNPCs(){
   const isDead=n=>String(n.status||'')==='dead'||!!deadMap[lcN(n.name)];   /* v546: คอลัมน์ status ก่อน fallback settings.dead_npcs */
   const descOf=n=>{ const dm=descMap[lcN(n.name)]||{}; const sx=n.sex||dm.sex, ag=n.age||dm.age; return (sx||ag)?{sex:sx,age:ag}:null; };   /* v546: คอลัมน์ sex/age ก่อน fallback settings.npc_desc */
   const relColor=sc=>sc>=70?'#ff7eb6':sc>=20?'#9fe0a0':sc>=-19?'#9a9a9a':sc>=-44?'#e0c45f':'#e06a6a';
-  const cityLbl=c=>{const s=String(c||'').trim(); return (!s||s.toLowerCase()==='unknown')?'ไม่ระบุ':s;};   // แถวเก่า city="Unknown" ยังมีใน DB (v539 เลิกเขียนใหม่ ไม่ backfill)
+  const unknownCity=uiCopy('ไม่ระบุ','Unspecified');
+  const cityLbl=c=>{const s=String(c||'').trim(); return (!s||s.toLowerCase()==='unknown')?unknownCity:s;};   // แถวเก่า city="Unknown" ยังมีใน DB (v539 เลิกเขียนใหม่ ไม่ backfill)
   // v609ui: แยกมอนสเตอร์จากศึกออกจากรายชื่อหลัก (คำสั่ง Koon 07-12 — หน้ารกเพราะ Wolf A/B/Acolyte C ฯลฯ ปนกับ NPC จริง)
   //   เกณฑ์: rel=enemy + (ป้ายศึกท้ายชื่อ "X A"/"X 2" หรือชื่อสัตว์/มอนล้วน) · มี voice/trait/want/bond = NPC เนื้อเรื่อง ไม่ตัด (เช่น Shadowy Figure)
   const MON_NAME_RE=/^(dire |giant |swarm of |young )?(wolf|wolves|boar|owlbear|panther|scorpion|rat|bat|spider|snake|bear|lion|tiger|hyena|worg|stirge|drake|wyvern|troll|ogre|goblin|orc|gnoll|hobgoblin|kobold|zombie|skeleton|ghoul|ghast|slime|ooze|harpy|mimic|golem|elemental|imp|quasit)\b/i;
@@ -8209,7 +8219,7 @@ async function renderNPCs(){
   const nameColorOf=n=>{ const r=relOf(n.name); if(!r) return 'inherit'; const sc=Math.max(-100,Math.min(100,Math.round(+r.score||0))); return (sc>=-19&&sc<20)?'inherit':relColor(sc); };
   // กลุ่ม col1: เมืองปัจจุบันก่อน → เมืองอื่น ก-ฮ → ไม่ระบุ → ❤ / ☠ / 👹
   const byCity={}; live.forEach(n=>{const c2=cityLbl(n.city);(byCity[c2]=byCity[c2]||[]).push(n);});
-  const cityKeys=Object.keys(byCity).sort((a,b)=>{ if(a==='ไม่ระบุ')return 1; if(b==='ไม่ระบุ')return -1;
+  const cityKeys=Object.keys(byCity).sort((a,b)=>{ if(a===unknownCity)return 1; if(b===unknownCity)return -1;
     if(curTown){ if(lcN(a)===lcN(curTown))return -1; if(lcN(b)===lcN(curTown))return 1; }
     return a.localeCompare(b); });
   // v611b (คำสั่ง Koon): ไม่มี icon หน้าหัวข้อ · กลุ่มมอนสเตอร์ = สารานุกรม (bestiary) รวมร่างตามชนิด
@@ -8220,14 +8230,14 @@ async function renderNPCs(){
   monRows.forEach(n=>{ const dp=stemOfM(n.name); const st=lcN(dp); if(!st) return; const e=(_msMap[st]=_msMap[st]||{stem:st,disp:dp,nMon:0,rows:[]}); e.rows.push(n); });
   const monStems=Object.values(_msMap).sort((a,b)=>a.disp.localeCompare(b.disp));
   const groups=cityKeys.map(c2=>({key:'city:'+lcN(c2), label:c2, rows:byCity[c2]}));
-  if(favRows.length) groups.push({key:'fav', label:'คนสนิท', rows:favRows.slice().sort((a,b)=>(+((relOf(b.name)||{}).score)||0)-(+((relOf(a.name)||{}).score)||0))});
-  if(deadRows.length) groups.push({key:'dead', label:'เสียชีวิต', rows:deadRows});
-  if(monStems.length) groups.push({key:'mon', label:'สารานุกรมมอนสเตอร์', rows:monRows, kind:'mon'});   /* v628ui: เกณฑ์ = stems (monsters∪npcs) ไม่ใช่แค่แถว npcs */
+  if(favRows.length) groups.push({key:'fav', label:uiCopy('คนสนิท','Close contacts'), rows:favRows.slice().sort((a,b)=>(+((relOf(b.name)||{}).score)||0)-(+((relOf(a.name)||{}).score)||0))});
+  if(deadRows.length) groups.push({key:'dead', label:uiCopy('เสียชีวิต','Deceased'), rows:deadRows});
+  if(monStems.length) groups.push({key:'mon', label:uiCopy('สารานุกรมมอนสเตอร์','Bestiary'), rows:monRows, kind:'mon'});   /* v628ui: เกณฑ์ = stems (monsters∪npcs) ไม่ใช่แค่แถว npcs */
   if(!groups.length){ p.innerHTML='<div class="muted">No NPCs discovered yet</div>'; return; }
   if(!groups.some(g=>g.key===_npcCity)) _npcCity=groups[0].key;
   // แถบค้นหา (ค้นข้ามทุกเมือง)
   const bar=document.createElement('div'); bar.style.cssText='display:flex;gap:6px;align-items:center;margin-bottom:10px';
-  const inp=document.createElement('input'); inp.placeholder='🔍 ค้นชื่อ / role / เมือง (ค้นข้ามทุกเมือง)'; inp.value=_npcQ;
+  const inp=document.createElement('input'); inp.placeholder=uiCopy('🔍 ค้นชื่อ / role / เมือง (ค้นข้ามทุกเมือง)','🔍 Search name / role / city (all cities)'); inp.value=_npcQ;
   inp.style.cssText='flex:1;min-width:120px;border-radius:6px;padding:6px 10px;font-size:13px;font-family:inherit';
   bar.appendChild(inp); p.appendChild(bar);
   inp.oninput=function(){ _npcQ=this.value; drawList(); };
@@ -8271,7 +8281,7 @@ async function renderNPCs(){
       drawDetail(); return;
     }
     const pool=curRows();
-    if(!pool.length){ colList.innerHTML='<div class="muted" style="padding:8px 4px;font-size:13px">ไม่พบ NPC</div>'; drawDetail(); return; }
+    if(!pool.length){ colList.innerHTML='<div class="muted" style="padding:8px 4px;font-size:13px">'+uiCopy('ไม่พบ NPC','No NPC found')+'</div>'; drawDetail(); return; }
     pool.forEach(n=>{ const r=relOf(n.name); const deadN=isDead(n);
       const b=document.createElement('button'); b.type='button'; b.className='npc5-row'+(n.id===_npcSel?' on':'');
       b.innerHTML=sexIconOf(n)
@@ -8284,7 +8294,7 @@ async function renderNPCs(){
     drawDetail();
   }
   async function drawMonDetail(stem){
-    colDet.innerHTML='<div class="muted" style="padding:10px 4px;font-size:13px">กำลังรวบรวมบันทึก…</div>';
+    colDet.innerHTML='<div class="muted" style="padding:10px 4px;font-size:13px">'+uiCopy('กำลังรวบรวมบันทึก…','Collecting records…')+'</div>';
     const g=monStems.find(x=>x.stem===stem); if(!g){ colDet.innerHTML=''; return; }
     const bz=await loadBestiary();
     if(_npcSel!=='mon:'+stem) return;   // ผู้ใช้เปลี่ยนตัวเลือกระหว่างโหลด
@@ -8335,7 +8345,7 @@ async function renderNPCs(){
     colDet.innerHTML='';
     if(String(_npcSel||'').startsWith('mon:')){ drawMonDetail(String(_npcSel).slice(4)); return; }
     const n=curRows().find(x=>x.id===_npcSel);
-    if(!n){ colDet.innerHTML='<div class="muted" style="padding:10px 4px;font-size:13px">เลือกชื่อจากรายการเพื่อดูรายละเอียด</div>'; return; }
+    if(!n){ colDet.innerHTML='<div class="muted" style="padding:10px 4px;font-size:13px">'+uiCopy('เลือกชื่อจากรายการเพื่อดูรายละเอียด','Select a name to view details')+'</div>'; return; }
     const r=relOf(n.name); const d=descOf(n); const deadN=isDead(n);
     const sc=r?Math.max(-100,Math.min(100,Math.round(+r.score||0))):0;
     const pct=Math.round((sc+100)/2); const c=r?relColor(sc):'#565b66';
@@ -11403,10 +11413,10 @@ window.cc = (function(){
       var _prone=_mc.some(function(c){return /prone|ล้ม|นอน|หมดสติ|unconscious|knock|down/.test(c);});
       // v290: ตัดตัวเลือกเคลื่อนที่แบบ canned (เข้าประชิด/ถอยห่าง/หาที่กำบัง) — มีบั๊กสั่งแล้ว token ไม่ขยับ + ด้อยกว่าเลือกช่องบนกริดเอง · เหลือ 'เลือกตำแหน่งบนกริด' เป็นหลัก (server ขยับ token จริง)
       var mvItems=[
-        {label:'เลือกตำแหน่งที่จะเคลื่อนที่ (แตะกริด)', moveGrid:true},
-        {label:'ปีน/กระโดด',      commit:{slot:'movement', label:'ปีน/กระโดด', dice:'1d20 Athletics'}}
+        {label:'เลือกตำแหน่งที่จะเคลื่อนที่ (แตะกริด)', displayLabel:uiCopy('เลือกตำแหน่งที่จะเคลื่อนที่ (แตะกริด)','Choose a destination (tap the grid)'), moveGrid:true},
+        {label:'ปีน/กระโดด', displayLabel:uiCopy('ปีน/กระโดด','Climb / jump'), commit:{slot:'movement', label:'ปีน/กระโดด', displayLabel:uiCopy('ปีน/กระโดด','Climb / jump'), dice:'1d20 Athletics'}}
       ];
-      if(_prone) mvItems.push({label:'Stand up (ลุกขึ้นยืน)', meta:'1/2 cost', commit:{slot:'movement', label:'Stand'}});
+      if(_prone) mvItems.push({label:'ลุกขึ้นยืน', displayLabel:uiCopy('ลุกขึ้นยืน','Stand up'), meta:'1/2 cost', commit:{slot:'movement', label:'Stand'}});
       return { items: mvItems };
     }
 
@@ -11589,7 +11599,7 @@ window.cc = (function(){
     if(it.moveGrid){
       if(typeof window.ccMovePick==='function'){
         window.ccMovePick(function(cell){
-          if(cell){ turn.movement = { label:'เดินไปช่อง '+cell, moveTo:cell }; seqAdd('movement'); }
+          if(cell){ turn.movement = { label:'เดินไปช่อง '+cell, displayLabel:uiCopy('เดินไปช่อง '+cell,'Move to cell '+cell), moveTo:cell }; seqAdd('movement'); }
           stack=['root'];
           ccReturnToMenu();   // ข้อ 4: ยืนยันช่องเดินแล้ว → กลับเมนูเลือก action/bonus ที่เหลือ (ปิดเองเมื่อกดส่งเท่านั้น)
           renderAll();
@@ -11842,7 +11852,7 @@ window.cc = (function(){
       if(it.dim) cls += ' cc-dim';
       if(it.summary) cls += ' cc-locked';
       var tip = it.meta || ACT_TIPS[it.label] || '';
-      var text = esc(it.label);
+      var text = esc(it.displayLabel||it.label);
       if(it.summary) text += ' <span class="cc-tag">' + esc(it.summary) + '</span>';
       if(tip) text += '<span class="cc-meta">' + esc(tip) + '</span>';
       var titleAttr = tip ? ' title="'+esc(tip)+'"' : '';

@@ -131,5 +131,5 @@
     }
     return out!=null&&!invalidEnglish(out)?lead+out+trail:null;
   }
-  root.TTRPG_RUNTIME_COPY=Object.freeze({build:'20260720e4',exact,patterns,invalidEnglish,translateEnglishSystemText});
+  root.TTRPG_RUNTIME_COPY=Object.freeze({build:'20260813a1',exact,patterns,invalidEnglish,translateEnglishSystemText});
 })(globalThis);
