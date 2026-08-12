@@ -8987,9 +8987,15 @@ function combatLogServerRolled(row){
   const p=d.provenance&&typeof d.provenance==='object'?d.provenance:{};
   return p.server_rolled===true||d.server_rolled===true||/\[server-rolled(?:[^\]]*)\]/i.test(String(row&&row.summary||''));
 }
+/* v899 LOGCLEAN-01: แถวที่เนื้อความเหลือแค่ "กฎเซิร์ฟเวอร์ปรับผลลัพธ์นี้ ดู System Logs" ไม่บอกอะไรผู้เล่นเลย
+   (เกิดเมื่อกำแพงภาษาปฏิเสธ summary แล้วแทนทั้งก้อน) — ซ่อนจาก battle log, หลักฐานเต็มยังอยู่ใน system_logs
+   ⚠ นี่เป็นกันชนชั้นท้าย ไม่ใช่การแก้ราก: ราก = server เขียน summary ภาษาเดียวลง combat_log (LOGCLEAN-02) */
+/* ⚠ ห้ามใส่ \b ท้ายสาขาไทย — อักษรไทยไม่มีขอบคำแบบ ASCII ทำให้ไม่แมตช์ (คลาสเดียวกับ R23-P1-01) */
+const BS_WALL_PLACEHOLDER_RE=/A\s+(?:server|the\s+rules)\s+rule\s+adjusted\s+this(?:\s+combat)?\s+result\b|กฎฝั่งเซิร์ฟเวอร์ได้ปรับผล(?:ลัพธ์|การต่อสู้)?นี้/i;
 function battleLogPublicVisible(row){
   if(!row) return false;
   const s=String(row.summary||''); const d=row.detail&&typeof row.detail==='object'?row.detail:{};
+  if(BS_WALL_PLACEHOLDER_RE.test(s)) return false;   /* v899: บรรทัดเปล่าจากกำแพงภาษา — เก็บไว้เบื้องหลัง */
   if(d.player_action_required===true||d.public_outcome===true) return true;
   if(String(row.entry_type||'').toLowerCase()==='note'){
     if(/\((?:แก้|Fixed)\s*:|\b(?:server|guard|receipt)\b|\bกติกา\b|\bระบบ\s*:/i.test(s)) return false;
