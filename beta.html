@@ -2116,7 +2116,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608111625;   // FE-16: evidence-bound post-flip freshness reconcile
+const FRONTEND_BUILD = 202608121300;   // v899fe: EN '—' labels + sprite fail-open
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -8403,7 +8403,7 @@ async function renderInitiativeTracker(p){
     const lc=document.createElement('div'); lc.className='item';
     lc.innerHTML='<div class="sectitle">COMBAT LOG</div>';
     const feed=document.createElement('div'); feed.style.cssText='display:flex;flex-direction:column;gap:3px;margin-top:6px;max-height:260px;overflow:auto;font-size:13px;line-height:1.5';
-    logs.forEach(l=>{ if(l.entry_type==='note'&&/^\s*(⚔️|✦|✕|⚠|💢|🛡|💀)|^\s*\(แก้|ยังไม่(ล้ม|ตาย|ฟื้น)|ถูกกำจัดไปแล้ว|ไม่มี(บาดแผล|การรักษา|การโจมตีจาก)|รอดบาดแผล|การโจมตี(พลาด|ไม่เข้า)|ระบบ:/.test(String(l.summary||''))) return;   /* v459: ซ่อน note ของ guard/ระบบ (สับสนกับบทบรรยาย) */ const d=document.createElement('div'); d.style.color=l.entry_type==='round_advance'?'#9a9a9a':'#fff'; d.innerHTML=(ICON[l.entry_type]||'•')+' '+escapeHtml(playerCombatSummary(l)); feed.appendChild(d); });
+    logs.forEach(l=>{ if(l.entry_type==='note'&&/^\s*(⚔️|✦|✕|⚠|💢|🛡|💀)|^\s*\(แก้|ยังไม่(ล้ม|ตาย|ฟื้น)|ถูกกำจัดไปแล้ว|ไม่มี(บาดแผล|การรักษา|การโจมตีจาก)|รอดบาดแผล|การโจมตี(พลาด|ไม่เข้า)|ระบบ:/.test(String(l.summary||''))) return;   /* v459: ซ่อน note ของ guard/ระบบ (สับสนกับบทบรรยาย) */ if(!battleLogPublicVisible(l)) return;   /* v899fe: ใช้ filter กลางเดียวกับ battle scene — placeholder จากกำแพงภาษา + แถวไทย legacy ในโลก EN */ const d=document.createElement('div'); d.style.color=l.entry_type==='round_advance'?'#9a9a9a':'#fff'; d.innerHTML=(ICON[l.entry_type]||'•')+' '+escapeHtml(playerCombatSummary(l)); feed.appendChild(d); });
     lc.appendChild(feed); p.appendChild(lc);
     setTimeout(()=>{ feed.scrollTop=feed.scrollHeight; },0);
   }
@@ -8735,11 +8735,11 @@ function ensureBattleScene(){
         '<div class="bs-col bs-left">'+
           '<div class="bs-hud bs-box" id="bsHud"></div>'+
           '<div class="bs-init bs-box" id="bsInitBox"><div class="bs-panelttl">\u2694 INITIATIVE</div><div class="bs-init-list" id="bsInit"></div></div>'+
-          '<div class="bs-chat bs-box" id="bsChatBox"><div class="bs-panelttl" style="display:flex;justify-content:space-between;align-items:center"><span>LIVE CHAT \u00b7 \u0e42\u0e23\u0e25\u0e40\u0e1e\u0e25\u0e22\u0e4c</span><button type="button" class="bs-chat-clear" onclick="clearChatLocal()">\ud83e\uddf9 \u0e25\u0e49\u0e32\u0e07</button></div><div class="bs-chat-list" id="bsChat"></div><div class="bs-chat-in"><textarea id="bsChatInput" rows="2" placeholder="\u0e04\u0e33\u0e1e\u0e39\u0e14/\u0e42\u0e23\u0e25\u0e40\u0e1e\u0e25\u0e22\u0e4c (\u0e17\u0e38\u0e01\u0e04\u0e19\u0e40\u0e2b\u0e47\u0e19)\u2026"></textarea><button type="button" id="bsChatSend">\u0e2a\u0e48\u0e07</button></div></div>'+
+          '<div class="bs-chat bs-box" id="bsChatBox"><div class="bs-panelttl" style="display:flex;justify-content:space-between;align-items:center"><span>'+uiCopy('LIVE CHAT \u00b7 \u0e42\u0e23\u0e25\u0e40\u0e1e\u0e25\u0e22\u0e4c','LIVE CHAT \u00b7 ROLEPLAY')+'</span><button type="button" class="bs-chat-clear" onclick="clearChatLocal()">'+uiCopy('\ud83e\uddf9 \u0e25\u0e49\u0e32\u0e07','\ud83e\uddf9 Clear')+'</button></div><div class="bs-chat-list" id="bsChat"></div><div class="bs-chat-in"><textarea id="bsChatInput" rows="2" placeholder="'+uiCopy('\u0e04\u0e33\u0e1e\u0e39\u0e14/\u0e42\u0e23\u0e25\u0e40\u0e1e\u0e25\u0e22\u0e4c (\u0e17\u0e38\u0e01\u0e04\u0e19\u0e40\u0e2b\u0e47\u0e19)\u2026','Dialogue / roleplay (visible to everyone)\u2026')+'"></textarea><button type="button" id="bsChatSend">'+uiCopy('\u0e2a\u0e48\u0e07','Send')+'</button></div></div>'+   /* v899fe: bs labels \u0e15\u0e49\u0e2d\u0e07\u0e21\u0e35\u0e04\u0e39\u0e48 EN \u2014 label \u0e44\u0e17\u0e22\u0e25\u0e49\u0e27\u0e19\u0e42\u0e14\u0e19 display wall \u0e01\u0e27\u0e32\u0e14\u0e40\u0e2b\u0e25\u0e37\u0e2d '\u2014' \u0e43\u0e19\u0e42\u0e25\u0e01 EN (\u0e40\u0e04\u0e2a\u0e08\u0e23\u0e34\u0e07 Koon 08-12) */
         '</div>'+
         '<div class="bs-col bs-center">'+
           '<div class="bs-board bs-box" id="bsBoard"></div>'+
-          '<div class="bs-narr bs-box"><div class="bs-panelttl">DM \u2014 \u0e09\u0e32\u0e01\u0e15\u0e48\u0e2d\u0e2a\u0e39\u0e49</div><div id="bsNarrWrap"></div></div>'+
+          '<div class="bs-narr bs-box"><div class="bs-panelttl">'+uiCopy('DM \u2014 \u0e09\u0e32\u0e01\u0e15\u0e48\u0e2d\u0e2a\u0e39\u0e49','DM \u2014 COMBAT SCENE')+'</div><div id="bsNarrWrap"></div></div>'+
         '</div>'+
         '<div class="bs-col bs-right">'+
           '<div class="bs-cmd bs-box" id="bsCmdWrap"></div>'+
@@ -8757,9 +8757,9 @@ function ensureBattleScene(){
       var _mb=document.getElementById('bsMobBar');
       if(_mb) _mb.querySelectorAll('button').forEach(function(b){ b.onclick=function(){ b.classList.remove('blink'); bsToggleSheet(b.getAttribute('data-sheet')); }; });
       var _bd=document.getElementById('bsSheetBackdrop'); if(_bd) _bd.onclick=function(){ bsCloseSheets(); };
-      var _cl=document.createElement('button'); _cl.className='bs-sheet-close'; _cl.id='bsSheetClose'; _cl.type='button'; _cl.textContent='✕ ปิด'; _cl.onclick=function(){ bsCloseSheets(); }; el.appendChild(_cl);
+      var _cl=document.createElement('button'); _cl.className='bs-sheet-close'; _cl.id='bsSheetClose'; _cl.type='button'; _cl.textContent=uiCopy('✕ ปิด','✕ Close'); _cl.onclick=function(){ bsCloseSheets(); }; el.appendChild(_cl);
       // C: ปุ่มเปิดชีทตัวละครจากฉากรบ (แสดงเฉพาะตอน in-battle ผ่าน CSS)
-      if(!document.getElementById('bsCsBtn')){ var _cs=document.createElement('button'); _cs.className='bs-cs-btn'; _cs.id='bsCsBtn'; _cs.type='button'; _cs.textContent='📜 ชีท/สกิล'; _cs.onclick=function(){ bsToggleCharSheet(); }; document.body.appendChild(_cs); }
+      if(!document.getElementById('bsCsBtn')){ var _cs=document.createElement('button'); _cs.className='bs-cs-btn'; _cs.id='bsCsBtn'; _cs.type='button'; _cs.textContent=uiCopy('📜 ชีท/สกิล','📜 Sheet/Skills'); _cs.onclick=function(){ bsToggleCharSheet(); }; document.body.appendChild(_cs); }
     }catch(e){}
   }
   return el;
@@ -8822,7 +8822,7 @@ async function exitBattleSceneWithOutro(){
     var el=document.getElementById('battleScene'), f=document.getElementById('bsFlash');
     if(el && el.classList.contains('on') && f && _logOk){   // v467 B6: ไม่โชว์ VICTORY/DEFEAT flash ถ้าอ่าน combat_log ไม่สำเร็จ (กัน VICTORY ปลอมตอน outage)
       var tx=f.querySelector('.bsf-txt');
-      if(tx) tx.textContent = outcome==='survive' ? '🩸 รอดมาได้!' : outcome==='lose' ? '💀 DEFEAT…' : '🏆 VICTORY!';
+      if(tx) tx.textContent = outcome==='survive' ? uiCopy('🩸 รอดมาได้!','🩸 SURVIVED!') : outcome==='lose' ? '💀 DEFEAT…' : '🏆 VICTORY!';
       f.classList.remove('go','go-win','go-lose'); void f.offsetWidth;
       f.classList.add(outcome==='win'?'go-win':'go-lose');   // รอด/แพ้ = สไตล์หม่น (go-lose)
       await new Promise(function(res){ setTimeout(res, 2450); });
@@ -8905,7 +8905,7 @@ async function renderBattleScene(trigger){
           d.innerHTML='<div class="meta">'+narrAuthorLabel(n)+(last?uiCopy(' · ล่าสุด',' · Latest'):'')+'</div><div class="narrc">'+narrDraw(n)+'</div>';
           _nf.appendChild(d);
         });
-        if(!_nf.childNodes.length){ var _e=document.createElement('div'); _e.className='note'; _e.style.color='#9a9a9a'; _e.textContent='— รอการบรรยายการต่อสู้ —'; _nf.appendChild(_e); }
+        if(!_nf.childNodes.length){ var _e=document.createElement('div'); _e.className='note'; _e.style.color='#9a9a9a'; _e.textContent=uiCopy('— รอการบรรยายการต่อสู้ —','— Awaiting combat narration —'); _nf.appendChild(_e); }
         var _box=nw.closest('.bs-narr')||nw;
         var _ng=document.createElement('div'); _ng.appendChild(_nf.cloneNode(true));
         if(nw.getAttribute('data-sig')!==_ng.innerHTML){
@@ -8954,7 +8954,7 @@ async function renderBattleInitLog(initEl, logEl){
       const mine=isParty&&myChar&&e.character_id===myChar.id; const col=isParty?'#5cc8ff':'#ff6b6b';
       const _cpc=[...new Set((Array.isArray(e.conditions)?e.conditions:[]).map(prettyCond).filter(Boolean))]; const conds=_cpc.length?(' ['+_cpc.map(escapeHtml).join(',')+']'):'';   // v756: TH/EN aliases may map to one visible label; never render duplicates
       const row=document.createElement('div'); row.className='bs-initrow'+(mine?' me':'');
-      row.innerHTML='<span class="bs-ini">'+(e.initiative==null?'?':e.initiative)+'</span><span class="bs-iname" style="color:'+col+'">'+escapeHtml(e.display_name)+(mine?' (คุณ)':'')+(conds?('<span class="muted" style="font-size:11px">'+escapeHtml(conds)+'</span>'):'')+'</span><span class="bs-ihp">'+escapeHtml(hpTxt||'')+'</span>';
+      row.innerHTML='<span class="bs-ini">'+(e.initiative==null?'?':e.initiative)+'</span><span class="bs-iname" style="color:'+col+'">'+escapeHtml(e.display_name)+(mine?uiCopy(' (คุณ)',' (You)'):'')+(conds?('<span class="muted" style="font-size:11px">'+escapeHtml(conds)+'</span>'):'')+'</span><span class="bs-ihp">'+escapeHtml(hpTxt||'')+'</span>';
       _frag.appendChild(row);
     });
     if(!_frag.childNodes.length){ const d=document.createElement('div'); d.className='note'; d.style.color='#9a9a9a'; d.textContent='— รอลำดับการรบ —'; _frag.appendChild(d); }
@@ -8990,12 +8990,17 @@ function combatLogServerRolled(row){
 /* v899 LOGCLEAN-01: แถวที่เนื้อความเหลือแค่ "กฎเซิร์ฟเวอร์ปรับผลลัพธ์นี้ ดู System Logs" ไม่บอกอะไรผู้เล่นเลย
    (เกิดเมื่อกำแพงภาษาปฏิเสธ summary แล้วแทนทั้งก้อน) — ซ่อนจาก battle log, หลักฐานเต็มยังอยู่ใน system_logs
    ⚠ นี่เป็นกันชนชั้นท้าย ไม่ใช่การแก้ราก: ราก = server เขียน summary ภาษาเดียวลง combat_log (LOGCLEAN-02) */
-/* ⚠ ห้ามใส่ \b ท้ายสาขาไทย — อักษรไทยไม่มีขอบคำแบบ ASCII ทำให้ไม่แมตช์ (คลาสเดียวกับ R23-P1-01) */
-const BS_WALL_PLACEHOLDER_RE=/A\s+(?:server|the\s+rules)\s+rule\s+adjusted\s+this(?:\s+combat)?\s+result\b|กฎฝั่งเซิร์ฟเวอร์ได้ปรับผล(?:ลัพธ์|การต่อสู้)?นี้/i;
+/* ⚠ ห้ามใส่ \b ท้ายสาขาไทย — อักษรไทยไม่มีขอบคำแบบ ASCII ทำให้ไม่แมตช์ (คลาสเดียวกับ R23-P1-01)
+   ⚠ pin "รูปทรงประโยค" ไม่ pin คำคุณศัพท์ — คำนั้นเปลี่ยนได้โดยชอบจากฝั่ง resolver:
+     v899 "A server rule…" → neutralizer ทำเป็น "A the rules rule…" → v901 LOGCLEAN-02 เปลี่ยน
+     catalog เป็น "An authoritative rule…" (เพื่อเลี่ยง neutralizer) · regex ที่ enumerate คำ
+     จะพังเงียบทุกครั้งที่ catalog ขยับ = แถวเปล่ากลับมาโผล่บนจอ (เคสจริง 08-12) */
+const BS_WALL_PLACEHOLDER_RE=/\bAn?\s+[A-Za-z][A-Za-z\s]{0,28}?rule\s+adjusted\s+this(?:\s+combat)?\s+result\b|กฎ\S{0,24}(?:ได้)?ปรับผล(?:ลัพธ์|การต่อสู้)?นี้/i;
 function battleLogPublicVisible(row){
   if(!row) return false;
   const s=String(row.summary||''); const d=row.detail&&typeof row.detail==='object'?row.detail:{};
-  if(BS_WALL_PLACEHOLDER_RE.test(s)) return false;   /* v899: บรรทัดเปล่าจากกำแพงภาษา — เก็บไว้เบื้องหลัง */
+  if(typeof BS_WALL_PLACEHOLDER_RE!=='undefined'&&BS_WALL_PLACEHOLDER_RE.test(s)) return false;   /* v899: บรรทัดเปล่าจากกำแพงภาษา — เก็บไว้เบื้องหลัง · typeof = ให้ฟังก์ชันยัง self-contained สำหรับ isolated-eval ของเทส v833 */
+  if(typeof uiLanguage==='function'&&uiLanguage()==='en'&&/[฀-๿]/.test(s)) return false;   /* v899fe: แถวไทย legacy ในโลก EN — display wall จะกวาดเหลือ '—' อยู่ดี ซ่อน husk (เนื้อหาเต็มอยู่ใน DB · แถวใหม่มีคู่ EN จาก LOGCLEAN แล้ว) */
   if(d.player_action_required===true||d.public_outcome===true) return true;
   if(String(row.entry_type||'').toLowerCase()==='note'){
     if(/\((?:แก้|Fixed)\s*:|\b(?:server|guard|receipt)\b|\bกติกา\b|\bระบบ\s*:/i.test(s)) return false;
@@ -9645,10 +9650,11 @@ async function renderBattleGrid(p){
     const _FR={ch:0.875,ob:0.855,mo:0.905}, _SZ={ch:64*_DETAIL*_ACTOR_SCALE,mo:64*_DETAIL*_ACTOR_SCALE,ob:64*_DETAIL*_ACTOR_SCALE};   // v561: สเกล 'แอสเซ็ททั้งหมด' (คน/มอน/วัตถุ) ×_ACTOR_SCALE เท่ากัน — สัดส่วนคงเดิม (แก้ v560 ที่วัตถุไม่โต = เกวียนเล็ก/มอนดูใหญ่เกิน) · base 64px × _DETAIL
     const _imgTok=(href,fr,px,bl,sm)=>{ const z=px; const _rd=down?` transform="rotate(${_lieDeg} ${fx.toFixed(1)} ${(fy-z*fr+z/2).toFixed(1)})"`:''; const _st=sm?'image-rendering:auto':`image-rendering:pixelated${bl?';filter:blur('+bl+'px)':''}`; return `<image href="${href}" x="${(fx-z/2).toFixed(1)}" y="${(fy-z*fr).toFixed(1)}" width="${z.toFixed(1)}" height="${z.toFixed(1)}" style="${_st}" opacity="${op}"${_rd}/>`; };   // v449: ล้ม=หมุนรอบ 'กึ่งกลางภาพ' (นอนตะแคงอยู่กับที่ ไม่เหวี่ยงหลุดนอกช่องจนหาย) · v642: param sm → smooth (ไม่ pixelated ไม่ blur) · เหตุผล: svg เป็น width:100% = สเกลลื่นตามจอ อัตราย่อไม่มีวันลงตัว (วัดจริง มือถือ DPR2: sprite 35.2 css / 70 device px = asset 128 over 1.82× → nearest ทิ้งพิกเซล 45% แบบไม่สม่ำเสมอ) · pixelated ถูกเฉพาะตอนคุมซูมเป็นจำนวนเต็มได้ ซึ่ง renderer นี้คุมไม่ได้ · _SPRITE_BLUR=0.4 เดิมคือพลาสเตอร์ปิดอาการนี้
     const _oimg=(t.kind==='object')?tokImgHref(t):null;
-    const _spr=(t.kind==='object'&&!(_oimg&&_oimg.url))?spriteFn(t):null, gly=glyphFor(t);
+    const _oimgOk=!!(_oimg&&_oimg.url&&monSpriteOk(_oimg.url));   /* v899fe: วัตถุใช้ load-check เดียวกับมอน (v638) — storage ล้มชั่วขณะเคยค้างเป็นไอคอนรูปแตกถาวร (เคสจริง Koon 08-12) · ล้ม = ตกไป vector sprite/glyph แล้ว re-render เมื่อรู้ผล */
+    const _spr=(t.kind==='object'&&!_oimgOk)?spriteFn(t):null, gly=glyphFor(t);
     const _os=(t.kind==='object')?objScaleFor(t):1;   // v483 proportional
     const _occ=(t.kind==='object')&&objOccludes(t,toks);   // v485 บังหมาก → จาง
-    if(_oimg&&_oimg.url){ let _o=_imgTok(_oimg.url,_FR.ob,_SZ.ob*_os*objFillNorm(_oimg.url)); s+=(_occ?`<g opacity="0.4">`+_o+`</g>`:_o); }   /* v531: ×fill-normalize (padding ต่างชุด) */
+    if(_oimgOk){ let _o=_imgTok(_oimg.url,_FR.ob,_SZ.ob*_os*objFillNorm(_oimg.url)); s+=(_occ?`<g opacity="0.4">`+_o+`</g>`:_o); }   /* v531: ×fill-normalize (padding ต่างชุด) · v899fe: ผ่าน load-check แล้วเท่านั้น */
     else if(_spr){ const _osa=_os*_ACTOR_SCALE; let _o=`<g transform="translate(${fx.toFixed(1)} ${fy.toFixed(1)}) scale(${_osa.toFixed(3)}) translate(${(-fx).toFixed(1)} ${(-fy).toFixed(1)})">`+_spr(fx,fy,op)+`</g>`; s+=(_occ?`<g opacity="0.4">`+_o+`</g>`:_o); }   // v561: object SVG sprite สเกล ×_ACTOR_SCALE ด้วย (สัดส่วนเท่าคน/มอน)
     else if(t.kind==='object'&&gly){ s+=`<text x="${fx.toFixed(1)}" y="${(fy-1).toFixed(1)}" text-anchor="middle" font-size="20" opacity="${op}">${gly}</text>`; }
     else if(t.kind==='object'){ s+=`<rect x="${(fx-9).toFixed(1)}" y="${(fy-12).toFixed(1)}" width="18" height="16" rx="2" fill="${t.color||'#9a9a9a'}" stroke="#000" stroke-width="1.2" opacity="${op}"/>`; }
@@ -9656,7 +9662,7 @@ async function renderBattleGrid(p){
     else { const _tkimg=tokImgHref(t), _mt=(_tkimg&&_tkimg.tiles)||1, _mpx=_SZ.mo*_mt;   // revert: monster = _SZ.mo(64) × tiles (size-category) · _mt ใช้ pawn/HP ต่อ
       const _moc=(_mt>1)&&monOccludesParty(t,toks);   // v570: มอนใหญ่บังหมากปาร์ตี้หลัง → จางให้เห็นทะลุ
       if(_tkimg&&_tkimg.url&&monSpriteOk(_tkimg.url)){ const _mo=_imgTok(_tkimg.url,_FR.mo,_mpx,_SPRITE_BLUR); s+=(_moc?`<g opacity="0.4">`+_mo+`</g>`:_mo); }   // v638 BUG1: sprite โหลดไม่ได้ → ตกไปสาขา pawn (ไม่ใช่ภาพว่าง)
-      else if(_hd){ s+=_imgTok(_hd,_FR.ch,_SZ.ch,_SPRITE_BLUR,true); }   // v642: ตัวละคร (PC/ally/npc + มอน humanoid ที่ยืม sprite_class) = smooth · พื้น/วัตถุ/มอน คง pixelated เดิม → ความต่างของ filter กลายเป็นภาษาบอกว่าอันไหนคือตัวละคร (มิเรอร์แนวคิด DoF v560 ที่แยกชั้นหน้า/ชั้นหลัง) · revert = เปลี่ยน true เป็น false
+      else if(_hd&&monSpriteOk(_hd)){ s+=_imgTok(_hd,_FR.ch,_SZ.ch,_SPRITE_BLUR,true); }   /* v899fe: ตัวละครก็ต้องมี load-check — sprite ล้ม = pawn ไม่ใช่รูปแตก */   // v642: ตัวละคร (PC/ally/npc + มอน humanoid ที่ยืม sprite_class) = smooth · พื้น/วัตถุ/มอน คง pixelated เดิม → ความต่างของ filter กลายเป็นภาษาบอกว่าอันไหนคือตัวละคร (มิเรอร์แนวคิด DoF v560 ที่แยกชั้นหน้า/ชั้นหลัง) · revert = เปลี่ยน true เป็น false
       else { const pal=PAL[t.kind]||PAL.pc, ba=pal[0], da=pal[1], li=pal[2];
         const _tf=`${down?`rotate(${_lieDeg} ${fx.toFixed(1)} ${(fy-8).toFixed(1)}) `:''}${_mt>1?`translate(${fx.toFixed(1)} ${fy.toFixed(1)}) scale(${_mt}) translate(${(-fx).toFixed(1)} ${(-fy).toFixed(1)})`:''}`.trim();   // v449: ล้ม=หมุนรอบกึ่งกลาง pawn (อยู่กับที่) + มอนใหญ่=scale
         if(_tf) s+=`<g transform="${_tf}">`;
