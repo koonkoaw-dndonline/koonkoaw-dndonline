@@ -2116,7 +2116,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608131307;   // FE-LANG-05: var-fed+dialog paired (27 anchors + 3 gate finds) · AST taint gates ceiling 0 — asset ring 20260813a1 unchanged
+const FRONTEND_BUILD = 202608131426;   // FE-LANG-06: toast class paired + stale wall-marker lifecycle + third Acorn gate — asset ring 20260813a1 unchanged
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -3003,7 +3003,8 @@ function gridCommandDelegate(kind,action,arg){
 }
 
 function $(id){return document.getElementById(id);}
-function toast(msg,isErr){const t=$('toast');t.textContent=msg;t.className='toast show'+(isErr?' err':'');setTimeout(()=>t.className='toast',2600);}
+let _toastWriteSeq=0;
+function toast(msg,isErr){const t=$('toast'),seq=++_toastWriteSeq;t.removeAttribute('data-language-wall');t.textContent=msg;t.className='toast show'+(isErr?' err':'');setTimeout(()=>{if(seq!==_toastWriteSeq)return;t.className='toast';t.textContent='';t.removeAttribute('data-language-wall');},2600);}
 function toggleUI(){
   const min=document.body.classList.toggle('ui-min');
   const t=document.getElementById('uiToggle'); if(t) t.textContent = min ? '›' : '‹';
@@ -3220,15 +3221,15 @@ async function verifyCode(){
 async function doLogout(){ await supa.auth.signOut(); location.reload(); }
 async function endCampaign(){
   if(!confirm(uiCopy('ลบแคมเปญนี้ถาวร? โลกทั้งหมด (เนื้อเรื่อง/ตัวละคร/ทุกอย่าง) จะหายไปกู้คืนไม่ได้','Permanently delete this campaign? The entire world (story, characters, and everything else) will be lost and cannot be recovered.'))) return;
-  try{ const { error } = await supa.rpc('end_campaign',{ p_campaign:campaign.id }); if(error) throw error; toast('ลบแคมเปญแล้ว'); setTimeout(()=>location.reload(),500); }
-  catch(e){ toast(e.message||'ลบไม่สำเร็จ',true); }
+  try{ const { error } = await supa.rpc('end_campaign',{ p_campaign:campaign.id }); if(error) throw error; toast(uiCopy('ลบแคมเปญแล้ว','Campaign deleted')); setTimeout(()=>location.reload(),500); }
+  catch(e){ toast(e.message||uiCopy('ลบไม่สำเร็จ','Delete failed'),true); }
 }
 async function leaveCampaign(){
   // v643 FIX-10 (BUGPLAN_2026-07-17 A7-correction): RPC มี host guard อยู่แล้ว ("host cannot leave own campaign") — กันที่ UI ให้ข้อความไทยชัดก่อนถึง confirm
   if(campaign && me && campaign.host_id===me.id){ alert(uiCopy('Host ออกจากโลกของตัวเองไม่ได้ — ใช้ ✕ End World (ลบถาวร) หรือชวนเพื่อนมาเล่นต่อ','The host cannot leave their own world — use ✕ End World (permanent deletion) or invite a friend to continue playing.')); return; }
   if(!confirm(uiCopy('ออกจากแคมเปญนี้?','Leave this campaign?'))) return;
-  try{ const { error } = await supa.rpc('leave_campaign',{ p_campaign:campaign.id }); if(error) throw error; toast('ออกจากแคมเปญแล้ว'); setTimeout(()=>location.reload(),500); }
-  catch(e){ toast(e.message||'ออกไม่สำเร็จ',true); }
+  try{ const { error } = await supa.rpc('leave_campaign',{ p_campaign:campaign.id }); if(error) throw error; toast(uiCopy('ออกจากแคมเปญแล้ว','Left the campaign')); setTimeout(()=>location.reload(),500); }
+  catch(e){ toast(e.message||uiCopy('ออกไม่สำเร็จ','Could not leave'),true); }
 }
 
 // ───────── campaign membership ─────────
@@ -3367,7 +3368,7 @@ async function createCampaign(){
       try{
         const rL=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tokB},body:JSON.stringify({campaign_id:campaign.id,beta_seed_lore:true})});
         const jL=await rL.json();
-        if(jL&&jL.ok) toast(`🌍 ลอร์ Forgotten Realms พร้อม (${jL.chunks||'มีอยู่แล้ว'} ส่วน) ✓`); else toast((jL&&jL.message)||'ฝังลอร์ไม่สำเร็จ (เล่นได้ปกติ)',true);
+        if(jL&&jL.ok) toast(uiCopy('🌍 ลอร์ Forgotten Realms พร้อม (','🌍 Forgotten Realms lore ready (')+(jL.chunks||uiCopy('มีอยู่แล้ว','already available'))+uiCopy(' ส่วน) ✓',' chunks) ✓')); else toast((jL&&jL.message)||uiCopy('ฝังลอร์ไม่สำเร็จ (เล่นได้ปกติ)','Lore ingest failed (you can still play normally)'),true);
       }catch(e){}
     }
     // ── v721: อ่านคีย์จากฟอร์ม 3 ช่องในหน้าสร้างโลก (v720 ใช้ prompt() — ตายทันทีที่ผู้ใช้สลับจอไป copy คีย์ = เคสจริง Koon 07-20) ──
@@ -3381,12 +3382,12 @@ async function createCampaign(){
           try{
             const rK=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tokK},body:JSON.stringify({campaign_id:campaign.id,[field]:val})});
             const jK=await rK.json();
-            if(jK&&jK.ok) toast(field==='set_gemini_key'?(lang==='en'?'Gemini key ready ✓':'Gemini key พร้อม ✓'):(lang==='en'?'Backup key #'+field.slice(-1)+' ready ✓':'คีย์สำรอง #'+field.slice(-1)+' พร้อม ✓'));
+            if(jK&&jK.ok) toast(field==='set_gemini_key'?uiCopy('Gemini key พร้อม ✓','Gemini key ready ✓'):uiCopy('คีย์สำรอง #','Backup key #')+field.slice(-1)+uiCopy(' พร้อม ✓',' ready ✓'));
             else alert((jK&&jK.message)||uiCopy('คีย์ไม่ถูกต้อง ('+field+') — แก้ทีหลังได้ใน DM TOOLS','Invalid key ('+field+') — fix it later in DM TOOLS.',lang));
           }catch(e){}
         }
       } else {
-        toast(lang==='en'?'No Gemini key set — add keys any time in DM TOOLS.':'ยังไม่ได้ใส่คีย์ Gemini — ตั้งทีหลังได้ใน DM TOOLS',true);
+        toast(uiCopy('ยังไม่ได้ใส่คีย์ Gemini — ตั้งทีหลังได้ใน DM TOOLS','No Gemini key set — add keys any time in DM TOOLS.'),true);
       }
     }
     await enterCampaign();
@@ -3395,8 +3396,8 @@ async function createCampaign(){
     if(BETA && /host restricted/i.test(String(e.message||''))){
       try{ localStorage.removeItem('betaCode'); }catch(_e){}
       const c2=prompt('❌ รหัสเบต้าที่เครื่องจำไว้ไม่ถูกต้อง\n\nใส่รหัสใหม่ให้ตรงเป๊ะ (ตัวพิมพ์ใหญ่-เล็กมีผล — ขอจากผู้ดูแลโดยตรง):');
-      if(c2&&c2.trim()){ try{ localStorage.setItem('betaCode',c2.trim()); }catch(_e){} toast('บันทึกรหัสแล้ว — กด Create Campaign อีกครั้งได้เลย'); }
-      else toast('ยังไม่มีรหัสเบต้า — สร้างโลกไม่ได้จนกว่าจะใส่รหัสถูก',true);
+      if(c2&&c2.trim()){ try{ localStorage.setItem('betaCode',c2.trim()); }catch(_e){} toast(uiCopy('บันทึกรหัสแล้ว — กด Create Campaign อีกครั้งได้เลย','Code saved — select Create Campaign again')); }
+      else toast(uiCopy('ยังไม่มีรหัสเบต้า — สร้างโลกไม่ได้จนกว่าจะใส่รหัสถูก','No beta code is set — a world cannot be created until a valid code is entered'),true);
     } else toast(UI18N.errorText(lang,e.message||e.code||'campaign-create-rejected'),true);
   }
   finally{ $('createBtn').disabled=false; $('createBtn').textContent=UI18N.text(lang,'create.button'); if($('createOsBtn')){ $('createOsBtn').disabled=false; $('createOsBtn').textContent=UI18N.text(lang,'oneshot.button'); } }
@@ -3437,9 +3438,9 @@ async function enterCampaign(){
     const wid=$('hdWorld'); if(wid){ wid.textContent='World: '+campaign.id; wid.classList.remove('hidden');
       wid.onclick=()=>{navigator.clipboard?.writeText(campaign.id);toast(uiText('world.idCopied'));}; }
     const tb=$('hdToken'); if(tb){ tb.classList.remove('hidden');
-      tb.onclick=async()=>{ try{ const t=(await supa.auth.getSession()).data.session?.access_token||''; if(!t){toast('ไม่พบ session — ลองรีเฟรช',true);return;}
-        await navigator.clipboard.writeText(t); toast('🔑 Ingest token copied ✓ — วางใน HOST_TOKEN (อายุ ~1 ชม.)'); }
-        catch(e){ toast('ก๊อปไม่สำเร็จ: '+(e.message||e),true); } }; }
+      tb.onclick=async()=>{ try{ const t=(await supa.auth.getSession()).data.session?.access_token||''; if(!t){toast(uiCopy('ไม่พบ session — ลองรีเฟรช','Session not found — try reloading'),true);return;}
+        await navigator.clipboard.writeText(t); toast(uiCopy('🔑 Ingest token copied ✓ — วางใน HOST_TOKEN (อายุ ~1 ชม.)','🔑 Ingest token copied ✓ — paste it into HOST_TOKEN (valid for about 1 hour)')); }
+        catch(e){ toast(uiCopy('ก๊อปไม่สำเร็จ: ','Copy failed: ')+(e.message||e),true); } }; }
   }
   const endBtn=$('hdEnd');
   if(campaign.host_id===me.id){ endBtn.textContent='✕ End World'; endBtn.onclick=endCampaign; }
@@ -5109,7 +5110,7 @@ function companionCard(c,isHost,view){
   const swap=isHost&&['active','reserve'].includes(c.status)?`<button class="btn ghost sm" onclick="companionRoster('${c.character_id}','${c.status}')">${c.status==='active'?'ย้ายไป Reserve':'ย้ายเข้า Active'}</button>`:'';
   const romance=((view&&view.own_characters)||[]).some(p=>p.romance_enabled)?`<button class="btn ghost sm" onclick="companionInteract('${c.character_id}','romance')">จีบ</button>`:'';
   const age=c.age_years==null?'':' · อายุ '+c.age_years;
-  return `<div class="item" style="margin:8px 0"><div class="nm">${escapeHtml(c.name)} <span class="tag">${escapeHtml(c.status)}</span></div><div class="sub">${escapeHtml(c.race||'')} ${escapeHtml(c.class||'')} · Lv ${c.level||1}${age}${c.active_slot?' · Slot '+c.active_slot:''}</div><div class="note" style="text-align:left;margin:7px 0">${rel}</div><div class="note" style="text-align:left;margin:7px 0">🎒 ${bag}<br>💰 ${w.gp||0} gp · ${w.sp||0} sp · ${w.cp||0} cp</div><div class="srow2" style="flex-wrap:wrap"><button class="btn ghost sm" onclick="companionInteract('${c.character_id}','talk')">คุยส่วนตัว</button><button class="btn ghost sm" onclick="companionInteract('${c.character_id}','spend')">ใช้เวลาด้วยกัน</button>${romance}<button class="btn ghost sm" onclick="companionGive('${c.character_id}')">มอบของ/เงิน</button><button class="btn ghost sm" onclick="companionRequest('${c.character_id}')">ขอของ</button><button class="btn ghost sm" onclick="toast('กระเป๋าที่เปิดเผยแสดงอยู่บนการ์ดแล้ว')">ดูกระเป๋า</button>${swap}</div></div>`;
+  return `<div class="item" style="margin:8px 0"><div class="nm">${escapeHtml(c.name)} <span class="tag">${escapeHtml(c.status)}</span></div><div class="sub">${escapeHtml(c.race||'')} ${escapeHtml(c.class||'')} · Lv ${c.level||1}${age}${c.active_slot?' · Slot '+c.active_slot:''}</div><div class="note" style="text-align:left;margin:7px 0">${rel}</div><div class="note" style="text-align:left;margin:7px 0">🎒 ${bag}<br>💰 ${w.gp||0} gp · ${w.sp||0} sp · ${w.cp||0} cp</div><div class="srow2" style="flex-wrap:wrap"><button class="btn ghost sm" onclick="companionInteract('${c.character_id}','talk')">คุยส่วนตัว</button><button class="btn ghost sm" onclick="companionInteract('${c.character_id}','spend')">ใช้เวลาด้วยกัน</button>${romance}<button class="btn ghost sm" onclick="companionGive('${c.character_id}')">มอบของ/เงิน</button><button class="btn ghost sm" onclick="companionRequest('${c.character_id}')">ขอของ</button><button class="btn ghost sm" onclick="toast(uiCopy('กระเป๋าที่เปิดเผยแสดงอยู่บนการ์ดแล้ว','The shared inventory is already shown on this card'))">ดูกระเป๋า</button>${swap}</div></div>`;
 }
 async function renderCompanion(){
   const p=$('panel-companion'); if(!p) return;
@@ -5134,18 +5135,18 @@ async function renderCompanion(){
     }
   }catch(e){ const msg=(e&&e.payload&&e.payload.error==='companion_v2_not_enabled')?companionLegacyUiMessage():uiCopy('โหลดข้อมูลคอมพาเนี่ยนไม่สำเร็จ กรุณาลองใหม่','Could not load companion data. Please try again.'); p.innerHTML='<div class="item"><div class="nm">Companion</div><div class="note">'+escapeHtml(msg)+'</div></div>'; }
 }
-function companionSoon(label){ toast(label+' จะเปิดในเฟส Privacy/Interaction'); }
+function companionSoon(label){ toast(label+uiCopy(' จะเปิดในเฟส Privacy/Interaction',' will open in the Privacy/Interaction phase')); }
 async function companionInteract(companionId,kind){
-  try{ const v=await companionViewLoad(true),pc=companionOwnedPc(v); if(!pc) return toast('ต้องมีตัวละครของคุณก่อน',true); if(kind==='romance'&&!pc.romance_enabled) return toast('ตัวละครนี้ยังไม่ได้เปิด Romance access',true);
+  try{ const v=await companionViewLoad(true),pc=companionOwnedPc(v); if(!pc) return toast(uiCopy('ต้องมีตัวละครของคุณก่อน','You need a character first'),true); if(kind==='romance'&&!pc.romance_enabled) return toast(uiCopy('ตัวละครนี้ยังไม่ได้เปิด Romance access','Romance access is not enabled for this character'),true);
     const sl=await loadSlowlifeState(true); if(sl&&sl.active){ await slowlifeInvite(companionId,kind,pc); return; }
     if(sl&&sl.mode==='enforce') return toast(uiCopy('(แก้: ฉากส่วนตัวเปิดได้เฉพาะช่วง Slowlife ที่ปลอดภัยในเมืองหรือจุดพักระหว่างทาง)','(Fixed: private scenes open only during a safe city or road-rest Slowlife window.)'),true);
     const labels={talk:'คุยเรื่องใด (เว้นว่างได้)',spend:'อยากใช้เวลาร่วมกันแบบใด (เว้นว่างได้)',romance:'อยากสื่อเจตนาอย่างไร — การกดส่งไม่การันตีว่า companion จะตอบรับ'};
-    const intent=String(prompt(labels[kind]||'เจตนาของฉาก','')||'').trim(); toast('กำลังเปิดฉากส่วนตัว…');
-    const j=await companionResolve({companion_interact:{character_id:pc.character_id,companion_id:companionId,kind,intent,request_key:crypto.randomUUID()}}); toast(j.note||'บันทึกฉากแล้ว'); _companionViewCache=null; renderCompanion();
-  }catch(e){ toast(e.message||'เปิดฉากส่วนตัวไม่สำเร็จ',true); }
+    const intent=String(prompt(labels[kind]||'เจตนาของฉาก','')||'').trim(); toast(uiCopy('กำลังเปิดฉากส่วนตัว…','Opening private scene…'));
+    const j=await companionResolve({companion_interact:{character_id:pc.character_id,companion_id:companionId,kind,intent,request_key:crypto.randomUUID()}}); toast(j.note||uiCopy('บันทึกฉากแล้ว','Scene saved')); _companionViewCache=null; renderCompanion();
+  }catch(e){ toast(e.message||uiCopy('เปิดฉากส่วนตัวไม่สำเร็จ','Could not open private scene'),true); }
 }
 async function companionConsent(){
-  try{ const v=await companionViewLoad(true),pc=companionOwnedPc(v); if(!pc) return toast('ต้องมีตัวละครของคุณก่อน',true);
+  try{ const v=await companionViewLoad(true),pc=companionOwnedPc(v); if(!pc) return toast(uiCopy('ต้องมีตัวละครของคุณก่อน','You need a character first'),true);
     const adult=confirm(uiCopy('กด OK เพื่อยืนยันว่าผู้เล่นตัวจริงมีอายุ 18 ปีขึ้นไป\nกด Cancel เพื่อไม่ยืนยันและปิดสิทธิ์ Romance ของบัญชี','Press OK to confirm that the real player is at least 18 years old.\nPress Cancel to decline confirmation and disable Romance access for this account.'));
     const romance=adult&&confirm(uiCopy('เปิดเส้นทาง Romance ให้ ','Enable the Romance path for ')+pc.name+uiCopy(' หรือไม่?\nการเปิดสิทธิ์ไม่บังคับให้ companion ตอบรับ','?\nEnabling access does not require the companion to accept.'));
     // v720: ไม่ใส่ปี — วัน/เดือน ตามปฏิทินโลก 12×30 (server อนุมานปีจากอายุตัวละคร)
@@ -5159,23 +5160,23 @@ async function companionConsent(){
     const needsAgePolicy=romance&&(pc.age_years==null||Number(pc.age_years)<18);
     const underageOk=needsAgePolicy&&confirm(uiCopy('หาก ','If ')+pc.name+uiCopy(' มีอายุตัวละคร 13-17 ปี\nยืนยันเปิดเฉพาะเส้นทางความสัมพันธ์แบบ PG-13 ที่ไม่มี adult content หรือไม่?\n(อายุต่ำกว่า 13 จะถูกบล็อกเสมอ; อายุ 18+ ระบบจะไม่ใช้ consent ข้อนี้)',' is a character aged 13–17, confirm enabling only a PG-13 relationship path with no adult content.\n(Characters under 13 are always blocked; this consent does not apply to characters aged 18+.)'));
     const body={character_id:pc.character_id,adult_confirmed:adult,romance_enabled:romance,underage_romance_confirmed:!!underageOk}; if(birth) body.birth_date=birth;
-    const j=await companionResolve({romance_confirm:body}); toast(j.note||'บันทึกแล้ว'); _companionViewCache=null; renderCompanion();
-  }catch(e){ toast(e.message||'บันทึก consent ไม่สำเร็จ',true); }
+    const j=await companionResolve({romance_confirm:body}); toast(j.note||uiCopy('บันทึกแล้ว','Saved')); _companionViewCache=null; renderCompanion();
+  }catch(e){ toast(e.message||uiCopy('บันทึก consent ไม่สำเร็จ','Could not save consent'),true); }
 }
 async function companionGive(companionId){
-  try{ const v=await companionViewLoad(false),pc=companionOwnedPc(v); if(!pc) return toast('ต้องมีตัวละครของคุณก่อน',true); const kind=String(prompt('พิมพ์ item เพื่อมอบของ หรือ money เพื่อมอบเงิน','item')||'').trim().toLowerCase(); if(!kind) return;
-    let body;if(kind==='money'){ const gp=Math.floor(Number(prompt('จำนวน GP','1'))||0); if(gp<1) return toast('จำนวนเงินไม่ถูกต้อง',true); body={transfer_currency:{from_character_id:pc.character_id,to_character_id:companionId,gp,transfer_key:crypto.randomUUID()}}; }
-    else { const item=String(prompt('ชื่อของตามที่อยู่ในกระเป๋า','')||'').trim(); const qty=Math.floor(Number(prompt('จำนวน','1'))||0); if(!item||qty<1) return toast('ชื่อหรือจำนวนไม่ถูกต้อง',true); body={transfer_item:{from_character_id:pc.character_id,to_character_id:companionId,item,qty,transfer_key:crypto.randomUUID()}}; }
-    const j=await companionResolve(body); toast(j.note||'มอบเรียบร้อย'); _companionViewCache=null; await refreshAll(); renderCompanion();
-  }catch(e){ toast(e.message||'มอบไม่สำเร็จ',true); }
+  try{ const v=await companionViewLoad(false),pc=companionOwnedPc(v); if(!pc) return toast(uiCopy('ต้องมีตัวละครของคุณก่อน','You need a character first'),true); const kind=String(prompt('พิมพ์ item เพื่อมอบของ หรือ money เพื่อมอบเงิน','item')||'').trim().toLowerCase(); if(!kind) return;
+    let body;if(kind==='money'){ const gp=Math.floor(Number(prompt('จำนวน GP','1'))||0); if(gp<1) return toast(uiCopy('จำนวนเงินไม่ถูกต้อง','Invalid amount'),true); body={transfer_currency:{from_character_id:pc.character_id,to_character_id:companionId,gp,transfer_key:crypto.randomUUID()}}; }
+    else { const item=String(prompt('ชื่อของตามที่อยู่ในกระเป๋า','')||'').trim(); const qty=Math.floor(Number(prompt('จำนวน','1'))||0); if(!item||qty<1) return toast(uiCopy('ชื่อหรือจำนวนไม่ถูกต้อง','Invalid item name or quantity'),true); body={transfer_item:{from_character_id:pc.character_id,to_character_id:companionId,item,qty,transfer_key:crypto.randomUUID()}}; }
+    const j=await companionResolve(body); toast(j.note||uiCopy('มอบเรียบร้อย','Transfer complete')); _companionViewCache=null; await refreshAll(); renderCompanion();
+  }catch(e){ toast(e.message||uiCopy('มอบไม่สำเร็จ','Transfer failed'),true); }
 }
 async function companionRequest(companionId){
-  try{ const v=await companionViewLoad(false),pc=companionOwnedPc(v); if(!pc) return toast('ต้องมีตัวละครของคุณก่อน',true); const item=String(prompt('อยากขอของชิ้นใด','')||'').trim(); if(!item) return; const qty=Math.max(1,Math.floor(Number(prompt('จำนวน','1'))||1)); const j=await companionResolve({companion_request_give:{companion_id:companionId,to_character_id:pc.character_id,item,qty,transfer_key:crypto.randomUUID()}}); toast(j.note||'ส่งคำขอแล้ว');
-  }catch(e){ toast(e.message||'ส่งคำขอไม่สำเร็จ',true); }
+  try{ const v=await companionViewLoad(false),pc=companionOwnedPc(v); if(!pc) return toast(uiCopy('ต้องมีตัวละครของคุณก่อน','You need a character first'),true); const item=String(prompt('อยากขอของชิ้นใด','')||'').trim(); if(!item) return; const qty=Math.max(1,Math.floor(Number(prompt('จำนวน','1'))||1)); const j=await companionResolve({companion_request_give:{companion_id:companionId,to_character_id:pc.character_id,item,qty,transfer_key:crypto.randomUUID()}}); toast(j.note||uiCopy('ส่งคำขอแล้ว','Request sent'));
+  }catch(e){ toast(e.message||uiCopy('ส่งคำขอไม่สำเร็จ','Request failed'),true); }
 }
 async function companionRoster(characterId,status){
-  try{ let desired=status==='active'?'reserve':'active',slot=null;if(desired==='active'){ slot=Math.floor(Number(prompt('Active slot (1-3)','1'))||0);if(slot<1||slot>3)return toast('slot ต้องเป็น 1-3',true); } const j=await companionResolve({roster_swap:{character_id:characterId,desired_status:desired,active_slot:slot,swap_key:crypto.randomUUID()}}); toast(j.note||'สลับ roster แล้ว'); _companionViewCache=null; await refreshAll(); renderCompanion();
-  }catch(e){ toast(e.message||'สลับ roster ไม่สำเร็จ',true); }
+  try{ let desired=status==='active'?'reserve':'active',slot=null;if(desired==='active'){ slot=Math.floor(Number(prompt('Active slot (1-3)','1'))||0);if(slot<1||slot>3)return toast(uiCopy('slot ต้องเป็น 1-3','Slot must be 1-3'),true); } const j=await companionResolve({roster_swap:{character_id:characterId,desired_status:desired,active_slot:slot,swap_key:crypto.randomUUID()}}); toast(j.note||uiCopy('สลับ roster แล้ว','Roster updated')); _companionViewCache=null; await refreshAll(); renderCompanion();
+  }catch(e){ toast(e.message||uiCopy('สลับ roster ไม่สำเร็จ','Could not update roster'),true); }
 }
 // ───────── OOC chat (คุยวางแผนนอกเรื่อง) ─────────
 async function loadChat(){
@@ -5189,7 +5190,7 @@ function clearChatLocal(){
   if(!confirm(uiCopy('ล้างแชทบนเครื่องนี้? (ประวัติยังอยู่ในระบบ เพื่อน/บอทยังเห็นตามปกติ)','Clear chat on this device? (The history remains in the system, and friends/bots can still see it normally.)'))) return;
   try{ localStorage.setItem('ttrpg_chatclear_'+campaign.id, String(Date.now())); }catch(e){}
   loadChat().then(()=>{ try{ renderChatList(); }catch(e){} try{ if(typeof renderBattleChat==='function') renderBattleChat(); }catch(e){} });
-  toast('ล้างแชทแล้ว (เครื่องนี้) ✓');
+  toast(uiCopy('ล้างแชทแล้ว (เครื่องนี้) ✓','Chat cleared on this device ✓'));
 }
 function chatNameFor(uid){
   const c=characters.find(x=>x.user_id===uid); if(c) return c.name;
@@ -5206,7 +5207,7 @@ async function sendChat(){
   const ta=$('chatInput'); const body=ta&&ta.value.trim(); if(!body) return;
   ta.value=''; ta.focus();
   try{ const { error }=await supa.from('chat_messages').insert({campaign_id:campaign.id,user_id:me.id,body:body.slice(0,2000)}); if(error) throw error; }
-  catch(e){ toast(e.message||'ส่งไม่สำเร็จ',true); }
+  catch(e){ toast(e.message||uiCopy('ส่งไม่สำเร็จ','Submit failed'),true); }
 }
 function clearChatBlink(){ const t=document.querySelector('.tab[data-tab="party"]'); if(t) t.classList.remove('blink'); }
 // เสียงคลิกแบบ retro (Web Audio — ไม่ต้องโหลดไฟล์)
@@ -5232,7 +5233,7 @@ async function refreshCombatTurn(){
   }catch(e){}
 }
 function notifyMyTurn(){
-  toast('⚔️ ถึงตาคุณแล้ว!');
+  toast(uiCopy('⚔️ ถึงตาคุณแล้ว!','⚔️ It is your turn!'));
   try{ tick(); setTimeout(tick,120); }catch(e){}
   const b=$('turnBanner'); if(b){ b.style.display='block'; setTimeout(()=>{ if(b) b.style.display='none'; },6000); }
 }
@@ -5249,7 +5250,7 @@ async function castVote(i, finish){
   }catch(e){ _voteOk=false; }
   try{ const r=await supa.from('campaign_state').select('*').eq('campaign_id',campaign.id).maybeSingle(); if(!r.error&&r.data){ worldState=r.data; cacheSave('state',worldState); } }catch(e){}
   try{ renderVoteCard(); }catch(e){}
-  try{ toast(_voteOk?'ส่งโหวตแล้ว ✓':'ส่งโหวตไม่สำเร็จ ลองใหม่อีกครั้ง', !_voteOk); }catch(e){}
+  try{ toast(_voteOk?uiCopy('ส่งโหวตแล้ว ✓','Vote submitted ✓'):uiCopy('ส่งโหวตไม่สำเร็จ ลองใหม่อีกครั้ง','Vote failed — try again'), !_voteOk); }catch(e){}
 }
 function renderVoteCard(){
   var host=$('narrFeed'); if(!host||!host.parentNode) return;
@@ -5591,8 +5592,8 @@ async function forceLevelup(){   // v538 H5: host บังคับปิด le
     var r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id, force_levelup:true})});
     var j=await r.json();
     if(j.error){ toast(j.error,true); return; }
-    toast('⚡ ข้าม level_up แล้ว — เล่นต่อได้'); try{ await loadState(); renderRoundbar(); }catch(e){}
-  }catch(e){ toast('ข้าม level_up ล้มเหลว: '+((e&&e.message)||e),true); }
+    toast(uiCopy('⚡ ข้าม level_up แล้ว — เล่นต่อได้','⚡ Level-up skipped — you can keep playing')); try{ await loadState(); renderRoundbar(); }catch(e){}
+  }catch(e){ toast(uiCopy('ข้าม level_up ล้มเหลว: ','Could not skip level-up: ')+((e&&e.message)||e),true); }
 }
 async function submitVictoryAck(force,groupOverride){
   if(gateBeforePlay()) return;
@@ -5606,15 +5607,15 @@ async function submitVictoryAck(force,groupOverride){
     if(j.error){ toast(j.error,true); return; }
     // reload worldState (victory_ack.done อัปเดต หรือถูกเคลียร์เมื่อ finalized)
     try{ var rs=await supa.from('campaign_state').select('*').eq('campaign_id',campaign.id).maybeSingle(); if(!rs.error&&rs.data){ worldState=rs.data; cacheSave('state',worldState); } }catch(e){}
-    if(j.status==='victory_finalized'){ _terminalFinalized=true; window._terminalExitPending=true; try{ await renderRoundbar(); }catch(e){} toast('🏆 ชัยชนะ!'); try{ await refreshAll(); if(activeTab()==='me') renderMe(); }catch(e){} }   /* v756: terminalExitPending hides stale battle actions until the explicit outro finishes · v559: refreshAll (ไม่ใช่แค่ loadState) — finalize เขียน XP/loot/เงินลง character_sheets → reload mySheet ให้แท็บ Stat อัปเดต */
-    else if(j.status==='defeat_finalized'){ _terminalFinalized=true; window._terminalExitPending=true; try{ await renderRoundbar(); }catch(e){} toast('💀 พ่ายแพ้… แต่เรื่องราวยังไม่จบ'); try{ await refreshAll(); if(activeTab()==='me') renderMe(); }catch(e){} }   /* v756 live playtest: กัน Battle Scene ค้าง HP/initiative ศึกเก่าระหว่าง outro · v531b: defeat gate (v506) จบ — ห้ามใช้ข้อความชัยชนะ */
+    if(j.status==='victory_finalized'){ _terminalFinalized=true; window._terminalExitPending=true; try{ await renderRoundbar(); }catch(e){} toast(uiCopy('🏆 ชัยชนะ!','🏆 Victory!')); try{ await refreshAll(); if(activeTab()==='me') renderMe(); }catch(e){} }   /* v756: terminalExitPending hides stale battle actions until the explicit outro finishes · v559: refreshAll (ไม่ใช่แค่ loadState) — finalize เขียน XP/loot/เงินลง character_sheets → reload mySheet ให้แท็บ Stat อัปเดต */
+    else if(j.status==='defeat_finalized'){ _terminalFinalized=true; window._terminalExitPending=true; try{ await renderRoundbar(); }catch(e){} toast(uiCopy('💀 พ่ายแพ้… แต่เรื่องราวยังไม่จบ','💀 Defeat… but the story is not over')); try{ await refreshAll(); if(activeTab()==='me') renderMe(); }catch(e){} }   /* v756 live playtest: กัน Battle Scene ค้าง HP/initiative ศึกเก่าระหว่าง outro · v531b: defeat gate (v506) จบ — ห้ามใช้ข้อความชัยชนะ */
     else if(j.status==='no_victory_pending'){ /* จบไปแล้ว */ }
     else if(j.status==='victory_ack_retry'||j.status==='defeat_retry'){ toast(j.note||uiCopy('(แก้: ธุรกรรมหลังศึกยังไม่ครบ — กรุณาลองอีกครั้ง)','(Fixed: the post-combat transaction is incomplete — try again.)'),true); }
-    else toast('✓ พร้อมแล้ว ('+(j.done||0)+'/'+(j.total||0)+')');
+    else toast(uiCopy('✓ พร้อมแล้ว (','✓ Ready (')+(j.done||0)+'/'+(j.total||0)+')');
     try{ await renderRoundbar(); }catch(e){}
     if(_terminalFinalized&&typeof exitBattleSceneWithOutro==='function'&&window._bsShown){ try{ await exitBattleSceneWithOutro(); }catch(e){} }
     else try{ scheduleBattleScene(); }catch(e){}
-  }catch(e){ toast('ส่งไม่สำเร็จ ลองใหม่',true); }
+  }catch(e){ toast(uiCopy('ส่งไม่สำเร็จ ลองใหม่','Submit failed — try again'),true); }
   finally{ window._vaSubmitting=false; if(_terminalFinalized){ window._terminalExitPending=false; try{ await renderRoundbar(); }catch(e){} } }
 }
 // ── v617 SESSION: host เริ่มตอนถัดไป (จาก interlude) — มิเรอร์ submitVictoryAck ──
@@ -5626,10 +5627,10 @@ async function submitSessionNext(){
     var rS=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tokS},body:JSON.stringify({campaign_id:campaign.id, session_next:true})});
     var jS=await rS.json();
     if(jS.error){ toast(jS.error,true); return; }
-    toast('📖 เริ่มตอนที่ '+(jS.session_no||'')+' แล้ว — DM จะเปิดฉากพร้อม recap ในรอบถัดไป');
+    toast(uiCopy('📖 เริ่มตอนที่ ','📖 Session ')+(jS.session_no||'')+uiCopy(' แล้ว — DM จะเปิดฉากพร้อม recap ในรอบถัดไป',' started — the DM will open the next round with a recap'));
     try{ await loadState(); }catch(e){}
     try{ await renderRoundbar(); }catch(e){}
-  }catch(e){ toast('เริ่มตอนใหม่ไม่สำเร็จ ลองใหม่',true); }
+  }catch(e){ toast(uiCopy('เริ่มตอนใหม่ไม่สำเร็จ ลองใหม่','Could not start a new session — try again'),true); }
   finally{ window._snSubmitting=false; }
 }
 // v638 BUG2 ownerWall: เจ้าของ options/roll แบบ 'รวม 2 แท็ก' (for_char_id=combat turn-lock · opt_for=story addressee) — branch-agnostic
@@ -5796,14 +5797,14 @@ async function renderRoundbar(){
             const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,buff_decision:{use:use}})});
             const j=await r.json(); if(j.error){ failDiceFx(_diceFx); toast(j.error,true); b.disabled=false; return; }
             const _finishBuff=async()=>{
-              if(j.kind==='attack') toast(j.hit?('โดนแล้ว!'+(j.bi?' (Bardic +'+j.bi+')':'')+' ✓'):'ยังพลาด…', !j.hit);
-              else toast(j.pass?('เซฟผ่าน! ('+j.total+') ✓'):('เซฟไม่ผ่าน ('+j.total+')'), !j.pass);
+              if(j.kind==='attack') toast(j.hit?(uiCopy('โดนแล้ว!','Hit!')+(j.bi?' (Bardic +'+j.bi+')':'')+' ✓'):uiCopy('ยังพลาด…','Missed…'), !j.hit);
+              else toast(j.pass?(uiCopy('เซฟผ่าน! (','Save passed! (')+j.total+') ✓'):(uiCopy('เซฟไม่ผ่าน (','Save failed (')+j.total+')'), !j.pass);
               await loadState(); renderRoundbar(); try{ resolveRound(false); }catch(e){}
             };
             if(handleDiceRollReceipt(j,_diceFx,_finishBuff)) return;
             // DICE-02 will add the raw d20. Until then the authoritative response total is the displayed face; never infer a client roll.
-            settleDiceFx(_diceFx,{dice:[{die:'d20',value:j.total}],total:j.total,dc:j.dc??_pd.dc,pass:j.ask_buff?null:(j.kind==='attack'?!!j.hit:!!j.pass),label:_pd.prompt||uiCopy('ใช้ตัวช่วยกับผลทอย','Apply a roll modifier')},()=>{ _finishBuff().catch(()=>{ toast('ไม่สำเร็จ',true); b.disabled=false; }); });
-          }catch(e){ failDiceFx(_diceFx); toast('ไม่สำเร็จ',true); b.disabled=false; }
+            settleDiceFx(_diceFx,{dice:[{die:'d20',value:j.total}],total:j.total,dc:j.dc??_pd.dc,pass:j.ask_buff?null:(j.kind==='attack'?!!j.hit:!!j.pass),label:_pd.prompt||uiCopy('ใช้ตัวช่วยกับผลทอย','Apply a roll modifier')},()=>{ _finishBuff().catch(()=>{ toast(uiCopy('ไม่สำเร็จ','Failed'),true); b.disabled=false; }); });
+          }catch(e){ failDiceFx(_diceFx); toast(uiCopy('ไม่สำเร็จ','Failed'),true); b.disabled=false; }
         }; return b; };
       const op=_pd.options||{};
       if(op.bi) bx.appendChild(mkB('ใช้ Bardic Inspiration (+1d6)','bi'));
@@ -5821,14 +5822,14 @@ async function renderRoundbar(){
           const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,save_roll:true})});
           const j=await r.json(); if(j.error){ failDiceFx(_diceFx); toast(j.error,true); sb.disabled=false; return; }
           const _finishSave=async()=>{
-            if(j.ask_buff){ toast('ทอยได้ '+j.total+' — ไม่ผ่าน แต่มีตัวช่วย เลือกได้เลย'); await loadState(); renderRoundbar(); return; }
-            toast(j.pass?('เซฟผ่าน! ('+j.total+' vs DC '+_ps.dc+') ✓'):('ไม่ผ่าน ('+j.total+' vs DC '+_ps.dc+')'), !j.pass);
+            if(j.ask_buff){ toast(uiCopy('ทอยได้ ','Rolled ')+j.total+uiCopy(' — ไม่ผ่าน แต่มีตัวช่วย เลือกได้เลย',' — failed, but a modifier is available')); await loadState(); renderRoundbar(); return; }
+            toast(j.pass?(uiCopy('เซฟผ่าน! (','Save passed! (')+j.total+' vs DC '+_ps.dc+') ✓'):(uiCopy('ไม่ผ่าน (','Failed (')+j.total+' vs DC '+_ps.dc+')'), !j.pass);
             await loadState(); renderRoundbar(); try{ resolveRound(false); }catch(e){}
           };
           if(handleDiceRollReceipt(j,_diceFx,_finishSave)) return;
           // DICE-02 will add the raw d20. Until then the authoritative response total is the displayed face; never infer a client roll.
-          settleDiceFx(_diceFx,{dice:[{die:'d20',value:j.total}],total:j.total,dc:_ps.dc,pass:j.ask_buff?null:!!j.pass,label:uiCopy('ทอยเซฟ ','Saving Throw ')+(_ps.ability||'')},()=>{ _finishSave().catch(()=>{ toast('ทอยไม่สำเร็จ ลองใหม่',true); sb.disabled=false; sb.textContent=uiCopy('🎲 ทอยเซฟ '+(_ps.ability||''),'🎲 Save '+(_ps.ability||'')); }); });
-        }catch(e){ failDiceFx(_diceFx); toast('ทอยไม่สำเร็จ ลองใหม่',true); sb.disabled=false; sb.textContent=uiCopy('🎲 ทอยเซฟ '+(_ps.ability||''),'🎲 Save '+(_ps.ability||'')); }
+          settleDiceFx(_diceFx,{dice:[{die:'d20',value:j.total}],total:j.total,dc:_ps.dc,pass:j.ask_buff?null:!!j.pass,label:uiCopy('ทอยเซฟ ','Saving Throw ')+(_ps.ability||'')},()=>{ _finishSave().catch(()=>{ toast(uiCopy('ทอยไม่สำเร็จ ลองใหม่','Roll failed — try again'),true); sb.disabled=false; sb.textContent=uiCopy('🎲 ทอยเซฟ '+(_ps.ability||''),'🎲 Save '+(_ps.ability||'')); }); });
+        }catch(e){ failDiceFx(_diceFx); toast(uiCopy('ทอยไม่สำเร็จ ลองใหม่','Roll failed — try again'),true); sb.disabled=false; sb.textContent=uiCopy('🎲 ทอยเซฟ '+(_ps.ability||''),'🎲 Save '+(_ps.ability||'')); }
       };
       bar.appendChild(sb);
     }
@@ -5866,12 +5867,12 @@ async function renderRoundbar(){
           const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id, death_save:true})});
           const j=await r.json();
           if(j.error){ toast(j.error,true); rb.disabled=false; rb.textContent=uiCopy('🎲 ทอย DEATH SAVE (รอบละครั้ง)','🎲 Roll DEATH SAVE (once per round)'); return; }
-          toast('🎲 d20 = '+j.roll+(j.revived?' — ปาฏิหาริย์ ฟื้น HP 1!':j.dead?' — สิ้นใจ…':j.stable?' — อาการคงที่!':(j.roll>=10?' — สำเร็จ ('+j.s+'/3)':' — ล้มเหลว ('+j.f+'/3)')), !(j.revived||j.stable||j.roll>=10));
+          toast('🎲 d20 = '+j.roll+(j.revived?uiCopy(' — ปาฏิหาริย์ ฟื้น HP 1!',' — miracle! Revived at 1 HP!'):j.dead?uiCopy(' — สิ้นใจ…',' — died…'):j.stable?uiCopy(' — อาการคงที่!',' — stabilized!'):(j.roll>=10?uiCopy(' — สำเร็จ (',' — success (')+j.s+'/3)':uiCopy(' — ล้มเหลว (',' — failure (')+j.f+'/3)')), !(j.revived||j.stable||j.roll>=10));
           mySheet.death_saves={s:j.s,f:j.f,round:j.round,stable:j.stable,dead:j.dead};
           if(j.revived && mySheet.combat){ mySheet.combat.hp=1; }
           renderRoundbar();
           try{ resolveRound(false); }catch(e){}   // ดันเกมต่อทันที — ศัตรู/บอททำเทิร์นถัดไป ไม่ค้างรอ
-        }catch(e){ toast('ทอยไม่สำเร็จ ลองใหม่',true); rb.disabled=false; rb.textContent=uiCopy('🎲 ทอย DEATH SAVE (รอบละครั้ง)','🎲 Roll DEATH SAVE (once per round)'); }
+        }catch(e){ toast(uiCopy('ทอยไม่สำเร็จ ลองใหม่','Roll failed — try again'),true); rb.disabled=false; rb.textContent=uiCopy('🎲 ทอย DEATH SAVE (รอบละครั้ง)','🎲 Roll DEATH SAVE (once per round)'); }
       };
       w.appendChild(rb);
     }
@@ -6333,25 +6334,25 @@ async function rollDM(items,diceRow){
       const { data, error }=await supa.rpc('roll_d20'); if(error) throw error;
       settleDiceFx(_diceFx,{dice:[{die:'d20',value:data}],total:data,label:'d20'},()=>insertRoll(data,'DM'));
     }
-  }catch(e){ failDiceFx(_diceFx); _setDiceDisabled(false); toast('ทอยไม่สำเร็จ (รัน migration?)',true); }
+  }catch(e){ failDiceFx(_diceFx); _setDiceDisabled(false); toast(uiCopy('ทอยไม่สำเร็จ (รัน migration?)','Roll failed (has the migration been run?)'),true); }
 }
 function insertRollMulti(text,who){
   const ta=$('actInput'); if(!ta) return;
-  if(window._rolledRound===(curRound&&curRound.id)){ toast('รอบนี้ทอยไปแล้ว — ทอยได้ครั้งเดียว',true); return; }
+  if(window._rolledRound===(curRound&&curRound.id)){ toast(uiCopy('รอบนี้ทอยไปแล้ว — ทอยได้ครั้งเดียว','You already rolled this round — one roll per round'),true); return; }
   window._rolledRound=curRound&&curRound.id;
   ta.value=(ta.value?ta.value.trim()+'\n':'')+`[ทอย (${who}): ${text}]`;
-  toast('🎲 ทอยแล้ว');
+  toast(uiCopy('🎲 ทอยแล้ว','🎲 Rolled'));
 }
 function rollSelf(){
   const v=prompt('ใส่เลขที่ทอยได้จาก d20 (1-20):'); if(v===null) return;
-  const n=parseInt(v); if(isNaN(n)||n<1||n>20){ toast('ใส่เลข 1-20',true); return; }
+  const n=parseInt(v); if(isNaN(n)||n<1||n>20){ toast(uiCopy('ใส่เลข 1-20','Enter a number from 1 to 20'),true); return; }
   insertRoll(n,'ทอยเอง');
 }
 function insertRoll(n,who){
   const ta=$('actInput'); if(!ta) return;
   // v191: ทอยได้ครั้งเดียวต่อรอบ — กันกดรัวเลือกแต้มดี (server มี rollGuard ตัดซ้ำอีกชั้น)
-  if(ta.value.includes('[ทอย d20')){ toast('ทอยได้ครั้งเดียวต่อรอบ — ใช้ผลที่ทอยแล้ว',true); return; }
-  if(window._rolledRound===(curRound&&curRound.id)){ toast('รอบนี้ทอยไปแล้ว — ทอยได้ครั้งเดียว',true); return; }
+  if(ta.value.includes('[ทอย d20')){ toast(uiCopy('ทอยได้ครั้งเดียวต่อรอบ — ใช้ผลที่ทอยแล้ว','One roll per round — use the existing result'),true); return; }
+  if(window._rolledRound===(curRound&&curRound.id)){ toast(uiCopy('รอบนี้ทอยไปแล้ว — ทอยได้ครั้งเดียว','You already rolled this round — one roll per round'),true); return; }
   window._rolledRound=curRound&&curRound.id;
   const ab=(mySheet&&mySheet.abilities)||{};
   const mods=['str','dex','con','int','wis','cha'].map(k=>{const m=Math.floor(((ab[k]||10)-10)/2);return k.toUpperCase()+(m>=0?'+':'−')+Math.abs(m);}).join(' ');
@@ -6380,7 +6381,7 @@ function refreshSelectionGate(){
       if(pd&&!window._prepNotified&&localStorage.getItem(dayK)!=='1'){
         window._prepNotified=true;
         try{ localStorage.setItem(dayK,'1'); }catch(e){}
-        toast('วันใหม่ในเกม — เตรียมเวทประจำวันในแท็บ Skills ก่อนเล่นต่อ',true);
+        toast(uiCopy('วันใหม่ในเกม — เตรียมเวทประจำวันในแท็บ Skills ก่อนเล่นต่อ','A new in-game day has begun — prepare daily spells in Skills before continuing'),true);
         switchTab('skills');
       }
     } else { window._prepNotified=false; }
@@ -6390,7 +6391,7 @@ function gateBeforePlay(){
   // v737 P0-A: build เก่ากว่า min ของ server = write-block ทั้งหน้า (server มี 426 wall จริงคู่กัน — นี่คือ UX ชั้นแรก ไม่ใช่กำแพง)
   if(window.frontendWriteBlocked){ toast(uiCopy('(แก้: หน้าเกมรุ่นเก่าถูกหยุดก่อน resolver เปลี่ยนสถานะหลักของโลก — รีเฟรชหน้าเพื่อใช้รุ่นล่าสุด)','(Fixed: this older game page was stopped before the resolver changed canonical world state — reload to get the latest version.)'),true); renderFrontendRefreshBanner(); return true; }
   const pend=selectionPending(); if(!pend) return false;
-  toast(pend==='levelup'?'เลือกสกิล/เวทเลเวลอัพในแท็บ Me ก่อน':'เตรียมเวทประจำวันในแท็บ Skills ก่อนถึงจะเล่นต่อได้',true);
+  toast(pend==='levelup'?uiCopy('เลือกสกิล/เวทเลเวลอัพในแท็บ Me ก่อน','Choose level-up skills/spells in Me first'):uiCopy('เตรียมเวทประจำวันในแท็บ Skills ก่อนถึงจะเล่นต่อได้','Prepare daily spells in Skills before continuing'),true);
   switchTab(pend==='levelup'?'me':'skills'); refreshSelectionGate(); return true;
 }
 async function submitAction(charIdOverride){
@@ -6437,8 +6438,8 @@ async function quickSubmit(text){
   try{
     await submitActionV2(curRound,myChar?.id||null,text,null);
     window._actionEditDraft=''; window._actionRepair=null;
-    toast('ส่งแล้ว ✓'); await loadRound(); renderRoundbar(); window._afterSubmit=true; resolveRound(false);
-  }catch(e){ toast(e.message||'ส่งไม่สำเร็จ',true); }
+    toast(uiCopy('ส่งแล้ว ✓','Submitted ✓')); await loadRound(); renderRoundbar(); window._afterSubmit=true; resolveRound(false);
+  }catch(e){ toast(e.message||uiCopy('ส่งไม่สำเร็จ','Submit failed'),true); }
   finally{ window._quickBusy=false; }
 }
 async function introAdventure(){ resolveRound(false,'intro'); }
@@ -6477,9 +6478,9 @@ async function resolveRound(force, mode){
         window._actionRepair=null; window._actionEditDraft=''; toast(j.note||uiCopy('(แก้: ระบบปลด action ที่ค้างแล้ว กรุณาส่ง action ใหม่)','(Fixed: the stuck action was released; submit a new action.)'),true);
       }else toast((j.error||uiCopy('ประมวลผลรอบไม่สำเร็จ','Resolve failed'))+(j.detail?(' — '+String(j.detail).slice(0,220)):''),true);
     }
-    else if(j.status==='waiting'){ if(afterSubmit) _waitRetry=true; var _wS=(j.submitted!=null?j.submitted:0), _wT=(j.total!=null?j.total:(members&&members.length)||'?'); toast(j.turn?`ถึงตา ${j.turn}`:`Waiting for everyone (${_wS}/${_wT})`); }   /* v634ui DYN-20: backend ตอบ waiting ไม่มี counts (เช่นรอเทิร์นในศึก) → เดิมโชว์ undefined/undefined · fallback 0/N หรือชื่อคนที่ถึงตา */
+    else if(j.status==='waiting'){ if(afterSubmit) _waitRetry=true; var _wS=(j.submitted!=null?j.submitted:0), _wT=(j.total!=null?j.total:(members&&members.length)||'?'); toast(j.turn?uiCopy('ถึงตา ','Turn: ')+j.turn:`Waiting for everyone (${_wS}/${_wT})`); }   /* v634ui DYN-20: backend ตอบ waiting ไม่มี counts (เช่นรอเทิร์นในศึก) → เดิมโชว์ undefined/undefined · fallback 0/N หรือชื่อคนที่ถึงตา */
     else if(j.status==='busy'){ /* someone else is resolving */ }
-    else if(j.status==='intro'){ toast('โลกถูกสร้างแล้ว — สร้างตัวละครได้เลย!'); }
+    else if(j.status==='intro'){ toast(uiCopy('โลกถูกสร้างแล้ว — สร้างตัวละครได้เลย!','World created — you can now create a character!')); }
     else if(j.status==='opened'||j.status==='resolved'){ if(j.auto_next){ _again=true; } else { toast(j.status==='opened'?'Scene opened!':'The DM continued the story!'); } }
   }catch(e){ toast(uiCopy('เชื่อมต่อ resolver ไม่สำเร็จ — ตรวจเครือข่ายแล้วกดลองใหม่เอง','Could not reach the resolver — check the network and retry manually'),true); }
   finally{
@@ -6659,7 +6660,7 @@ async function renderLevelUpPanel(p){
       b.onclick=()=>{ if(levelFeatPick){ levelFeatPick=''; if(featSel) featSel.value=''; } const v=asiState[k]||0;
         if(v===2){ delete asiState[k]; }
         else if(v===1){ if(totalAsi()===1){ asiState[k]=2; } else { delete asiState[k]; } }
-        else if(totalAsi()>=2){ toast('รวมได้สูงสุด +2 (กฎ 5e: +2 ค่าเดียว หรือ +1 สองค่า)',true); return; }
+        else if(totalAsi()>=2){ toast(uiCopy('รวมได้สูงสุด +2 (กฎ 5e: +2 ค่าเดียว หรือ +1 สองค่า)','Maximum total is +2 (5e: +2 to one score or +1 to two scores)'),true); return; }
         else { asiState[k]=1; }
         paintAll(); };
       g.appendChild(b); });
@@ -6727,7 +6728,7 @@ async function renderLevelUpPanel(p){
       grp.forEach(sp=>{ const row=document.createElement('label'); row.className='fld'; row.style.cssText='flex-direction:row;align-items:flex-start;gap:8px;cursor:pointer;margin:1px 0';
         row.innerHTML='<input type="checkbox" style="margin-top:3px"><span><b>'+escapeHtml(sp.name)+'</b>'+aoeTag(sp)+(sp.damage?' <span class="muted">('+escapeHtml(sp.damage)+(sp.save?(' '+escapeHtml(sp.save)):'')+')</span>':'')+'<div class="muted" style="font-size:11px;line-height:1.4">'+escapeHtml(sp.effect||'')+'</div></span>';
         const inp=row.querySelector('input');
-        inp.onchange=(e)=>{ if(e.target.checked){ if(setRef.size>=cap){ e.target.checked=false; toast((L===0?'เลือก cantrip ได้ ':'เลือกเวทได้ ')+cap,true); return; } setRef.add(sp.slug); } else setRef.delete(sp.slug); upd(); };
+        inp.onchange=(e)=>{ if(e.target.checked){ if(setRef.size>=cap){ e.target.checked=false; toast((L===0?uiCopy('เลือก cantrip ได้ ','Choose up to ')+cap+uiCopy('',' cantrips'):uiCopy('เลือกเวทได้ ','Choose up to ')+cap+uiCopy('',' spells')),true); return; } setRef.add(sp.slug); } else setRef.delete(sp.slug); upd(); };
         box.appendChild(row); }); });
     card.appendChild(box);
   }
@@ -6843,7 +6844,7 @@ async function submitLevelUp(asiState, picks, feats, btn){
       ? uiCopy('เลเวลอัพเสร็จ ✓ รอเพื่อนอีก '+Math.max(0,_luAfter.total-_luAfter.done)+' คน','Level up complete — waiting for '+Math.max(0,_luAfter.total-_luAfter.done)+' more.')
       : uiCopy('เลเวลอัพเสร็จ ✓ พร้อมเล่นต่อ','Level up complete — ready to continue.'));
     renderMe(); renderRoundbar();
-  }catch(e){ toast(e.message||'ยืนยันไม่สำเร็จ',true); if(btn){ btn.disabled=false; btn.textContent=uiCopy('\u2713 ยืนยันเลเวลอัพ','\u2713 Confirm level up'); } }
+  }catch(e){ toast(e.message||uiCopy('ยืนยันไม่สำเร็จ','Confirmation failed'),true); if(btn){ btn.disabled=false; btn.textContent=uiCopy('\u2713 ยืนยันเลเวลอัพ','\u2713 Confirm level up'); } }
 }
 // Part B: หน้าเตรียมเวทรายวัน (cleric/druid/paladin) — โผล่เมื่อ prepare_due (วันใหม่) หรือกดเลือกเองได้
 async function renderSpellPreparePanel(p, sheet){
@@ -7110,7 +7111,7 @@ async function _renderMeInner(){
       _fresh.notes=_notesV;
       await _saveSheet(_fresh, _prev);   // แก้เฉพาะ notes บน sheet ล่าสุด + optimistic lock (มิเรอร์จุด save อื่น)
       _cacheSet('ttrpg_bg_'+campaign.id, _fresh.notes||''); toast('Saved ✓');
-    }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ชีทเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} } else toast('บันทึกไม่สำเร็จ ลองใหม่',true); }
+    }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast(uiCopy('ชีทเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง','The sheet changed while editing — reload and try again'),true); try{await refreshAll();}catch(_){} } else toast(uiCopy('บันทึกไม่สำเร็จ ลองใหม่','Save failed — try again'),true); }
   };
   it4.appendChild(save); p.appendChild(it4);
 
@@ -7128,8 +7129,8 @@ async function _renderMeInner(){
   p.appendChild(av);
 }
 async function uploadAvatar(fi,btn){
-  const file=fi.files&&fi.files[0]; if(!file){ toast('เลือกรูปก่อน',true); return; }
-  if(file.size>5000000){ toast('รูปใหญ่เกิน 5MB',true); return; }
+  const file=fi.files&&fi.files[0]; if(!file){ toast(uiCopy('เลือกรูปก่อน','Choose an image first'),true); return; }
+  if(file.size>5000000){ toast(uiCopy('รูปใหญ่เกิน 5MB','The image exceeds 5 MB'),true); return; }
   btn.disabled=true;
   try{
     const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_'); const path=campaign.id+'/'+myChar.id+'_'+Date.now()+'_'+safe;
@@ -7137,8 +7138,8 @@ async function uploadAvatar(fi,btn){
     const old=myChar.avatar_path;
     const upd=await supa.from('characters').update({avatar_path:path}).eq('id',myChar.id); if(upd.error) throw upd.error;
     if(old){ try{ await supa.storage.from('avatars').remove([old]); }catch(e){} }
-    myChar.avatar_path=path; toast('อัปรูปแล้ว ✓'); await loadCharacters(); myChar=characters.find(c=>c.user_id===me.id)||myChar; renderMe();
-  }catch(e){ toast(e.message||'อัปรูปล้มเหลว',true); btn.disabled=false; }
+    myChar.avatar_path=path; toast(uiCopy('อัปรูปแล้ว ✓','Image uploaded ✓')); await loadCharacters(); myChar=characters.find(c=>c.user_id===me.id)||myChar; renderMe();
+  }catch(e){ toast(e.message||uiCopy('อัปรูปล้มเหลว','Image upload failed'),true); btn.disabled=false; }
 }
 async function _renderPartyInner(){
   const p=$('panel-party');
@@ -7497,13 +7498,13 @@ async function renderItems(){
     const addIn=document.createElement('input'); addIn.type='text'; addIn.placeholder=uiCopy('เพิ่มไอเท็มเอง เช่น Longbow (1d8 piercing)','Add a custom item, e.g. Longbow (1d8 piercing)'); addIn.style.cssText="flex:1;font-family:inherit;font-size:13px;padding:4px 8px";   /* v610f: inherit */
     const addBtn=document.createElement('button'); addBtn.className='btn sm'; addBtn.textContent=uiCopy('เพิ่ม','Add');
     addBtn.onclick=async()=>{
-      const nm=addIn.value.trim(); if(!nm){ toast('ใส่ชื่อไอเท็มก่อน',true); return; }
-      const _ci=(typeof itemByName==='function')?itemByName(nm):null; if(_ci&&_ci.is_magic){ toast('🔒 ไอเท็มเวทต้องได้จากเกม (ร้าน/ของรางวัล/DM) — เพิ่มเองไม่ได้',true); return; }   /* v379 L Wall 1: กันเพิ่มไอเท็มเวทจากคลังเองฟรี · free-text ผ่านปกติ (itemByName=null) */
+      const nm=addIn.value.trim(); if(!nm){ toast(uiCopy('ใส่ชื่อไอเท็มก่อน','Enter an item name first'),true); return; }
+      const _ci=(typeof itemByName==='function')?itemByName(nm):null; if(_ci&&_ci.is_magic){ toast(uiCopy('🔒 ไอเท็มเวทต้องได้จากเกม (ร้าน/ของรางวัล/DM) — เพิ่มเองไม่ได้','🔒 Magic items must come from the game (shop/reward/DM) and cannot be added manually'),true); return; }   /* v379 L Wall 1: กันเพิ่มไอเท็มเวทจากคลังเองฟรี · free-text ผ่านปกติ (itemByName=null) */
       try{ const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle();
         if(r.error) throw r.error;   /* L28: re-SELECT สดก่อนแก้ + เช็ค SELECT error (เดิมใช้ mySheet ค้าง + ไม่ reload ตอน conflict) */
         const sh=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at; sh.inventory=Array.isArray(sh.inventory)?sh.inventory.slice():[]; sh.inventory.push({name:nm.slice(0,80),qty:1});
-        await _saveSheet(sh, _prev); addIn.value='';   /* v271 H5: ส่ง updated_at (timestamp) ไม่ใช่ object mySheet */ toast('เพิ่ม "'+nm+'" ลงกระเป๋าแล้ว'+(equipSlotFor(nm)?' — กด สวมใส่ ได้เลย':'')); renderItems();
-      }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ของเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderItems(); } else toast('เพิ่มไม่สำเร็จ',true); }
+        await _saveSheet(sh, _prev); addIn.value='';   /* v271 H5: ส่ง updated_at (timestamp) ไม่ใช่ object mySheet */ toast(uiCopy('เพิ่ม "','Added "')+nm+uiCopy('" ลงกระเป๋าแล้ว','" to inventory')+(equipSlotFor(nm)?uiCopy(' — กด สวมใส่ ได้เลย',' — select Equip to use it'):'')); renderItems();
+      }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast(uiCopy('ของเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง','The inventory changed while editing — reload and try again'),true); try{await refreshAll();}catch(_){} renderItems(); } else toast(uiCopy('เพิ่มไม่สำเร็จ','Could not add item'),true); }
     };
     addRow.appendChild(addIn); addRow.appendChild(addBtn); bag.appendChild(addRow);
   }
@@ -7557,17 +7558,17 @@ async function _saveSheet(sheet, prev, writableLeaves){
 function useConsumable(name, effect){
   /* v488 (checklist 3.4): แนบ marker machine-generated "[ใช้ไอเทม: ชื่อ]" — server หักของแบบ deterministic (consumeIntent fast-path) ไม่ต้องเดา verb จากภาษา (มิเรอร์ marker [เป้าหมายพื้นที่:] ของ AoE) */
   const ta=$('actInput'); const txt='ใช้ '+name+(effect?(' — '+effect):'')+' [ใช้ไอเทม: '+name+']';
-  if(ta){ ta.value=(ta.value?ta.value.trim()+'\n':'')+txt; switchTab('story'); try{ta.focus();}catch(e){} toast('ใส่ "'+name+'" ในช่องสั่งการแล้ว — กดส่งให้ DM บรรยายผล'); }
-  else { switchTab('story'); toast('พิมพ์ "ใช้ '+name+'" ในช่องสั่งการ เพื่อให้ DM ประมวลผล',true); }
+  if(ta){ ta.value=(ta.value?ta.value.trim()+'\n':'')+txt; switchTab('story'); try{ta.focus();}catch(e){} toast(uiCopy('ใส่ "','Added "')+name+uiCopy('" ในช่องสั่งการแล้ว — กดส่งให้ DM บรรยายผล','" to the action box — submit it for the DM to narrate')); }
+  else { switchTab('story'); toast(uiCopy('พิมพ์ "ใช้ ','Type "Use ')+name+uiCopy('" ในช่องสั่งการ เพื่อให้ DM ประมวลผล','" in the action box for the DM to resolve'),true); }
 }
 async function equipItem(name){
-  if(!myChar||!name) return; const slot=equipSlotFor(name); if(!slot){ toast('ไอเทมนี้สวมใส่ไม่ได้',true); return; }
+  if(!myChar||!name) return; const slot=equipSlotFor(name); if(!slot){ toast(uiCopy('ไอเทมนี้สวมใส่ไม่ได้','This item cannot be equipped'),true); return; }
   try{
     const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle();
     if(r.error) throw r.error;   /* review-r1 F16: เช็ค SELECT error (เดิมเงียบ → _prev undefined → ข้าม optimistic lock → lost update) */
     const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at; sheet.equipment=sheet.equipment||{};
     const ci=itemByName(name);
-    if(ci&&ci.requires_attunement){ if(equippedBonuses(sheet).attune>=3){ toast('attunement เต็ม (สูงสุด 3 ชิ้น) — ถอดของเวทก่อน',true); return; } }
+    if(ci&&ci.requires_attunement){ if(equippedBonuses(sheet).attune>=3){ toast(uiCopy('attunement เต็ม (สูงสุด 3 ชิ้น) — ถอดของเวทก่อน','Attunement is full (maximum 3 items) — unequip a magic item first'),true); return; } }
     let inv=Array.isArray(sheet.inventory)?sheet.inventory.slice():[];
     const idx=inv.findIndex(i=>(typeof i==='string'?i:(i.name||''))===name);
     if(idx>=0){ const it=inv[idx]; if(typeof it!=='string' && +it.qty>1){ inv[idx]={...it,qty:+it.qty-1}; } else { inv.splice(idx,1); } }
@@ -7580,12 +7581,12 @@ async function equipItem(name){
       sheet.equipment[slot]=name;
     }
     sheet.inventory=inv;
-    persistCombatStats(sheet, myChar.class); await _saveSheet(sheet, _prev, ['equipment','inventory']); tick(); toast('สวมใส่ '+name+' ✓'); renderItems();
-  }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ของเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderItems(); } else toast('สวมใส่ไม่สำเร็จ',true); }
+    persistCombatStats(sheet, myChar.class); await _saveSheet(sheet, _prev, ['equipment','inventory']); tick(); toast(uiCopy('สวมใส่ ','Equipped ')+name+' ✓'); renderItems();
+  }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast(uiCopy('ของเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง','The inventory changed while editing — reload and try again'),true); try{await refreshAll();}catch(_){} renderItems(); } else toast(uiCopy('สวมใส่ไม่สำเร็จ','Could not equip item'),true); }
 }
 // v365 #10: ใส่อาวุธ light ช่องมือรอง (Two-Weapon Fighting — resolver v363 อ่าน equipment.offhand)
 async function equipOffhand(name){
-  if(!myChar||!name) return; if(equipSlotFor(name)!=='weapon'){ toast('ช่องมือรองใส่ได้เฉพาะอาวุธ',true); return; }
+  if(!myChar||!name) return; if(equipSlotFor(name)!=='weapon'){ toast(uiCopy('ช่องมือรองใส่ได้เฉพาะอาวุธ','Only weapons can be equipped in the off hand'),true); return; }
   try{
     const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle();
     if(r.error) throw r.error;   /* review-r1 F16: เช็ค SELECT error (เดิมเงียบ → _prev undefined → ข้าม optimistic lock → lost update) */
@@ -7595,8 +7596,8 @@ async function equipOffhand(name){
     if(idx>=0){ const it=inv[idx]; if(typeof it!=='string' && +it.qty>1){ inv[idx]={...it,qty:+it.qty-1}; } else { inv.splice(idx,1); } }
     const prev=sheet.equipment.offhand; if(prev) inv.push({name:prev,qty:1});
     sheet.equipment.offhand=name; sheet.inventory=inv;
-    persistCombatStats(sheet, myChar.class); await _saveSheet(sheet, _prev, ['equipment','inventory']); tick(); toast('ใส่มือรอง '+name+' ✓'); renderItems();
-  }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ของเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderItems(); } else toast('ใส่มือรองไม่สำเร็จ',true); }
+    persistCombatStats(sheet, myChar.class); await _saveSheet(sheet, _prev, ['equipment','inventory']); tick(); toast(uiCopy('ใส่มือรอง ','Equipped in off hand: ')+name+' ✓'); renderItems();
+  }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast(uiCopy('ของเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง','The inventory changed while editing — reload and try again'),true); try{await refreshAll();}catch(_){} renderItems(); } else toast(uiCopy('ใส่มือรองไม่สำเร็จ','Could not equip off-hand item'),true); }
 }
 async function unequipAccessory(name){
   if(!myChar||!name) return;
@@ -7609,8 +7610,8 @@ async function unequipAccessory(name){
     if(i>=0){ acc.splice(i,1); removed=true; } else if(sheet.equipment.accessory===name){ sheet.equipment.accessory=''; removed=true; }
     sheet.equipment.accessories=acc; if(!removed) return;
     let inv=Array.isArray(sheet.inventory)?sheet.inventory.slice():[]; inv.push({name,qty:1}); sheet.inventory=inv;
-    persistCombatStats(sheet, myChar.class); await _saveSheet(sheet, _prev, ['equipment','inventory']); tick(); toast('ถอด '+name+' ✓'); renderItems();
-  }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ของเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderItems(); } else toast('ถอดไม่สำเร็จ',true); }
+    persistCombatStats(sheet, myChar.class); await _saveSheet(sheet, _prev, ['equipment','inventory']); tick(); toast(uiCopy('ถอด ','Unequipped ')+name+' ✓'); renderItems();
+  }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast(uiCopy('ของเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง','The inventory changed while editing — reload and try again'),true); try{await refreshAll();}catch(_){} renderItems(); } else toast(uiCopy('ถอดไม่สำเร็จ','Could not unequip item'),true); }
 }
 // ถอด: ย้ายจากช่อง equipment → กระเป๋า
 async function unequipItem(slot){
@@ -7622,8 +7623,8 @@ async function unequipItem(slot){
     const val=sheet.equipment[slot]; if(!val) return;
     let inv=Array.isArray(sheet.inventory)?sheet.inventory.slice():[]; inv.push({name:val,qty:1});
     sheet.equipment[slot]=''; sheet.inventory=inv;
-    persistCombatStats(sheet, myChar.class); await _saveSheet(sheet, _prev, ['equipment','inventory']); tick(); toast('ถอด '+val+' ✓'); renderItems();
-  }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ของเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderItems(); } else toast('ถอดไม่สำเร็จ',true); }
+    persistCombatStats(sheet, myChar.class); await _saveSheet(sheet, _prev, ['equipment','inventory']); tick(); toast(uiCopy('ถอด ','Unequipped ')+val+' ✓'); renderItems();
+  }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast(uiCopy('ของเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง','The inventory changed while editing — reload and try again'),true); try{await refreshAll();}catch(_){} renderItems(); } else toast(uiCopy('ถอดไม่สำเร็จ','Could not unequip item'),true); }
 }
 // ───────── render: skills (ตาราง skills + fallback) ─────────
 const _RACE_NAMES=(()=>{const x=new Set(['heroic inspiration','resourceful','แรงบันดาลใจฮีโร่']);try{Object.values(RACE_FEATURES).forEach(a=>a.forEach(f=>x.add((f.name||'').toLowerCase())));}catch(e){}return x;})();   // ชื่อ legacy คงไว้เพื่อให้ชีท Human เก่าแสดงหมวดเผ่าได้โดยไม่มอบ trait นี้ให้ตัวใหม่
@@ -7703,7 +7704,7 @@ function renderFightingStyleCard(p){
       await _saveSheet(sheet, _prev); tick();
       toast(val?uiCopy('ตั้งรูปแบบการต่อสู้: ','Fighting Style set: ')+localizedRuleOption(FIGHTING_STYLE_OPTS.find(o=>o.id===val)||{}).label+' ✓':uiCopy('ล้างรูปแบบการต่อสู้แล้ว','Fighting Style cleared'));
       if(val) _fsRenderLocked(val);   // v428: เลือกแล้วล็อกการ์ดทันที (ถาวร · กันเปลี่ยนกลับไปมาในหน้าเดียว)
-    }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ชีทเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderSkills(); } else toast('บันทึกไม่สำเร็จ ลองใหม่',true); }
+    }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast(uiCopy('ชีทเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง','The sheet changed while editing — reload and try again'),true); try{await refreshAll();}catch(_){} renderSkills(); } else toast(uiCopy('บันทึกไม่สำเร็จ ลองใหม่','Save failed — try again'),true); }
   };
   p.appendChild(card);
 }
@@ -7852,7 +7853,7 @@ function renderHuntersPreyCard(p){
       if(val) sheet.hunters_prey=val; else delete sheet.hunters_prey;
       await _saveSheet(sheet, _prev); tick();
       toast(val?(uiCopy("ตั้ง Hunter’s Prey: ","Hunter’s Prey set: ")+(preyOpts.find(o=>o.id===val)||{}).label+' ✓'):uiCopy("ล้าง Hunter’s Prey แล้ว","Hunter’s Prey cleared"));
-    }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ชีทเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderSkills(); } else toast('บันทึกไม่สำเร็จ ลองใหม่',true); }
+    }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast(uiCopy('ชีทเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง','The sheet changed while editing — reload and try again'),true); try{await refreshAll();}catch(_){} renderSkills(); } else toast(uiCopy('บันทึกไม่สำเร็จ ลองใหม่','Save failed — try again'),true); }
   };
   p.appendChild(card);
 }
@@ -7882,7 +7883,7 @@ function renderAscendantElementCard(p){
       sheet.monk_element=val;
       await _saveSheet(sheet, _prev); tick();
       toast(uiCopy('ตั้งธาตุมังกร: ','Draconic element set: ')+((elementOpts.find(o=>o.id===val)||{}).label||val)+' ✓');
-    }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ชีทเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderSkills(); } else toast('บันทึกไม่สำเร็จ ลองใหม่',true); }
+    }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast(uiCopy('ชีทเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง','The sheet changed while editing — reload and try again'),true); try{await refreshAll();}catch(_){} renderSkills(); } else toast(uiCopy('บันทึกไม่สำเร็จ ลองใหม่','Save failed — try again'),true); }
   };
   p.appendChild(card);
 }
@@ -7910,7 +7911,7 @@ function renderStormEnvCard(p){
       sheet.storm_aura_env=val;
       await _saveSheet(sheet, _prev); tick();
       toast(uiCopy('ตั้งสิ่งแวดล้อมพายุ: ','Storm environment set: ')+((stormOpts.find(o=>o.id===val)||{}).label||val)+' ✓');
-    }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ชีทเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderSkills(); } else toast('บันทึกไม่สำเร็จ ลองใหม่',true); }
+    }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast(uiCopy('ชีทเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง','The sheet changed while editing — reload and try again'),true); try{await refreshAll();}catch(_){} renderSkills(); } else toast(uiCopy('บันทึกไม่สำเร็จ ลองใหม่','Save failed — try again'),true); }
   };
   p.appendChild(card);
 }
@@ -8100,14 +8101,14 @@ function renderSubclassCard(p){
     try{
       const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle(); if(r.error) throw r.error;
       const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at;
-      if(_subCurMatch(spec, sheet)){ toast('สายอาชีพย่อยถูกตั้งไว้แล้ว',true); renderSkills(); return; }   // กันแข่ง: client อื่นเพิ่งตั้ง
+      if(_subCurMatch(spec, sheet)){ toast(uiCopy('สายอาชีพย่อยถูกตั้งไว้แล้ว','A subclass has already been selected'),true); renderSkills(); return; }   // กันแข่ง: client อื่นเพิ่งตั้ง
       if(spec.domain){ sheet.domain_key=val; sheet.subclass=_nm; }
       else { sheet.subclass=val; }
       persistCombatStats(sheet, myChar.class);   // re-bake AC (Draconic/Bladesinger)
       await _saveSheet(sheet, _prev); tick();
-      toast('เลือกสายอาชีพย่อย: '+_nm+' ✓ (ถาวร)');
+      toast(uiCopy('เลือกสายอาชีพย่อย: ','Subclass selected: ')+_nm+uiCopy(' ✓ (ถาวร)',' ✓ (permanent)'));
       renderSkills();   // re-render → ล็อก
-    }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ชีทเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderSkills(); } else toast('บันทึกไม่สำเร็จ ลองใหม่',true); }
+    }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast(uiCopy('ชีทเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง','The sheet changed while editing — reload and try again'),true); try{await refreshAll();}catch(_){} renderSkills(); } else toast(uiCopy('บันทึกไม่สำเร็จ ลองใหม่','Save failed — try again'),true); }
   };
   p.appendChild(card);
 }
@@ -8192,19 +8193,19 @@ async function useAbility(name, desc){
     const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id, use_ability:{name:name, target:target||undefined}})});
     const j=await r.json();
     if(j.error){ toast(j.error,true); return; }
-    toast(j.text||'ใช้ความสามารถสำเร็จ ✓');
+    toast(j.text||uiCopy('ใช้ความสามารถสำเร็จ ✓','Ability used ✓'));
     try{ await refreshAll(); }catch(e){} try{ renderSkills(); }catch(e){}
     try{ resolveRound(false); }catch(e){}   // ให้ DM เล่าผลที่ server เขียนลง combat_log
-  }catch(e){ toast('ใช้ความสามารถไม่สำเร็จ ลองใหม่',true); }
+  }catch(e){ toast(uiCopy('ใช้ความสามารถไม่สำเร็จ ลองใหม่','Could not use ability — try again'),true); }
 }
 async function useSkill(id,used,max,name,desc){
   // v186: เลิกหัก used ฝั่ง client — server (skillUseTracker) หักเองตอน resolve ทั้งใน/นอกคอมแบต (จุดเขียนจุดเดียว กันหักซ้ำ)
-  if(max>0 && used>=max){ toast('ใช้ครบจำนวนแล้ว — รอพักฟื้น',true); return; }
+  if(max>0 && used>=max){ toast(uiCopy('ใช้ครบจำนวนแล้ว — รอพักฟื้น','No uses remaining — recover before using it again'),true); return; }
   tick();
   // ใส่การใช้สกิลลงช่องสั่งการ → ไป Story → DM บรรยายผล (ได้ทั้งในและนอกคอมแบต)
   const txt='ใช้ความสามารถ "'+name+'"'+(desc?(' ('+desc+')'):'');
   switchTab('story');
-  setTimeout(()=>{ const ta=$('actInput'); if(ta){ ta.value=(ta.value?ta.value.trim()+'\n':'')+txt; ta.focus(); ta.dispatchEvent(new Event('input')); } toast('ใส่สกิลในช่องสั่งการแล้ว — เพิ่มเป้าหมาย/รายละเอียดได้ แล้วกด Submit เพื่อให้ DM บรรยายผล'); }, 180);
+  setTimeout(()=>{ const ta=$('actInput'); if(ta){ ta.value=(ta.value?ta.value.trim()+'\n':'')+txt; ta.focus(); ta.dispatchEvent(new Event('input')); } toast(uiCopy('ใส่สกิลในช่องสั่งการแล้ว — เพิ่มเป้าหมาย/รายละเอียดได้ แล้วกด Submit เพื่อให้ DM บรรยายผล','Skill added to the action box — add a target/details, then submit it for the DM to narrate')); }, 180);
 }
 async function restSkills(kind){
   tick();
@@ -8408,8 +8409,8 @@ async function renderNPCs(){
 async function deleteNPC(id){
   if(!confirm(uiCopy('ลบ NPC นี้?','Delete this NPC?'))) return;
   const { error }=await supa.from('npcs').delete().eq('id',id);
-  if(error){ toast(error.message||'ลบไม่สำเร็จ (เฉพาะ host)',true); return; }
-  toast('ลบแล้ว ✓'); renderNPCs();
+  if(error){ toast(error.message||uiCopy('ลบไม่สำเร็จ (เฉพาะ host)','Delete failed (host only)'),true); return; }
+  toast(uiCopy('ลบแล้ว ✓','Deleted ✓')); renderNPCs();
 }
 
 // ───────── battle tracker: initiative order + combat log ─────────
@@ -9096,7 +9097,7 @@ async function sendBattleChat(){
   var ta=document.getElementById('bsChatInput'); var body=ta&&ta.value.trim(); if(!body) return;
   ta.value='';
   try{ await supa.from('chat_messages').insert({campaign_id:campaign.id,user_id:me.id,body:body.slice(0,2000)}); }
-  catch(e){ try{ toast(e.message||'ส่งไม่สำเร็จ',true); }catch(_){} }
+  catch(e){ try{ toast(e.message||uiCopy('ส่งไม่สำเร็จ','Submit failed'),true); }catch(_){} }
 }
 
 // ───────── AoE: เล็งเวท/สกิลแบบพื้นที่บน Map ─────────
@@ -9235,19 +9236,19 @@ function ccGridPick(target, cb){
   try{ if(typeof bsCloseSheets==='function') bsCloseSheets(); }catch(e){}
   if(!_bsShown && typeof enterBattleScene==='function'){ try{ enterBattleScene(); }catch(e){} }
   if(_bsShown){ Promise.resolve(renderBattleScene('manual')).catch(()=>false).then(()=>gridPickLeaseEnter('legacy-aoe',gridBoardLeaseIdentity())); } else { switchTab('mon'); setTimeout(()=>gridPickLeaseEnter('legacy-aoe',gridBoardLeaseIdentity()),0); }
-  toast('แตะช่องศูนย์กลางบน Map แล้วกด ✓ ยืนยันพื้นที่');
+  toast(uiCopy('แตะช่องศูนย์กลางบน Map แล้วกด ✓ ยืนยันพื้นที่','Tap the center tile on the Map, then select ✓ to confirm the area'));
 }
 function aoeConfirm(){
   if(gridCommandDelegate('aoe','confirm')) return;
   gridPickLeaseActivity('confirm_attempt');
-  if(!aoeMode||!aoeCenter){ toast('แตะช่องศูนย์กลางก่อน',true); return; }
+  if(!aoeMode||!aoeCenter){ toast(uiCopy('แตะช่องศูนย์กลางก่อน','Tap the center tile first'),true); return; }
   const L="ABCDEFGHIJKLMNOPQRST"; const center=(L[aoeCenter.c]||'?')+(aoeCenter.r+1);
   const cells=aoeCellsFor(aoeCenter.c,aoeCenter.r); const ft=aoeMode.radiusFt; const cb=aoeMode.cb;
   aoeMode=null; aoeCenter=null;
   void gridPickLeaseExit('confirmed');
   if(cb){ if(!_bsShown) switchTab('story'); try{ cb({center:center, cells:cells, radiusFt:ft}); }catch(e){} if(_bsShown) gridFastRefresh(); return; }   // เส้นทาง Command Menu
   pendingAoE={centerCell:center, cells:cells, radiusFt:ft};
-  switchTab('story'); toast('ปักพื้นที่แล้ว ✓ — พิมพ์คำสั่งแล้วกด Submit');
+  switchTab('story'); toast(uiCopy('ปักพื้นที่แล้ว ✓ — พิมพ์คำสั่งแล้วกด Submit','Area marked ✓ — enter the action and select Submit'));
 }
 function aoeCancel(){ if(gridCommandDelegate('aoe','cancel')) return; gridPickLeaseActivity('tap'); const cb=aoeMode&&aoeMode.cb; aoeMode=null; aoeCenter=null; void gridPickLeaseExit('cancelled'); if(cb){ try{ cb(null); }catch(e){} gridFastRefresh(); return; } gridFastRefresh(); }
 // ───────── เดินบนกริด: ผู้เล่นแตะเลือกช่องปลายทางเอง (ไฮไลต์ช่องในระยะความเร็ว) ─────────
@@ -9284,13 +9285,13 @@ function ccMovePick(cb, instantBinding){
   try{ if(typeof bsCloseSheets==='function') bsCloseSheets(); }catch(e){}   // ปิดชีตคำสั่งให้เห็นกระดาน
   if(!_bsShown && typeof enterBattleScene==='function'){ try{ enterBattleScene(); }catch(e){} }   // กันฉากรบหาย: เข้าฉากแทนการ navigate ออก
   if(_bsShown){ Promise.resolve(renderBattleScene('manual')).catch(()=>false).then(()=>gridPickLeaseEnter('legacy-move',gridBoardLeaseIdentity())); } else if(typeof renderCombat==='function'){ renderCombat(); setTimeout(()=>gridPickLeaseEnter('legacy-move',gridBoardLeaseIdentity()),0); }
-  try{ toast('แตะช่องสีเขียวเพื่อเลือกที่จะเดินไป แล้วกด ✓'); }catch(e){}
+  try{ toast(uiCopy('แตะช่องสีเขียวเพื่อเลือกที่จะเดินไป แล้วกด ✓','Tap a green tile to choose your destination, then select ✓')); }catch(e){}
 }
 function movePickCell(c,r){ if(gridCommandDelegate('move','select',{c:c,r:r})) return; if(!moveMode) return; gridPickLeaseActivity('select'); moveSel={c:c,r:r}; if(!gridPickPaint('move',c,r)) gridFastRefresh(); }
 function moveConfirm(){
   if(gridCommandDelegate('move','confirm')) return;
   gridPickLeaseActivity('confirm_attempt');
-  if(!moveMode||!moveSel){ try{toast('แตะช่องปลายทางก่อน',true);}catch(e){} return; }
+  if(!moveMode||!moveSel){ try{toast(uiCopy('แตะช่องปลายทางก่อน','Tap a destination tile first'),true);}catch(e){} return; }
   const L="ABCDEFGHIJKLMNOPQRST"; const cell=(L[moveSel.c]||'?')+(moveSel.r+1); const cb=moveMode.cb;
   window._pendingMove={c:moveSel.c, r:moveSel.r, cell:cell};   // ข้อ 2: มาร์คปลายทางค้างบนกริดจนเทิร์นถูก resolve (token ถึงช่อง/ขึ้นรอบใหม่ = เคลียร์)
   moveMode=null; moveSel=null;
@@ -10439,42 +10440,42 @@ async function renderPerformanceCard(p){
     const sb=document.createElement('button'); sb.className='btn'; sb.type='button'; sb.style.cssText='width:100%'; sb.textContent=uiCopy('⏹ หยุดการแสดง','⏹ Stop performance'); sb.onclick=()=>stopPerformance(false); ctl.appendChild(sb);
   } else {
     const sb=document.createElement('button'); sb.className='btn'; sb.type='button'; sb.style.cssText='width:100%'; sb.textContent=uiCopy('🎵 เปิดการแสดง','🎵 Start performance'); sb.disabled=!tracks.length;
-    sb.onclick=()=>{ if(!window._perfPick){ toast('เลือกเพลงก่อน',true); return; } startPerformance(window._perfPick); }; ctl.appendChild(sb);
+    sb.onclick=()=>{ if(!window._perfPick){ toast(uiCopy('เลือกเพลงก่อน','Choose a track first'),true); return; } startPerformance(window._perfPick); }; ctl.appendChild(sb);
     if(pf&&pf.active&&pf.by!==me.id){ const n=document.createElement('div'); n.className='muted'; n.style.cssText='font-size:12px;margin-top:4px'; n.textContent=uiCopy('มีการแสดงของ '+(pf.char||'เพื่อน')+' กำลังเล่นอยู่',(pf.char||'A party member')+' is performing now'); ctl.appendChild(n); }
   }
   body.appendChild(ctl); card.appendChild(body); p.appendChild(card);
 }
 async function uploadPerformTrack(fi,btn){
-  const file=fi.files&&fi.files[0]; if(!file){ toast('เลือกไฟล์เพลงก่อน',true); return; }
-  if(file.size>15000000){ toast('ไฟล์ใหญ่เกิน 15MB',true); return; }
-  try{ const r=await supa.from('music_tracks').select('id').eq('campaign_id',campaign.id).eq('mood','perform').eq('created_by',me.id); if((r.data||[]).length>=3){ toast('ครบ 3 เพลงแล้ว',true); return; } }catch(e){}
+  const file=fi.files&&fi.files[0]; if(!file){ toast(uiCopy('เลือกไฟล์เพลงก่อน','Choose a music file first'),true); return; }
+  if(file.size>15000000){ toast(uiCopy('ไฟล์ใหญ่เกิน 15MB','The file exceeds 15 MB'),true); return; }
+  try{ const r=await supa.from('music_tracks').select('id').eq('campaign_id',campaign.id).eq('mood','perform').eq('created_by',me.id); if((r.data||[]).length>=3){ toast(uiCopy('ครบ 3 เพลงแล้ว','The 3-track limit has been reached'),true); return; } }catch(e){}
   btn.disabled=true;
   try{
     const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_'); const path=campaign.id+'/perform_'+Date.now()+'_'+safe;
     const up=await supa.storage.from('audio').upload(path,file,{upsert:false}); if(up.error) throw up.error;
     const ins=await supa.from('music_tracks').insert({campaign_id:campaign.id,mood:'perform',name:file.name,storage_path:path,created_by:me.id}); if(ins.error) throw ins.error;
-    toast('เพิ่มเพลงการแสดงแล้ว ✓'); renderSkills();
-  }catch(e){ toast(e.message||'อัปเพลงล้มเหลว',true); btn.disabled=false; }
+    toast(uiCopy('เพิ่มเพลงการแสดงแล้ว ✓','Performance track added ✓')); renderSkills();
+  }catch(e){ toast(e.message||uiCopy('อัปเพลงล้มเหลว','Track upload failed'),true); btn.disabled=false; }
 }
 async function deletePerformTrack(id,path){
   if(!confirm(uiCopy('ลบเพลงการแสดงนี้?','Delete this performance track?'))) return;
   if(path){ try{ await supa.storage.from('audio').remove([path]); }catch(e){} }
-  try{ const {error}=await supa.from('music_tracks').delete().eq('id',id); if(error) throw error; }catch(e){ toast('ลบไม่สำเร็จ',true); return; }
-  toast('ลบแล้ว'); renderSkills();
+  try{ const {error}=await supa.from('music_tracks').delete().eq('id',id); if(error) throw error; }catch(e){ toast(uiCopy('ลบไม่สำเร็จ','Delete failed'),true); return; }
+  toast(uiCopy('ลบแล้ว','Deleted')); renderSkills();
 }
 async function startPerformance(trackId){
   try{
     const tok=(await supa.auth.getSession()).data.session?.access_token;
     const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id, performance:{action:'start', track_id:trackId, char:(myChar&&myChar.name)||''}})});
     const j=await r.json(); if(j.error){ toast(j.message||j.error,true); return; }
-    toast('🎵 เปิดการแสดง'); window._perfStopSent=false; await loadState(); applyMood(); if(activeTab()==='skills') renderSkills();
-  }catch(e){ toast('เปิดการแสดงไม่สำเร็จ',true); }
+    toast(uiCopy('🎵 เปิดการแสดง','🎵 Performance started')); window._perfStopSent=false; await loadState(); applyMood(); if(activeTab()==='skills') renderSkills();
+  }catch(e){ toast(uiCopy('เปิดการแสดงไม่สำเร็จ','Could not start performance'),true); }
 }
 async function stopPerformance(silent){
   try{
     const tok=(await supa.auth.getSession()).data.session?.access_token;
     await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id, performance:{action:'stop'}})});
-    if(!silent) toast('หยุดการแสดง');
+    if(!silent) toast(uiCopy('หยุดการแสดง','Performance stopped'));
     await loadState(); applyMood(); if(activeTab()==='skills') renderSkills();
   }catch(e){}
 }
@@ -11724,13 +11725,13 @@ window.cc = (function(){
         return false;
       }
       if (typeof curRound==='undefined' || !curRound) {
-        if (typeof toast==='function') toast('ยังไม่มีรอบที่เปิดอยู่', true);
+        if (typeof toast==='function') toast(uiCopy('ยังไม่มีรอบที่เปิดอยู่','There is no open round yet'), true);
         return false;
       }
       var cid = (typeof myChar!=='undefined' && myChar) ? myChar.id : null;
       var uid = (typeof me!=='undefined' && me) ? me.id : null;
       if (!cid || !uid) {
-        if (typeof toast==='function') toast('ยังไม่มีตัวละคร', true);
+        if (typeof toast==='function') toast(uiCopy('ยังไม่มีตัวละคร','No character is available yet'), true);
         return false;
       }
       if (gCombat&&gCombat.active&&playerCombatUiState()!=='act') {
