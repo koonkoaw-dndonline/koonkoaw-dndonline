@@ -2116,7 +2116,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608131651;   // FE-LANG-07: TH worlds get Thai buttons/status (ทาง ก) · EN byte-exact · headers kept — asset ring 20260813a1 unchanged
+const FRONTEND_BUILD = 202608140605;   // FE-LANG-07: TH worlds get Thai buttons/status (ทาง ก) · EN byte-exact · headers kept — asset ring 20260813a1 unchanged
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2603,6 +2603,15 @@ function diceCanvasEventFromLegacy(input){
     }))
   };
 }
+function diceRawChipPayload(input){
+  const source=input&&typeof input==='object'?input:{};
+  if(!Array.isArray(source.rawValues)||!source.rawValues.length||source.rawValues.length>32) return null;
+  const values=source.rawValues.slice();
+  if(values.some(value=>!Number.isInteger(value)||value<1||value>100)) return null;
+  const total=source.total;
+  if(!Number.isInteger(total)||total<0||total>1000000000) return null;
+  return {values:values,label:String(source.label||'').slice(0,320),announcement:String(source.announcement||source.label||'').slice(0,500),total:total};
+}
 function diceCanvasDefaultEnvironment(){
   let legacyMuteCount=0;
   function settingEnabled(key){ try{ return localStorage.getItem(key)!=='off'; }catch(_error){ return true; } }
@@ -2630,6 +2639,17 @@ function diceCanvasDefaultEnvironment(){
         return {container:stage,announce:text=>{ live.textContent=String(text||''); },dispose:()=>{ try{ overlay.remove(); }catch(_error){} }};
       }catch(_error){ return null; }
     },
+    renderRawChips:(container,payload)=>{
+      try{
+        if(!container||!payload||!Array.isArray(payload.values)) return false;
+        const panel=document.createElement('div'); panel.setAttribute('data-combat-dice-raw-chips','1');
+        panel.style.cssText='min-height:330px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;color:#f5e7c6;text-align:center';
+        const label=document.createElement('div'); label.style.cssText='max-width:480px;font:600 16px/1.4 Georgia,serif;color:#f5e7c6'; label.textContent=payload.label; panel.appendChild(label);
+        const chips=document.createElement('div'); chips.style.cssText='display:flex;flex-wrap:wrap;justify-content:center;gap:9px;max-width:480px';
+        payload.values.forEach(value=>{ const chip=document.createElement('span'); chip.setAttribute('data-combat-dice-raw-value',String(value)); chip.style.cssText='min-width:42px;padding:9px 12px;border:2px solid #d9b978;border-radius:999px;background:rgba(43,29,17,.96);color:#fff4d6;font:700 20px Georgia,serif;box-shadow:0 5px 13px rgba(10,6,2,.32)'; chip.textContent=String(value); chips.appendChild(chip); });
+        panel.appendChild(chips); container.appendChild(panel); return true;
+      }catch(_error){ return false; }
+    },
     muteLegacy:active=>{
       try{
         ensureStyle(); legacyMuteCount=Math.max(0,legacyMuteCount+(active?1:-1));
@@ -2646,6 +2666,7 @@ function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
   function complete(job){
     if(!job||job.done) return; job.done=true;
     try{ if(job.announceTimer!==null) environment.clearTimer(job.announceTimer); }catch(_error){}
+    try{ if(job.rawTimer!==null) environment.clearTimer(job.rawTimer); }catch(_error){}
     try{ if(job.mount) job.mount.dispose(); }catch(_error){}
     if(activeJob===job) activeJob=null;
     safeDone(job.input); runNext();
@@ -2671,6 +2692,17 @@ function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
   function runNext(){
     if(activeJob||!queue.length) return;
     const job=queue.shift(); activeJob=job;
+    const rawChips=diceRawChipPayload(job.input);
+    if(rawChips){
+      let mounted=null,rendered=false;
+      try{ mounted=environment.mount(); }catch(_error){}
+      if(mounted&&mounted.container&&typeof environment.renderRawChips==='function') try{ rendered=environment.renderRawChips(mounted.container,rawChips)===true; }catch(_error){}
+      if(!rendered){ try{ if(mounted) mounted.dispose(); }catch(_error){} legacyFallback(job); return; }
+      job.mount=mounted;
+      try{ if(rawChips.announcement) mounted.announce(rawChips.announcement); }catch(_error){}
+      try{ job.rawTimer=environment.setTimer(()=>complete(job),2000); }catch(_error){ complete(job); }
+      return;
+    }
     if(!canvasReady||!diceCanvas||typeof diceCanvas.render!=='function'){ legacyFallback(job); return; }
     const rollEvent=diceCanvasEventFromLegacy(job.input);
     if(!rollEvent){ legacyFallback(job); return; }
@@ -2698,7 +2730,7 @@ function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
   function roll(input){
     const source=input&&typeof input==='object'?input:{};
     if(!environment.fxEnabled()){ safeDone(source); return Object.freeze({skipped:true,reason:'disabled',cancel:()=>false}); }
-    const job={input:source,done:false,mount:null,canvasHandle:null,announceTimer:null}; queue.push(job); runNext();
+    const job={input:source,done:false,mount:null,canvasHandle:null,announceTimer:null,rawTimer:null}; queue.push(job); runNext();
     return Object.freeze({skipped:false,cancel:()=>{ if(job.done)return false; if(job.canvasHandle&&typeof job.canvasHandle.cancel==='function'){ try{ job.canvasHandle.cancel(); }catch(_error){} } complete(job); return true; }});
   }
   function pending(input){
@@ -2724,7 +2756,7 @@ function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
   }
   return Object.freeze({
     build:'20260810-dice-fe1-phase-b', init:init, roll:roll, pending:pending,
-    _pure:Object.freeze(Object.assign({},legacyDiceFx&&legacyDiceFx._pure||{},{diceCanvasStableIdentity:diceCanvasStableIdentity,diceCanvasEventFromLegacy:diceCanvasEventFromLegacy})),
+    _pure:Object.freeze(Object.assign({},legacyDiceFx&&legacyDiceFx._pure||{},{diceCanvasStableIdentity:diceCanvasStableIdentity,diceCanvasEventFromLegacy:diceCanvasEventFromLegacy,diceRawChipPayload:diceRawChipPayload})),
     __diceCanvasAdapter:true
   });
 }
@@ -3610,6 +3642,12 @@ function dicePlaybackDiagJson(){
     if(Number.isInteger(entry.receiptIndex)) compact.receiptIndex=entry.receiptIndex;
     if(entry.receiptWho!==undefined) compact.receiptWho=String(entry.receiptWho||'').slice(0,256);
     if(entry.ledgerError) compact.ledgerError=String(entry.ledgerError).slice(0,128);
+    if(entry.receiptId!==undefined) compact.receiptId=String(entry.receiptId||'').slice(0,256);
+    if(entry.receiptKind!==undefined) compact.receiptKind=String(entry.receiptKind||'').slice(0,32);
+    if(Number.isInteger(entry.combatReceiptCount)) compact.combatReceiptCount=entry.combatReceiptCount;
+    if(Number.isInteger(entry.combatUnknownKindCount)) compact.combatUnknownKindCount=entry.combatUnknownKindCount;
+    if(Number.isInteger(entry.combatInvalidCount)) compact.combatInvalidCount=entry.combatInvalidCount;
+    if(Number.isInteger(entry.combatCappedCount)) compact.combatCappedCount=entry.combatCappedCount;
     return compact;
   });
   const compact={at:String(payload.at||'').slice(0,64),campaignId:String(payload.campaignId||'').slice(0,128),roundId:String(payload.roundId||'').slice(0,128),receiptCount:Number.isInteger(payload.receiptCount)?payload.receiptCount:0,ledgerKey:String(payload.ledgerKey||'').slice(0,256),ledger:[],ledgerSize:Number.isInteger(payload.ledgerSize)?payload.ledgerSize:0,ledgerError:String(payload.ledgerError||'').slice(0,128),log:compactLog,hasDiceFx:!!payload.hasDiceFx,diceFxRoll:!!payload.diceFxRoll,diceFxSetting:payload.diceFxSetting===null?null:String(payload.diceFxSetting||'').slice(0,64),diceFxSettingError:String(payload.diceFxSettingError||'').slice(0,128),probeError:String(payload.probeError||'').slice(0,128),truncated:true,originalChars:typeof json==='string'?json.length:null};
@@ -3635,6 +3673,12 @@ function dicePlaybackLog(reason,detail){
     if(Number.isInteger(d.receiptIndex)) entry.receiptIndex=d.receiptIndex;
     if(d.receiptWho!==undefined) entry.receiptWho=String(d.receiptWho||'');
     if(d.ledgerError) entry.ledgerError=String(d.ledgerError);
+    if(d.receiptId!==undefined) entry.receiptId=String(d.receiptId||'');
+    if(d.receiptKind!==undefined) entry.receiptKind=String(d.receiptKind||'');
+    if(Number.isInteger(d.combatReceiptCount)) entry.combatReceiptCount=d.combatReceiptCount;
+    if(Number.isInteger(d.combatUnknownKindCount)) entry.combatUnknownKindCount=d.combatUnknownKindCount;
+    if(Number.isInteger(d.combatInvalidCount)) entry.combatInvalidCount=d.combatInvalidCount;
+    if(Number.isInteger(d.combatCappedCount)) entry.combatCappedCount=d.combatCappedCount;
     const log=Array.isArray(window.__dicePlaybackLog)?window.__dicePlaybackLog:[];
     log.push(entry); if(log.length>50) log.splice(0,log.length-50); window.__dicePlaybackLog=log;
     try{ dicePlaybackDiagSync(); }catch(_dicePlaybackDiagMirrorError){}
@@ -3642,6 +3686,67 @@ function dicePlaybackLog(reason,detail){
     return entry;
   }catch(_dicePlaybackLogError){ return null; }
 }
+// ── DICE-FE: additive combat_dice union; absent field is a strict no-op ──
+const COMBAT_DICE_RECEIPT_CAP=8;
+const COMBAT_DICE_UUID_RE=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+function combatDiceInteger(value,min,max){ return Number.isInteger(value)&&value>=min&&value<=max?value:null; }
+function combatDiceText(value,nullable){ if(value===null&&nullable)return null; if(typeof value!=='string')return undefined; const text=value.trim(); return text&&text.length<=160?text:undefined; }
+function combatDiceBase(raw,kind){
+  if(!raw||typeof raw!=='object'||Array.isArray(raw))return null;
+  const combatLogId=typeof raw.combatLogId==='string'?raw.combatLogId.trim():'';
+  const receiptId=typeof raw.receiptId==='string'?raw.receiptId.trim():'';
+  const combatLogSeq=combatDiceInteger(raw.combatLogSeq,1,Number.MAX_SAFE_INTEGER);
+  const who=combatDiceText(raw.who,false),target=combatDiceText(raw.target,false);
+  const actorKind=String(raw.actorKind||''),provenance=String(raw.provenance||'');
+  if(!COMBAT_DICE_UUID_RE.test(combatLogId)||receiptId!=='combat-log:'+combatLogId+':'+kind||combatLogSeq===null||who===undefined||target===undefined||!['player','monster','system'].includes(actorKind)||!['c5','c5mon','c5comp'].includes(provenance))return null;
+  return {receiptId:receiptId,combatLogId:combatLogId,combatLogSeq:combatLogSeq,who:who,actorKind:actorKind,target:target,provenance:provenance};
+}
+function combatDiceReceipt(raw){
+  if(!raw||typeof raw!=='object'||Array.isArray(raw))return {status:'invalid'};
+  const kind=typeof raw.kind==='string'?raw.kind:'';
+  if(!['attack','save','damage'].includes(kind))return {status:'unknown'};
+  const base=combatDiceBase(raw,kind); if(!base)return {status:'invalid'};
+  if(kind==='attack'){
+    const weapon=combatDiceText(raw.weapon,false),roll=combatDiceInteger(raw.roll,1,20),total=combatDiceInteger(raw.total,-100,1000),ac=combatDiceInteger(raw.ac,0,1000),mode=String(raw.mode||'');
+    if(weapon===undefined||roll===null||total===null||ac===null||typeof raw.hit!=='boolean'||typeof raw.crit!=='boolean'||typeof raw.multiattack!=='boolean'||!['normal','advantage','disadvantage'].includes(mode)||(raw.crit&&!raw.hit))return {status:'invalid'};
+    return {status:'accepted',receipt:Object.assign(base,{kind:'attack',weapon:weapon,roll:roll,total:total,ac:ac,hit:raw.hit,crit:raw.crit,mode:mode,multiattack:raw.multiattack})};
+  }
+  if(kind==='save'){
+    const ability=combatDiceText(raw.ability,true),roll=combatDiceInteger(raw.roll,1,20),bonus=combatDiceInteger(raw.bonus,-100,1000),total=combatDiceInteger(raw.total,-100,1000),dc=combatDiceInteger(raw.dc,0,1000),mode=String(raw.mode||''),modeReason=combatDiceText(raw.modeReason,true);
+    if(ability===undefined||roll===null||bonus===null||total===null||dc===null||typeof raw.pass!=='boolean'||!['normal','advantage','disadvantage'].includes(mode)||modeReason===undefined)return {status:'invalid'};
+    return {status:'accepted',receipt:Object.assign(base,{kind:'save',ability:ability,roll:roll,bonus:bonus,total:total,dc:dc,pass:raw.pass,mode:mode,modeReason:modeReason})};
+  }
+  const damage=combatDiceInteger(raw.damage,0,1000000000),rolls=Array.isArray(raw.rolls)?raw.rolls.slice():[],rollsFound=combatDiceInteger(raw.rollsFound,1,1000000),rollsTruncated=combatDiceInteger(raw.rollsTruncated,0,1000000);
+  if(damage===null||!rolls.length||rolls.length>32||rolls.some(value=>combatDiceInteger(value,1,100)===null)||rollsFound===null||rollsTruncated===null||rollsFound!==rolls.length+rollsTruncated)return {status:'invalid'};
+  return {status:'accepted',receipt:Object.assign(base,{kind:'damage',damage:damage,rolls:rolls,rollsFound:rollsFound,rollsTruncated:rollsTruncated})};
+}
+function combatDiceUnionFromMeta(meta){
+  if(!meta||typeof meta!=='object'||!Object.prototype.hasOwnProperty.call(meta,'combat_dice'))return {present:false,receipts:[],unknown:0,invalid:0,capped:0};
+  if(!Array.isArray(meta.combat_dice))return {present:true,receipts:[],unknown:0,invalid:1,capped:0};
+  const input=meta.combat_dice.slice(0,COMBAT_DICE_RECEIPT_CAP),receipts=[]; let unknown=0,invalid=0;
+  input.forEach(raw=>{ const projected=combatDiceReceipt(raw); if(projected.status==='accepted')receipts.push(projected.receipt); else if(projected.status==='unknown')unknown++; else invalid++; });
+  return {present:true,receipts:receipts,unknown:unknown,invalid:invalid,capped:Math.max(0,meta.combat_dice.length-input.length)};
+}
+function combatDicePlaybackLedgerState(campaignId){
+  const id=String(campaignId||''),key=id?'ttrpg_combat_dice_seen_v1_'+id:'';
+  if(!key)return {key:'',ledger:[],error:''};
+  try{const parsed=JSON.parse(localStorage.getItem(key)||'[]');return {key:key,ledger:Array.isArray(parsed)?parsed.filter(value=>typeof value==='string').slice(-256):[],error:''};}
+  catch(_combatDiceLedgerReadError){return {key:key,ledger:[],error:'read_error'};}
+}
+function combatDiceModeLabel(mode){ if(mode==='advantage')return uiCopy('ได้เปรียบ','Advantage'); if(mode==='disadvantage')return uiCopy('เสียเปรียบ','Disadvantage'); return ''; }
+function combatDiceReceiptLabel(receipt){
+  const mode=combatDiceModeLabel(receipt.mode),modePart=mode?' · '+mode:'';
+  if(receipt.kind==='attack'){const outcome=receipt.crit?uiCopy('คริติคอล','Critical hit'):receipt.hit?uiCopy('โจมตีโดน','Hit'):uiCopy('โจมตีพลาด','Miss');return receipt.who+' · '+uiCopy('โจมตี','Attack')+' '+receipt.target+' · '+receipt.weapon+modePart+' · AC '+receipt.ac+' · '+outcome;}
+  if(receipt.kind==='save'){const outcome=receipt.pass?uiCopy('ผ่านเซฟ','Save passed'):uiCopy('ไม่ผ่านเซฟ','Save failed');return receipt.who+' · '+(receipt.ability||uiCopy('การเซฟ','Save'))+modePart+' · DC '+receipt.dc+' · '+outcome;}
+  return receipt.who+' → '+receipt.target+' · '+uiCopy('ดาเมจ','Damage')+' '+receipt.damage+' · '+uiCopy('ค่าดิบ','Raw values');
+}
+function combatDicePlaybackPayload(receipt){
+  const label=combatDiceReceiptLabel(receipt);
+  if(receipt.kind==='attack')return {eventId:receipt.receiptId,kind:'attack',role:'attack',dice:[{die:'d20',value:receipt.roll}],flat:receipt.total-receipt.roll,total:receipt.total,pass:receipt.hit,tier:receipt.crit?'crit-success':receipt.hit?'success':'failure',label:label,critical:receipt.crit};
+  if(receipt.kind==='save')return {eventId:receipt.receiptId,kind:'save',role:'save',dice:[{die:'d20',value:receipt.roll}],flat:receipt.bonus,total:receipt.total,dc:receipt.dc,pass:receipt.pass,tier:receipt.pass?'success':'failure',label:label};
+  return {eventId:receipt.receiptId,kind:'damage',role:'damage',rawValues:receipt.rolls.slice(),total:receipt.damage,label:label,announcement:label+' · '+receipt.rolls.join(', ')};
+}
+// ── /DICE-FE ──
 window.__diceProbe=function(){
   let campaignId='',round=null,receipts=[],probeError='';
   try{ campaignId=String(campaign&&campaign.id||''); }catch(_diceProbeCampaignError){ probeError='campaign_read_error'; }
@@ -3693,6 +3798,37 @@ function playRoundDiceMeta(round,character){
     return played;
   }catch(_diceMetaPlaybackError){ dicePlaybackLog('playback_error',{roundId:roundId,receiptCount:receipts.length,ownName:ownName,ledgerSize:stored.length,campaignId:campaignId}); return 0; }
 }
+function playRoundCombatDiceMeta(round){
+  let parsed=null; try{parsed=combatDiceUnionFromMeta(round&&round.meta);}catch(_combatDiceMetaReadError){return 0;} if(!parsed.present)return 0;
+  let campaignId='',roundId='',stored=[];
+  try{
+    campaignId=String(campaign&&campaign.id||''); roundId=String(round&&round.id||'');
+    const ledgerState=combatDicePlaybackLedgerState(campaignId); stored=ledgerState.ledger;
+    const emit=function(reason,extra){return dicePlaybackLog(reason,Object.assign({roundId:roundId,receiptCount:parsed.receipts.length,combatReceiptCount:parsed.receipts.length,combatUnknownKindCount:parsed.unknown,combatInvalidCount:parsed.invalid,combatCappedCount:parsed.capped,ledgerSize:stored.length,campaignId:campaignId,ledgerError:ledgerState.error},extra||{}));};
+    emit('combat_union_parsed');
+    if(!campaignId){emit('combat_union_no_campaign');return 0;}
+    if(!roundId){emit('combat_union_no_round');return 0;}
+    if(!parsed.receipts.length)return 0;
+    const seen=new Set(stored),memorySeen=window._combatDiceSeenFallback instanceof Set?window._combatDiceSeenFallback:(window._combatDiceSeenFallback=new Set()),inFlight=window._combatDiceInFlight instanceof Set?window._combatDiceInFlight:(window._combatDiceInFlight=new Set());
+    const burn=function(receiptId){seen.add(receiptId);memorySeen.add(receiptId);stored.push(receiptId);if(stored.length>256)stored=stored.slice(-256);try{localStorage.setItem(ledgerState.key,JSON.stringify(stored));}catch(_combatDiceLedgerWriteError){}};
+    let played=0;
+    parsed.receipts.forEach(function(receipt,index){
+      const receiptId=receipt.receiptId,detail={receiptIndex:index,receiptWho:receipt.who,receiptId:receiptId,receiptKind:receipt.kind};
+      try{
+        if(seen.has(receiptId)||memorySeen.has(receiptId)||inFlight.has(receiptId)){emit('combat_union_already_seen',detail);return;}
+        let diceFxOff=false;try{diceFxOff=localStorage.getItem('dice_fx')==='off';}catch(_combatDiceFxPrefReadError){}
+        if(diceFxOff){burn(receiptId);emit('combat_union_fx_disabled',detail);return;}
+        const diceFx=window.DiceFx;if(!diceFx||typeof diceFx.roll!=='function'){emit('combat_union_dicefx_missing',detail);return;}
+        inFlight.add(receiptId);
+        try{diceFx.roll(combatDicePlaybackPayload(receipt));}
+        catch(_combatDiceRollError){emit('combat_union_roll_threw',detail);return;}
+        finally{inFlight.delete(receiptId);}
+        burn(receiptId);played++;emit('combat_union_played',detail);
+      }catch(_combatDiceReceiptError){emit('combat_union_receipt_error',detail);}
+    });
+    return played;
+  }catch(_combatDicePlaybackError){dicePlaybackLog('combat_union_playback_error',{roundId:roundId,receiptCount:parsed.receipts.length,combatReceiptCount:parsed.receipts.length,combatUnknownKindCount:parsed.unknown,combatInvalidCount:parsed.invalid,combatCappedCount:parsed.capped,ledgerSize:stored.length,campaignId:campaignId});return 0;}
+}
 function setVisibleRound(nextRound,character,source){
   curRound=nextRound||null;
   try{
@@ -3702,6 +3838,7 @@ function setVisibleRound(nextRound,character,source){
     dicePlaybackLog('visible_round',{roundId:String(curRound&&curRound.id||''),receiptCount:receipts.length,ownName:diceMetaOwnerKey(character&&character.name),ledgerSize:ledgerState.ledger.length,campaignId:campaignId,ledgerError:ledgerState.error,source:String(source||'unknown')});
   }catch(_diceVisibleRoundLogError){ dicePlaybackLog('visible_round_error',{roundId:'',receiptCount:0,ownName:'',ledgerSize:0,campaignId:'',source:String(source||'unknown')}); }
   playRoundDiceMeta(curRound,character);
+  playRoundCombatDiceMeta(curRound);
   return curRound;
 }
 // ── FE-14: exact-receipt, bounded post-flip round re-fetch ──
@@ -6098,17 +6235,45 @@ function createDiceRollGateController(deps){
   const copy=(th,en)=>typeof d.copy==='function'?d.copy(th,en):String(en||th||'');
   const uuid=value=>/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value||''));
   const integer=value=>Number.isSafeInteger(value);
+  const STALL_MS=10000,HARD_STALL_MS=30000,STALE_MS=120000;
+  const now=()=>{const value=Number(typeof d.now==='function'?d.now():0);return Number.isFinite(value)&&value>=0?value:0;};
+  const setTimer=(run,delay)=>typeof d.setTimer==='function'?d.setTimer(run,delay):setTimeout(run,delay);
+  const clearTimer=id=>{try{if(id!==null&&id!==undefined)(typeof d.clearTimer==='function'?d.clearTimer(id):clearTimeout(id));}catch(_error){}};
+  let stallTimer=null,hardStallTimer=null;
   const campaignId=()=>String(typeof d.campaignId==='function'?d.campaignId():'').trim();
   const storageKey=()=>{ const id=campaignId(); return id?'ttrpg_dice_roll_gate_v1_'+id:''; };
+  function report(reason,extra,visible,snapshot){
+    const row=Object.assign({source:'diceGate',reason_code:String(reason||'dice_gate_fail_open'),event_id:String(snapshot&&snapshot.eventId||active&&active.eventId||''),stage:String(snapshot&&snapshot.stage||active&&active.stage||'none')},extra||{});
+    try{if(typeof d.log==='function')d.log(row);}catch(_error){}
+    if(visible){try{if(typeof d.notice==='function')d.notice(copy('(แก้: ปิดหน้าต่างเต๋าที่ไม่คืบแล้ว เกมเล่นต่อได้)','(Fixed: closed the stalled dice window so play can continue.)'));}catch(_error){}}
+  }
+  function writeLedger(rows){
+    const key=storageKey(); if(!key)return;
+    if(rows.length)d.storage.setItem(key,JSON.stringify(rows.slice(-32)));
+    else if(typeof d.storage.removeItem==='function')d.storage.removeItem(key);
+    else d.storage.setItem(key,'[]');
+  }
   function ledger(){
-    try{ const key=storageKey(),parsed=key?JSON.parse(d.storage.getItem(key)||'[]'):[]; return Array.isArray(parsed)?parsed.filter(row=>row&&uuid(row.eventId)&&uuid(row.batchId)).slice(-32):[]; }catch(_error){ return []; }
+    try{
+      const key=storageKey(),parsed=key?JSON.parse(d.storage.getItem(key)||'[]'):[];
+      const source=Array.isArray(parsed)?parsed:[],valid=source.filter(row=>row&&uuid(row.eventId)&&uuid(row.batchId)).slice(-32);
+      if(!Array.isArray(parsed)||valid.length!==source.length){writeLedger(valid);report('dice_gate_invalid_storage_cleared',{cleared_count:Math.max(1,source.length-valid.length)},true);}
+      return valid;
+    }catch(_error){try{writeLedger([]);}catch(_writeError){}report('dice_gate_invalid_storage_cleared',{storage_parse_failed:true},true);return [];}
   }
   function store(entry){
     try{
       const key=storageKey(); if(!key)return; const rows=ledger().filter(row=>row.eventId!==entry.eventId);
-      rows.push({eventId:entry.eventId,batchId:entry.batchId,eventRevision:entry.eventRevision,batchRevision:entry.batchRevision,wallMode:'shadow',stage:entry.stage,animated:entry.animated===true});
-      d.storage.setItem(key,JSON.stringify(rows.slice(-32)));
-    }catch(_error){}
+      const stamp=now(),createdAt=Number.isFinite(Number(entry.createdAt))?Number(entry.createdAt):stamp,progressAt=Number.isFinite(Number(entry.progressAt))?Number(entry.progressAt):stamp;
+      rows.push({eventId:entry.eventId,batchId:entry.batchId,eventRevision:entry.eventRevision,batchRevision:entry.batchRevision,wallMode:'shadow',stage:entry.stage,animated:entry.animated===true,createdAt:createdAt,progressAt:progressAt});
+      writeLedger(rows);
+    }catch(_error){report('dice_gate_storage_write_failed',{},false,entry);}
+  }
+  function clearEntry(eventId){try{writeLedger(ledger().filter(row=>row.eventId!==eventId));}catch(_error){report('dice_gate_storage_clear_failed',{},false,{eventId:eventId,stage:'clear'});}}
+  function pruneStale(){
+    const rows=ledger(),stamp=now(),stale=rows.filter(row=>row.stage==='published'||!Number.isFinite(Number(row.progressAt))||stamp-Number(row.progressAt)>=STALE_MS);
+    if(stale.length){try{writeLedger(rows.filter(row=>!stale.includes(row)));}catch(_error){}report('dice_gate_stale_entry_cleared',{cleared_count:stale.length},true,stale[stale.length-1]);}
+    return rows.filter(row=>!stale.includes(row));
   }
   function receiptOf(response){
     const raw=response&&response.roll_event;
@@ -6120,11 +6285,28 @@ function createDiceRollGateController(deps){
     return result.data&&typeof result.data==='object'?result.data:{ok:false,error:'invalid_response'};
   }
   async function callRpc(name,args){ try{return rpcData(await d.rpc(name,args));}catch(_error){return {ok:false,error:'network_error'};} }
-  function complete(){
-    if(!active)return; const done=active.finish,view=active.view; active.stage='published'; store(active); active=null;
+  function clearGateTimers(){clearTimer(stallTimer);clearTimer(hardStallTimer);stallTimer=null;hardStallTimer=null;}
+  function release(reason,extra,visible){
+    if(!active)return; const current=active,done=current.finish,view=current.view; clearGateTimers(); clearEntry(current.eventId); if(reason)report(reason,extra,visible,current); active=null;
     try{ view&&view.close(); }catch(_error){}
     try{ if(typeof done==='function')done(); else if(typeof d.afterClose==='function')d.afterClose(); }catch(_error){}
     const next=queued.shift(); if(next)activate(next.entry,next.finish,next.reconnect);
+  }
+  function complete(){release('',{},false);}
+  function failOpen(reason,extra){release(reason,extra||{},true);}
+  function showStalled(){
+    if(!active)return;
+    paint({title:copy('ระบบเต๋าใช้เวลานานเกินไป','Dice service is taking too long'),formula:'',detail:'',status:copy('(แก้: ระบบเต๋าไม่คืบ คุณเล่นต่อได้โดยไม่ต้องล้างข้อมูลเอง)','(Fixed: the dice service is not progressing. You can play on without clearing browser data.)'),primaryLabel:copy('เล่นต่อ','Play on'),primaryDisabled:false,onPrimary:()=>failOpen('dice_gate_stall_player_continue'),hostVisible:false,escapeVisible:false});
+  }
+  function armStallTimers(){
+    if(!active)return; clearGateTimers(); const eventId=active.eventId;
+    stallTimer=setTimer(()=>{stallTimer=null;if(active&&active.eventId===eventId)showStalled();},STALL_MS);
+    hardStallTimer=setTimer(()=>{hardStallTimer=null;if(active&&active.eventId===eventId)failOpen('dice_gate_stall_timeout_fail_open');},HARD_STALL_MS);
+  }
+  function setStage(stage,progressed){
+    if(!active)return; const changed=active.stage!==stage; active.stage=stage;
+    if(changed||progressed===true||!Number.isFinite(Number(active.progressAt)))active.progressAt=now();
+    store(active); if(changed||progressed===true)armStallTimers();
   }
   function payloadEnvelope(view,onDone){
     const p=view&&view.payload;
@@ -6142,24 +6324,27 @@ function createDiceRollGateController(deps){
     const p=view&&view.payload;if(!p||!Array.isArray(p.groups))return '';
     return p.formula+' · '+p.groups.map(group=>String(group.source||group.die)+': ['+(Array.isArray(group.rolls)?group.rolls.join(', '):'')+']').join(' · ');
   }
-  function paint(model){ try{ if(active&&active.view)active.view.update(model); }catch(_error){} }
+  function paint(model){
+    if(!active||!active.view)return false;
+    const safe=Object.assign({escapeVisible:true,escapeLabel:copy('เล่นต่อ','Play on'),escapeDisabled:false,onEscape:()=>failOpen('dice_gate_player_escape')},model||{});
+    try{active.view.update(safe);return true;}catch(_error){failOpen('dice_gate_ui_paint_failed');return false;}
+  }
   function hostModel(){ return {hostVisible:!!(typeof d.isHost==='function'&&d.isHost()),hostDisabled:false,hostLabel:copy('ให้โฮสต์ดำเนินผล','Resolve Roll'),hostDeadline:active&&active.deadlineAt||'',hostCountdownSuffix:copy(' วิ','s'),onHost:hostOverride}; }
   function showRoll(status){
-    if(!active)return; active.stage='prepared'; store(active);
+    if(!active)return; setStage('prepared');
     paint(Object.assign({title:copy('เต๋าพร้อมแล้ว','Dice ready'),formula:'',detail:'',status:status||copy('Server ปิดผนึกผลแล้ว','The server result is sealed.'),primaryLabel:copy('ROLL','ROLL'),primaryDisabled:false,onPrimary:reveal},hostModel()));
   }
   function showContinue(view,status,disabled){
-    if(!active)return; active.stage='revealed'; store(active);
+    if(!active)return; setStage('revealed');
     paint(Object.assign({title:String(view&&view.payload&&view.payload.title||copy('ผลเต๋า','Dice result')),formula:String(view&&view.payload&&view.payload.formula||''),detail:payloadDetail(view),status:status||copy('ผลพร้อมแล้ว','Result ready.'),primaryLabel:copy('ไปต่อ','Continue'),primaryDisabled:disabled===true,onPrimary:continueRoll},hostModel()));
   }
   function showWaiting(status){
-    if(!active)return; active.stage='waiting'; store(active);
+    if(!active)return; setStage('waiting');
     paint({title:copy('รอผู้เล่นอื่น','Waiting for other players'),formula:'',detail:'',status:status||copy('ระบบจะเปิดผลพร้อมกันเมื่อทุกคนพร้อม','The batch will publish when everyone is ready.'),primaryLabel:copy('ตรวจสถานะ','Check status'),primaryDisabled:false,onPrimary:checkBatch,hostVisible:false});
   }
   async function checkBatch(){
-    if(!active||active.busy)return; active.busy=true; paint({primaryDisabled:true,status:copy('กำลังตรวจสถานะ…','Checking status…')});
-    const batch=await callRpc('roll_batch_view',{p_batch_id:active.batchId}); active.busy=false;
-    if(!active)return;
+    if(!active||active.busy)return; const eventId=active.eventId,batchId=active.batchId; active.busy=true; paint({primaryDisabled:true,status:copy('กำลังตรวจสถานะ…','Checking status…')});
+    const batch=await callRpc('roll_batch_view',{p_batch_id:batchId}); if(!active||active.eventId!==eventId)return; active.busy=false;
     if(!batch.ok||!integer(batch.revision)){ showWaiting(copy('ยังตรวจสถานะไม่ได้ — ลองอีกครั้ง','Could not check status — try again.')); return; }
     active.batchRevision=batch.revision; store(active);
     if(batch.state==='published'){ complete(); return; }
@@ -6167,15 +6352,15 @@ function createDiceRollGateController(deps){
     await promote(batch);
   }
   async function promote(batch){
-    if(!active||active.promoteInFlight)return; active.promoteInFlight=true; paint({primaryDisabled:true,status:copy('DM กำลังเปิดผล…','The DM is publishing the result…')});
-    let result=null; try{result=await d.promote(active.batchId,batch.revision);}catch(_error){} if(!active)return; active.promoteInFlight=false;
+    if(!active||active.promoteInFlight)return; const eventId=active.eventId,batchId=active.batchId; active.promoteInFlight=true; paint({primaryDisabled:true,status:copy('DM กำลังเปิดผล…','The DM is publishing the result…')});
+    let result=null; try{result=await d.promote(batchId,batch.revision);}catch(_error){} if(!active||active.eventId!==eventId)return; active.promoteInFlight=false;
     if(result&&result.ok!==false&&(result.promoted===true||result.state==='published')){ complete(); return; }
     if(result&&result.ok!==false&&result.promoted===false){ showWaiting(copy('DM กำลังประมวลผล…','DM is processing…')); return; }
     showWaiting(copy('การเชื่อมต่อสะดุด — กดตรวจสถานะอีกครั้ง','Connection interrupted — check status again.'));
   }
   function animateView(view){
     if(!active)return; const entry=ledger().find(row=>row.eventId===active.eventId);
-    const done=()=>{ if(active)showContinue(view); };
+    const eventId=active.eventId,done=()=>{ if(active&&active.eventId===eventId)showContinue(view); };
     const envelope=payloadEnvelope(view,done);
     if(!envelope){ showContinue(view,copy('ไม่มีรายละเอียดเต๋าที่ใช้แสดงผล','Dice details are unavailable.'),false); return; }
     if((entry&&entry.animated)||active.animated){ active.animated=true; store(active); showContinue(view,copy('แสดงผลนี้แล้ว','This result was already shown.'),false); return; }
@@ -6183,35 +6368,38 @@ function createDiceRollGateController(deps){
     try{ if(typeof d.animate==='function'&&d.animate(envelope)!==false)return; }catch(_error){} done();
   }
   async function applyEventView(view){
-    if(!active||!view||view.ok!==true||String(view.id||'')!==active.eventId){ showRoll(copy('ยังเปิดผลไม่ได้ — ลองอีกครั้ง','Could not reveal the result — try again.')); return; }
-    if(integer(view.revision))active.eventRevision=view.revision; if(typeof view.deadline_at==='string')active.deadlineAt=view.deadline_at; active.lastView=view; store(active);
+    if(!active)return;
+    if(view&&view.ok===false&&/(?:event|roll)[ _-]?(?:not[ _-]?found|missing)|not[ _-]?found|unknown[ _-]?event/i.test(String(view.error||''))){failOpen('dice_gate_orphan_entry_cleared',{rpc_error:String(view.error||'').slice(0,80)});return;}
+    if(!view||view.ok!==true||String(view.id||'')!==active.eventId){ showRoll(copy('ยังเปิดผลไม่ได้ — ลองอีกครั้ง','Could not reveal the result — try again.')); return; }
+    const progressed=integer(view.revision)&&view.revision!==active.eventRevision;
+    if(integer(view.revision))active.eventRevision=view.revision; if(typeof view.deadline_at==='string')active.deadlineAt=view.deadline_at; active.lastView=view; if(progressed){active.progressAt=now();armStallTimers();} store(active);
     if(view.state==='ready'||view.state==='published'){ await checkBatch(); return; }
     if(view.state==='prepared'||view.projection_kind==='owner_pending'){ showRoll(); return; }
     animateView(view);
   }
-  async function reconcileEvent(){ return await callRpc('roll_event_view',{p_event_id:active.eventId}); }
+  async function reconcileEvent(eventId){ return await callRpc('roll_event_view',{p_event_id:String(eventId||active&&active.eventId||'')}); }
   async function reveal(){
-    if(!active||active.busy)return; active.busy=true; paint({primaryDisabled:true,status:copy('กำลังเปิดผล…','Revealing…')});
-    const result=await callRpc('roll_event_reveal',{p_event_id:active.eventId,p_expected_revision:active.eventRevision});
-    if(!active)return; active.busy=false;
+    if(!active||active.busy)return; const eventId=active.eventId,expectedRevision=active.eventRevision; active.busy=true; paint({primaryDisabled:true,status:copy('กำลังเปิดผล…','Revealing…')});
+    const result=await callRpc('roll_event_reveal',{p_event_id:eventId,p_expected_revision:expectedRevision});
+    if(!active||active.eventId!==eventId)return; active.busy=false;
     if(!result.ok&&result.error!=='revision_conflict'){ showRoll(copy('เปิดผลไม่สำเร็จ — ลองอีกครั้ง','Reveal failed — try again.')); return; }
     if(integer(result.revision))active.eventRevision=result.revision;
-    await applyEventView(await reconcileEvent());
+    await applyEventView(await reconcileEvent(eventId));
   }
   async function continueRoll(){
-    if(!active||active.busy)return; active.busy=true; paint({primaryDisabled:true,status:copy('กำลังดำเนินการ…','Continuing…')});
-    const result=await callRpc('roll_event_continue',{p_event_id:active.eventId,p_expected_revision:active.eventRevision});
-    if(!active)return; active.busy=false;
+    if(!active||active.busy)return; const eventId=active.eventId,expectedRevision=active.eventRevision; active.busy=true; paint({primaryDisabled:true,status:copy('กำลังดำเนินการ…','Continuing…')});
+    const result=await callRpc('roll_event_continue',{p_event_id:eventId,p_expected_revision:expectedRevision});
+    if(!active||active.eventId!==eventId)return; active.busy=false;
     if(!result.ok&&result.error==='continue_too_early'){ showContinue(active.lastView,copy('ผลถูกล็อกอย่างน้อย 2 วินาที — ลองอีกครั้ง','The result is locked for at least 2 seconds — try again.'),false); return; }
     if(!result.ok&&result.error!=='revision_conflict'){ showContinue(active.lastView,copy('ยังดำเนินการไม่ได้ — ลองอีกครั้ง','Could not continue — try again.'),false); return; }
-    if(!result.ok&&result.error==='revision_conflict'){ const view=await reconcileEvent(); if(active)active.lastView=view; await applyEventView(view); return; }
+    if(!result.ok&&result.error==='revision_conflict'){ const view=await reconcileEvent(eventId); if(active&&active.eventId===eventId)active.lastView=view; if(active&&active.eventId===eventId)await applyEventView(view); return; }
     if(integer(result.revision))active.eventRevision=result.revision;
     await checkBatch();
   }
   async function hostOverride(){
-    if(!active||active.busy)return; const priorStage=active.stage; active.busy=true; paint({hostDisabled:true,status:copy('กำลังขอให้โฮสต์ดำเนินผล…','Requesting Host resolution…')});
-    const result=await callRpc('roll_event_host_override',{p_event_id:active.eventId,p_expected_revision:active.eventRevision});
-    if(!active)return; active.busy=false;
+    if(!active||active.busy)return; const eventId=active.eventId,expectedRevision=active.eventRevision,priorStage=active.stage; active.busy=true; paint({hostDisabled:true,status:copy('กำลังขอให้โฮสต์ดำเนินผล…','Requesting Host resolution…')});
+    const result=await callRpc('roll_event_host_override',{p_event_id:eventId,p_expected_revision:expectedRevision});
+    if(!active||active.eventId!==eventId)return; active.busy=false;
     if(!result.ok&&result.error==='deadline_not_reached'){
       if(typeof result.deadline_at==='string')active.deadlineAt=result.deadline_at;
       const note=copy('ยังไม่ถึงเวลา Host override — ระบบเป็นผู้ตัดสินเวลา','Host override is not available yet — the server controls the deadline.');
@@ -6219,30 +6407,36 @@ function createDiceRollGateController(deps){
     }
     if(!result.ok&&result.error!=='revision_conflict'){ const note=copy('Host override ไม่สำเร็จ — ลองอีกครั้ง','Host override failed — try again.'); if(priorStage==='revealed')showContinue(active.lastView,note,false);else if(priorStage==='waiting')showWaiting(note);else showRoll(note); return; }
     if(integer(result.revision))active.eventRevision=result.revision;
-    const view=await reconcileEvent(); if(active)active.lastView=view; await applyEventView(view);
+    const view=await reconcileEvent(eventId); if(active&&active.eventId===eventId)active.lastView=view; if(active&&active.eventId===eventId)await applyEventView(view);
   }
   function activate(entry,finish,reconnect){
     if(active){
       if(active.eventId===entry.eventId){if(!active.finish&&finish)active.finish=finish;return true;}
       const same=queued.find(row=>row.entry.eventId===entry.eventId); if(same){same.entry=entry;if(!same.finish&&finish)same.finish=finish;}else queued.push({entry:entry,finish:finish||null,reconnect:reconnect}); return true;
     }
-    active=Object.assign({},entry,{finish:finish||null,busy:false,promoteInFlight:false,lastView:null,deadlineAt:''});
+    const stamp=now(); active=Object.assign({},entry,{createdAt:Number.isFinite(Number(entry.createdAt))?Number(entry.createdAt):stamp,progressAt:Number.isFinite(Number(entry.progressAt))?Number(entry.progressAt):stamp,finish:finish||null,busy:false,promoteInFlight:false,lastView:null,deadlineAt:''});
     try{active.view=d.mount();}catch(_error){active.view=null;}
-    if(!active.view){ const done=active.finish; active=null; try{if(done)done();}catch(_error){} return true; }
-    if(reconnect){ paint({title:copy('กำลังกู้ผลเต๋า','Restoring dice result'),status:copy('กำลังตรวจสถานะจาก Server…','Checking server state…'),primaryDisabled:true,hostVisible:false}); reconcileEvent().then(view=>{if(active){active.lastView=view;applyEventView(view);}}); }
+    if(!active.view){failOpen('dice_gate_ui_mount_failed');return true;}
+    store(active); armStallTimers();
+    if(reconnect){
+      const eventId=active.eventId;
+      paint({title:copy('กำลังกู้ผลเต๋า','Restoring dice result'),formula:'',detail:'',status:copy('กำลังตรวจสถานะจาก Server…','Checking server state…'),primaryLabel:copy('กำลังตรวจสถานะ','Checking status'),primaryDisabled:true,hostVisible:false});
+      reconcileEvent(eventId).then(view=>{if(active&&active.eventId===eventId){active.lastView=view;applyEventView(view);}});
+    }
     else showRoll();
     return true;
   }
   function handleResponse(response,pending,finish){
     if(!response||!Object.prototype.hasOwnProperty.call(response,'roll_event')) return false; // WALL GATE: first side-effect boundary
     try{ if(typeof d.failPending==='function')d.failPending(pending); }catch(_error){}
-    const receipt=receiptOf(response); if(!receipt){try{if(finish)finish();}catch(_error){}return true;}
+    const receipt=receiptOf(response); if(!receipt){report('dice_gate_invalid_receipt_fail_open',{},true);try{if(typeof finish==='function')finish();else if(typeof d.afterClose==='function')d.afterClose();}catch(_error){}return true;}
     const old=ledger().find(row=>row.eventId===receipt.eventId);
-    if(old&&old.stage==='published'){try{if(finish)finish();}catch(_error){}return true;}
-    const entry=Object.assign({},receipt,old||{},receipt,{animated:!!(old&&old.animated)}); store(entry); return activate(entry,finish,!!old&&old.stage!=='prepared');
+    if(old&&old.stage==='published'){clearEntry(old.eventId);report('dice_gate_published_entry_cleared',{},false,old);try{if(typeof finish==='function')finish();else if(typeof d.afterClose==='function')d.afterClose();}catch(_error){}return true;}
+    const stamp=now(),progressed=!!old&&(old.eventRevision!==receipt.eventRevision||old.batchRevision!==receipt.batchRevision);
+    const entry=Object.assign({},receipt,old||{},receipt,{animated:!!(old&&old.animated),createdAt:Number.isFinite(Number(old&&old.createdAt))?Number(old.createdAt):stamp,progressAt:progressed||!Number.isFinite(Number(old&&old.progressAt))?stamp:Number(old.progressAt)}); store(entry); return activate(entry,finish,!!old&&old.stage!=='prepared');
   }
   function resume(){
-    if(active)return false; const rows=ledger().filter(row=>row.wallMode==='shadow'&&row.stage!=='published'); if(!rows.length)return false;
+    if(active)return false; const rows=pruneStale().filter(row=>row.wallMode==='shadow'&&row.stage!=='published'); if(!rows.length)return false;
     return activate(rows[rows.length-1],null,true);
   }
   return Object.freeze({handleResponse:handleResponse,resume:resume});
@@ -6259,15 +6453,17 @@ function mountDiceRollGateUi(){
   const actions=document.createElement('div'); actions.style.cssText='display:flex;gap:10px;flex-wrap:wrap';
   const primary=document.createElement('button'); primary.type='button'; primary.className='btn';
   const host=document.createElement('button'); host.type='button'; host.className='btn warn';
-  actions.appendChild(primary); actions.appendChild(host); card.appendChild(title); card.appendChild(formula); card.appendChild(detail); card.appendChild(status); card.appendChild(actions); overlay.appendChild(card); document.body.appendChild(overlay); document.body.style.overflow='hidden'; setTimeout(()=>{try{primary.focus();}catch(_error){}},0);
+  const escape=document.createElement('button'); escape.type='button'; escape.className='btn';
+  actions.appendChild(primary); actions.appendChild(host); actions.appendChild(escape); card.appendChild(title); card.appendChild(formula); card.appendChild(detail); card.appendChild(status); card.appendChild(actions); overlay.appendChild(card); document.body.appendChild(overlay); document.body.style.overflow='hidden'; setTimeout(()=>{try{primary.focus();}catch(_error){}},0);
   let deadline='',hostBase='',hostSuffix='s',ticker=null;
   const repaintHost=()=>{ if(!hostBase)return; const left=Math.max(0,Math.ceil((Date.parse(deadline)-new Date().getTime())/1000)); host.textContent=hostBase+(Number.isFinite(left)&&left>0?' · '+left+hostSuffix:''); };
   const setTicker=()=>{ if(ticker){clearInterval(ticker);ticker=null;} if(deadline&&host.style.display!=='none'){repaintHost();ticker=setInterval(repaintHost,250);} };
-  overlay.addEventListener('keydown',event=>{ if(event.key==='Escape')event.preventDefault(); });
+  overlay.addEventListener('keydown',event=>{ if(event.key==='Escape'){event.preventDefault();if(escape.style.display!=='none'&&!escape.disabled&&typeof escape.onclick==='function')escape.click();} });
   return {update:model=>{
     model=model||{}; if(Object.prototype.hasOwnProperty.call(model,'title'))title.textContent=String(model.title||''); if(Object.prototype.hasOwnProperty.call(model,'formula'))formula.textContent=String(model.formula||''); if(Object.prototype.hasOwnProperty.call(model,'detail'))detail.textContent=String(model.detail||''); if(Object.prototype.hasOwnProperty.call(model,'status'))status.textContent=String(model.status||'');
     if(Object.prototype.hasOwnProperty.call(model,'primaryLabel'))primary.textContent=String(model.primaryLabel||''); if(Object.prototype.hasOwnProperty.call(model,'primaryDisabled'))primary.disabled=!!model.primaryDisabled; if(typeof model.onPrimary==='function')primary.onclick=model.onPrimary;
     if(Object.prototype.hasOwnProperty.call(model,'hostVisible'))host.style.display=model.hostVisible?'':'none'; if(Object.prototype.hasOwnProperty.call(model,'hostDisabled'))host.disabled=!!model.hostDisabled; if(typeof model.onHost==='function')host.onclick=model.onHost; if(Object.prototype.hasOwnProperty.call(model,'hostLabel'))hostBase=String(model.hostLabel||''); if(Object.prototype.hasOwnProperty.call(model,'hostDeadline'))deadline=String(model.hostDeadline||''); if(Object.prototype.hasOwnProperty.call(model,'hostCountdownSuffix'))hostSuffix=String(model.hostCountdownSuffix||''); setTicker();
+    if(Object.prototype.hasOwnProperty.call(model,'escapeVisible'))escape.style.display=model.escapeVisible?'':'none'; if(Object.prototype.hasOwnProperty.call(model,'escapeLabel'))escape.textContent=String(model.escapeLabel||''); if(Object.prototype.hasOwnProperty.call(model,'escapeDisabled'))escape.disabled=!!model.escapeDisabled; if(typeof model.onEscape==='function')escape.onclick=model.onEscape;
   },close:()=>{if(ticker)clearInterval(ticker);overlay.remove();document.body.style.overflow=oldOverflow;try{if(prior&&typeof prior.focus==='function')prior.focus();}catch(_error){}}};
 }
 let _diceRollGate=null;
@@ -6275,6 +6471,7 @@ function diceRollGateController(){
   if(_diceRollGate)return _diceRollGate;
   _diceRollGate=createDiceRollGateController({
     copy:uiCopy,campaignId:()=>campaign&&campaign.id,storage:localStorage,isHost:()=>!!isHost,mount:mountDiceRollGateUi,failPending:failDiceFx,
+    now:()=>Date.now(),setTimer:(run,delay)=>setTimeout(run,delay),clearTimer:id=>clearTimeout(id),log:row=>{try{console.warn('[diceGate]',row);}catch(_error){}},notice:message=>{try{toast(message);}catch(_error){}},
     rpc:(name,args)=>supa.rpc(name,args),
     animate:envelope=>{ const fx=window.DiceFx; if(!fx||typeof fx.roll!=='function')return false; fx.roll(envelope); return true; },
     promote:async(batchId,revision)=>{ const token=(await supa.auth.getSession()).data.session?.access_token; const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({campaign_id:campaign.id,dice_roll_promote:{batch_id:batchId,expected_revision:revision}})}); return await r.json(); },
