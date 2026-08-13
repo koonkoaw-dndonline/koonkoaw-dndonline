@@ -2116,7 +2116,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608131012;   // FE-LANG-03+03B+04: player+host producers paired · class-gate ceiling 0 — asset ring 20260813a1 unchanged
+const FRONTEND_BUILD = 202608131307;   // FE-LANG-05: var-fed+dialog paired (27 anchors + 3 gate finds) · AST taint gates ceiling 0 — asset ring 20260813a1 unchanged
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2420,7 +2420,7 @@ if(BETA){
           // v737 P0-A: server 426 wall — โชว์เหตุผลคู่ภาษา + ตรึง write-block (แยกจาก english_i18n_assets_required ซึ่งมี handler ของตัวเอง)
           if(r&&r.status===426){ r.clone().json().then(j=>{ if(j&&j.error==='frontend_update_required'){ window.frontendWriteBlocked=true; try{ frontendRequirementSeen(j.min_frontend_build,j.min_frontend_epoch); }catch(e){} toast(uiCopy(j.note_th||'(แก้: หน้าเกมรุ่นเก่าถูกหยุดก่อน resolver เปลี่ยนสถานะหลักของโลก — รีเฟรชหน้า)', j.note_en||'(Fixed: stale page blocked before the resolver changed canonical world state — reload.)'),true); } }).catch(()=>{}); }
           if(BETA&&r&&r.status===403){ r.clone().json().then(j=>{
-          if(j&&j.error==='beta_code_required'){ try{localStorage.removeItem('betaCode');}catch(e){} alert('รหัสเบต้าไม่ถูกต้อง/หมดอายุ — รีเฟรชหน้าแล้วใส่รหัสใหม่ (ขอจากผู้ดูแล)'); }
+          if(j&&j.error==='beta_code_required'){ try{localStorage.removeItem('betaCode');}catch(e){} alert(uiCopy('รหัสเบต้าไม่ถูกต้อง/หมดอายุ — รีเฟรชหน้าแล้วใส่รหัสใหม่ (ขอจากผู้ดูแล)','The beta code is invalid or expired — reload the page and enter a new code from the administrator.')); }
           else if(j&&j.error==='gemini_key_required'){ betaAskKey(); }
         }).catch(()=>{}); } return r; }).catch(()=>{});
       }
@@ -3219,14 +3219,14 @@ async function verifyCode(){
 }
 async function doLogout(){ await supa.auth.signOut(); location.reload(); }
 async function endCampaign(){
-  if(!confirm('ลบแคมเปญนี้ถาวร? โลกทั้งหมด (เนื้อเรื่อง/ตัวละคร/ทุกอย่าง) จะหายไปกู้คืนไม่ได้')) return;
+  if(!confirm(uiCopy('ลบแคมเปญนี้ถาวร? โลกทั้งหมด (เนื้อเรื่อง/ตัวละคร/ทุกอย่าง) จะหายไปกู้คืนไม่ได้','Permanently delete this campaign? The entire world (story, characters, and everything else) will be lost and cannot be recovered.'))) return;
   try{ const { error } = await supa.rpc('end_campaign',{ p_campaign:campaign.id }); if(error) throw error; toast('ลบแคมเปญแล้ว'); setTimeout(()=>location.reload(),500); }
   catch(e){ toast(e.message||'ลบไม่สำเร็จ',true); }
 }
 async function leaveCampaign(){
   // v643 FIX-10 (BUGPLAN_2026-07-17 A7-correction): RPC มี host guard อยู่แล้ว ("host cannot leave own campaign") — กันที่ UI ให้ข้อความไทยชัดก่อนถึง confirm
-  if(campaign && me && campaign.host_id===me.id){ alert('Host ออกจากโลกของตัวเองไม่ได้ — ใช้ ✕ End World (ลบถาวร) หรือชวนเพื่อนมาเล่นต่อ'); return; }
-  if(!confirm('ออกจากแคมเปญนี้?')) return;
+  if(campaign && me && campaign.host_id===me.id){ alert(uiCopy('Host ออกจากโลกของตัวเองไม่ได้ — ใช้ ✕ End World (ลบถาวร) หรือชวนเพื่อนมาเล่นต่อ','The host cannot leave their own world — use ✕ End World (permanent deletion) or invite a friend to continue playing.')); return; }
+  if(!confirm(uiCopy('ออกจากแคมเปญนี้?','Leave this campaign?'))) return;
   try{ const { error } = await supa.rpc('leave_campaign',{ p_campaign:campaign.id }); if(error) throw error; toast('ออกจากแคมเปญแล้ว'); setTimeout(()=>location.reload(),500); }
   catch(e){ toast(e.message||'ออกไม่สำเร็จ',true); }
 }
@@ -3382,7 +3382,7 @@ async function createCampaign(){
             const rK=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tokK},body:JSON.stringify({campaign_id:campaign.id,[field]:val})});
             const jK=await rK.json();
             if(jK&&jK.ok) toast(field==='set_gemini_key'?(lang==='en'?'Gemini key ready ✓':'Gemini key พร้อม ✓'):(lang==='en'?'Backup key #'+field.slice(-1)+' ready ✓':'คีย์สำรอง #'+field.slice(-1)+' พร้อม ✓'));
-            else alert((jK&&jK.message)||(lang==='en'?'Invalid key ('+field+') — fix it later in DM TOOLS.':'คีย์ไม่ถูกต้อง ('+field+') — แก้ทีหลังได้ใน DM TOOLS'));
+            else alert((jK&&jK.message)||uiCopy('คีย์ไม่ถูกต้อง ('+field+') — แก้ทีหลังได้ใน DM TOOLS','Invalid key ('+field+') — fix it later in DM TOOLS.',lang));
           }catch(e){}
         }
       } else {
@@ -5146,8 +5146,8 @@ async function companionInteract(companionId,kind){
 }
 async function companionConsent(){
   try{ const v=await companionViewLoad(true),pc=companionOwnedPc(v); if(!pc) return toast('ต้องมีตัวละครของคุณก่อน',true);
-    const adult=confirm('กด OK เพื่อยืนยันว่าผู้เล่นตัวจริงมีอายุ 18 ปีขึ้นไป\nกด Cancel เพื่อไม่ยืนยันและปิดสิทธิ์ Romance ของบัญชี');
-    const romance=adult&&confirm('เปิดเส้นทาง Romance ให้ '+pc.name+' หรือไม่?\nการเปิดสิทธิ์ไม่บังคับให้ companion ตอบรับ');
+    const adult=confirm(uiCopy('กด OK เพื่อยืนยันว่าผู้เล่นตัวจริงมีอายุ 18 ปีขึ้นไป\nกด Cancel เพื่อไม่ยืนยันและปิดสิทธิ์ Romance ของบัญชี','Press OK to confirm that the real player is at least 18 years old.\nPress Cancel to decline confirmation and disable Romance access for this account.'));
+    const romance=adult&&confirm(uiCopy('เปิดเส้นทาง Romance ให้ ','Enable the Romance path for ')+pc.name+uiCopy(' หรือไม่?\nการเปิดสิทธิ์ไม่บังคับให้ companion ตอบรับ','?\nEnabling access does not require the companion to accept.'));
     // v720: ไม่ใส่ปี — วัน/เดือน ตามปฏิทินโลก 12×30 (server อนุมานปีจากอายุตัวละคร)
     let birth=null;
     if(!pc.birthday_known){
@@ -5157,7 +5157,7 @@ async function companionConsent(){
       else if(rawB) toast(uiCopy('รูปแบบวันเกิดไม่ถูกต้อง — ใช้ วันที่/เดือน เช่น 15/3','Invalid birthday format — use day/month, e.g. 15/3'),true);
     }
     const needsAgePolicy=romance&&(pc.age_years==null||Number(pc.age_years)<18);
-    const underageOk=needsAgePolicy&&confirm('หาก '+pc.name+' มีอายุตัวละคร 13-17 ปี\nยืนยันเปิดเฉพาะเส้นทางความสัมพันธ์แบบ PG-13 ที่ไม่มี adult content หรือไม่?\n(อายุต่ำกว่า 13 จะถูกบล็อกเสมอ; อายุ 18+ ระบบจะไม่ใช้ consent ข้อนี้)');
+    const underageOk=needsAgePolicy&&confirm(uiCopy('หาก ','If ')+pc.name+uiCopy(' มีอายุตัวละคร 13-17 ปี\nยืนยันเปิดเฉพาะเส้นทางความสัมพันธ์แบบ PG-13 ที่ไม่มี adult content หรือไม่?\n(อายุต่ำกว่า 13 จะถูกบล็อกเสมอ; อายุ 18+ ระบบจะไม่ใช้ consent ข้อนี้)',' is a character aged 13–17, confirm enabling only a PG-13 relationship path with no adult content.\n(Characters under 13 are always blocked; this consent does not apply to characters aged 18+.)'));
     const body={character_id:pc.character_id,adult_confirmed:adult,romance_enabled:romance,underage_romance_confirmed:!!underageOk}; if(birth) body.birth_date=birth;
     const j=await companionResolve({romance_confirm:body}); toast(j.note||'บันทึกแล้ว'); _companionViewCache=null; renderCompanion();
   }catch(e){ toast(e.message||'บันทึก consent ไม่สำเร็จ',true); }
@@ -5186,7 +5186,7 @@ async function loadChat(){
   try{ const ct=+(localStorage.getItem('ttrpg_chatclear_'+campaign.id)||0); if(ct) chatMsgs=chatMsgs.filter(m=>new Date(m.created_at).getTime()>ct); }catch(e){}
 }
 function clearChatLocal(){
-  if(!confirm('ล้างแชทบนเครื่องนี้? (ประวัติยังอยู่ในระบบ เพื่อน/บอทยังเห็นตามปกติ)')) return;
+  if(!confirm(uiCopy('ล้างแชทบนเครื่องนี้? (ประวัติยังอยู่ในระบบ เพื่อน/บอทยังเห็นตามปกติ)','Clear chat on this device? (The history remains in the system, and friends/bots can still see it normally.)'))) return;
   try{ localStorage.setItem('ttrpg_chatclear_'+campaign.id, String(Date.now())); }catch(e){}
   loadChat().then(()=>{ try{ renderChatList(); }catch(e){} try{ if(typeof renderBattleChat==='function') renderBattleChat(); }catch(e){} });
   toast('ล้างแชทแล้ว (เครื่องนี้) ✓');
@@ -5399,7 +5399,7 @@ function makeSkipBtn(){
   };
   label();
   const iv=setInterval(()=>{ if(!document.body.contains(sk)){ clearInterval(iv); return; } label(); },1000);
-  sk.onclick=()=>{ if(confirm('Skip เทิร์นของ '+(gCombat.activeName||'ผู้เล่นนี้')+'?\n(เทิร์นนี้จะถือว่าตั้งรับ/Dodge — ใช้เมื่อผู้เล่น/บอทไม่ตอบสนองเท่านั้น)')) resolveRound(true); };
+  sk.onclick=()=>{ if(confirm(uiCopy('Skip เทิร์นของ ','Skip the turn for ')+(gCombat.activeName||uiCopy('ผู้เล่นนี้','this player'))+uiCopy('?\n(เทิร์นนี้จะถือว่าตั้งรับ/Dodge — ใช้เมื่อผู้เล่น/บอทไม่ตอบสนองเท่านั้น)','?\n(This turn will count as defending/Dodge — use only when the player or bot is unresponsive.)'))) resolveRound(true); };
   return sk;
 }
 // DM Options v704: flat envelope renderer + suggestion-only draft. Canonical block is mirrored in beta.html.
@@ -5585,7 +5585,7 @@ function persOptsWidget(){
 async function forceLevelup(){   // v538 H5: host บังคับปิด level_up gate (คนออฟไลน์ค้าง)
   if(gateBeforePlay()) return;
   if(!campaign||!me||campaign.host_id!==me.id) return;
-  if(!confirm('ข้ามการรอผู้เล่นที่ยังไม่เลือกสกิลเลเวลอัพ แล้วเล่นต่อ?\n(XP/เลเวลของคนที่ยังไม่กดจะไม่หาย — ระบบเลื่อนให้รอบหน้า)')) return;
+  if(!confirm(uiCopy('ข้ามการรอผู้เล่นที่ยังไม่เลือกสกิลเลเวลอัพ แล้วเล่นต่อ?\n(XP/เลเวลของคนที่ยังไม่กดจะไม่หาย — ระบบเลื่อนให้รอบหน้า)','Stop waiting for players who have not chosen their level-up ability and continue?\n(Their XP/level will not be lost — the system will defer it to the next round.)'))) return;
   try{
     var sess=(await supa.auth.getSession()).data.session; var tok=sess&&sess.access_token;
     var r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id, force_levelup:true})});
@@ -6000,7 +6000,7 @@ async function renderRoundbar(){
     }
     if(rr.needed && _rrMineS){
       const dice=document.createElement('div'); dice.className='dicerow';
-      const reason = rr.reason ? (escapeHtml(String(rr.reason).slice(0,140))+(String(rr.reason).length>140?'…':'')) : 'DM ขอให้ทอยเต๋า';   // clamp กันเหตุผลยาวผิดปกติ
+      const reason = rr.reason ? (escapeHtml(String(rr.reason).slice(0,140))+(String(rr.reason).length>140?'…':'')) : uiCopy('DM ขอให้ทอยเต๋า','the DM requested a roll');   // clamp กันเหตุผลยาวผิดปกติ
       const _rrItems = (Array.isArray(rr.items)&&rr.items.length)? rr.items : [];
       if(_rrItems.length>1){
         // v424: หลายสกิลใน roll_request = "ทางเลือก" ไม่ใช่ทอยรวดทุกอัน — ผู้เล่นเลือกทอย 'อันเดียว' (กันทอย Persuasion/Intimidation/Deception ออกมาพร้อมกัน 3 ค่า)
@@ -7040,7 +7040,7 @@ async function _renderMeInner(){
   const prof=2+Math.floor(((myChar.level||1)-1)/4);
   const initv=sign(mod(eAb.dex));
   const _thp=(cb&&Number.isFinite(+cb.temp_hp)&&+cb.temp_hp>0)?+cb.temp_hp:0;   // v446: temp HP (Heroism/False Life/Aid) — โชว์ให้ผู้เล่นเห็น
-  const hp=((cb.maxhp!=null)?`${cb.hp??cb.maxhp}/${cb.maxhp}`:((myChar.public_status||{}).hp||dash))+(_thp?` (+${_thp} ชั่วคราว)`:'');
+  const hp=((cb.maxhp!=null)?`${cb.hp??cb.maxhp}/${cb.maxhp}`:((myChar.public_status||{}).hp||dash))+(_thp?uiCopy(` (+${_thp} ชั่วคราว)`,` (+${_thp} temporary)`):'');
   const sub=[sheet.race, sheet.sex, sheet.age?uiCopy('อายุ '+sheet.age,'Age '+sheet.age):'', myChar.class||'Adventurer', sheet.subclass||'', 'Lv.'+myChar.level].filter(Boolean).join(' · ');   // v183: โชว์ subclass (Oath)
   const _derivedCombat759=derivedSheetCombatFacts(myChar,sheet);
   const bsum=[]; if(bon.add.attack) bsum.push('โจมตี '+sign(bon.add.attack)); if(bon.add.damage) bsum.push('ดาเมจ '+sign(bon.add.damage)); if(bon.add.save) bsum.push('save '+sign(bon.add.save)); if(bon.add.ability_check) bsum.push('ability check '+sign(bon.add.ability_check)); if(bon.add.spell_attack) bsum.push('spell atk '+sign(bon.add.spell_attack)); if(bon.add.spell_dc) bsum.push('spell DC '+sign(bon.add.spell_dc));
@@ -7819,10 +7819,10 @@ function renderFeatCard(p){
 }
 // v329 Hunter's Prey picker (Ranger L3+) — เขียน sheet.hunters_prey ให้ server (resolver v329) บังคับผล
 const HUNTERS_PREY_OPTS=[
-  {id:'', label:'— ยังไม่เลือก —', desc:uiCopy("เลือก Hunter's Prey (Hunter archetype เลเวล 3) — ความสามารถจะมีผลในการรบ","Choose Hunter's Prey (Hunter archetype level 3) — the feature applies in combat")},
-  {id:'colossus-slayer', label:'Colossus Slayer (บั่นทอนยักษ์)', desc:'+1d8 ดาเมจ เมื่อตีศัตรูที่ HP ไม่เต็ม (1 ครั้ง/เทิร์น) ✅ บังคับจริง'},
-  {id:'horde-breaker', label:'Horde Breaker (ทลายฝูง)', desc:'โจมตีเพิ่ม 1 ครั้งใส่ศัตรูอีกตัวในระยะ 5ft จากเป้าหลัก (1 ครั้ง/เทิร์น · ต้องมีกริด) ✅ บังคับจริง'},
-  {id:'giant-killer', label:'Giant Killer (สังหารยักษ์)', desc:'reaction: เมื่อศัตรูขนาดใหญ่ (Large+) ในระยะ 5ft โจมตีคุณ → โต้กลับทันที 1 ครั้ง ✅ บังคับจริง'},
+  {id:'', label:'— ยังไม่เลือก —', labelEn:'— Not selected —', desc:"เลือก Hunter's Prey (Hunter archetype เลเวล 3) — ความสามารถจะมีผลในการรบ", descEn:"Choose Hunter's Prey (Hunter archetype level 3) — the feature applies in combat"},
+  {id:'colossus-slayer', label:'Colossus Slayer (บั่นทอนยักษ์)', labelEn:'Colossus Slayer', desc:'+1d8 ดาเมจ เมื่อตีศัตรูที่ HP ไม่เต็ม (1 ครั้ง/เทิร์น) ✅ บังคับจริง', descEn:'+1d8 damage when you hit an enemy below maximum HP (once per turn) ✅ enforced'},
+  {id:'horde-breaker', label:'Horde Breaker (ทลายฝูง)', labelEn:'Horde Breaker', desc:'โจมตีเพิ่ม 1 ครั้งใส่ศัตรูอีกตัวในระยะ 5ft จากเป้าหลัก (1 ครั้ง/เทิร์น · ต้องมีกริด) ✅ บังคับจริง', descEn:'Make one extra attack against another enemy within 5 ft of the primary target (once per turn · grid required) ✅ enforced'},
+  {id:'giant-killer', label:'Giant Killer (สังหารยักษ์)', labelEn:'Giant Killer', desc:'reaction: เมื่อศัตรูขนาดใหญ่ (Large+) ในระยะ 5ft โจมตีคุณ → โต้กลับทันที 1 ครั้ง ✅ บังคับจริง', descEn:'Reaction: when a Large+ enemy within 5 ft attacks you, immediately counterattack once ✅ enforced'},
 ];
 function _preyMatch(cur){   // มิเรอร์ server normalizeHuntersPrey
   const s=String(cur||'').toLowerCase(); if(!s.trim()) return '';
@@ -7838,38 +7838,40 @@ function renderHuntersPreyCard(p){
   const head='<div class="sk-head">Hunter’s Prey <span class="en">· HUNTER</span></div>';
   if(lvl<3){ card.innerHTML=head+'<div class="muted" style="font-size:.85em">'+uiCopy('🔒 ปลดล็อกเมื่อถึงเลเวล 3 (Hunter archetype)','🔒 Unlocks at level 3 (Hunter archetype)')+'</div>'; p.appendChild(card); return; }
   const cur=_preyMatch((mySheet||{}).hunters_prey);
-  const optsHtml=HUNTERS_PREY_OPTS.map(o=>'<option value="'+o.id+'"'+(o.id===cur?' selected':'')+'>'+escapeHtml(o.label)+'</option>').join('');
-  const curDesc=(HUNTERS_PREY_OPTS.find(o=>o.id===cur)||HUNTERS_PREY_OPTS[0]).desc;
+  const preyOpts=HUNTERS_PREY_OPTS.map(localizedRuleOption);
+  const optsHtml=preyOpts.map(o=>'<option value="'+o.id+'"'+(o.id===cur?' selected':'')+'>'+escapeHtml(o.label)+'</option>').join('');
+  const curDesc=(preyOpts.find(o=>o.id===cur)||preyOpts[0]).desc;
   card.innerHTML=head+'<select class="hp-sel" style="width:100%;margin:6px 0;padding:7px;border-radius:8px">'+optsHtml+'</select><div class="muted hp-desc" style="font-size:.85em;line-height:1.4">'+escapeHtml(curDesc)+'</div>';
   const sel=card.querySelector('.hp-sel'); const desc=card.querySelector('.hp-desc');
   sel.onchange=async()=>{
     const val=sel.value;
-    desc.textContent=(HUNTERS_PREY_OPTS.find(o=>o.id===val)||HUNTERS_PREY_OPTS[0]).desc;
+    desc.textContent=(preyOpts.find(o=>o.id===val)||preyOpts[0]).desc;
     try{
       const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle(); if(r.error) throw r.error;
       const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at;
       if(val) sheet.hunters_prey=val; else delete sheet.hunters_prey;
       await _saveSheet(sheet, _prev); tick();
-      toast(val?("ตั้ง Hunter’s Prey: "+(HUNTERS_PREY_OPTS.find(o=>o.id===val)||{}).label+' ✓'):"ล้าง Hunter’s Prey แล้ว");
+      toast(val?(uiCopy("ตั้ง Hunter’s Prey: ","Hunter’s Prey set: ")+(preyOpts.find(o=>o.id===val)||{}).label+' ✓'):uiCopy("ล้าง Hunter’s Prey แล้ว","Hunter’s Prey cleared"));
     }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ชีทเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderSkills(); } else toast('บันทึกไม่สำเร็จ ลองใหม่',true); }
   };
   p.appendChild(card);
 }
 // v376 Ascendant Dragon element picker (Monk · ธาตุมังกรที่เลือก → sheet.monk_element · resolver ใช้ Draconic Strike note + Draconic Resilience resist)
 const ASCENDANT_ELEM_OPTS=[
-  {id:'fire', label:'🔥 ไฟ (Fire)'},
-  {id:'cold', label:'❄️ เย็น (Cold)'},
-  {id:'lightning', label:'⚡ สายฟ้า (Lightning)'},
-  {id:'acid', label:'🧪 กรด (Acid)'},
-  {id:'poison', label:'☠️ พิษ (Poison)'},
+  {id:'fire', label:'🔥 ไฟ (Fire)', labelEn:'🔥 Fire', desc:'', descEn:''},
+  {id:'cold', label:'❄️ เย็น (Cold)', labelEn:'❄️ Cold', desc:'', descEn:''},
+  {id:'lightning', label:'⚡ สายฟ้า (Lightning)', labelEn:'⚡ Lightning', desc:'', descEn:''},
+  {id:'acid', label:'🧪 กรด (Acid)', labelEn:'🧪 Acid', desc:'', descEn:''},
+  {id:'poison', label:'☠️ พิษ (Poison)', labelEn:'☠️ Poison', desc:'', descEn:''},
 ];
 function renderAscendantElementCard(p){
   if(_subClassKey(myChar&&myChar.class)!=='monk') return;
   if(!/ascendant/i.test(((mySheet||{}).subclass)||'')) return;   // เฉพาะ Way of the Ascendant Dragon (เลือก subclass แล้ว)
   const card=document.createElement('div'); card.className='item'; card.style.cssText='margin-bottom:10px';
-  const head='<div class="sk-head">ธาตุมังกร <span class="en">· DRACONIC ELEMENT</span></div>';
+  const head=uiCopy('<div class="sk-head">ธาตุมังกร <span class="en">· DRACONIC ELEMENT</span></div>','<div class="sk-head">Draconic Element <span class="en">· DRACONIC ELEMENT</span></div>');
+  const elementOpts=ASCENDANT_ELEM_OPTS.map(localizedRuleOption);
   const cur=(ASCENDANT_ELEM_OPTS.find(o=>o.id===((mySheet||{}).monk_element||'fire'))||ASCENDANT_ELEM_OPTS[0]).id;
-  const optsHtml=ASCENDANT_ELEM_OPTS.map(o=>'<option value="'+o.id+'"'+(o.id===cur?' selected':'')+'>'+escapeHtml(o.label)+'</option>').join('');
+  const optsHtml=elementOpts.map(o=>'<option value="'+o.id+'"'+(o.id===cur?' selected':'')+'>'+escapeHtml(o.label)+'</option>').join('');
   card.innerHTML=head+'<div class="muted" style="font-size:.8em;margin-bottom:2px">'+uiCopy('Draconic Strike +1d6 · Draconic Resilience ต้านทานครึ่ง — ตามธาตุนี้','Draconic Strike +1d6 · Draconic Resilience half resistance — keyed to this element')+'</div><select class="ae-sel" style="width:100%;margin:6px 0;padding:7px;border-radius:8px">'+optsHtml+'</select>';
   const sel=card.querySelector('.ae-sel');
   sel.onchange=async()=>{
@@ -7879,24 +7881,25 @@ function renderAscendantElementCard(p){
       const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at;
       sheet.monk_element=val;
       await _saveSheet(sheet, _prev); tick();
-      toast('ตั้งธาตุมังกร: '+((ASCENDANT_ELEM_OPTS.find(o=>o.id===val)||{}).label||val)+' ✓');
+      toast(uiCopy('ตั้งธาตุมังกร: ','Draconic element set: ')+((elementOpts.find(o=>o.id===val)||{}).label||val)+' ✓');
     }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ชีทเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderSkills(); } else toast('บันทึกไม่สำเร็จ ลองใหม่',true); }
   };
   p.appendChild(card);
 }
 // v377 Storm Aura environment picker (Barbarian Storm Herald · สิ่งแวดล้อม → sheet.storm_aura_env · resolver serverAuraTick ใช้ ทะเลทราย/ทะเล/ทุนดรา)
 const STORM_ENV_OPTS=[
-  {id:'desert', label:'🏜️ ทะเลทราย (Desert) — ไฟใส่ศัตรูในรัศมี'},
-  {id:'sea', label:'🌊 ทะเล (Sea) — ฟ้าผ่าใส่ศัตรู 1 ตัว (เซฟ DEX)'},
-  {id:'tundra', label:'❄️ ทุนดรา (Tundra) — เกราะ HP ชั่วคราวให้พวกพ้อง'},
+  {id:'desert', label:'🏜️ ทะเลทราย (Desert) — ไฟใส่ศัตรูในรัศมี', labelEn:'🏜️ Desert — fire damages enemies in the aura', desc:'', descEn:''},
+  {id:'sea', label:'🌊 ทะเล (Sea) — ฟ้าผ่าใส่ศัตรู 1 ตัว (เซฟ DEX)', labelEn:'🌊 Sea — lightning strikes one enemy (DEX save)', desc:'', descEn:''},
+  {id:'tundra', label:'❄️ ทุนดรา (Tundra) — เกราะ HP ชั่วคราวให้พวกพ้อง', labelEn:'❄️ Tundra — grants temporary HP to allies', desc:'', descEn:''},
 ];
 function renderStormEnvCard(p){
   if(_subClassKey(myChar&&myChar.class)!=='barbarian') return;
   if(!/storm|พายุ/i.test(((mySheet||{}).subclass)||'')) return;   // เฉพาะ Path of the Storm Herald (เลือก subclass แล้ว)
   const card=document.createElement('div'); card.className='item'; card.style.cssText='margin-bottom:10px';
-  const head='<div class="sk-head">สิ่งแวดล้อมพายุ <span class="en">· STORM AURA</span></div>';
+  const head=uiCopy('<div class="sk-head">สิ่งแวดล้อมพายุ <span class="en">· STORM AURA</span></div>','<div class="sk-head">Storm Environment <span class="en">· STORM AURA</span></div>');
+  const stormOpts=STORM_ENV_OPTS.map(localizedRuleOption);
   const cur=(STORM_ENV_OPTS.find(o=>o.id===((mySheet||{}).storm_aura_env||'desert'))||STORM_ENV_OPTS[0]).id;
-  const optsHtml=STORM_ENV_OPTS.map(o=>'<option value="'+o.id+'"'+(o.id===cur?' selected':'')+'>'+escapeHtml(o.label)+'</option>').join('');
+  const optsHtml=stormOpts.map(o=>'<option value="'+o.id+'"'+(o.id===cur?' selected':'')+'>'+escapeHtml(o.label)+'</option>').join('');
   card.innerHTML=head+'<div class="muted" style="font-size:.8em;margin-bottom:2px">'+uiCopy('ขณะ Rage แผ่ผลรัศมี 10ft ทุกรอบ — ตามสิ่งแวดล้อมนี้','While raging, a 10 ft aura pulses every round — keyed to this environment')+'</div><select class="se-sel" style="width:100%;margin:6px 0;padding:7px;border-radius:8px">'+optsHtml+'</select>';
   const sel=card.querySelector('.se-sel');
   sel.onchange=async()=>{
@@ -7906,7 +7909,7 @@ function renderStormEnvCard(p){
       const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at;
       sheet.storm_aura_env=val;
       await _saveSheet(sheet, _prev); tick();
-      toast('ตั้งสิ่งแวดล้อมพายุ: '+((STORM_ENV_OPTS.find(o=>o.id===val)||{}).label||val)+' ✓');
+      toast(uiCopy('ตั้งสิ่งแวดล้อมพายุ: ','Storm environment set: ')+((stormOpts.find(o=>o.id===val)||{}).label||val)+' ✓');
     }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast('ชีทเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง',true); try{await refreshAll();}catch(_){} renderSkills(); } else toast('บันทึกไม่สำเร็จ ลองใหม่',true); }
   };
   p.appendChild(card);
@@ -7914,136 +7917,137 @@ function renderStormEnvCard(p){
 // v335 Subclass picker (Bard/Barbarian/Sorcerer/Wizard/Cleric) — เขียน sheet.subclass (+ sheet.domain_key สำหรับนักบวช) ให้ server (resolver v335) บังคับผล
 // v336: catalog ครบทุกคลาส (id = ชื่อ canonical ตรงกับ server SUBCLASS_FEATURES.name) · ✅=บังคับจริง · ที่เหลือ detection-only (DM เล่าถูกสาย · กลไกตามมา Phase 4)
 const _DM='— DM เล่าถูกสาย (กลไกตามมาภายหลัง)';
+const _DM_EN='— The DM follows this subclass (mechanics to be added later)';
 const SUBCLASS_OPTS={
   bard:{minLevel:3, opts:[
-    {id:'', label:'— ยังไม่เลือก —', desc:'เลือก College (Bard เลเวล 3)'},
-    {id:'College of Eloquence', label:'College of Eloquence (วาทศิลป์)', desc:'Silver Tongue: เช็คโน้มน้าว/หลอกล่อ ทอย d20 ขั้นต่ำ 10 เสมอ ✅ บังคับจริง'},
-    {id:'College of Valor', label:'College of Valor (วีรกรรม)', desc:'Extra Attack เลเวล 6 — โจมตี 2 ครั้ง/เทิร์น ✅ บังคับจริง'},
-    {id:'College of Swords', label:'College of Swords (วิถีดาบ)', desc:'Extra Attack เลเวล 6 — โจมตี 2 ครั้ง/เทิร์น ✅ บังคับจริง'},
-    {id:'College of Lore', label:'College of Lore (ปราชญ์)', desc:'Cutting Words · '+_DM},
-    {id:'College of Glamour', label:'College of Glamour (เสน่ห์มารยา)', desc:_DM},
-    {id:'College of Whispers', label:'College of Whispers (เสียงกระซิบ)', desc:_DM},
-    {id:'College of Creation', label:'College of Creation (รังสรรค์)', desc:_DM},
-    {id:'College of Spirits', label:'College of Spirits (วิญญาณนิทาน)', desc:_DM},
+    {id:'', label:'— ยังไม่เลือก —', labelEn:'— Not selected —', desc:'เลือก College (Bard เลเวล 3)', descEn:'Choose a College (Bard level 3)'},
+    {id:'College of Eloquence', label:'College of Eloquence (วาทศิลป์)', labelEn:'College of Eloquence', desc:'Silver Tongue: เช็คโน้มน้าว/หลอกล่อ ทอย d20 ขั้นต่ำ 10 เสมอ ✅ บังคับจริง', descEn:'Silver Tongue: Persuasion and Deception checks treat a d20 roll below 10 as 10 ✅ enforced'},
+    {id:'College of Valor', label:'College of Valor (วีรกรรม)', labelEn:'College of Valor', desc:'Extra Attack เลเวล 6 — โจมตี 2 ครั้ง/เทิร์น ✅ บังคับจริง', descEn:'Extra Attack at level 6 — attack twice per turn ✅ enforced'},
+    {id:'College of Swords', label:'College of Swords (วิถีดาบ)', labelEn:'College of Swords', desc:'Extra Attack เลเวล 6 — โจมตี 2 ครั้ง/เทิร์น ✅ บังคับจริง', descEn:'Extra Attack at level 6 — attack twice per turn ✅ enforced'},
+    {id:'College of Lore', label:'College of Lore (ปราชญ์)', labelEn:'College of Lore', desc:'Cutting Words · '+_DM, descEn:'Cutting Words · '+_DM_EN},
+    {id:'College of Glamour', label:'College of Glamour (เสน่ห์มารยา)', labelEn:'College of Glamour', desc:_DM, descEn:_DM_EN},
+    {id:'College of Whispers', label:'College of Whispers (เสียงกระซิบ)', labelEn:'College of Whispers', desc:_DM, descEn:_DM_EN},
+    {id:'College of Creation', label:'College of Creation (รังสรรค์)', labelEn:'College of Creation', desc:_DM, descEn:_DM_EN},
+    {id:'College of Spirits', label:'College of Spirits (วิญญาณนิทาน)', labelEn:'College of Spirits', desc:_DM, descEn:_DM_EN},
   ]},
   barbarian:{minLevel:3, opts:[
-    {id:'', label:'— ยังไม่เลือก —', desc:'เลือก Primal Path (Barbarian เลเวล 3)'},
-    {id:'Path of the Totem Warrior (Bear)', label:'Totem Warrior — Bear (โทเท็มหมี)', desc:'ขณะ Rage ต้านทานดาเมจทุกชนิดยกเว้น psychic ✅ บังคับจริง'},
-    {id:'Path of the Berserker', label:'Berserker (คลั่งสงคราม)', desc:_DM},
-    {id:'Path of the Ancestral Guardian', label:'Ancestral Guardian (บรรพชน)', desc:_DM},
-    {id:'Path of the Storm Herald', label:'Storm Herald (ผู้นำพายุ)', desc:'Storm Aura: ขณะ rage แผ่รัศมี 10ft (ทะเลทราย=ไฟใส่ศัตรู/ทะเล=ฟ้าผ่า 1 ตัว/ทุนดรา=เกราะ HP พวกพ้อง) ✅ บังคับจริง (เลือกในการ์ด "สิ่งแวดล้อมพายุ")'},
-    {id:'Path of the Zealot', label:'Zealot (คลั่งศรัทธา)', desc:_DM},
-    {id:'Path of the Beast', label:'Beast (ร่างอสูร)', desc:_DM},
-    {id:'Path of Wild Magic', label:'Wild Magic (เวทคลั่ง)', desc:_DM},
+    {id:'', label:'— ยังไม่เลือก —', labelEn:'— Not selected —', desc:'เลือก Primal Path (Barbarian เลเวล 3)', descEn:'Choose a Primal Path (Barbarian level 3)'},
+    {id:'Path of the Totem Warrior (Bear)', label:'Totem Warrior — Bear (โทเท็มหมี)', labelEn:'Totem Warrior — Bear', desc:'ขณะ Rage ต้านทานดาเมจทุกชนิดยกเว้น psychic ✅ บังคับจริง', descEn:'While raging, resist all damage except psychic ✅ enforced'},
+    {id:'Path of the Berserker', label:'Berserker (คลั่งสงคราม)', labelEn:'Berserker', desc:_DM, descEn:_DM_EN},
+    {id:'Path of the Ancestral Guardian', label:'Ancestral Guardian (บรรพชน)', labelEn:'Ancestral Guardian', desc:_DM, descEn:_DM_EN},
+    {id:'Path of the Storm Herald', label:'Storm Herald (ผู้นำพายุ)', labelEn:'Storm Herald', desc:'Storm Aura: ขณะ rage แผ่รัศมี 10ft (ทะเลทราย=ไฟใส่ศัตรู/ทะเล=ฟ้าผ่า 1 ตัว/ทุนดรา=เกราะ HP พวกพ้อง) ✅ บังคับจริง (เลือกในการ์ด "สิ่งแวดล้อมพายุ")', descEn:'Storm Aura: while raging, project a 10 ft aura (desert=fire damage to enemies / sea=lightning against one target / tundra=temporary HP for allies) ✅ enforced (choose in the Storm Environment card)'},
+    {id:'Path of the Zealot', label:'Zealot (คลั่งศรัทธา)', labelEn:'Zealot', desc:_DM, descEn:_DM_EN},
+    {id:'Path of the Beast', label:'Beast (ร่างอสูร)', labelEn:'Beast', desc:_DM, descEn:_DM_EN},
+    {id:'Path of Wild Magic', label:'Wild Magic (เวทคลั่ง)', labelEn:'Wild Magic', desc:_DM, descEn:_DM_EN},
   ]},
   sorcerer:{minLevel:1, opts:[
-    {id:'', label:'— ยังไม่เลือก —', desc:'เลือก Sorcerous Origin (Sorcerer เลเวล 1)'},
-    {id:'Draconic Bloodline', label:'Draconic Bloodline (สายเลือดมังกร)', desc:'Draconic Resilience: AC = 13 + DEX เมื่อไม่สวมเกราะ ✅ บังคับจริง'},
-    {id:'Wild Magic', label:'Wild Magic (เวทมั่ว)', desc:_DM},
-    {id:'Divine Soul', label:'Divine Soul (จิตเทวะ)', desc:_DM},
-    {id:'Shadow Magic', label:'Shadow Magic (เวทเงา)', desc:_DM},
-    {id:'Storm Sorcery', label:'Storm Sorcery (จอมพายุ)', desc:_DM},
-    {id:'Aberrant Mind', label:'Aberrant Mind (จิตวิปริต)', desc:_DM},
-    {id:'Clockwork Soul', label:'Clockwork Soul (จิตกลไก)', desc:_DM},
+    {id:'', label:'— ยังไม่เลือก —', labelEn:'— Not selected —', desc:'เลือก Sorcerous Origin (Sorcerer เลเวล 1)', descEn:'Choose a Sorcerous Origin (Sorcerer level 1)'},
+    {id:'Draconic Bloodline', label:'Draconic Bloodline (สายเลือดมังกร)', labelEn:'Draconic Bloodline', desc:'Draconic Resilience: AC = 13 + DEX เมื่อไม่สวมเกราะ ✅ บังคับจริง', descEn:'Draconic Resilience: AC = 13 + DEX while unarmored ✅ enforced'},
+    {id:'Wild Magic', label:'Wild Magic (เวทมั่ว)', labelEn:'Wild Magic', desc:_DM, descEn:_DM_EN},
+    {id:'Divine Soul', label:'Divine Soul (จิตเทวะ)', labelEn:'Divine Soul', desc:_DM, descEn:_DM_EN},
+    {id:'Shadow Magic', label:'Shadow Magic (เวทเงา)', labelEn:'Shadow Magic', desc:_DM, descEn:_DM_EN},
+    {id:'Storm Sorcery', label:'Storm Sorcery (จอมพายุ)', labelEn:'Storm Sorcery', desc:_DM, descEn:_DM_EN},
+    {id:'Aberrant Mind', label:'Aberrant Mind (จิตวิปริต)', labelEn:'Aberrant Mind', desc:_DM, descEn:_DM_EN},
+    {id:'Clockwork Soul', label:'Clockwork Soul (จิตกลไก)', labelEn:'Clockwork Soul', desc:_DM, descEn:_DM_EN},
   ]},
   wizard:{minLevel:2, opts:[
-    {id:'', label:'— ยังไม่เลือก —', desc:'เลือก Arcane Tradition (Wizard เลเวล 2)'},
-    {id:'Bladesinging', label:'Bladesinging (รำดาบ)', desc:'Bladesong: AC = 10 + DEX + INT เมื่อไม่สวมเกราะ (ขณะร่ายรำในศึก) ✅ บังคับจริง'},
-    {id:'School of Abjuration', label:'Abjuration (ป้องกัน)', desc:_DM},
-    {id:'School of Conjuration', label:'Conjuration (อัญเชิญ)', desc:_DM},
-    {id:'School of Divination', label:'Divination (พยากรณ์)', desc:_DM},
-    {id:'School of Enchantment', label:'Enchantment (เสน่หา)', desc:_DM},
-    {id:'School of Evocation', label:'Evocation (อภินิหาร)', desc:_DM},
-    {id:'School of Illusion', label:'Illusion (มายา)', desc:_DM},
-    {id:'School of Necromancy', label:'Necromancy (ศพเวท)', desc:_DM},
-    {id:'School of Transmutation', label:'Transmutation (แปรธาตุ)', desc:_DM},
-    {id:'War Magic', label:'War Magic (เวทสงคราม)', desc:_DM},
-    {id:'Chronurgy Magic', label:'Chronurgy (เวทกาล)', desc:_DM},
-    {id:'Graviturgy Magic', label:'Graviturgy (เวทโน้มถ่วง)', desc:_DM},
-    {id:'Order of Scribes', label:'Order of Scribes (อาลักษณ์)', desc:_DM},
+    {id:'', label:'— ยังไม่เลือก —', labelEn:'— Not selected —', desc:'เลือก Arcane Tradition (Wizard เลเวล 2)', descEn:'Choose an Arcane Tradition (Wizard level 2)'},
+    {id:'Bladesinging', label:'Bladesinging (รำดาบ)', labelEn:'Bladesinging', desc:'Bladesong: AC = 10 + DEX + INT เมื่อไม่สวมเกราะ (ขณะร่ายรำในศึก) ✅ บังคับจริง', descEn:'Bladesong: AC = 10 + DEX + INT while unarmored and Bladesong is active in combat ✅ enforced'},
+    {id:'School of Abjuration', label:'Abjuration (ป้องกัน)', labelEn:'Abjuration', desc:_DM, descEn:_DM_EN},
+    {id:'School of Conjuration', label:'Conjuration (อัญเชิญ)', labelEn:'Conjuration', desc:_DM, descEn:_DM_EN},
+    {id:'School of Divination', label:'Divination (พยากรณ์)', labelEn:'Divination', desc:_DM, descEn:_DM_EN},
+    {id:'School of Enchantment', label:'Enchantment (เสน่หา)', labelEn:'Enchantment', desc:_DM, descEn:_DM_EN},
+    {id:'School of Evocation', label:'Evocation (อภินิหาร)', labelEn:'Evocation', desc:_DM, descEn:_DM_EN},
+    {id:'School of Illusion', label:'Illusion (มายา)', labelEn:'Illusion', desc:_DM, descEn:_DM_EN},
+    {id:'School of Necromancy', label:'Necromancy (ศพเวท)', labelEn:'Necromancy', desc:_DM, descEn:_DM_EN},
+    {id:'School of Transmutation', label:'Transmutation (แปรธาตุ)', labelEn:'Transmutation', desc:_DM, descEn:_DM_EN},
+    {id:'War Magic', label:'War Magic (เวทสงคราม)', labelEn:'War Magic', desc:_DM, descEn:_DM_EN},
+    {id:'Chronurgy Magic', label:'Chronurgy (เวทกาล)', labelEn:'Chronurgy', desc:_DM, descEn:_DM_EN},
+    {id:'Graviturgy Magic', label:'Graviturgy (เวทโน้มถ่วง)', labelEn:'Graviturgy', desc:_DM, descEn:_DM_EN},
+    {id:'Order of Scribes', label:'Order of Scribes (อาลักษณ์)', labelEn:'Order of Scribes', desc:_DM, descEn:_DM_EN},
   ]},
   druid:{minLevel:2, opts:[
-    {id:'', label:'— ยังไม่เลือก —', desc:'เลือก Druid Circle (Druid เลเวล 2)'},
-    {id:'Circle of the Land', label:'Circle of the Land (แดนดิน)', desc:_DM},
-    {id:'Circle of the Moon', label:'Circle of the Moon (จันทรา)', desc:_DM},
-    {id:'Circle of Dreams', label:'Circle of Dreams (สุบิน)', desc:_DM},
-    {id:'Circle of the Shepherd', label:'Circle of the Shepherd (ผู้เลี้ยง)', desc:_DM},
-    {id:'Circle of Spores', label:'Circle of Spores (สปอร์)', desc:_DM},
-    {id:'Circle of Stars', label:'Circle of Stars (ดารา)', desc:_DM},
-    {id:'Circle of Wildfire', label:'Circle of Wildfire (ไฟป่า)', desc:_DM},
+    {id:'', label:'— ยังไม่เลือก —', labelEn:'— Not selected —', desc:'เลือก Druid Circle (Druid เลเวล 2)', descEn:'Choose a Druid Circle (Druid level 2)'},
+    {id:'Circle of the Land', label:'Circle of the Land (แดนดิน)', labelEn:'Circle of the Land', desc:_DM, descEn:_DM_EN},
+    {id:'Circle of the Moon', label:'Circle of the Moon (จันทรา)', labelEn:'Circle of the Moon', desc:_DM, descEn:_DM_EN},
+    {id:'Circle of Dreams', label:'Circle of Dreams (สุบิน)', labelEn:'Circle of Dreams', desc:_DM, descEn:_DM_EN},
+    {id:'Circle of the Shepherd', label:'Circle of the Shepherd (ผู้เลี้ยง)', labelEn:'Circle of the Shepherd', desc:_DM, descEn:_DM_EN},
+    {id:'Circle of Spores', label:'Circle of Spores (สปอร์)', labelEn:'Circle of Spores', desc:_DM, descEn:_DM_EN},
+    {id:'Circle of Stars', label:'Circle of Stars (ดารา)', labelEn:'Circle of Stars', desc:_DM, descEn:_DM_EN},
+    {id:'Circle of Wildfire', label:'Circle of Wildfire (ไฟป่า)', labelEn:'Circle of Wildfire', desc:_DM, descEn:_DM_EN},
   ]},
   fighter:{minLevel:3, opts:[
-    {id:'', label:'— ยังไม่เลือก —', desc:'เลือก Martial Archetype (Fighter เลเวล 3)'},
-    {id:'Champion', label:'Champion (ผู้พิชิต)', desc:_DM},
-    {id:'Battle Master', label:'Battle Master (จอมยุทธ์)', desc:'Maneuvers ใช้ผ่านแถวสกิล Superiority Dice (v313) — เลือกสายเพื่อ DM เล่าถูก'},
-    {id:'Eldritch Knight', label:'Eldritch Knight (อัศวินเวท)', desc:_DM},
-    {id:'Arcane Archer', label:'Arcane Archer (นักธนูเวท)', desc:_DM},
-    {id:'Cavalier', label:'Cavalier (ทหารม้า)', desc:_DM},
-    {id:'Samurai', label:'Samurai (ซามูไร)', desc:_DM},
-    {id:'Psi Warrior', label:'Psi Warrior (นักรบจิต)', desc:_DM},
-    {id:'Rune Knight', label:'Rune Knight (อัศวินรูน)', desc:_DM},
-    {id:'Echo Knight', label:'Echo Knight (อัศวินเงาสะท้อน)', desc:_DM},
+    {id:'', label:'— ยังไม่เลือก —', labelEn:'— Not selected —', desc:'เลือก Martial Archetype (Fighter เลเวล 3)', descEn:'Choose a Martial Archetype (Fighter level 3)'},
+    {id:'Champion', label:'Champion (ผู้พิชิต)', labelEn:'Champion', desc:_DM, descEn:_DM_EN},
+    {id:'Battle Master', label:'Battle Master (จอมยุทธ์)', labelEn:'Battle Master', desc:'Maneuvers ใช้ผ่านแถวสกิล Superiority Dice (v313) — เลือกสายเพื่อ DM เล่าถูก', descEn:'Use maneuvers through the Superiority Dice ability row (v313) — choose this archetype so the DM narrates it correctly'},
+    {id:'Eldritch Knight', label:'Eldritch Knight (อัศวินเวท)', labelEn:'Eldritch Knight', desc:_DM, descEn:_DM_EN},
+    {id:'Arcane Archer', label:'Arcane Archer (นักธนูเวท)', labelEn:'Arcane Archer', desc:_DM, descEn:_DM_EN},
+    {id:'Cavalier', label:'Cavalier (ทหารม้า)', labelEn:'Cavalier', desc:_DM, descEn:_DM_EN},
+    {id:'Samurai', label:'Samurai (ซามูไร)', labelEn:'Samurai', desc:_DM, descEn:_DM_EN},
+    {id:'Psi Warrior', label:'Psi Warrior (นักรบจิต)', labelEn:'Psi Warrior', desc:_DM, descEn:_DM_EN},
+    {id:'Rune Knight', label:'Rune Knight (อัศวินรูน)', labelEn:'Rune Knight', desc:_DM, descEn:_DM_EN},
+    {id:'Echo Knight', label:'Echo Knight (อัศวินเงาสะท้อน)', labelEn:'Echo Knight', desc:_DM, descEn:_DM_EN},
   ]},
   monk:{minLevel:3, opts:[
-    {id:'', label:'— ยังไม่เลือก —', desc:'เลือก Monastic Tradition (Monk เลเวล 3)'},
-    {id:'Way of the Open Hand', label:'Open Hand (หัตถ์เปิด)', desc:_DM},
-    {id:'Way of Shadow', label:'Shadow (วิถีเงา)', desc:_DM},
-    {id:'Way of the Four Elements', label:'Four Elements (จตุธาตุ)', desc:_DM},
-    {id:'Way of the Long Death', label:'Long Death (มรณะ)', desc:_DM},
-    {id:'Way of the Sun Soul', label:'Sun Soul (สุริยะ)', desc:_DM},
-    {id:'Way of the Kensei', label:'Kensei (กระบี่)', desc:_DM},
-    {id:'Way of the Drunken Master', label:'Drunken Master (เมามวย)', desc:_DM},
-    {id:'Way of Mercy', label:'Mercy (เมตตา)', desc:'Hands of Harm/Healing · '+_DM},
-    {id:'Way of the Astral Self', label:'Astral Self (กายทิพย์)', desc:_DM},
-    {id:'Way of the Ascendant Dragon', label:'Ascendant Dragon (วิถีมังกร)', desc:'Draconic Strike: +1d6 ธาตุที่เลือก 1 ครั้ง/เทิร์น · Draconic Resilience: ต้านทานครึ่งตามธาตุ ✅ บังคับจริง (เลือกธาตุในการ์ด "ธาตุมังกร" ด้านล่าง)'},
+    {id:'', label:'— ยังไม่เลือก —', labelEn:'— Not selected —', desc:'เลือก Monastic Tradition (Monk เลเวล 3)', descEn:'Choose a Monastic Tradition (Monk level 3)'},
+    {id:'Way of the Open Hand', label:'Open Hand (หัตถ์เปิด)', labelEn:'Open Hand', desc:_DM, descEn:_DM_EN},
+    {id:'Way of Shadow', label:'Shadow (วิถีเงา)', labelEn:'Shadow', desc:_DM, descEn:_DM_EN},
+    {id:'Way of the Four Elements', label:'Four Elements (จตุธาตุ)', labelEn:'Four Elements', desc:_DM, descEn:_DM_EN},
+    {id:'Way of the Long Death', label:'Long Death (มรณะ)', labelEn:'Long Death', desc:_DM, descEn:_DM_EN},
+    {id:'Way of the Sun Soul', label:'Sun Soul (สุริยะ)', labelEn:'Sun Soul', desc:_DM, descEn:_DM_EN},
+    {id:'Way of the Kensei', label:'Kensei (กระบี่)', labelEn:'Kensei', desc:_DM, descEn:_DM_EN},
+    {id:'Way of the Drunken Master', label:'Drunken Master (เมามวย)', labelEn:'Drunken Master', desc:_DM, descEn:_DM_EN},
+    {id:'Way of Mercy', label:'Mercy (เมตตา)', labelEn:'Mercy', desc:'Hands of Harm/Healing · '+_DM, descEn:'Hands of Harm/Healing · '+_DM_EN},
+    {id:'Way of the Astral Self', label:'Astral Self (กายทิพย์)', labelEn:'Astral Self', desc:_DM, descEn:_DM_EN},
+    {id:'Way of the Ascendant Dragon', label:'Ascendant Dragon (วิถีมังกร)', labelEn:'Ascendant Dragon', desc:'Draconic Strike: +1d6 ธาตุที่เลือก 1 ครั้ง/เทิร์น · Draconic Resilience: ต้านทานครึ่งตามธาตุ ✅ บังคับจริง (เลือกธาตุในการ์ด "ธาตุมังกร" ด้านล่าง)', descEn:'Draconic Strike: +1d6 of the chosen element once per turn · Draconic Resilience: resistance to that element ✅ enforced (choose the element in the Draconic Element card below)'},
   ]},
   rogue:{minLevel:3, opts:[
-    {id:'', label:'— ยังไม่เลือก —', desc:'เลือก Roguish Archetype (Rogue เลเวล 3)'},
-    {id:'Thief', label:'Thief (จอมโจร)', desc:_DM},
-    {id:'Assassin', label:'Assassin (นักฆ่า)', desc:_DM},
-    {id:'Arcane Trickster', label:'Arcane Trickster (จอมเล่ห์เวท)', desc:_DM},
-    {id:'Mastermind', label:'Mastermind (จอมบงการ)', desc:_DM},
-    {id:'Swashbuckler', label:'Swashbuckler (นักดาบพเนจร)', desc:_DM},
-    {id:'Scout', label:'Scout (สอดแนม)', desc:_DM},
-    {id:'Inquisitive', label:'Inquisitive (นักสืบ)', desc:_DM},
-    {id:'Phantom', label:'Phantom (ภูติ)', desc:_DM},
-    {id:'Soulknife', label:'Soulknife (มีดจิต)', desc:_DM},
+    {id:'', label:'— ยังไม่เลือก —', labelEn:'— Not selected —', desc:'เลือก Roguish Archetype (Rogue เลเวล 3)', descEn:'Choose a Roguish Archetype (Rogue level 3)'},
+    {id:'Thief', label:'Thief (จอมโจร)', labelEn:'Thief', desc:_DM, descEn:_DM_EN},
+    {id:'Assassin', label:'Assassin (นักฆ่า)', labelEn:'Assassin', desc:_DM, descEn:_DM_EN},
+    {id:'Arcane Trickster', label:'Arcane Trickster (จอมเล่ห์เวท)', labelEn:'Arcane Trickster', desc:_DM, descEn:_DM_EN},
+    {id:'Mastermind', label:'Mastermind (จอมบงการ)', labelEn:'Mastermind', desc:_DM, descEn:_DM_EN},
+    {id:'Swashbuckler', label:'Swashbuckler (นักดาบพเนจร)', labelEn:'Swashbuckler', desc:_DM, descEn:_DM_EN},
+    {id:'Scout', label:'Scout (สอดแนม)', labelEn:'Scout', desc:_DM, descEn:_DM_EN},
+    {id:'Inquisitive', label:'Inquisitive (นักสืบ)', labelEn:'Inquisitive', desc:_DM, descEn:_DM_EN},
+    {id:'Phantom', label:'Phantom (ภูติ)', labelEn:'Phantom', desc:_DM, descEn:_DM_EN},
+    {id:'Soulknife', label:'Soulknife (มีดจิต)', labelEn:'Soulknife', desc:_DM, descEn:_DM_EN},
   ]},
   warlock:{minLevel:1, opts:[
-    {id:'', label:'— ยังไม่เลือก —', desc:'เลือก Otherworldly Patron (Warlock เลเวล 1)'},
-    {id:'The Fiend', label:'The Fiend (ปีศาจนรก)', desc:_DM},
-    {id:'The Archfey', label:'The Archfey (เจ้าภูต)', desc:_DM},
-    {id:'The Great Old One', label:'The Great Old One (ปฐมภูต)', desc:_DM},
-    {id:'The Hexblade', label:'The Hexblade (ดาบสาป)', desc:_DM},
-    {id:'The Celestial', label:'The Celestial (เทวทูต)', desc:_DM},
-    {id:'The Fathomless', label:'The Fathomless (ห้วงสมุทร)', desc:_DM},
-    {id:'The Genie', label:'The Genie (ญิน)', desc:_DM},
-    {id:'The Undying', label:'The Undying (อมตะ)', desc:_DM},
-    {id:'The Undead', label:'The Undead (อันเดด)', desc:_DM},
+    {id:'', label:'— ยังไม่เลือก —', labelEn:'— Not selected —', desc:'เลือก Otherworldly Patron (Warlock เลเวล 1)', descEn:'Choose an Otherworldly Patron (Warlock level 1)'},
+    {id:'The Fiend', label:'The Fiend (ปีศาจนรก)', labelEn:'The Fiend', desc:_DM, descEn:_DM_EN},
+    {id:'The Archfey', label:'The Archfey (เจ้าภูต)', labelEn:'The Archfey', desc:_DM, descEn:_DM_EN},
+    {id:'The Great Old One', label:'The Great Old One (ปฐมภูต)', labelEn:'The Great Old One', desc:_DM, descEn:_DM_EN},
+    {id:'The Hexblade', label:'The Hexblade (ดาบสาป)', labelEn:'The Hexblade', desc:_DM, descEn:_DM_EN},
+    {id:'The Celestial', label:'The Celestial (เทวทูต)', labelEn:'The Celestial', desc:_DM, descEn:_DM_EN},
+    {id:'The Fathomless', label:'The Fathomless (ห้วงสมุทร)', labelEn:'The Fathomless', desc:_DM, descEn:_DM_EN},
+    {id:'The Genie', label:'The Genie (ญิน)', labelEn:'The Genie', desc:_DM, descEn:_DM_EN},
+    {id:'The Undying', label:'The Undying (อมตะ)', labelEn:'The Undying', desc:_DM, descEn:_DM_EN},
+    {id:'The Undead', label:'The Undead (อันเดด)', labelEn:'The Undead', desc:_DM, descEn:_DM_EN},
   ]},
   ranger:{minLevel:3, opts:[
-    {id:'', label:'— ยังไม่เลือก —', desc:'เลือก Ranger Archetype (เลเวล 3) — Hunter ตั้ง Hunter’s Prey เพิ่มในการ์ดด้านบน'},
-    {id:'Hunter', label:'Hunter (นักล่า)', desc:'ตั้ง Hunter’s Prey (Colossus/Horde/Giant) ในการ์ด Hunter’s Prey ✅ บังคับจริง'},
-    {id:'Beast Master', label:'Beast Master (เจ้าสัตว์)', desc:_DM},
-    {id:'Gloom Stalker', label:'Gloom Stalker (นักย่องเงา)', desc:_DM},
-    {id:'Horizon Walker', label:'Horizon Walker (นักเดินขอบฟ้า)', desc:'Planar Warrior: พิมพ์ "Planar Warrior"/"พลังมิติ" ใน action → โจมตีหลักครั้งถัดไป +1d8 force (1/เทิร์น) ✅ บังคับจริง'},
-    {id:'Monster Slayer', label:'Monster Slayer (นักล่าอสูร)', desc:_DM},
-    {id:'Fey Wanderer', label:'Fey Wanderer (นักจรภูต)', desc:_DM},
-    {id:'Swarmkeeper', label:'Swarmkeeper (จ่าฝูง)', desc:_DM},
+    {id:'', label:'— ยังไม่เลือก —', labelEn:'— Not selected —', desc:'เลือก Ranger Archetype (เลเวล 3) — Hunter ตั้ง Hunter’s Prey เพิ่มในการ์ดด้านบน', descEn:'Choose a Ranger Archetype (level 3) — Hunters also set Hunter’s Prey in the card above'},
+    {id:'Hunter', label:'Hunter (นักล่า)', labelEn:'Hunter', desc:'ตั้ง Hunter’s Prey (Colossus/Horde/Giant) ในการ์ด Hunter’s Prey ✅ บังคับจริง', descEn:'Set Hunter’s Prey (Colossus/Horde/Giant) in the Hunter’s Prey card ✅ enforced'},
+    {id:'Beast Master', label:'Beast Master (เจ้าสัตว์)', labelEn:'Beast Master', desc:_DM, descEn:_DM_EN},
+    {id:'Gloom Stalker', label:'Gloom Stalker (นักย่องเงา)', labelEn:'Gloom Stalker', desc:_DM, descEn:_DM_EN},
+    {id:'Horizon Walker', label:'Horizon Walker (นักเดินขอบฟ้า)', labelEn:'Horizon Walker', desc:'Planar Warrior: พิมพ์ "Planar Warrior"/"พลังมิติ" ใน action → โจมตีหลักครั้งถัดไป +1d8 force (1/เทิร์น) ✅ บังคับจริง', descEn:'Planar Warrior: include "Planar Warrior" in the action → the next primary attack deals +1d8 force (once per turn) ✅ enforced'},
+    {id:'Monster Slayer', label:'Monster Slayer (นักล่าอสูร)', labelEn:'Monster Slayer', desc:_DM, descEn:_DM_EN},
+    {id:'Fey Wanderer', label:'Fey Wanderer (นักจรภูต)', labelEn:'Fey Wanderer', desc:_DM, descEn:_DM_EN},
+    {id:'Swarmkeeper', label:'Swarmkeeper (จ่าฝูง)', labelEn:'Swarmkeeper', desc:_DM, descEn:_DM_EN},
   ]},
   artificer:{minLevel:3, opts:[
-    {id:'', label:'— ยังไม่เลือก —', desc:'เลือก Artificer Specialist (เลเวล 3)'},
-    {id:'Alchemist', label:'Alchemist (นักเล่นแร่)', desc:_DM},
-    {id:'Artillerist', label:'Artillerist (พลปืนใหญ่)', desc:_DM},
-    {id:'Battle Smith', label:'Battle Smith (ช่างรบ)', desc:_DM},
-    {id:'Armorer', label:'Armorer (ช่างเกราะ)', desc:_DM},
+    {id:'', label:'— ยังไม่เลือก —', labelEn:'— Not selected —', desc:'เลือก Artificer Specialist (เลเวล 3)', descEn:'Choose an Artificer Specialist (level 3)'},
+    {id:'Alchemist', label:'Alchemist (นักเล่นแร่)', labelEn:'Alchemist', desc:_DM, descEn:_DM_EN},
+    {id:'Artillerist', label:'Artillerist (พลปืนใหญ่)', labelEn:'Artillerist', desc:_DM, descEn:_DM_EN},
+    {id:'Battle Smith', label:'Battle Smith (ช่างรบ)', labelEn:'Battle Smith', desc:_DM, descEn:_DM_EN},
+    {id:'Armorer', label:'Armorer (ช่างเกราะ)', labelEn:'Armorer', desc:_DM, descEn:_DM_EN},
   ]},
   cleric:{minLevel:1, domain:true, opts:[
-    {id:'', label:'— ยังไม่เลือก —', desc:'เลือก Divine Domain (Cleric เลเวล 1) — เวทโดเมนเตรียมเสมออัตโนมัติเมื่อเตรียมเวทรอบถัดไป'},
-    {id:'life', label:'Life Domain (ชีวิต)', desc:'เวทเตรียมเสมอ: Bless, Cure Wounds, Spiritual Weapon, Revivify, Death Ward ฯลฯ ✅'},
-    {id:'light', label:'Light Domain (แสง)', desc:'เวทเตรียมเสมอ: Faerie Fire, Scorching Ray, Fireball, Flame Strike ฯลฯ ✅'},
-    {id:'war', label:'War Domain (สงคราม)', desc:'เวทเตรียมเสมอ: Divine Favor, Shield of Faith, Spirit Guardians ฯลฯ ✅'},
-    {id:'forge', label:'Forge Domain (เตาหลอม)', desc:'Soul of the Forge: +1 AC ขณะสวมเกราะหนัก ✅ บังคับจริง (bake AC)'},
+    {id:'', label:'— ยังไม่เลือก —', labelEn:'— Not selected —', desc:'เลือก Divine Domain (Cleric เลเวล 1) — เวทโดเมนเตรียมเสมออัตโนมัติเมื่อเตรียมเวทรอบถัดไป', descEn:'Choose a Divine Domain (Cleric level 1) — domain spells are always prepared automatically the next time spells are prepared'},
+    {id:'life', label:'Life Domain (ชีวิต)', labelEn:'Life Domain', desc:'เวทเตรียมเสมอ: Bless, Cure Wounds, Spiritual Weapon, Revivify, Death Ward ฯลฯ ✅', descEn:'Always-prepared spells: Bless, Cure Wounds, Spiritual Weapon, Revivify, Death Ward, and more ✅'},
+    {id:'light', label:'Light Domain (แสง)', labelEn:'Light Domain', desc:'เวทเตรียมเสมอ: Faerie Fire, Scorching Ray, Fireball, Flame Strike ฯลฯ ✅', descEn:'Always-prepared spells: Faerie Fire, Scorching Ray, Fireball, Flame Strike, and more ✅'},
+    {id:'war', label:'War Domain (สงคราม)', labelEn:'War Domain', desc:'เวทเตรียมเสมอ: Divine Favor, Shield of Faith, Spirit Guardians ฯลฯ ✅', descEn:'Always-prepared spells: Divine Favor, Shield of Faith, Spirit Guardians, and more ✅'},
+    {id:'forge', label:'Forge Domain (เตาหลอม)', labelEn:'Forge Domain', desc:'Soul of the Forge: +1 AC ขณะสวมเกราะหนัก ✅ บังคับจริง (bake AC)', descEn:'Soul of the Forge: +1 AC while wearing heavy armor ✅ enforced (baked into AC)'},
   ]},
 };
 function _subClassKey(cls){
@@ -8072,6 +8076,7 @@ function _subCurMatch(spec, sheet){   // คืน id ที่ตรงกั�
 function renderSubclassCard(p){
   const key=_subClassKey(myChar&&myChar.class); if(!key) return;
   const spec=SUBCLASS_OPTS[key]; if(!spec) return;
+  const opts=spec.opts.map(localizedRuleOption);
   const lvl=+(myChar&&myChar.level)||1;
   const card=document.createElement('div'); card.className='item'; card.style.cssText='margin-bottom:10px';
   const head='<div class="sk-head">'+uiCopy('สายอาชีพย่อย','Subclass')+' <span class="en">· SUBCLASS</span></div>';
@@ -8079,19 +8084,19 @@ function renderSubclassCard(p){
   if(lvl<spec.minLevel){ card.innerHTML=head+'<div class="muted" style="font-size:.85em">'+uiCopy('🔒 ปลดล็อกเมื่อถึงเลเวล ','🔒 Unlocks at level ')+spec.minLevel+uiCopy(' (เลือกตามกฎ · ถาวร)',' (rules choice · permanent)')+'</div>'; p.appendChild(card); return; }
   const cur=_subCurMatch(spec, mySheet||{});
   if(cur){   // เลือกแล้ว = ล็อกถาวร (RAW: subclass/domain เลือกครั้งเดียว เปลี่ยนไม่ได้)
-    const optC=spec.opts.find(o=>o.id===cur)||{};
+    const optC=opts.find(o=>o.id===cur)||{};
     card.innerHTML=head+'<div style="font-size:.92em;font-weight:600;margin:4px 0">'+escapeHtml(optC.label||cur)+' <span class="muted" style="font-weight:400;font-size:.85em">· '+uiCopy('เลือกแล้ว (ถาวรตามกฎ)','chosen (permanent by the rules)')+'</span></div><div class="muted" style="font-size:.82em;line-height:1.4">'+escapeHtml(optC.desc||'')+'</div>';
     p.appendChild(card); return;
   }
-  const optsHtml=spec.opts.map(o=>'<option value="'+escapeHtml(o.id)+'"'+(o.id===''?' selected':'')+'>'+escapeHtml(o.label)+'</option>').join('');
-  card.innerHTML=head+'<div class="muted" style="font-size:.8em;margin-bottom:2px">'+uiCopy('เลือกได้ครั้งเดียว · ถาวรตามกฎ','Choose once · permanent by the rules')+'</div><select class="sub-sel" style="width:100%;margin:6px 0;padding:7px;border-radius:8px">'+optsHtml+'</select><div class="muted sub-desc" style="font-size:.85em;line-height:1.4">'+escapeHtml(spec.opts[0].desc)+'</div>';
+  const optsHtml=opts.map(o=>'<option value="'+escapeHtml(o.id)+'"'+(o.id===''?' selected':'')+'>'+escapeHtml(o.label)+'</option>').join('');
+  card.innerHTML=head+'<div class="muted" style="font-size:.8em;margin-bottom:2px">'+uiCopy('เลือกได้ครั้งเดียว · ถาวรตามกฎ','Choose once · permanent by the rules')+'</div><select class="sub-sel" style="width:100%;margin:6px 0;padding:7px;border-radius:8px">'+optsHtml+'</select><div class="muted sub-desc" style="font-size:.85em;line-height:1.4">'+escapeHtml(opts[0].desc)+'</div>';
   const sel=card.querySelector('.sub-sel'); const desc=card.querySelector('.sub-desc');
   sel.onchange=async()=>{
-    const val=sel.value; const opt=spec.opts.find(o=>o.id===val)||spec.opts[0];
+    const val=sel.value; const opt=opts.find(o=>o.id===val)||opts[0];
     desc.textContent=opt.desc;
     if(!val) return;   // "ยังไม่เลือก" = ไม่บันทึก
     const _nm=opt.label.split('(')[0].trim();
-    if(!confirm('เลือก "'+_nm+'" เป็นสายอาชีพย่อย?\n\nตามกฎ D&D เลือกได้ครั้งเดียว เปลี่ยนภายหลังไม่ได้')){ sel.value=''; desc.textContent=spec.opts[0].desc; return; }
+    if(!confirm(uiCopy('เลือก "','Choose "')+_nm+uiCopy('" เป็นสายอาชีพย่อย?\n\nตามกฎ D&D เลือกได้ครั้งเดียว เปลี่ยนภายหลังไม่ได้','" as your subclass?\n\nUnder D&D rules, this is a one-time choice and cannot be changed later.'))){ sel.value=''; desc.textContent=opts[0].desc; return; }
     try{
       const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle(); if(r.error) throw r.error;
       const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at;
@@ -8128,11 +8133,11 @@ async function renderSkills(){
     const _hasSlots=_slU&&Array.isArray(_slU.lv_max)&&_slU.lv_max.some(n=>+n>0);
     if(_hasSlots||_perDayU.length||_isCasterU){
       const card=document.createElement('div'); card.className='item';
-      let h='<div class="sectitle">🔮 พลังเวท & ความสามารถวันนี้ (จุดเดียวจบ)</div>';
-      if(_hasSlots){ h+=slotPillsHtml(mySheet); h+='<div class="note" style="margin-top:3px">สล็อต = โควต้าร่วมของเวท "ระดับนั้นทั้งหมด" · ร่ายเวทระดับต่ำด้วยสล็อตสูงกว่าได้ · ฟื้นเมื่อพักยาว (1 ครั้ง/24 ชม.เกม)</div>'; }
-      else if(_isCasterU){ h+='<div class="note">สล็อตเวทจะปรากฏเมื่อร่ายเวทมีระดับครั้งแรก/เข้าศึกครั้งแรกของวัน</div>'; }
-      h+='<div class="note">Cantrip (เวทระดับ 0): ร่ายได้ไม่จำกัด ไม่กินสล็อต</div>';
-      if(_perDayU.length){ h+='<div class="chips" style="margin-top:6px">'+_perDayU.map(s=>{const left=Math.max(0,(+s.max_uses||0)-(+s.used||0));const u=s.recharge==='short'?'/พักสั้น':'/วัน';return '<span class="chip" style="'+(left?'':'opacity:.45')+'" title="'+escapeHtml(String(s.description||'').slice(0,120))+'">'+escapeHtml(s.name)+' '+left+'/'+s.max_uses+u+'</span>';}).join('')+'</div>'; }
+      let h=uiCopy('<div class="sectitle">🔮 พลังเวท & ความสามารถวันนี้ (จุดเดียวจบ)</div>','<div class="sectitle">🔮 Spells & abilities today (all in one place)</div>');
+      if(_hasSlots){ h+=slotPillsHtml(mySheet); h+=uiCopy('<div class="note" style="margin-top:3px">สล็อต = โควต้าร่วมของเวท "ระดับนั้นทั้งหมด" · ร่ายเวทระดับต่ำด้วยสล็อตสูงกว่าได้ · ฟื้นเมื่อพักยาว (1 ครั้ง/24 ชม.เกม)</div>','<div class="note" style="margin-top:3px">Slots are shared by all spells of that level · lower-level spells can use higher slots · restored by a long rest (once per 24 in-game hours)</div>'); }
+      else if(_isCasterU){ h+=uiCopy('<div class="note">สล็อตเวทจะปรากฏเมื่อร่ายเวทมีระดับครั้งแรก/เข้าศึกครั้งแรกของวัน</div>','<div class="note">Spell slots appear after the first leveled spell cast or the first combat of the day.</div>'); }
+      h+=uiCopy('<div class="note">Cantrip (เวทระดับ 0): ร่ายได้ไม่จำกัด ไม่กินสล็อต</div>','<div class="note">Cantrip (level 0): unlimited casts and no slot cost</div>');
+      if(_perDayU.length){ h+='<div class="chips" style="margin-top:6px">'+_perDayU.map(s=>{const left=Math.max(0,(+s.max_uses||0)-(+s.used||0));const u=s.recharge==='short'?uiCopy('/พักสั้น','/short rest'):uiCopy('/วัน','/day');return '<span class="chip" style="'+(left?'':'opacity:.45')+'" title="'+escapeHtml(String(s.description||'').slice(0,120))+'">'+escapeHtml(s.name)+' '+left+'/'+s.max_uses+u+'</span>';}).join('')+'</div>'; }
       card.innerHTML=h; p.appendChild(card);
     }
   }catch(e){}
@@ -8388,11 +8393,11 @@ async function renderNPCs(){
     const nt=Array.isArray(n.notes)?n.notes:(n.notes?[String(n.notes)]:[]);
     const nt3=nt.slice(-3);
     const kv=(k2,v2)=>v2?`<div class="kv2"><b>${k2}</b><span>${escapeHtml(String(v2))}</span></div>`:'';
-    const relRow=r?`<div class="kv2"><b>ความสัมพันธ์<br><span class="muted" style="font-size:11px">(ส่วนตัว เฉพาะคุณ)</span></b><span>${r.romance?'❤ ':''}${escapeHtml(r.tier||'')} · ${sc>=0?'+':''}${sc}<div style="height:6px;border-radius:3px;background:rgba(128,128,128,.25);margin-top:4px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${c}"></div></div>${r.note?'<div class="muted" style="font-size:11px;margin-top:3px">'+escapeHtml(r.note)+'</div>':''}</span></div>`
-                  :`<div class="kv2"><b>ความสัมพันธ์</b><span class="muted">ยังไม่สนิท — ขยับจากการพูดคุย/ช่วยเหลือในเนื้อเรื่อง</span></div>`;
-    const notesHtml=nt.length?(nt3.map(x=>escapeHtml(String(x))).join('<br>')+(nt.length>3?`<details style="margin-top:4px"><summary style="cursor:pointer;font-size:11px">ดูทั้งหมด (${nt.length})</summary><div style="margin-top:4px">${nt.map(x=>escapeHtml(String(x))).join('<br>')}</div></details>`:'')):'-';
+    const relRow=r?uiCopy(`<div class="kv2"><b>ความสัมพันธ์<br><span class="muted" style="font-size:11px">(ส่วนตัว เฉพาะคุณ)</span></b><span>${r.romance?'❤ ':''}${escapeHtml(r.tier||'')} · ${sc>=0?'+':''}${sc}<div style="height:6px;border-radius:3px;background:rgba(128,128,128,.25);margin-top:4px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${c}"></div></div>${r.note?'<div class="muted" style="font-size:11px;margin-top:3px">'+escapeHtml(r.note)+'</div>':''}</span></div>`,`<div class="kv2"><b>Relationship<br><span class="muted" style="font-size:11px">(private, only you)</span></b><span>${r.romance?'❤ ':''}${escapeHtml(r.tier||'')} · ${sc>=0?'+':''}${sc}<div style="height:6px;border-radius:3px;background:rgba(128,128,128,.25);margin-top:4px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${c}"></div></div>${r.note?'<div class="muted" style="font-size:11px;margin-top:3px">'+escapeHtml(r.note)+'</div>':''}</span></div>`)
+                  :uiCopy(`<div class="kv2"><b>ความสัมพันธ์</b><span class="muted">ยังไม่สนิท — ขยับจากการพูดคุย/ช่วยเหลือในเนื้อเรื่อง</span></div>`,`<div class="kv2"><b>Relationship</b><span class="muted">Not close yet — build it through conversation and help in the story.</span></div>`);
+    const notesHtml=nt.length?(nt3.map(x=>escapeHtml(String(x))).join('<br>')+(nt.length>3?uiCopy(`<details style="margin-top:4px"><summary style="cursor:pointer;font-size:11px">ดูทั้งหมด (${nt.length})</summary><div style="margin-top:4px">${nt.map(x=>escapeHtml(String(x))).join('<br>')}</div></details>`,`<details style="margin-top:4px"><summary style="cursor:pointer;font-size:11px">View all (${nt.length})</summary><div style="margin-top:4px">${nt.map(x=>escapeHtml(String(x))).join('<br>')}</div></details>`):'')):'-';
     const laneInvite=(!isHost&&!deadN&&slowlifeState&&slowlifeState.active)?`<div class="kv2"><b>${escapeHtml(uiCopy('ชวนเข้าเลน','Invite to lane'))}</b><span style="display:flex;flex-wrap:wrap;gap:6px"><button class="btn ghost sm" onclick="slowlifeInviteNpc('${n.id}','talk')">${escapeHtml(uiCopy('พูดคุย','Talk'))}</button><button class="btn ghost sm" onclick="slowlifeInviteNpc('${n.id}','private_story')">${escapeHtml(uiCopy('เรื่องส่วนตัว','Private story'))}</button><button class="btn ghost sm" onclick="slowlifeInviteNpc('${n.id}','romance')">${escapeHtml(uiCopy('เชิงรัก','Romance'))}</button></span></div>`:'';
-    const del=isHost?`<div class="kv2"><b></b><span><button class="btn ghost sm" onclick="deleteNPC('${n.id}')">✕ ลบ (ถ้าซ้ำ/ผิด)</button></span></div>`:'';
+    const del=isHost?uiCopy(`<div class="kv2"><b></b><span><button class="btn ghost sm" onclick="deleteNPC('${n.id}')">✕ ลบ (ถ้าซ้ำ/ผิด)</button></span></div>`,`<div class="kv2"><b></b><span><button class="btn ghost sm" onclick="deleteNPC('${n.id}')">✕ Delete (duplicate/incorrect)</button></span></div>`):'';
     const card=document.createElement('div'); card.className='item';
     card.innerHTML=`<div class="nm" style="display:flex;align-items:center;gap:8px">${sexIconOf(n)}<span${deadN?' style="text-decoration:line-through;opacity:.65"':''}>${escapeHtml(n.name)}</span>${deadN?'<span style="font-size:12px">☠</span>':''}${(r&&r.romance)?'<span style="font-size:12px">❤</span>':''}</div>`
       +`<div class="npc open" style="border:0;background:transparent;box-shadow:none"><div class="npc-detail" style="padding:2px 0 0">${relRow}${kv('Role',n.role)}${kv(uiCopy('เพศ/วัย','Sex/Age'),sa)}${kv(uiCopy('เมือง','City'),cityLbl(n.city))}${kv(uiCopy('เสียงพูด','Voice'),n.voice)}${kv(uiCopy('ลักษณะเด่น','Trait'),n.trait)}${kv(uiCopy('ต้องการ','Wants'),n.want)}${kv(uiCopy('ปมผูกพัน','Bond'),n.bond_pc)}<div class="kv2"><b>Notes</b><span>${notesHtml}</span></div>${laneInvite}${del}</div></div>`;
@@ -8401,7 +8406,7 @@ async function renderNPCs(){
   drawCities(); drawList();
 }
 async function deleteNPC(id){
-  if(!confirm('ลบ NPC นี้?')) return;
+  if(!confirm(uiCopy('ลบ NPC นี้?','Delete this NPC?'))) return;
   const { error }=await supa.from('npcs').delete().eq('id',id);
   if(error){ toast(error.message||'ลบไม่สำเร็จ (เฉพาะ host)',true); return; }
   toast('ลบแล้ว ✓'); renderNPCs();
@@ -9852,7 +9857,7 @@ async function renderBattleGrid(p){
       const _cc=cellCenter(pm.c,pm.r), cx2=_cc[0], cy2=_cc[1], _mf=footXY(myTk.col,myTk.row);
       svg+=cellShape(pm.c,pm.r,'fill="rgba(250,199,117,0.30)" stroke="#FAC775" stroke-width="1.6" style="pointer-events:none"');
       svg+=_gridArrow(_mf[0], _mf[1], cx2, cy2, '#FAC775', true);
-      svg+=`<text x="${cx2.toFixed(1)}" y="${(cellTopY(pm.c,pm.r)-3).toFixed(1)}" text-anchor="middle" font-family="'VT323',monospace" font-size="11" fill="#FAC775" stroke="#000" stroke-width="0.6" paint-order="stroke" style="pointer-events:none">เดินไป ${escapeHtml(pm.cell)}</text>`;
+      svg+=`<text x="${cx2.toFixed(1)}" y="${(cellTopY(pm.c,pm.r)-3).toFixed(1)}" text-anchor="middle" font-family="'VT323',monospace" font-size="11" fill="#FAC775" stroke="#000" stroke-width="0.6" paint-order="stroke" style="pointer-events:none">${uiCopy('เดินไป ','Move to ')}${escapeHtml(pm.cell)}</text>`;
     }
   }
   // ── (06-08) มาร์คเดินของทั้งปาร์ตี้: อ่านจากคำสั่งที่ส่งแล้วในรอบนี้ (actions.structured_turn.move_to) — ทุกเครื่องเห็นเหมือนกันผ่าน DB ──
@@ -9926,7 +9931,7 @@ async function renderBattleGrid(p){
   if(_lightLvl==='dim'||_lightLvl==='dark'){
     const _dkL=_lightLvl==='dark', _lwL=(ISO?IVW:VW), _lhL=(ISO?IVH:VH);
     svg+=`<rect x="0" y="0" width="${_lwL}" height="${_lhL}" fill="${_dkL?'#05070f':'#0a1020'}" opacity="${_dkL?'0.5':'0.26'}" style="pointer-events:none"/>`;
-    svg+=`<text x="${_lwL-8}" y="16" text-anchor="end" font-family="'VT323',monospace" font-size="13" fill="${_dkL?'#8fa3c8':'#c8d4ea'}" opacity="0.85" style="pointer-events:none">${_dkL?'🌑 มืด':'🌗 สลัว'}</text>`;
+    svg+=`<text x="${_lwL-8}" y="16" text-anchor="end" font-family="'VT323',monospace" font-size="13" fill="${_dkL?'#8fa3c8':'#c8d4ea'}" opacity="0.85" style="pointer-events:none">${_dkL?uiCopy('🌑 มืด','🌑 Dark'):uiCopy('🌗 สลัว','🌗 Dim')}</text>`;
   }
   svg+='</svg>';
   const box=document.createElement('div'); box.className='item';
@@ -10452,7 +10457,7 @@ async function uploadPerformTrack(fi,btn){
   }catch(e){ toast(e.message||'อัปเพลงล้มเหลว',true); btn.disabled=false; }
 }
 async function deletePerformTrack(id,path){
-  if(!confirm('ลบเพลงการแสดงนี้?')) return;
+  if(!confirm(uiCopy('ลบเพลงการแสดงนี้?','Delete this performance track?'))) return;
   if(path){ try{ await supa.storage.from('audio').remove([path]); }catch(e){} }
   try{ const {error}=await supa.from('music_tracks').delete().eq('id',id); if(error) throw error; }catch(e){ toast('ลบไม่สำเร็จ',true); return; }
   toast('ลบแล้ว'); renderSkills();
@@ -11203,19 +11208,19 @@ window.cc = (function(){
   }
   function seqAdd(slot){ if(!turn._seq) turn._seq=[]; if(turn._seq.indexOf(slot)<0) turn._seq.push(slot); }
   function seqRemove(slot){ if(!turn._seq) return; var i=turn._seq.indexOf(slot); if(i>=0) turn._seq.splice(i,1); }
-  var SLOTN = {action:'แอคชัน', bonus:'โบนัส', reaction:'รีแอคชัน', movement:'เคลื่อนที่', free:'ฟรี', narrate:'บรรยาย'};
+  var SLOTN = {action:{th:'แอคชัน',en:'Action'}, bonus:{th:'โบนัส',en:'Bonus'}, reaction:{th:'รีแอคชัน',en:'Reaction'}, movement:{th:'เคลื่อนที่',en:'Movement'}, free:{th:'ฟรี',en:'Free'}, narrate:{th:'บรรยาย',en:'Narrate'}};
   var ACT_TIPS = {
-    'Attack':'โจมตีด้วยอาวุธ — ทอย attack roll แล้วทอยดาเมจ',
-    'Cast Spell':'ร่ายเวทที่ใช้เวลา 1 Action',
-    'Dash':'เพิ่มระยะเคลื่อนที่อีกหนึ่งเท่าตัวในเทิร์นนี้',
-    'Disengage':'เคลื่อนออกจากศัตรูได้โดยไม่ถูกตีสวน (opportunity attack)',
-    'Dodge':'จนจบเทิร์น: ศัตรูเสียเปรียบเมื่อโจมตีคุณ และคุณเซฟ DEX ได้เปรียบ',
-    'Help':'ช่วยพันธมิตร → เขาได้เปรียบ (advantage) ในแอคชันถัดไป',
-    'Hide':'หลบซ่อนตัว — ทอย Stealth',
-    'Ready':'เตรียมแอคชันไว้ ทำทันทีเมื่อเงื่อนไขเกิด (ใช้ reaction)',
-    'Search':'ค้นหา/สังเกต — ทอย Perception หรือ Investigation',
-    'Use Object':'ใช้สิ่งของในฉาก (คันโยก ดื่มยา ฯลฯ)',
-    'Grapple/Shove':'จับล็อกหรือผลักศัตรู — ทอย Athletics แข่งกับเป้าหมาย'
+    'Attack':{th:'โจมตีด้วยอาวุธ — ทอย attack roll แล้วทอยดาเมจ',en:'Attack with a weapon — make an attack roll, then roll damage'},
+    'Cast Spell':{th:'ร่ายเวทที่ใช้เวลา 1 Action',en:'Cast a spell with a casting time of 1 Action'},
+    'Dash':{th:'เพิ่มระยะเคลื่อนที่อีกหนึ่งเท่าตัวในเทิร์นนี้',en:'Gain additional movement equal to your speed this turn'},
+    'Disengage':{th:'เคลื่อนออกจากศัตรูได้โดยไม่ถูกตีสวน (opportunity attack)',en:'Move away from enemies without provoking opportunity attacks'},
+    'Dodge':{th:'จนจบเทิร์น: ศัตรูเสียเปรียบเมื่อโจมตีคุณ และคุณเซฟ DEX ได้เปรียบ',en:'Until your next turn: enemy attacks against you have disadvantage, and you have advantage on DEX saves'},
+    'Help':{th:'ช่วยพันธมิตร → เขาได้เปรียบ (advantage) ในแอคชันถัดไป',en:'Help an ally → they gain advantage on their next action'},
+    'Hide':{th:'หลบซ่อนตัว — ทอย Stealth',en:'Hide — make a Stealth check'},
+    'Ready':{th:'เตรียมแอคชันไว้ ทำทันทีเมื่อเงื่อนไขเกิด (ใช้ reaction)',en:'Prepare an action to take when its trigger occurs (uses your reaction)'},
+    'Search':{th:'ค้นหา/สังเกต — ทอย Perception หรือ Investigation',en:'Search or observe — make a Perception or Investigation check'},
+    'Use Object':{th:'ใช้สิ่งของในฉาก (คันโยก ดื่มยา ฯลฯ)',en:'Use an object in the scene (pull a lever, drink a potion, etc.)'},
+    'Grapple/Shove':{th:'จับล็อกหรือผลักศัตรู — ทอย Athletics แข่งกับเป้าหมาย',en:'Grapple or shove an enemy — contest the target with Athletics'}
   };
   // F20/F19 contract: Ready requires an observable trigger, not a label-only promise.
   var READY_TRIGGER_OPTIONS = [
@@ -11667,7 +11672,7 @@ window.cc = (function(){
   async function onSubmit(){
     // v215: เลือกแต่ Move โดยไม่มี Action ในคอมแบต → ถามยืนยันก่อนส่ง (เคสเบรฟ: กดตามคำแนะนำ 'วิ่งเข้าโจมตี' แต่ส่งจริงแค่เดิน เลยทั้งไม่ถึงทั้งไม่ได้ตี)
     if(turn && turn.movement && !turn.action){
-      if(!confirm('ยังไม่ได้เลือก Action (เช่น โจมตี / Dash) — จะเดินอย่างเดียวแล้วจบเทิร์นเลยใช่ไหม?\n\nเป้าอยู่ไกล: เลือก Action ▸ Dash จะวิ่งได้ไกลขึ้นสองเท่า')) return;
+      if(!confirm(uiCopy('ยังไม่ได้เลือก Action (เช่น โจมตี / Dash) — จะเดินอย่างเดียวแล้วจบเทิร์นเลยใช่ไหม?\n\nเป้าอยู่ไกล: เลือก Action ▸ Dash จะวิ่งได้ไกลขึ้นสองเท่า','No Action is selected (such as Attack / Dash) — move only and end the turn?\n\nThe target is far away: choose Action ▸ Dash to move twice as far.'))) return;
     }
     // ── v623 B (DG-6 Option 2 · run 5): ตัดการทอยฝั่ง client ทั้งหมด — เดิม ROLL ALL ทอยเลขที่ server ไม่เคยใช้ (c5 ทอยเองเสมอ · structured_turn.rolls = dead data)
     //   = ผู้เล่นเห็นเลขหนึ่งแต่ระบบใช้อีกเลข · ตอนนี้ส่งเทิร์นตรง → server ทอย → เลขจริงแอนิเมตใน Battle Log (bs-droll) — เลขบนจอ = เลขจริงเสมอ
@@ -11776,7 +11781,8 @@ window.cc = (function(){
     var lastNode = stack[stack.length-1];
     var crumbHtml = '<button class="cc-close" id="ccCloseBtn" title="'+esc(uiCopy('ปิด','Close'))+'">✕</button>';
     for(var i=0;i<stack.length;i++){
-      var lab = stack[i]==='root' ? 'COMBAT COMMAND' : (SLOTN[stack[i]] ? SLOTN[stack[i]] : stack[i].toUpperCase().replace(/_/g,' '));
+      var slotCopy = SLOTN[stack[i]];
+      var lab = stack[i]==='root' ? 'COMBAT COMMAND' : (slotCopy ? uiCopy(slotCopy.th,slotCopy.en) : stack[i].toUpperCase().replace(/_/g,' '));
       if(i>0) crumbHtml += ' &gt; ';
       crumbHtml += '<a data-idx="'+i+'">'+esc(lab)+'</a>';
     }
@@ -11876,7 +11882,8 @@ window.cc = (function(){
       var sr='';
       for(var q=0;q<turn._seq.length;q++){
         var slot=turn._seq[q];
-        var lab2 = (slot==='narrate') ? ('บรรยาย: "'+String(turn.narrate||'').slice(0,22)+'"') : ((SLOTN[slot]||slot)+': '+((turn[slot]&&(turn[slot].displayLabel||turn[slot].label))||''));
+        var slotNameCopy=SLOTN[slot];
+        var lab2 = (slot==='narrate') ? (uiCopy('บรรยาย: "','Narrate: "')+String(turn.narrate||'').slice(0,22)+'"') : ((slotNameCopy?uiCopy(slotNameCopy.th,slotNameCopy.en):slot)+': '+((turn[slot]&&(turn[slot].displayLabel||turn[slot].label))||''));
         sr += '<div class="cc-seq-row"><span class="cc-seq-n">'+(q+1)+'</span><span class="cc-seq-lab">'+esc(lab2)+'</span>'+
               '<span class="cc-seq-ctl">'+
                 '<button data-act="up" data-slot="'+slot+'"'+(q===0?' disabled':'')+'>\u25B2</button>'+
@@ -11884,7 +11891,7 @@ window.cc = (function(){
                 '<button data-act="del" data-slot="'+slot+'">\u2715</button>'+
               '</span></div>';
       }
-      seqHtml = '<div class="cc-seq"><div class="cc-seq-ttl">ลำดับการกระทำ — จัดเรียงตามต้องการ แล้วกด SUBMIT</div>'+sr+'</div>';
+      seqHtml = '<div class="cc-seq">'+uiCopy('<div class="cc-seq-ttl">ลำดับการกระทำ — จัดเรียงตามต้องการ แล้วกด SUBMIT</div>','<div class="cc-seq-ttl">Action sequence — arrange as desired, then press SUBMIT</div>')+sr+'</div>';
     }
 
     var menuHtml = '';
@@ -11894,7 +11901,8 @@ window.cc = (function(){
       if(stack.length===1) cls += ' cc-root';
       if(it.dim) cls += ' cc-dim';
       if(it.summary) cls += ' cc-locked';
-      var tip = it.meta || ACT_TIPS[it.label] || '';
+      var tipCopy = ACT_TIPS[it.label];
+      var tip = it.meta || (tipCopy?uiCopy(tipCopy.th,tipCopy.en):'');
       var text = esc(it.displayLabel||it.label);
       if(it.summary) text += ' <span class="cc-tag">' + esc(it.summary) + '</span>';
       if(tip) text += '<span class="cc-meta">' + esc(tip) + '</span>';
