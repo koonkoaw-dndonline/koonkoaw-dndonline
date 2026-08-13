@@ -2116,7 +2116,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608131426;   // FE-LANG-06: toast class paired + stale wall-marker lifecycle + third Acorn gate — asset ring 20260813a1 unchanged
+const FRONTEND_BUILD = 202608131651;   // FE-LANG-07: TH worlds get Thai buttons/status (ทาง ก) · EN byte-exact · headers kept — asset ring 20260813a1 unchanged
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2554,6 +2554,9 @@ function applyWorldChromeCopy(lang){
   if(worldId) worldId.title=uiCopy('คลิกเพื่อคัดลอก World ID สำหรับ ingest ลอร์','Click to copy World ID for lore ingest',lang);
   const ingestToken=$('hdToken');
   if(ingestToken) ingestToken.title=uiCopy('ก๊อป session token (host) สำหรับเครื่องมือ ingest ลอร์ — token สดทุกครั้งที่กด','Copy the session token (host) for lore-ingest tools — a fresh token is copied each time',lang);
+  if(ingestToken) ingestToken.innerHTML=uiCopy('&#128273; โทเคน Ingest','&#128273; Ingest token',lang);
+  const logout=$('hdLogout'); if(logout) logout.textContent=uiCopy('ออกจากระบบ','Logout',lang);
+  const music=$('hdMusic'); if(music) music.title=uiCopy('เปิด/ปิดเพลงประกอบ','Toggle background music',lang);
   const uiToggle=$('uiToggle'), uiToggleLabel=uiCopy('ย่อ/ขยายเมนู','Collapse/expand menu',lang);
   if(uiToggle){ uiToggle.title=uiToggleLabel; uiToggle.setAttribute('aria-label',uiToggleLabel); }
   const scrollLatest=$('scrollLatest'), scrollLatestLabel=uiCopy('ไปข้อความล่าสุด','Go to latest story',lang);
@@ -2561,6 +2564,7 @@ function applyWorldChromeCopy(lang){
   const skin=$('hdSkin'); if(skin) skin.title=uiCopy('สลับสกิน: กระดาษนิยาย / คลาสสิก (พิกเซล)','Switch theme: story paper / classic (pixel)',lang);
   const musicMood=$('hdMusicSel'); if(musicMood) musicMood.title=uiCopy('เลือกหมวดเพลง (Auto = เปลี่ยนตามฉาก)','Choose music mood (Auto follows the scene)',lang);
   const musicVol=$('hdMusicVol'); if(musicVol) musicVol.title=uiCopy('ระดับเสียงดนตรี (ค่าเริ่มต้น 50%)','Music volume (default 50%)',lang);
+  updateMusicBtn(lang); updateSkinBtn(lang);
 }
 function primaryActionLabel(){ return uiCopy('ส่งการกระทำ','Submit Action'); }
 // ── DICE-FE1 Phase B: Canvas-first adapter; Phase A contract stays untouched ──
@@ -3443,8 +3447,8 @@ async function enterCampaign(){
         catch(e){ toast(uiCopy('ก๊อปไม่สำเร็จ: ','Copy failed: ')+(e.message||e),true); } }; }
   }
   const endBtn=$('hdEnd');
-  if(campaign.host_id===me.id){ endBtn.textContent='✕ End World'; endBtn.onclick=endCampaign; }
-  else { endBtn.textContent='Leave'; endBtn.onclick=leaveCampaign; }
+  if(campaign.host_id===me.id){ endBtn.textContent=uiCopy('✕ จบโลก','✕ End World'); endBtn.onclick=endCampaign; }
+  else { endBtn.textContent=uiCopy('ออกจากโลก','Leave'); endBtn.onclick=leaveCampaign; }
   endBtn.classList.remove('hidden');
   // v617 ONE SHOT: ไม่ใช้ Chronicle เลย (คำตัดสิน Koon §0.8) — ซ่อนแท็บทั้งแท็บ · ป้ายชื่อโลกบอกโหมด/สถานะจบ
   try{
@@ -4160,10 +4164,10 @@ function toggleMusic(){
   else { musicOn=true; try{localStorage.setItem('ttrpg_music','1');}catch(e){} _moodNow(); }
   updateMusicBtn();
 }
-function updateMusicBtn(){ const b=$('hdMusic'); if(b) b.innerHTML = musicOn? '&#9834; Music: on' : '&#9834; Music: off'; }
+function updateMusicBtn(lang){ const b=$('hdMusic'); if(b) b.innerHTML = musicOn?uiCopy('&#9834; เพลง: เปิด','&#9834; Music: on',lang):uiCopy('&#9834; เพลง: ปิด','&#9834; Music: off',lang); }
 // ── v610 skin switch: paper (กระดาษนิยาย · default) ↔ classic (พิกเซลเดิม) — สลับสด ไม่ reload · จำใน localStorage ──
 function toggleSkin(){ try{ const nx=(localStorage.getItem('ui_skin')||'paper')==='paper'?'classic':'paper'; localStorage.setItem('ui_skin',nx); document.documentElement.classList.toggle('skin-paper',nx==='paper'); }catch(e){} updateSkinBtn(); }
-function updateSkinBtn(){ const b=$('hdSkin'); if(b) b.innerHTML = document.documentElement.classList.contains('skin-paper')? '&#128220; Paper' : '&#127769; Classic'; }
+function updateSkinBtn(lang){ const b=$('hdSkin'); if(b) b.innerHTML = document.documentElement.classList.contains('skin-paper')?uiCopy('&#128220; กระดาษ','&#128220; Paper',lang):uiCopy('&#127769; คลาสสิก','&#127769; Classic',lang); }
 try{ updateSkinBtn(); }catch(e){}
 // v231 Bard Performance: เพลงการแสดงของบาร์ดทับ scene_mood ทั้งปาร์ตี้ (state ใน settings.performance) · auto-stop ตอนเข้าศึก
 function _perfState(){ try{ return (worldState&&worldState.settings&&worldState.settings.performance)||null; }catch(e){ return null; } }
@@ -5027,6 +5031,11 @@ async function slowlifeClose(){
   const j=await slowlifeMutate({slowlife_close:{window_id:sw.id,request_key:crypto.randomUUID()}},uiCopy('รวมปาร์ตี้แล้ว','Party regrouped'));
   if(j) await refreshAll();
 }
+function slowlifeChromeValue(value){
+  const raw=String(value||'');
+  const th=({city_slowlife:'ช่วงพักในเมือง',road_rest_slowlife:'ช่วงพักระหว่างทาง',open:'เปิดอยู่',active:'กำลังดำเนิน',ready:'พร้อมรวมตัว',queued:'อยู่ในคิว',processing:'กำลังประมวลผล',awaiting_action:'รอการกระทำ',failed_recoverable:'กู้คืนได้',completed:'เสร็จแล้ว',closed:'ปิดแล้ว',pending:'รอดำเนินการ',deferred:'เลื่อนไว้',accepted:'ตอบรับแล้ว',declined:'ปฏิเสธแล้ว'})[raw]||raw;
+  return uiCopy(th,raw);
+}
 function slowlifeSection(s,companionView){
   const host=campaign.host_id===me.id,E=escapeHtml,mode=String(s&&s.mode||'off');
   let h='<div class="item" style="border:1px solid rgba(127,209,127,.35);margin-bottom:14px"><div class="nm">🌿 '+uiCopy('Slowlife Lanes','Slowlife Lanes')+'</div>';
@@ -5036,13 +5045,13 @@ function slowlifeSection(s,companionView){
     return h+'</div>';
   }
   const sw=s.window||{};
-  h+='<div class="sub">'+E(sw.kind||'')+' · '+E(sw.status||'')+' · '+uiCopy('จุดรวมตัว ','checkpoint ') +E(sw.horizon_minutes||0)+' '+uiCopy('นาที','minutes')+'</div>';
+  h+='<div class="sub">'+E(slowlifeChromeValue(sw.kind))+' · '+E(slowlifeChromeValue(sw.status))+' · '+uiCopy('จุดรวมตัว ','checkpoint ') +E(sw.horizon_minutes||0)+' '+uiCopy('นาที','minutes')+'</div>';
   h+='<div class="note" style="text-align:left">'+(host?uiCopy('คุณเห็นเฉพาะสถานะเลน/เวลา บทส่วนตัวและความรู้ลับถูกซ่อนจาก host','You can see lane/time health only. Private prose and secret knowledge are hidden from the host.'):uiCopy('แต่ละคนเล่นได้พร้อมกัน คิว AI ทำทีละงาน และไม่มีศึก/ดาเมจ/การจับกุมในเลน','Everyone can play concurrently; AI jobs serialize, and lanes cannot create combat, damage, or capture.'))+'</div>';
   if((s.invitations||[]).some(x=>x.status==='pending')){
     h+='<h3>'+uiCopy('คำเชิญส่วนตัว','Private invitations')+'</h3>'+(s.invitations||[]).filter(x=>x.status==='pending').map(x=>'<div class="item"><div class="note" style="text-align:left">'+E(x.preview||'')+'</div><div class="srow2"><button class="btn sm" onclick="slowlifeDecision(\''+x.id+'\',\'accepted\')">'+uiCopy('ตอบรับ','Accept')+'</button><button class="btn ghost sm" onclick="slowlifeDecision(\''+x.id+'\',\'deferred\')">'+uiCopy('ไว้ทีหลัง','Defer')+'</button><button class="btn ghost sm" onclick="slowlifeDecision(\''+x.id+'\',\'declined\')">'+uiCopy('ปฏิเสธ','Decline')+'</button></div></div>').join('');
   }
   if(host){
-    const health=s.lane_health||[]; h+='<h3>'+uiCopy('สถานะเลน (ไม่มีเนื้อหา)','Lane health (no content)')+'</h3>'+(health.length?health.map(x=>'<div class="sub">'+E(x.id).slice(0,8)+' · '+E(x.status)+' · '+E(x.elapsed_minutes)+'/'+E(sw.horizon_minutes)+'m · '+E(x.resolved_beats)+'/4</div>').join(''):'<div class="muted">'+uiCopy('ยังไม่มีเลน','No lanes yet')+'</div>');
+    const health=s.lane_health||[]; h+='<h3>'+uiCopy('สถานะเลน (ไม่มีเนื้อหา)','Lane health (no content)')+'</h3>'+(health.length?health.map(x=>'<div class="sub">'+E(x.id).slice(0,8)+' · '+E(slowlifeChromeValue(x.status))+' · '+E(x.elapsed_minutes)+'/'+E(sw.horizon_minutes)+'m · '+E(x.resolved_beats)+'/4</div>').join(''):'<div class="muted">'+uiCopy('ยังไม่มีเลน','No lanes yet')+'</div>');
     h+='<div class="srow2" style="margin-top:8px"><button class="btn" onclick="slowlifeClose()">'+uiCopy('รวมปาร์ตี้ / ปิดหน้าต่าง','Regroup / close window')+'</button></div>';
   }else{
     const lanes=s.lanes||[]; if(!lanes.length) h+='<button class="btn" onclick="slowlifeStartSolo()">'+uiCopy('เริ่มกิจกรรมคนเดียว','Start a solo activity')+'</button>';
@@ -5051,7 +5060,7 @@ function slowlifeSection(s,companionView){
       const prose=(s.narrative||[]).filter(n=>String(n.lane_id)===String(l.id));
       const deferred=(s.effects||[]).filter(x=>String(x.lane_id)===String(l.id)&&x.status==='deferred');
       const currentTurn=(s.turns||[]).filter(t=>String(t.lane_id)===String(l.id)).sort((a,b)=>Number(a.sequence)-Number(b.sequence)).slice(-1)[0]||null;
-      h+='<div class="item" style="margin:9px 0"><div class="nm">'+E(owner.name||uiCopy('เลนของคุณ','Your lane'))+' <span class="tag">'+E(l.status)+'</span></div><div class="sub">'+E(l.local_elapsed_minutes)+'/'+E(sw.horizon_minutes)+' '+uiCopy('นาที','minutes')+' · '+E(l.resolved_beats)+'/4 beats</div>';
+      h+='<div class="item" style="margin:9px 0"><div class="nm">'+E(owner.name||uiCopy('เลนของคุณ','Your lane'))+' <span class="tag">'+E(slowlifeChromeValue(l.status))+'</span></div><div class="sub">'+E(l.local_elapsed_minutes)+'/'+E(sw.horizon_minutes)+' '+uiCopy('นาที','minutes')+' · '+E(l.resolved_beats)+'/4'+uiCopy(' จังหวะ',' beats')+'</div>';
       h+=prose.map(n=>'<div class="note" style="text-align:left;white-space:normal;margin:7px 0">'+E(n.content||'').replace(/\n/g,'<br>')+'</div>').join('');
       h+=deferred.map(x=>'<div class="note" style="text-align:left;color:#FAC775">'+uiCopy('(แก้: ผล '+E(x.effect_kind)+' ยังไม่เปลี่ยนของ เงิน หรือวัสดุ เพราะยังไม่มีหลักฐานยืนยัน)','(Fixed: '+E(x.effect_kind)+' has not changed items, money, or materials because it has not been confirmed.)')+'</div>').join('');
       if(l.status==='active'&&(!currentTurn||currentTurn.status==='awaiting_action')) h+='<textarea id="slowlife-act-'+l.id+'" placeholder="'+uiCopy('กิจกรรมสงบในเมือง/จุดพัก: คุย เดต ซื้อของ คราฟต์ ศึกษา พัก หรือฟังข่าว','Safe city/road-rest activity: talk, date, shop, craft, study, rest, or gather rumors')+'"></textarea><div class="srow2"><button class="btn sm" onclick="slowlifeSubmit(\''+l.id+'\',\''+l.owner_character_id+'\')">'+uiCopy('ดำเนินเลน','Advance lane')+'</button><button class="btn ghost sm" onclick="slowlifeReady(\''+l.id+'\',\'park\')">'+uiCopy('รอที่จุดนัด','Wait at checkpoint')+'</button></div>';
@@ -5099,6 +5108,7 @@ async function companionRepairHistorical(){
   finally{ _companionRepairFlight=false; }
 }
 function companionTierTH(t){ return ({enemy:'ศัตรู',hostile:'เป็นปฏิปักษ์',wary:'ระแวง',neutral:'เป็นกลาง',friendly:'เป็นมิตร',trusted:'ไว้ใจ',close:'สนิท',inner_circle:'คนวงใน'})[String(t||'neutral')]||'เป็นกลาง'; }
+function companionStatusCopy(value){ const raw=String(value||''); return uiCopy(({candidate:'ผู้สมัคร',active:'สมาชิกหลัก',reserve:'สำรอง',dead:'เสียชีวิต',former:'อดีตสมาชิก'})[raw]||raw,raw); }
 function companionOwnedPc(view){
   const pcs=(view&&view.own_characters)||[]; if(!pcs.length) return null; if(pcs.length===1) return pcs[0];
   const raw=prompt('เลือกตัวละครผู้ทำรายการ:\n'+pcs.map((p,i)=>(i+1)+'. '+p.name).join('\n'),'1'); const i=Math.floor(Number(raw))-1; return pcs[i]||null;
@@ -5110,7 +5120,7 @@ function companionCard(c,isHost,view){
   const swap=isHost&&['active','reserve'].includes(c.status)?`<button class="btn ghost sm" onclick="companionRoster('${c.character_id}','${c.status}')">${c.status==='active'?'ย้ายไป Reserve':'ย้ายเข้า Active'}</button>`:'';
   const romance=((view&&view.own_characters)||[]).some(p=>p.romance_enabled)?`<button class="btn ghost sm" onclick="companionInteract('${c.character_id}','romance')">จีบ</button>`:'';
   const age=c.age_years==null?'':' · อายุ '+c.age_years;
-  return `<div class="item" style="margin:8px 0"><div class="nm">${escapeHtml(c.name)} <span class="tag">${escapeHtml(c.status)}</span></div><div class="sub">${escapeHtml(c.race||'')} ${escapeHtml(c.class||'')} · Lv ${c.level||1}${age}${c.active_slot?' · Slot '+c.active_slot:''}</div><div class="note" style="text-align:left;margin:7px 0">${rel}</div><div class="note" style="text-align:left;margin:7px 0">🎒 ${bag}<br>💰 ${w.gp||0} gp · ${w.sp||0} sp · ${w.cp||0} cp</div><div class="srow2" style="flex-wrap:wrap"><button class="btn ghost sm" onclick="companionInteract('${c.character_id}','talk')">คุยส่วนตัว</button><button class="btn ghost sm" onclick="companionInteract('${c.character_id}','spend')">ใช้เวลาด้วยกัน</button>${romance}<button class="btn ghost sm" onclick="companionGive('${c.character_id}')">มอบของ/เงิน</button><button class="btn ghost sm" onclick="companionRequest('${c.character_id}')">ขอของ</button><button class="btn ghost sm" onclick="toast(uiCopy('กระเป๋าที่เปิดเผยแสดงอยู่บนการ์ดแล้ว','The shared inventory is already shown on this card'))">ดูกระเป๋า</button>${swap}</div></div>`;
+  return `<div class="item" style="margin:8px 0"><div class="nm">${escapeHtml(c.name)} <span class="tag">${escapeHtml(companionStatusCopy(c.status))}</span></div><div class="sub">${escapeHtml(c.race||'')} ${escapeHtml(c.class||'')} · Lv ${c.level||1}${age}${c.active_slot?' · Slot '+c.active_slot:''}</div><div class="note" style="text-align:left;margin:7px 0">${rel}</div><div class="note" style="text-align:left;margin:7px 0">🎒 ${bag}<br>💰 ${w.gp||0} gp · ${w.sp||0} sp · ${w.cp||0} cp</div><div class="srow2" style="flex-wrap:wrap"><button class="btn ghost sm" onclick="companionInteract('${c.character_id}','talk')">คุยส่วนตัว</button><button class="btn ghost sm" onclick="companionInteract('${c.character_id}','spend')">ใช้เวลาด้วยกัน</button>${romance}<button class="btn ghost sm" onclick="companionGive('${c.character_id}')">มอบของ/เงิน</button><button class="btn ghost sm" onclick="companionRequest('${c.character_id}')">ขอของ</button><button class="btn ghost sm" onclick="toast(uiCopy('กระเป๋าที่เปิดเผยแสดงอยู่บนการ์ดแล้ว','The shared inventory is already shown on this card'))">ดูกระเป๋า</button>${swap}</div></div>`;
 }
 async function renderCompanion(){
   const p=$('panel-companion'); if(!p) return;
@@ -5122,7 +5132,7 @@ async function renderCompanion(){
     const fr=await supa.from('private_narrative').select('id,kind,content,created_at,recipient_character_id,companion_character_id').eq('campaign_id',campaign.id).order('created_at',{ascending:false}).limit(30); if(fr.error) throw fr.error;
     const feed=(fr.data||[]).slice().reverse(); const feedHtml=feed.map(x=>`<div class="item" style="margin:7px 0"><div class="sub">${escapeHtml(x.kind||'private')} · ${escapeHtml(new Date(x.created_at).toLocaleString())}</div><div class="note" style="text-align:left;white-space:normal">${escapeHtml(x.content||'').replace(/\n/g,'<br>')}</div></div>`).join('')||('<div class="muted">'+uiCopy('ยังไม่มีฉากส่วนตัว','No private scenes yet')+'</div>');
     const consent=v.consent&&v.consent.adult_confirmed?uiCopy('ยืนยันอายุจริงแล้ว','Age verified'):uiCopy('ยังไม่เปิด Romance','Romance not enabled');
-    p.innerHTML=slowlifeSection(sl,v)+`<div class="item"><div class="nm">Companion Roster</div><div class="sub">Active ${active.length}/3 · Reserve ${reserve.length} · Memorial ${memorial.length}</div><button class="btn ghost sm" onclick="companionConsent()">${uiCopy('ตั้งค่า Romance / วันเกิด','Romance / birthday settings')}</button> <span class="muted">${consent}</span></div>`+
+    p.innerHTML=slowlifeSection(sl,v)+`<div class="item"><div class="nm">Companion Roster</div><div class="sub">${uiCopy(`สมาชิกหลัก ${active.length}/3 · สำรอง ${reserve.length} · อนุสรณ์ ${memorial.length}`,`Active ${active.length}/3 · Reserve ${reserve.length} · Memorial ${memorial.length}`)}</div><button class="btn ghost sm" onclick="companionConsent()">${uiCopy('ตั้งค่า Romance / วันเกิด','Romance / birthday settings')}</button> <span class="muted">${consent}</span></div>`+
       `<h3>Active ${active.length}/3</h3>${active.map(c=>companionCard(c,host,v)).join('')||('<div class="muted">'+uiCopy('ยังไม่มี companion ในทีม','No companions in the party yet')+'</div>')}`+
       `<h3>Reserve</h3>${reserve.map(c=>companionCard(c,host,v)).join('')||('<div class="muted">'+uiCopy('กองสำรองว่าง','Reserve is empty')+'</div>')}`+
       (memorial.length?`<h3>Memorial / History</h3>${memorial.map(c=>companionCard(c,false,v)).join('')}`:'')+
@@ -5131,7 +5141,7 @@ async function renderCompanion(){
       const repair=document.createElement('div'); repair.className='item'; repair.innerHTML='<div class="nm">'+uiCopy('ซ่อมรายชื่อ Companion','Companion roster repair')+'</div><div class="note" style="text-align:left">'+uiCopy('ใช้เมื่อเรื่องยืนยันรับสมาชิกไปแล้วแต่ตัวละครไม่ขึ้น ระบบจะตรวจหลักฐานสองฝ่ายก่อนทุกครั้ง','Use this when the story accepted a member but no character appeared. Both sides of the transaction are verified first.')+'</div><button class="btn ghost sm" onclick="companionRepairHistorical()">'+uiCopy('กู้สมาชิกจากประวัติ','Repair from history')+'</button>'; p.insertBefore(repair,p.firstChild);
     }
     if(candidates.length){
-      const box=document.createElement('div'); box.innerHTML='<h3>'+uiCopy('รอ Host ยืนยัน','Awaiting Host confirmation')+'</h3>'+candidates.map(c=>'<div class="item"><div class="nm">'+escapeHtml(c.name)+' <span class="tag">candidate</span></div><div class="sub">'+escapeHtml(c.race||'')+' '+escapeHtml(c.class||'')+' · Lv '+(c.level||1)+'</div><div class="note" style="text-align:left">'+uiCopy('คำเชิญถูกบันทึกแล้ว แต่ยังไม่ใช่สมาชิกจนกว่า Host จะยืนยัน','The invitation is recorded, but membership starts only after Host confirmation.')+'</div>'+(host?'<button class="btn sm" onclick="companionAcceptCandidate(\''+String(c.character_id||'').replace(/[^A-Za-z0-9-]/g,'')+'\')">'+uiCopy('รับเข้ากลุ่ม','Accept into party')+'</button>':'')+'</div>').join(''); p.insertBefore(box,p.firstChild);
+      const box=document.createElement('div'); box.innerHTML='<h3>'+uiCopy('รอ Host ยืนยัน','Awaiting Host confirmation')+'</h3>'+candidates.map(c=>'<div class="item"><div class="nm">'+escapeHtml(c.name)+' <span class="tag">'+escapeHtml(companionStatusCopy('candidate'))+'</span></div><div class="sub">'+escapeHtml(c.race||'')+' '+escapeHtml(c.class||'')+' · Lv '+(c.level||1)+'</div><div class="note" style="text-align:left">'+uiCopy('คำเชิญถูกบันทึกแล้ว แต่ยังไม่ใช่สมาชิกจนกว่า Host จะยืนยัน','The invitation is recorded, but membership starts only after Host confirmation.')+'</div>'+(host?'<button class="btn sm" onclick="companionAcceptCandidate(\''+String(c.character_id||'').replace(/[^A-Za-z0-9-]/g,'')+'\')">'+uiCopy('รับเข้ากลุ่ม','Accept into party')+'</button>':'')+'</div>').join(''); p.insertBefore(box,p.firstChild);
     }
   }catch(e){ const msg=(e&&e.payload&&e.payload.error==='companion_v2_not_enabled')?companionLegacyUiMessage():uiCopy('โหลดข้อมูลคอมพาเนี่ยนไม่สำเร็จ กรุณาลองใหม่','Could not load companion data. Please try again.'); p.innerHTML='<div class="item"><div class="nm">Companion</div><div class="note">'+escapeHtml(msg)+'</div></div>'; }
 }
@@ -5366,7 +5376,7 @@ async function renderStory(){
   // v788: current-round committed facts stay in receipt-first; older receipts return to chronological history.
   feed.innerHTML='';
   if(narrMore){ const lb=document.createElement('button'); lb.className='btn ghost sm'; lb.style.cssText='align-self:center;margin:2px 0 8px'; lb.textContent=uiCopy('▲ โหลดบทก่อนหน้า','▲ Load earlier story'); lb.title=uiCopy('บทเก่ากว่านี้ดูสรุปได้ในแท็บ Chronicle','Older chapters are summarized in the Chronicle tab'); lb.onclick=loadOlderNarrative; feed.appendChild(lb); }
-  if(!shown.length){ feed.innerHTML='<div class="muted">No story yet '+(campaign.host_id===me.id?'— press "Begin Adventure" below':'— waiting for the host to begin')+'</div>'; }
+  if(!shown.length){ feed.innerHTML=uiCopy('<div class="muted">ยังไม่มีเนื้อเรื่อง '+(campaign.host_id===me.id?'— กด "Begin Adventure" ด้านล่าง':'— รอ host เริ่มเรื่อง')+'</div>','<div class="muted">No story yet '+(campaign.host_id===me.id?'— press "Begin Adventure" below':'— waiting for the host to begin')+'</div>'); }
   shown.forEach((n,i)=>{
     const d=document.createElement('div'); d.className='narr'; d.dataset.nid=String(n.id); d.dataset.sig=isig(n);
     d.innerHTML='<div class="meta">'+narrAuthorLabel(n)+'</div>';
@@ -5687,20 +5697,20 @@ async function renderRoundbar(){
       bar.appendChild(lw);
       const b=document.createElement('button'); b.className='btn'; b.textContent=uiCopy('✨ Begin Adventure (สร้างปูมหลังโลก)','✨ Begin Adventure (create the world chronicle)'); b.disabled=resolving; b.onclick=introAdventure; bar.appendChild(b);
     }
-    else bar.innerHTML='<div class="statusline">Waiting for the host to begin…</div>';
+    else bar.innerHTML=uiCopy('<div class="statusline">รอ host เริ่มเรื่อง…</div>','<div class="statusline">Waiting for the host to begin…</div>');
     return;
   }
   // STAGE 2: อ่านปูมหลังแล้ว แต่ยังไม่มีตัวละคร → สร้างตัวละคร
   if(!myChar){
     bar.innerHTML=uiCopy('<div class="statusline">อ่านปูมหลังโลกด้านบนก่อน แล้วสร้างตัวละครของคุณให้เข้ากับโลกนี้</div>','<div class="statusline">Read the world background above, then create a character who fits this world.</div>');
-    const b=document.createElement('button'); b.className='btn'; b.textContent='📝 Create your character'; b.onclick=()=>{ chosenSkills=[]; chosenSpells=[]; bonusMode='2-1'; bonusPick={a:'str',b:'dex',c:'con'}; show('charScreen'); fillJoinBriefing(); renderPB(); renderBonus(); suggestHP(); renderSkillPick(); loadCatalogs().then(()=>{ renderPackages(); renderSpellPick(); }); }; bar.appendChild(b);
+    const b=document.createElement('button'); b.className='btn'; b.textContent=uiCopy('📝 สร้างตัวละครของคุณ','📝 Create your character'); b.onclick=()=>{ chosenSkills=[]; chosenSpells=[]; bonusMode='2-1'; bonusPick={a:'str',b:'dex',c:'con'}; show('charScreen'); fillJoinBriefing(); renderPB(); renderBonus(); suggestHP(); renderSkillPick(); loadCatalogs().then(()=>{ renderPackages(); renderSpellPick(); }); }; bar.appendChild(b);
     return;
   }
   // STAGE 3: มีตัวละครแล้ว แต่ยังไม่เปิดฉาก → host เริ่มฉากแรก
   if(!curRound){
     bar.innerHTML='';
-    if(isHost){ const b=document.createElement('button'); b.className='btn'; b.textContent='▶ Start First Scene'; b.disabled=resolving; b.onclick=startFirstScene; bar.appendChild(b); }
-    else bar.innerHTML='<div class="statusline">Waiting for the host to start the first scene…</div>';
+    if(isHost){ const b=document.createElement('button'); b.className='btn'; b.textContent=uiCopy('▶ เริ่มฉากแรก','▶ Start First Scene'); b.disabled=resolving; b.onclick=startFirstScene; bar.appendChild(b); }
+    else bar.innerHTML=uiCopy('<div class="statusline">รอ host เริ่มฉากแรก…</div>','<div class="statusline">Waiting for the host to start the first scene…</div>');
     return;
   }
   // v287: ปิดศึก — บทปิดท้าย DM + ทุกคนกด "ไปต่อ" ก่อนหน้าจอ VICTORY (โชว์ทั้งฉากรบ[bsCmdWrap]และฟีดเนื้อเรื่อง — renderRoundbar ใช้ร่วมกัน)
@@ -5729,7 +5739,7 @@ async function renderRoundbar(){
     if(isHost&&_vaOther&&_vaOther.active){ var fOther=document.createElement('button'); fOther.className='btn warn sm'; fOther.style.marginTop='8px'; fOther.textContent=uiCopy('⚡ กู้ terminal ที่ค้างของกลุ่ม '+_vaOtherGroup,'⚡ Recover pending terminal for group '+_vaOtherGroup); fOther.onclick=function(){ submitVictoryAck(true,_vaOtherGroup); }; bar.appendChild(fOther); }
     return;
   }
-  if(curRound.phase==='resolving'){ bar.innerHTML='<div class="statusline"><span class="pill wait">DM is resolving…</span></div>'; return; }
+  if(curRound.phase==='resolving'){ bar.innerHTML=uiCopy('<div class="statusline"><span class="pill wait">DM กำลังประมวลผล…</span></div>','<div class="statusline"><span class="pill wait">DM is resolving…</span></div>'); return; }
   if(curRound.phase!=='awaiting_actions'){ bar.innerHTML=''; return; }
   refreshSelectionGate();
   // v177: เตรียมเวทรายวันค้าง → ล็อกการสั่งการ + กระพริบแท็บ Me จนกว่าจะเตรียมเสร็จ
@@ -5758,13 +5768,13 @@ async function renderRoundbar(){
   if(typingNow && rbKey===_lastRoundbarKey){
     const sl=bar.querySelector('.statusline');
     const _cbq=(curRound.meta||{}).combat||{}; const _incq=_cbq.active||!!window._combatActive; const _rngq=_incq?`<span class="cs">${escapeHtml(combatRangeUi(_cbq.range,_cbq.range_source))}</span>`:'';
-    if(sl) sl.innerHTML=`<div class="cstat"><span class="cs">Round ${curRound.round_number}</span><span class="cs ${submitted>=total?'done':'wait'}">Submitted ${submitted}/${total}</span>${_rngq}</div>`;
+    if(sl) sl.innerHTML=uiCopy(`<div class="cstat"><span class="cs">รอบ ${curRound.round_number}</span><span class="cs ${submitted>=total?'done':'wait'}">ส่งแล้ว ${submitted}/${total}</span>${_rngq}</div>`,`<div class="cstat"><span class="cs">Round ${curRound.round_number}</span><span class="cs ${submitted>=total?'done':'wait'}">Submitted ${submitted}/${total}</span>${_rngq}</div>`);
     return;
   }
   _lastRoundbarKey=rbKey;
   const keepAct=(document.getElementById('actInput')||{}).value||window._actionEditDraft||'';   // v741: restore exact draft after scoped retract
   const _cbS=(curRound.meta||{}).combat||{}; const _incS=_cbS.active||!!window._combatActive; const _rng=_incS?`<span class="cs">${escapeHtml(combatRangeUi(_cbS.range,_cbS.range_source))}</span>`:'';
-  let html=`<div class="cstat"><span class="cs">Round ${curRound.round_number}</span><span class="cs ${submitted>=total?'done':'wait'}">Submitted ${submitted}/${total}</span>${_rng}</div>`;
+  let html=uiCopy(`<div class="cstat"><span class="cs">รอบ ${curRound.round_number}</span><span class="cs ${submitted>=total?'done':'wait'}">ส่งแล้ว ${submitted}/${total}</span>${_rng}</div>`,`<div class="cstat"><span class="cs">Round ${curRound.round_number}</span><span class="cs ${submitted>=total?'done':'wait'}">Submitted ${submitted}/${total}</span>${_rng}</div>`);
   list.forEach(a=>{ html+=`<div class="actionlog"><b>${escapeHtml(nameFor(a))}</b> <span data-runtime-origin="user-source">${escapeHtml(a.action_text)}</span></div>`; });
   bar.innerHTML=html;   // สร้างทีเดียว (synchronous ต่อจากนี้ ไม่มี await)
   // ── v617 SESSION: การ์ดพักระหว่างตอน — ไม่บล็อกการเล่น (slowlife/เควสค้างได้) · ปุ่มเริ่มตอนถัดไปเห็นเฉพาะ host ──
@@ -5951,7 +5961,7 @@ async function renderRoundbar(){
         if(window.__ccRound!==curRound.id){ window._bcOpen=false; window._pendingMove=null; }   // เทิร์นใหม่ → กลับสู่สถานะย่อ + เคลียร์มาร์คเดินที่ค้าง
         if(_mobBC){ const bh=document.createElement('div'); bh.className='copt-h'; bh.style.cssText='margin-top:8px;text-align:center'; bh.textContent=uiCopy('— หรือสร้างทางเลือกการกระทำเองโดยใช้ BATTLE COMMAND —','— Or build your own action with BATTLE COMMAND —'); bar.appendChild(bh); }
         if(_deskBC || _mobBC){
-          const tg=document.createElement('button'); tg.type='button'; tg.className='bc-toggle'; tg.textContent='BATTLE COMMAND :';
+          const tg=document.createElement('button'); tg.type='button'; tg.className='bc-toggle'; tg.textContent=uiCopy('คำสั่งต่อสู้ :','BATTLE COMMAND :');
           tg.onclick=()=>{ window._bcOpen=!window._bcOpen; const f=document.getElementById('ccFrame'); if(f) f.classList.toggle('cc-hide', !window._bcOpen); try{ window.cc.openInline(); }catch(e){} };
           bar.appendChild(tg);
         }
@@ -6006,10 +6016,10 @@ async function renderRoundbar(){
       if(_rrItems.length>1){
         // v424: หลายสกิลใน roll_request = "ทางเลือก" ไม่ใช่ทอยรวดทุกอัน — ผู้เล่นเลือกทอย 'อันเดียว' (กันทอย Persuasion/Intimidation/Deception ออกมาพร้อมกัน 3 ค่า)
         dice.innerHTML=uiCopy('<span class="dicelbl">🎲 '+reason+' — เลือกแนวทางที่จะทอย (อย่างเดียว):</span>','<span class="dicelbl">🎲 '+reason+' — choose one way to roll:</span>');
-        _rrItems.forEach(it=>{ const b=document.createElement('button'); b.className='btn ghost sm'; b.textContent='🎲 '+escapeHtml(String(it.label||'Roll'))+(it.ability?(' +'+escapeHtml(String(it.ability))):''); b.onclick=()=>rollDM([it],dice); dice.appendChild(b); });
+        _rrItems.forEach(it=>{ const b=document.createElement('button'); b.className='btn ghost sm'; b.textContent='🎲 '+escapeHtml(String(it.label||uiCopy('ทอย','Roll')))+(it.ability?(' +'+escapeHtml(String(it.ability))):''); b.onclick=()=>rollDM([it],dice); dice.appendChild(b); });
         const sf=document.createElement('button'); sf.className='btn ghost sm'; sf.textContent=uiCopy('ทอยเอง','Roll myself'); sf.onclick=rollSelf; dice.appendChild(sf);
       } else {
-        const itemsTxt = _rrItems.length? (`${_rrItems[0].label||'Roll'} ${_rrItems[0].formula||'1d20'}${_rrItems[0].ability?(' +'+_rrItems[0].ability):''}`) : '';
+        const itemsTxt = _rrItems.length? (`${_rrItems[0].label||uiCopy('ทอย','Roll')} ${_rrItems[0].formula||'1d20'}${_rrItems[0].ability?(' +'+_rrItems[0].ability):''}`) : '';
         dice.innerHTML=uiCopy('<span class="dicelbl">🎲 DM ขอให้ทอย: '+reason+(itemsTxt?(' <span style="color:#9a9a9a">('+escapeHtml(itemsTxt)+')</span>'):'')+'</span>','<span class="dicelbl">🎲 The DM requests a roll: '+reason+(itemsTxt?(' <span style="color:#9a9a9a">('+escapeHtml(itemsTxt)+')</span>'):'')+'</span>');
         const dm=document.createElement('button'); dm.className='btn ghost sm'; dm.textContent=uiCopy('DM ทอยให้','DM rolls'); dm.onclick=()=>rollDM(_rrItems,dice); dice.appendChild(dm);
         const sf=document.createElement('button'); sf.className='btn ghost sm'; sf.textContent=uiCopy('ทอยเอง','Roll myself'); sf.onclick=rollSelf; dice.appendChild(sf);
@@ -6402,7 +6412,7 @@ async function submitAction(charIdOverride){
   if(window._actSubmitting) return;   // v538: กัน double-click (มิเรอร์ _quickBusy/_vaSubmitting) — เดิมไม่มี guard → 2 insert ชน unique(round_id,user_id) = toast error ดิบ
   const isPet=(typeof charIdOverride==='string');
   const cid=isPet?charIdOverride:(myChar?.id||null);
-  let txt=$(isPet?'petActInput':'actInput')?.value.trim(); if(!txt){toast('Type your action first',true);return;}
+  let txt=$(isPet?'petActInput':'actInput')?.value.trim(); if(!txt){toast(uiCopy('พิมพ์การกระทำก่อน','Type your action first'),true);return;}
   if(!isPet && pendingAoE){ txt+=`\n[เป้าหมายพื้นที่: ศูนย์กลาง ${pendingAoE.centerCell} ${pendingAoE.radiusFt?('รัศมี '+pendingAoE.radiusFt+' ฟุต'):'(จุดเดียว)'} ครอบคลุม ${pendingAoE.cells.join(', ')}]`; }
   window._actSubmitting=true;
   try{
@@ -6424,7 +6434,7 @@ async function submitAction(charIdOverride){
     toast(uiCopy('ส่งการกระทำแล้ว ✓','Action submitted ✓'));
     await loadRound(); renderRoundbar();
     window._afterSubmit=true; resolveRound(false);   // ลองประมวลผล — backend ตอบ waiting ถ้ายังไม่ครบ
-  }catch(e){ toast(e.message||'Submit failed',true); }
+  }catch(e){ toast(e.message||uiCopy('ส่งไม่สำเร็จ','Submit failed'),true); }
   finally{ window._actSubmitting=false; }
 }
 
@@ -6478,10 +6488,10 @@ async function resolveRound(force, mode){
         window._actionRepair=null; window._actionEditDraft=''; toast(j.note||uiCopy('(แก้: ระบบปลด action ที่ค้างแล้ว กรุณาส่ง action ใหม่)','(Fixed: the stuck action was released; submit a new action.)'),true);
       }else toast((j.error||uiCopy('ประมวลผลรอบไม่สำเร็จ','Resolve failed'))+(j.detail?(' — '+String(j.detail).slice(0,220)):''),true);
     }
-    else if(j.status==='waiting'){ if(afterSubmit) _waitRetry=true; var _wS=(j.submitted!=null?j.submitted:0), _wT=(j.total!=null?j.total:(members&&members.length)||'?'); toast(j.turn?uiCopy('ถึงตา ','Turn: ')+j.turn:`Waiting for everyone (${_wS}/${_wT})`); }   /* v634ui DYN-20: backend ตอบ waiting ไม่มี counts (เช่นรอเทิร์นในศึก) → เดิมโชว์ undefined/undefined · fallback 0/N หรือชื่อคนที่ถึงตา */
+    else if(j.status==='waiting'){ if(afterSubmit) _waitRetry=true; var _wS=(j.submitted!=null?j.submitted:0), _wT=(j.total!=null?j.total:(members&&members.length)||'?'); toast(j.turn?uiCopy('ถึงตา ','Turn: ')+j.turn:uiCopy(`กำลังรอทุกคน (${_wS}/${_wT})`,`Waiting for everyone (${_wS}/${_wT})`)); }   /* v634ui DYN-20: backend ตอบ waiting ไม่มี counts (เช่นรอเทิร์นในศึก) → เดิมโชว์ undefined/undefined · fallback 0/N หรือชื่อคนที่ถึงตา */
     else if(j.status==='busy'){ /* someone else is resolving */ }
     else if(j.status==='intro'){ toast(uiCopy('โลกถูกสร้างแล้ว — สร้างตัวละครได้เลย!','World created — you can now create a character!')); }
-    else if(j.status==='opened'||j.status==='resolved'){ if(j.auto_next){ _again=true; } else { toast(j.status==='opened'?'Scene opened!':'The DM continued the story!'); } }
+    else if(j.status==='opened'||j.status==='resolved'){ if(j.auto_next){ _again=true; } else { toast(j.status==='opened'?uiCopy('เปิดฉากแล้ว!','Scene opened!'):uiCopy('DM ดำเนินเรื่องต่อแล้ว!','The DM continued the story!')); } }
   }catch(e){ toast(uiCopy('เชื่อมต่อ resolver ไม่สำเร็จ — ตรวจเครือข่ายแล้วกดลองใหม่เอง','Could not reach the resolver — check the network and retry manually'),true); }
   finally{
     resolving=false; setMyThinking(false); await refreshAll(); renderStory();
@@ -6985,7 +6995,7 @@ function derivedSheetCombatFacts(ch,sheet){
 }
 async function _renderMeInner(){
   const p=$('panel-me'); p.innerHTML='';
-  if(!myChar){ p.innerHTML='<div class="muted">No character yet</div>'; return; }
+  if(!myChar){ p.innerHTML=uiCopy('<div class="muted">ยังไม่มีตัวละคร</div>','<div class="muted">No character yet</div>'); return; }
   // โหลดแผ่นล่าสุด เผื่อ HP/สถานะถูก DM อัปเดตหลังต่อสู้
   /* ใช้ mySheet ที่ refreshAll/realtime โหลดไว้แล้ว — ไม่ refetch ทุกครั้งที่ render (ลด round-trip) */
   const sheet=mySheet||{};
@@ -7072,9 +7082,9 @@ async function _renderMeInner(){
   const w3=document.createElement('div'); w3.className='item mecard-status';
   let h='<div class="sectitle">STATUS & EFFECTS</div>';
   if(eff.length) eff.forEach(e=>{ const dir=(e.kind==='debuff'||e.kind==='down')?'down':'up'; h+=`<div class="fx ${dir}"><span class="ar"></span><b>${esc(e.name||'')}</b> ${esc(e.desc||'')} <span class="dur">${esc(e.dur||'')}</span></div>`; });
-  else h+='<div class="note">No active effects</div>';
+  else h+='<div class="note">'+uiCopy('ไม่มีเอฟเฟกต์ค้างอยู่','No active effects')+'</div>';
   h+='<div class="sectitle" style="margin-top:10px">CONDITIONS</div>';
-  { const _cpc=conds.map(prettyCond).filter(Boolean); h+= _cpc.length? '<div class="chips">'+_cpc.map(c=>`<span class="chip cond">${esc(c)}</span>`).join('')+'</div>' : '<div class="note">Normal</div>'; }
+  { const _cpc=conds.map(prettyCond).filter(Boolean); h+= _cpc.length? '<div class="chips">'+_cpc.map(c=>`<span class="chip cond">${esc(c)}</span>`).join('')+'</div>' : '<div class="note">'+uiCopy('ปกติ','Normal')+'</div>'; }
   const resA=res.resist||[], immA=res.immune||[], vulA=res.vulnerable||[];
   if(resA.length||immA.length||vulA.length){
     h+='<div class="sectitle" style="margin-top:10px">RESISTANCES</div><div class="chips">'+
@@ -7100,7 +7110,7 @@ async function _renderMeInner(){
       sheet.scars.map(function(s){return '<li>'+escapeHtml(String(s))+'</li>';}).join('')+'</ul>';
     it4.appendChild(sc);
   }
-  const save=document.createElement('button'); save.className='btn sm'; save.textContent='Save Sheet';
+  const save=document.createElement('button'); save.className='btn sm'; save.textContent=uiCopy('บันทึกชีท','Save Sheet');
   // v551 fix: re-read fresh + optimistic lock ก่อนเขียน — เดิมเขียน closure sheet (snapshot ตอนเปิดแท็บ) ทับทั้งก้อน
   //   → feat/fighting_style/subclass ที่ auto-save ในแท็บ Skills 'หลัง' เปิดแท็บ Stat ถูกทับหาย (เคส Koon 07-07: เลือก feat แล้วกด Save Sheet → feat หาย ต้องเลือกใหม่)
   save.onclick=async()=>{
@@ -7110,7 +7120,7 @@ async function _renderMeInner(){
       const _fresh=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at;   // fresh = มี feat/field ล่าสุด (ไม่ใช่ closure เก่า)
       _fresh.notes=_notesV;
       await _saveSheet(_fresh, _prev);   // แก้เฉพาะ notes บน sheet ล่าสุด + optimistic lock (มิเรอร์จุด save อื่น)
-      _cacheSet('ttrpg_bg_'+campaign.id, _fresh.notes||''); toast('Saved ✓');
+      _cacheSet('ttrpg_bg_'+campaign.id, _fresh.notes||''); toast(uiCopy('บันทึกแล้ว ✓','Saved ✓'));
     }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast(uiCopy('ชีทเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง','The sheet changed while editing — reload and try again'),true); try{await refreshAll();}catch(_){} } else toast(uiCopy('บันทึกไม่สำเร็จ ลองใหม่','Save failed — try again'),true); }
   };
   it4.appendChild(save); p.appendChild(it4);
@@ -7119,12 +7129,12 @@ async function _renderMeInner(){
   const av=document.createElement('div'); av.className='item avatarwin';
   av.innerHTML='<div class="sectitle">PORTRAIT</div>';
   const imgwrap=document.createElement('div'); imgwrap.className='avatarbox';
-  if(myChar.avatar_path){ const im=document.createElement('img'); im.src=PUBLIC_URL+'avatars/'+myChar.avatar_path; im.onerror=()=>{imgwrap.innerHTML='<div class="avatarph">No portrait</div>';}; imgwrap.appendChild(im); }
-  else imgwrap.innerHTML='<div class="avatarph">No portrait</div>';
+  if(myChar.avatar_path){ const im=document.createElement('img'); im.src=PUBLIC_URL+'avatars/'+myChar.avatar_path; im.onerror=()=>{imgwrap.innerHTML=uiCopy('<div class="avatarph">ไม่มีภาพตัวละคร</div>','<div class="avatarph">No portrait</div>');}; imgwrap.appendChild(im); }
+  else imgwrap.innerHTML=uiCopy('<div class="avatarph">ไม่มีภาพตัวละคร</div>','<div class="avatarph">No portrait</div>');
   av.appendChild(imgwrap);
   const arow=document.createElement('div'); arow.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center';
   const afi=document.createElement('input'); afi.type='file'; afi.accept='image/*'; afi.style.cssText='color:#fff;font-size:13px;max-width:150px';
-  const abtn=document.createElement('button'); abtn.className='btn sm'; abtn.textContent=myChar.avatar_path?'Change':'Upload portrait'; abtn.onclick=()=>uploadAvatar(afi,abtn);
+  const abtn=document.createElement('button'); abtn.className='btn sm'; abtn.textContent=myChar.avatar_path?uiCopy('เปลี่ยน','Change'):uiCopy('อัปโหลดภาพตัวละคร','Upload portrait'); abtn.onclick=()=>uploadAvatar(afi,abtn);
   arow.appendChild(afi); arow.appendChild(abtn); av.appendChild(arow);
   p.appendChild(av);
 }
@@ -7152,7 +7162,7 @@ async function _renderPartyInner(){
   // ── สมาชิก (เรียงบน→ล่าง ทุกคนรวมตัวเอง) + สถานะ/บัฟย่อๆ ให้ทุกคนเห็น ──
   const head=document.createElement('div'); head.className='item'; head.innerHTML='<div class="sectitle">PARTY</div>'; left.appendChild(head);
   const all=characters.filter(c=>c.controller!=='left');   // v185: คนออกจากปาร์ตี้/companion ที่ถูกถอน ไม่โชว์
-  if(!all.length){ const d=document.createElement('div'); d.className='muted'; d.textContent='No party members yet — share the invite code with friends'; left.appendChild(d); }
+  if(!all.length){ const d=document.createElement('div'); d.className='muted'; d.textContent=uiCopy('ยังไม่มีสมาชิกปาร์ตี้ — แชร์รหัสเชิญให้เพื่อน','No party members yet — share the invite code with friends'); left.appendChild(d); }
   // ── P1: last-seen ของแต่ละคน (รวมบอท) จาก action/แชทล่าสุด — รู้ทันทีว่าใครหลุด/บอทดับ ──
   const _lastSeen={};
   try{
@@ -7193,7 +7203,7 @@ async function _renderPartyInner(){
     const dmTg=document.createElement('button'); dmTg.type='button';
     dmTg.className='dm-tg';   // v612: ย้ายสไตล์เข้า CSS ต่อสกิน — classic คงพิกเซลเดิม · paper ใช้โทนหัวข้อเดียวกับ sectitle
     const dmBody=document.createElement('div'); dmBody.style.display='none';
-    const dmSet=(on)=>{ window._dmToolsOpen=on; dmBody.style.display=on?'block':'none'; dmTg.textContent='🎛 DM TOOLS '+(on?'▾':'▸'); if(on&&!dmBody.children.length) mountDmToolsBody(dmBody); };
+    const dmSet=(on)=>{ window._dmToolsOpen=on; dmBody.style.display=on?'block':'none'; dmTg.textContent=uiCopy('🎛 เครื่องมือ DM ','🎛 DM TOOLS ')+(on?'▾':'▸'); if(on&&!dmBody.children.length) mountDmToolsBody(dmBody); };
     dmTg.onclick=()=>dmSet(dmBody.style.display==='none');
     dmCard.appendChild(dmTg); dmCard.appendChild(dmBody); right.appendChild(dmCard);
     dmSet(!!window._dmToolsOpen);
@@ -7206,7 +7216,7 @@ async function _renderPartyInner(){
   const inrow=document.createElement('div'); inrow.style.cssText='display:flex;gap:8px;align-items:flex-end;margin-top:8px';
   const ta=document.createElement('textarea'); ta.id='chatInput'; ta.rows=2; ta.placeholder=uiCopy('พิมพ์คุย… Enter ส่ง, Shift+Enter ขึ้นบรรทัด','Type a message… Enter sends, Shift+Enter adds a line'); ta.style.flex='1';
   ta.onkeydown=(e)=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendChat(); } };
-  const sb=document.createElement('button'); sb.className='btn sm'; sb.textContent='Send'; sb.onclick=sendChat;
+  const sb=document.createElement('button'); sb.className='btn sm'; sb.textContent=uiCopy('ส่ง','Send'); sb.onclick=sendChat;
   inrow.appendChild(ta); inrow.appendChild(sb); chatCard.appendChild(inrow); right.appendChild(chatCard);
   clearChatBlink();
   await loadChat(); renderChatList();
@@ -7454,7 +7464,7 @@ async function renderQuest(){
 // ───────── render: items (อิง sheet) ─────────
 async function renderItems(){
   const p=$('panel-items'); p.innerHTML='';
-  if(!myChar){ p.innerHTML='<div class="muted">No character yet</div>'; return; }
+  if(!myChar){ p.innerHTML=uiCopy('<div class="muted">ยังไม่มีตัวละคร</div>','<div class="muted">No character yet</div>'); return; }
   // ดึง sheet ล่าสุด (กระเป๋า/เงินอัปเดตหลัง DM ลง loot) — ไม่งั้นจะค้างค่าเก่า
   /* ใช้ mySheet ที่ refreshAll/realtime โหลดไว้แล้ว — ไม่ refetch ทุกครั้งที่ render (ลด round-trip) */
   const sheet=mySheet||{}; const eq=sheet.equipment||{}; const inv=sheet.inventory||[];
@@ -7477,8 +7487,8 @@ async function renderItems(){
   p.appendChild(eqc);
   // BACKPACK — ปุ่ม "สวมใส่" เฉพาะของที่ใส่ได้ (อาวุธ/เกราะ/โล่/เครื่องประดับ)
   const bag=document.createElement('div'); bag.className='item';
-  bag.innerHTML=`<div class="winhead"><div class="sectitle" style="margin:0">BACKPACK</div><span class="chip">${inv.length} items</span></div>`;
-  if(!inv.length){ bag.innerHTML+='<div class="kv"><span class="k">— empty —</span></div>'; }
+  bag.innerHTML=`<div class="winhead"><div class="sectitle" style="margin:0">BACKPACK</div><span class="chip">${uiCopy(inv.length+' ชิ้น',inv.length+' items')}</span></div>`;
+  if(!inv.length){ bag.innerHTML+='<div class="kv"><span class="k">'+uiCopy('— ว่าง —','— empty —')+'</span></div>'; }
   else inv.forEach(i=>{
     const _nm0=typeof i==='string'?i:(i.name||'');
     const _qty0=typeof i==='string'?1:(i.qty&&i.qty>1?+i.qty:1);
@@ -8114,10 +8124,10 @@ function renderSubclassCard(p){
 }
 async function renderSkills(){
   const _hostSk=$('panel-skills'); _hostSk.innerHTML='<div class="sk-cols"></div>'; const p=_hostSk.firstElementChild;   /* v531c: multicol อยู่บน wrapper (ตัว panel ความสูงล็อก → คอลัมน์ล้นแนวนอนถูกตัด) */
-  if(!myChar){ p.innerHTML='<div class="muted">No character yet</div>'; return; }
+  if(!myChar){ p.innerHTML=uiCopy('<div class="muted">ยังไม่มีตัวละคร</div>','<div class="muted">No character yet</div>'); return; }
   let rows=null;
   try{ const r=await supa.from('skills').select('*').eq('character_id',myChar.id).order('sort'); if(!r.error) rows=r.data||[]; }catch(e){}
-  if(rows===null){ p.innerHTML='<div class="muted">Skills system not enabled yet</div>'; return; }
+  if(rows===null){ p.innerHTML=uiCopy('<div class="muted">ระบบ Skills ยังไม่เปิดใช้</div>','<div class="muted">Skills system not enabled yet</div>'); return; }
   // v181: การ์ดเตรียมเวทประจำวันอยู่หน้านี้ (ย้ายจากแท็บ Me) — โผล่บนสุดเมื่อถึงกำหนด
   if(needsDailyPrepareFE(myChar.class)){ try{ await renderSpellPreparePanel(p, mySheet||{}); }catch(e){} }
   if(/bard|บาร์ด|กวี|นักดนตรี/i.test(myChar.class||'')){ try{ await renderPerformanceCard(p); }catch(e){} }   // v231: การ์ดเปิดการแสดง (บาร์ด)
@@ -8212,8 +8222,8 @@ async function restSkills(kind){
   let q=supa.from('skills').update({used:0}).eq('character_id',myChar.id);
   if(kind==='short') q=q.eq('recharge','short'); else q=q.in('recharge',['long','short']);
   const { error }=await q;
-  if(error){ toast(error.message||'Rest failed',true); return; }
-  toast(kind==='long'?'Long rest — abilities restored 🌙':'Short rest — abilities restored ⛺');
+  if(error){ toast(error.message||uiCopy('พักไม่สำเร็จ','Rest failed'),true); return; }
+  toast(kind==='long'?uiCopy('พักยาว — ฟื้นความสามารถแล้ว 🌙','Long rest — abilities restored 🌙'):uiCopy('พักสั้น — ฟื้นความสามารถแล้ว ⛺','Short rest — abilities restored ⛺'));
   renderSkills();
 }
 
@@ -8223,11 +8233,11 @@ async function renderNPCs(){
   const p=$('panel-npc'); p.innerHTML='';
   let rows=null;
   try{ const r=await supa.from('npcs').select('*').eq('campaign_id',campaign.id).order('updated_at',{ascending:false}); if(!r.error) rows=(r.data||[]).filter(n=>n.discovered!==false&&n.archived!==true); }catch(e){}   /* v546: +archived (0084) */
-  if(rows===null){ p.innerHTML='<div class="muted">NPC system not enabled yet<br>Run migration.sql</div>'; return; }
+  if(rows===null){ p.innerHTML=uiCopy('<div class="muted">ระบบ NPC ยังไม่เปิดใช้<br>รัน migration.sql</div>','<div class="muted">NPC system not enabled yet<br>Run migration.sql</div>'); return; }
   // v628ui (คำสั่ง Koon 07-14): สารานุกรมมอนสเตอร์ต้องครบทุกตัวที่เคยเจอ — ฐานหลัก = ตาราง monsters (ทุกตัวที่เคย spawn ในศึกของแคมเปญ)
   //   เดิมสร้างจากแถว npcs อย่างเดียว → โผล่เฉพาะตัวที่ DM เผลอส่ง npc_update (เคสจริง: มีแค่ Bandit ทั้งที่สู้ Death Dog/Goblin/Spider มาแล้ว)
   let monTab=[]; try{ const mr=await supa.from('monsters').select('name').eq('campaign_id',campaign.id); if(!mr.error) monTab=mr.data||[]; }catch(e){}
-  if(!rows.length&&!monTab.length){ p.innerHTML='<div class="muted">No NPCs discovered yet</div>'; return; }
+  if(!rows.length&&!monTab.length){ p.innerHTML=uiCopy('<div class="muted">ยังไม่พบ NPC</div>','<div class="muted">No NPCs discovered yet</div>'); return; }
   const isHost=campaign.host_id===me.id;
   // ความสัมพันธ์ส่วนตัวของผู้เล่นคนนี้ (RLS คืนเฉพาะของตัวละครตัวเอง — เพื่อนไม่เห็นของเรา)
   let myRels=[]; try{ const rr=await supa.from('relationships').select('npc_name,score,tier,romance,note').eq('campaign_id',campaign.id); if(!rr.error) myRels=rr.data||[]; }catch(e){}
@@ -8274,7 +8284,7 @@ async function renderNPCs(){
   if(favRows.length) groups.push({key:'fav', label:uiCopy('คนสนิท','Close contacts'), rows:favRows.slice().sort((a,b)=>(+((relOf(b.name)||{}).score)||0)-(+((relOf(a.name)||{}).score)||0))});
   if(deadRows.length) groups.push({key:'dead', label:uiCopy('เสียชีวิต','Deceased'), rows:deadRows});
   if(monStems.length) groups.push({key:'mon', label:uiCopy('สารานุกรมมอนสเตอร์','Bestiary'), rows:monRows, kind:'mon'});   /* v628ui: เกณฑ์ = stems (monsters∪npcs) ไม่ใช่แค่แถว npcs */
-  if(!groups.length){ p.innerHTML='<div class="muted">No NPCs discovered yet</div>'; return; }
+  if(!groups.length){ p.innerHTML=uiCopy('<div class="muted">ยังไม่พบ NPC</div>','<div class="muted">No NPCs discovered yet</div>'); return; }
   if(!groups.some(g=>g.key===_npcCity)) _npcCity=groups[0].key;
   // แถบค้นหา (ค้นข้ามทุกเมือง)
   const bar=document.createElement('div'); bar.style.cssText='display:flex;gap:6px;align-items:center;margin-bottom:10px';
@@ -8431,7 +8441,7 @@ async function renderInitiativeTracker(p){
   // HP: party จาก characters.public_status, monster จาก combat_state
   let csMap={}; try{ const r=await supa.from('combat_state').select('id,cur_hp,monsters(max_hp,name)').eq('campaign_id',campaign.id); (r.data||[]).forEach(x=>csMap[x.id]=x); }catch(e){}
   const wrap=document.createElement('div'); wrap.className='item';
-  wrap.innerHTML=`<div class="winhead"><div class="sectitle" style="margin:0">⚔ INITIATIVE</div><span class="chip">Round ${enc.combat_round}</span></div>`;
+  wrap.innerHTML=`<div class="winhead"><div class="sectitle" style="margin:0">⚔ INITIATIVE</div><span class="chip">${uiCopy('รอบ '+enc.combat_round,'Round '+enc.combat_round)}</span></div>`;
   const _locHud=combatLocationLabel(enc); if(_locHud){ const d=document.createElement('div'); d.className='note'; d.style.cssText='text-align:left;padding:3px 2px;color:#FAC775'; d.textContent='📍 '+_locHud; d.title='location snapshot '+String(enc.location_snapshot_id||''); wrap.appendChild(d); }
   const list=document.createElement('div'); list.style.cssText='display:flex;flex-direction:column;gap:4px;margin-top:6px';
   ents.filter(e=>e.is_active).forEach(e=>{
@@ -8475,19 +8485,19 @@ async function _renderCombatImpl(){
   await renderInitiativeTracker(p);   // initiative + HP bar + combat log (กลาง)
   let cs=null;
   try{ const r=await uiCombatStateRows('*, monsters(*)',true); if(!r.error) cs=r.data||[]; }catch(e){}
-  if(cs===null){ if(!p.children.length) p.innerHTML='<div class="muted">Monster system not enabled yet<br>Run migration.sql</div>'; return; }
+  if(cs===null){ if(!p.children.length) p.innerHTML=uiCopy('<div class="muted">ระบบ Monster ยังไม่เปิดใช้<br>รัน migration.sql</div>','<div class="muted">Monster system not enabled yet<br>Run migration.sql</div>'); return; }
   if(!cs.length){ if(!p.children.length) p.innerHTML=uiCopy('<div class="muted">ยังไม่มีการต่อสู้ตอนนี้</div>','<div class="muted">No combat is active.</div>'); return; }
   let disc=new Set();
   try{ const b=await supa.from('bestiary').select('monster_id').eq('campaign_id',campaign.id); (b.data||[]).forEach(x=>disc.add(x.monster_id)); }catch(e){}
-  const note=document.createElement('div'); note.className='note'; note.style.cssText='text-align:left;padding:4px 2px 8px'; note.textContent='⚔ In combat'; p.appendChild(note);
+  const note=document.createElement('div'); note.className='note'; note.style.cssText='text-align:left;padding:4px 2px 8px'; note.textContent=uiCopy('⚔ อยู่ในการต่อสู้','⚔ In combat'); p.appendChild(note);
   cs.forEach(c=>{
     const m=c.monsters||{}; const known=disc.has(c.monster_id);
     const d=document.createElement('div'); d.className='mon'+(known?'':' unknown');
     if(known){
       const pct=m.max_hp?Math.round((c.cur_hp/m.max_hp)*100):0;
-      d.innerHTML=`<div class="top"><div><div class="nm">${escapeHtml(m.name)}</div><div class="meta">${escapeHtml(m.type||'')} · discovered ✓</div></div></div><div class="barwrap"><div class="barlabel"><span>HP</span><span class="num">${c.cur_hp} / ${m.max_hp}</span></div><div class="bar"><div class="fill" style="width:${pct}%"></div></div></div><div class="abil"><b>Abilities:</b> ${escapeHtml((m.abilities||[]).join(', ')||'-')}</div>`;
+      d.innerHTML=`<div class="top"><div><div class="nm">${escapeHtml(m.name)}</div><div class="meta">${escapeHtml(m.type||'')} · ${uiCopy('ค้นพบแล้ว ✓','discovered ✓')}</div></div></div><div class="barwrap"><div class="barlabel"><span>HP</span><span class="num">${c.cur_hp} / ${m.max_hp}</span></div><div class="bar"><div class="fill" style="width:${pct}%"></div></div></div><div class="abil"><b>Abilities:</b> ${escapeHtml((m.abilities||[]).join(', ')||'-')}</div>`;
     } else {
-      d.innerHTML=`<div class="top"><div><div class="nm">Unknown Enemy</div><div class="meta">Not yet encountered in this campaign</div></div></div><div class="barwrap"><div class="barlabel"><span>HP</span><span class="num">??? / ???</span></div><div class="bar unknown"></div></div><div class="abil"><b>Abilities:</b> ??? — encounter it first to reveal</div>`;
+      d.innerHTML=`<div class="top"><div><div class="nm">${uiCopy('ศัตรูที่ไม่รู้จัก','Unknown Enemy')}</div><div class="meta">${uiCopy('ยังไม่เคยพบในแคมเปญนี้','Not yet encountered in this campaign')}</div></div></div><div class="barwrap"><div class="barlabel"><span>HP</span><span class="num">??? / ???</span></div><div class="bar unknown"></div></div><div class="abil"><b>Abilities:</b> ??? — ${uiCopy('พบมันก่อนเพื่อเปิดเผยข้อมูล','encounter it first to reveal')}</div>`;
     }
     p.appendChild(d);
   });
@@ -8873,7 +8883,7 @@ async function exitBattleSceneWithOutro(){
     var el=document.getElementById('battleScene'), f=document.getElementById('bsFlash');
     if(el && el.classList.contains('on') && f && _logOk){   // v467 B6: ไม่โชว์ VICTORY/DEFEAT flash ถ้าอ่าน combat_log ไม่สำเร็จ (กัน VICTORY ปลอมตอน outage)
       var tx=f.querySelector('.bsf-txt');
-      if(tx) tx.textContent = outcome==='survive' ? uiCopy('🩸 รอดมาได้!','🩸 SURVIVED!') : outcome==='lose' ? '💀 DEFEAT…' : '🏆 VICTORY!';
+      if(tx) tx.textContent = outcome==='survive' ? uiCopy('🩸 รอดมาได้!','🩸 SURVIVED!') : outcome==='lose' ? uiCopy('💀 พ่ายแพ้…','💀 DEFEAT…') : uiCopy('🏆 ชัยชนะ!','🏆 VICTORY!');
       f.classList.remove('go','go-win','go-lose'); void f.offsetWidth;
       f.classList.add(outcome==='win'?'go-win':'go-lose');   // รอด/แพ้ = สไตล์หม่น (go-lose)
       await new Promise(function(res){ setTimeout(res, 2450); });
@@ -8928,9 +8938,9 @@ async function renderBattleScene(trigger){
       var hud4=document.getElementById('bsHud');
       if(hud4 && campaign.host_id===me.id && !document.getElementById('bsDmTg')){
         var dtg=document.createElement('button'); dtg.type='button'; dtg.id='bsDmTg'; dtg.className='dm-tg';   // v453: ตัดเส้นขวางเหนือ DM TOOLS · v612: สไตล์ย้ายเข้า CSS ต่อสกิน
-        dtg.textContent='🎛 DM TOOLS ▸';
+        dtg.textContent=uiCopy('🎛 เครื่องมือ DM ▸','🎛 DM TOOLS ▸');
         var dbody=document.createElement('div'); dbody.id='bsDmBody'; dbody.style.display='none';
-        dtg.onclick=function(){ var on=dbody.style.display==='none'; dbody.style.display=on?'block':'none'; dtg.textContent='🎛 DM TOOLS '+(on?'▾':'▸'); if(on) mountDmToolsBody(dbody); };
+        dtg.onclick=function(){ var on=dbody.style.display==='none'; dbody.style.display=on?'block':'none'; dtg.textContent=uiCopy('🎛 เครื่องมือ DM ','🎛 DM TOOLS ')+(on?'▾':'▸'); if(on) mountDmToolsBody(dbody); };
         hud4.appendChild(dtg); hud4.appendChild(dbody);
       }
     }catch(e){}
@@ -10316,8 +10326,8 @@ async function dmOptionsAuditCard(){
   if(rowsR.error) return null;
   const total=totalR.count||0, unavail=unavailR.count||0, pages=Math.max(1,Math.ceil(total/pageSize)); if(_dmOptAuditPage>=pages) _dmOptAuditPage=pages-1;
   const card=document.createElement('div'); card.className='item';
-  card.innerHTML='<div class="sectitle">🎯 DM OPTIONS AUDIT</div><div class="note" style="text-align:left">'+uiCopy('ชุดทั้งหมด ','Total sets ')+total+' · '+uiCopy('unavailable ','unavailable ')+(total?Math.round(unavail*100/total):0)+'% · stale '+(staleR.count||0)+' · rewritten '+(rewriteR.count||0)+' · '+uiCopy('ข้อผิดพลาดร้ายแรง ','hard errors ')+(hardErrR.count||0)+'<br>'+uiCopy('ช่วงเก็บตัวอย่างห้าม prune system_logs ต่ำกว่า 1000 แถว; ต้องมีอย่างน้อย 100 ชุดก่อนพิจารณา enforce','During sampling, keep at least 1000 system-log rows and collect at least 100 option sets before enforce')+'</div>';
-  (rowsR.data||[]).forEach(row=>{ const det=row.detail||{}, d=document.createElement('details'); d.style.cssText='margin:5px 0;border-top:1px solid #444;padding-top:5px'; const s=document.createElement('summary'); s.textContent=new Date(row.created_at).toLocaleString()+' · '+(det.surface||'submit')+' · '+(det.wall_mode||'')+' · '+(det.unavailable?'unavailable':((det.final||[]).length+' final')); d.appendChild(s); const b=document.createElement('div'); b.style.cssText='white-space:pre-wrap;font-size:12px;line-height:1.45;padding:5px';
+  card.innerHTML='<div class="sectitle">🎯 DM OPTIONS AUDIT</div><div class="note" style="text-align:left">'+uiCopy('ชุดทั้งหมด ','Total sets ')+total+' · '+uiCopy('ใช้ไม่ได้ ','unavailable ')+(total?Math.round(unavail*100/total):0)+'% · '+uiCopy('เก่า ','stale ')+(staleR.count||0)+' · '+uiCopy('เขียนใหม่ ','rewritten ')+(rewriteR.count||0)+' · '+uiCopy('ข้อผิดพลาดร้ายแรง ','hard errors ')+(hardErrR.count||0)+'<br>'+uiCopy('ช่วงเก็บตัวอย่างห้าม prune system_logs ต่ำกว่า 1000 แถว; ต้องมีอย่างน้อย 100 ชุดก่อนพิจารณา enforce','During sampling, keep at least 1000 system-log rows and collect at least 100 option sets before enforce')+'</div>';
+  (rowsR.data||[]).forEach(row=>{ const det=row.detail||{}, d=document.createElement('details'); d.style.cssText='margin:5px 0;border-top:1px solid #444;padding-top:5px'; const s=document.createElement('summary'); s.textContent=new Date(row.created_at).toLocaleString()+' · '+(det.surface||'submit')+' · '+(det.wall_mode||'')+' · '+(det.unavailable?uiCopy('ใช้ไม่ได้','unavailable'):uiCopy((det.final||[]).length+' รายการสุดท้าย',(det.final||[]).length+' final')); d.appendChild(s); const b=document.createElement('div'); b.style.cssText='white-space:pre-wrap;font-size:12px;line-height:1.45;padding:5px';
     const reasons=(det.parsed||[]).map(x=>({raw:x.raw,reasons:x.reasons}));
     b.textContent='original → '+JSON.stringify(det.original||[],null,2)+'\nreasons → '+JSON.stringify(reasons,null,2)+'\nfinal → '+JSON.stringify(det.final||[],null,2)+'\ntiming/model/token → '+JSON.stringify({timings:det.timings,model:det.model,token:det.token,repair:det.repair},null,2); d.appendChild(b); card.appendChild(d); });
   const nav=document.createElement('div'); nav.style.cssText='display:flex;gap:6px;align-items:center;margin-top:7px';
@@ -10346,7 +10356,7 @@ async function renderFiles(){
   }
   let files=null;
   try{ const r=await supa.from('references_files').select('*').eq('campaign_id',campaign.id).order('created_at',{ascending:false}); if(!r.error) files=r.data||[]; }catch(e){}
-  if(files===null){ p.innerHTML='<div class="muted">Files system not enabled yet<br>Run migration.sql (0011) + deploy ingest-file</div>'; return; }
+  if(files===null){ p.innerHTML=uiCopy('<div class="muted">ระบบ Files ยังไม่เปิดใช้<br>รัน migration.sql (0011) + deploy ingest-file</div>','<div class="muted">Files system not enabled yet<br>Run migration.sql (0011) + deploy ingest-file</div>'); return; }
   // upload (host/DM only)
   if(isHost){
     const up=document.createElement('div'); up.className='item';
@@ -10354,7 +10364,7 @@ async function renderFiles(){
     const row=document.createElement('div'); row.style.cssText='display:flex;gap:8px;flex-wrap:wrap;align-items:center';
     const fi=document.createElement('input'); fi.type='file'; fi.accept='.md,.txt,.markdown,text/plain'; fi.style.cssText='color:#fff;font-size:13px;max-width:190px';
     const sel=document.createElement('select'); sel.style.cssText='background:#000;color:#fff;border:2px solid #fff;font-family:inherit;font-size:15px;padding:3px 4px'; sel.innerHTML='<option value="RULES">RULES</option><option value="LORE">LORE</option><option value="TABLES">TABLES</option>';
-    const btn=document.createElement('button'); btn.className='btn sm'; btn.textContent='Upload & Index'; btn.onclick=()=>uploadRefFile(fi,sel,btn);
+    const btn=document.createElement('button'); btn.className='btn sm'; btn.textContent=uiCopy('อัปโหลดและทำดัชนี','Upload & Index'); btn.onclick=()=>uploadRefFile(fi,sel,btn);
     row.appendChild(fi); row.appendChild(sel); row.appendChild(btn); up.appendChild(row);
     const status=document.createElement('div'); status.id='upStatus'; status.className='note'; status.style.cssText='text-align:left;padding:6px 2px 0;display:none'; up.appendChild(status);
     p.appendChild(up);
@@ -10365,7 +10375,7 @@ async function renderFiles(){
   else { const dd=fileDropdown(uiCopy('ไฟล์อ้างอิงทั้งหมด','All Reference Files'), files.length);
     files.forEach(f=>{
       const d=document.createElement('div'); d.className='kv';
-      d.innerHTML=`<span class="k">▸ [${escapeHtml(f.kind)}] <span data-runtime-origin="reference-source">${escapeHtml(f.name)}</span> <span class="chip">${f.chunks} chunks</span></span>`;
+      d.innerHTML=`<span class="k">▸ [${escapeHtml(f.kind)}] <span data-runtime-origin="reference-source">${escapeHtml(f.name)}</span> <span class="chip">${uiCopy(f.chunks+' ส่วน',f.chunks+' chunks')}</span></span>`;
       if(isHost){ const del=document.createElement('button'); del.className='btn ghost sm'; del.textContent='✕'; del.onclick=()=>deleteRefFile(f.id,f.name); d.appendChild(del); }
       dd._body.appendChild(d);
     });
@@ -10385,7 +10395,7 @@ async function filesMusicCard(p){
   const row=document.createElement('div'); row.style.cssText='display:flex;gap:8px;flex-wrap:wrap;align-items:center';
   const fi=document.createElement('input'); fi.type='file'; fi.accept='audio/*'; fi.style.cssText='color:#fff;font-size:13px;max-width:160px';
   const sel=moodSelect();
-  const btn=document.createElement('button'); btn.className='btn sm'; btn.textContent='Upload'; btn.onclick=()=>uploadMusic(fi,sel,btn);
+  const btn=document.createElement('button'); btn.className='btn sm'; btn.textContent=uiCopy('อัปโหลด','Upload'); btn.onclick=()=>uploadMusic(fi,sel,btn);
   row.appendChild(fi); row.appendChild(sel); row.appendChild(btn); c.appendChild(row);
   let tracks=[]; try{ const r=await supa.from('music_tracks').select('*').eq('campaign_id',campaign.id).order('mood'); tracks=r.data||[]; }catch(e){}
   if(tracks.length){ const dd=fileDropdown(uiCopy('เพลงทั้งหมด','All Tracks'), tracks.length);
@@ -10432,7 +10442,7 @@ async function renderPerformanceCard(p){
   if(tracks.length<3){
     const ur=document.createElement('div'); ur.style.cssText='display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap';
     const fi=document.createElement('input'); fi.type='file'; fi.accept='audio/*'; fi.style.cssText='color:#fff;font-size:13px;max-width:150px';
-    const ub=document.createElement('button'); ub.className='btn sm'; ub.type='button'; ub.textContent='Upload'; ub.onclick=()=>uploadPerformTrack(fi,ub);
+    const ub=document.createElement('button'); ub.className='btn sm'; ub.type='button'; ub.textContent=uiCopy('อัปโหลด','Upload'); ub.onclick=()=>uploadPerformTrack(fi,ub);
     ur.appendChild(fi); ur.appendChild(ub); body.appendChild(ur);
   } else { const m=document.createElement('div'); m.className='muted'; m.style.cssText='font-size:12px;margin-top:4px'; m.textContent=uiCopy('ครบ 3 เพลงแล้ว — ลบเพลงเดิมก่อนถึงจะเพิ่มได้','All three track slots are full — delete a track before adding another.'); body.appendChild(m); }
   const ctl=document.createElement('div'); ctl.style.cssText='margin-top:10px';
@@ -10485,7 +10495,7 @@ async function filesDungeonCard(p){
   c.innerHTML='<div class="sectitle">DUNGEONS</div><div class="note" style="text-align:left;padding:4px 2px 8px">'+uiCopy('อัปแผนที่ (รูป) + ตั้งชื่อ — <b>AI จะอ่านแผนที่แยกผังห้อง/ทางเชื่อมให้</b> เพื่อเล่าทีละห้องแม่นขึ้น (ทุกคนเพิ่มได้)','Upload and name a map. <b>AI reads its rooms and connections</b> so the DM can narrate each room accurately. Everyone may contribute.')+'</div>';
   const nm=mkInput(uiCopy('ชื่อดันเจียน','Dungeon name')); const th=mkInput(uiCopy('ธีม (optional)','Theme (optional)'));
   const fi=document.createElement('input'); fi.type='file'; fi.accept='image/*'; fi.style.cssText='color:#fff;font-size:13px;max-width:150px';
-  const btn=document.createElement('button'); btn.className='btn sm'; btn.textContent='Add dungeon'; btn.onclick=()=>addDungeon(nm,th,fi,btn);
+  const btn=document.createElement('button'); btn.className='btn sm'; btn.textContent=uiCopy('เพิ่มดันเจียน','Add dungeon'); btn.onclick=()=>addDungeon(nm,th,fi,btn);
   const row=document.createElement('div'); row.style.cssText='display:flex;gap:8px;flex-wrap:wrap;align-items:center'; row.appendChild(nm); row.appendChild(th); row.appendChild(fi); row.appendChild(btn); c.appendChild(row);
   let ds=[]; try{ const r=await supa.from('dungeons').select('*').eq('campaign_id',campaign.id).order('created_at',{ascending:false}); ds=r.data||[]; }catch(e){}
   if(ds.length){ const dd=fileDropdown(uiCopy('แผนที่/ดันเจียนทั้งหมด','All Maps / Dungeons'), ds.length);
@@ -10615,7 +10625,7 @@ async function uploadRefFile(fi,sel,btn){
       body:JSON.stringify({campaign_id:campaign.id, name:file.name, kind:sel.value, text, category:cat})});
     const j=await r.json();
     if(!r.ok){ const msg=(j.error||'')+(j.detail?(' — '+String(j.detail).slice(0,140)):''); setS(uiCopy('ล้มเหลว: ','Failed: ')+msg); toast(uiCopy('Index ล้มเหลว: ','Index failed: ')+msg,true); btn.disabled=false; return; }
-    toast(`Indexed ✓ ${j.chunks} chunks`); fi.value=''; renderFiles();
+    toast(uiCopy(`ทำดัชนีแล้ว ✓ ${j.chunks} ส่วน`,`Indexed ✓ ${j.chunks} chunks`)); fi.value=''; renderFiles();
   }catch(e){ setS(uiCopy('ผิดพลาด: ','Error: ')+(e.message||e)); toast(uiCopy('อัปโหลดล้มเหลว','Upload failed'),true); btn.disabled=false; }
 }
 async function deleteRefFile(id,name){
@@ -10634,7 +10644,7 @@ async function renderChronicle(){
 
   const head=document.createElement('div'); head.className='item';
   head.innerHTML='<div class="nm">Adventure Chronicle <span class="meta-inline">'+chroniclesData.length+uiCopy(' บท',' chapters')+'</span></div><div class="note" style="text-align:left;padding:4px 2px 0">'+uiCopy('บทสรุปรวบยอดโดย DM — สร้างอัตโนมัติเมื่อเดินทางข้ามเมือง จบรอบเควส สิ้นเดือนในเกม หรือจบ session','DM-curated summaries are created automatically after travel between settlements, quest arcs, in-world months, or sessions')+'</div>';
-  const exp=document.createElement('button'); exp.className='btn ghost sm'; exp.style.marginTop='9px'; exp.textContent='Export as file (HTML)'; exp.onclick=exportChronicle;
+  const exp=document.createElement('button'); exp.className='btn ghost sm'; exp.style.marginTop='9px'; exp.textContent=uiCopy('ส่งออกเป็นไฟล์ (HTML)','Export as file (HTML)'); exp.onclick=exportChronicle;
   head.appendChild(exp); p.appendChild(head);
 
   const log=document.createElement('div'); log.className='item';
@@ -10693,13 +10703,13 @@ async function chronAlbumCard(p){
   const pbtn=document.createElement('button'); pbtn.className='btn ghost sm'; pbtn.textContent=uiCopy('🖼 สร้าง prompt ภาพ','🖼 Generate image prompt');
   const pout=document.createElement('textarea'); pout.readOnly=true; pout.style.cssText='display:none;width:100%;min-height:80px;margin-top:7px;background:#000;color:#fff;border:2px solid #fff;font-family:inherit;font-size:14px;padding:6px';
   pbtn.onclick=()=>genScenePrompt(pbtn,pout);
-  const cpy=document.createElement('button'); cpy.className='btn ghost sm'; cpy.style.marginLeft='8px'; cpy.textContent='Copy'; cpy.onclick=()=>{ if(pout.value){ navigator.clipboard?.writeText(pout.value); toast(uiCopy('คัดลอกแล้ว','Copied')); } };
+  const cpy=document.createElement('button'); cpy.className='btn ghost sm'; cpy.style.marginLeft='8px'; cpy.textContent=uiCopy('คัดลอก','Copy'); cpy.onclick=()=>{ if(pout.value){ navigator.clipboard?.writeText(pout.value); toast(uiCopy('คัดลอกแล้ว','Copied')); } };
   c.appendChild(pbtn); c.appendChild(cpy); c.appendChild(pout);
   // upload image (any member)
   const urow=document.createElement('div'); urow.style.cssText='display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px';
   const fi=document.createElement('input'); fi.type='file'; fi.accept='image/*'; fi.style.cssText='color:#fff;font-size:13px;max-width:170px';
   const cap=mkInput(uiCopy('คำบรรยาย (optional)','Caption (optional)'));
-  const ub=document.createElement('button'); ub.className='btn sm'; ub.textContent='Upload to album'; ub.onclick=()=>uploadCapture(fi,cap,ub);
+  const ub=document.createElement('button'); ub.className='btn sm'; ub.textContent=uiCopy('อัปโหลดเข้าอัลบั้ม','Upload to album'); ub.onclick=()=>uploadCapture(fi,cap,ub);
   urow.appendChild(fi); urow.appendChild(cap); urow.appendChild(ub); c.appendChild(urow);
   // album grid
   let caps=[]; try{ const r=await supa.from('scene_captures').select('*').eq('campaign_id',campaign.id).order('created_at',{ascending:false}); caps=r.data||[]; }catch(e){}
@@ -10746,7 +10756,7 @@ function exportChronicle(){
     : narrative.map((n,i)=>'<h3>Entry '+(i+1)+'</h3><p>'+escapeHtml(narrText(n)).replace(/\n/g,'<br>')+'</p>').join('');
   const html='<!DOCTYPE html><html lang="'+uiLanguage()+'"><head><meta charset="utf-8"><title>'+escapeHtml(campaign.name)+'</title></head><body style="font-family:sans-serif;max-width:720px;margin:auto;padding:24px;line-height:1.8;background:#fff;color:#111"><h1>'+escapeHtml(campaign.name)+(chroniclesData.length?uiCopy(' — พงศาวดาร',' — Chronicle'):'')+'</h1>'+body+'</body></html>';
   const blob=new Blob([html],{type:'text/html'}); const url=URL.createObjectURL(blob);
-  const a=document.createElement('a'); a.href=url; a.download='chronicle.html'; a.click(); URL.revokeObjectURL(url); toast('Saved ✓');
+  const a=document.createElement('a'); a.href=url; a.download='chronicle.html'; a.click(); URL.revokeObjectURL(url); toast(uiCopy('บันทึกแล้ว ✓','Saved ✓'));
 }
 
 // ───────── realtime ─────────
@@ -11289,26 +11299,27 @@ window.cc = (function(){
 
     if(last && last.indexOf('filled_')===0){
       var slot = last.substr(7);
-      var current = (slot==='narrate' ? (turn.narrate ? '"'+turn.narrate+'"' : '(empty)') : ((turn[slot] && (turn[slot].displayLabel||turn[slot].label)) || '(empty)'));
+      var emptyCopy=uiCopy('(ว่าง)','(empty)');
+      var current = (slot==='narrate' ? (turn.narrate ? '"'+turn.narrate+'"' : emptyCopy) : ((turn[slot] && (turn[slot].displayLabel||turn[slot].label)) || emptyCopy));
       return { items:[
-        {label:'CURRENT', meta: current, dim: true},
-        {label:'EDIT', editSlot: slot},
-        {label:'CLEAR', clearSlot: slot}
+        {label:'CURRENT', displayLabel:uiCopy('ปัจจุบัน','CURRENT'), meta: current, dim: true},
+        {label:'EDIT', displayLabel:uiCopy('แก้ไข','EDIT'), editSlot: slot},
+        {label:'CLEAR', displayLabel:uiCopy('ล้าง','CLEAR'), clearSlot: slot}
       ]};
     }
 
     if(last==='action') return { items:[
-      {label:'Attack',         drill:'attack'},
-      {label:'Cast Spell',     drill:'cast_action'},
-      {label:'Dash',           commit:{slot:'action', label:'Dash'}},
-      {label:'Disengage',      commit:{slot:'action', label:'Disengage'}},
-      {label:'Dodge',          commit:{slot:'action', label:'Dodge'}},
-      {label:'Help',           drill:'help_target'},
-      {label:'Hide',           commit:{slot:'action', label:'Hide'}},
-      {label:'Ready',          drill:'ready'},
-      {label:'Search',         commit:{slot:'action', label:'Search'}},
-      {label:'Use Object',     drill:'use_object'},
-      {label:'Grapple/Shove',  drill:'grapple_target'}
+      {label:'Attack',         displayLabel:uiCopy('โจมตี','Attack'), drill:'attack'},
+      {label:'Cast Spell',     displayLabel:uiCopy('ร่ายเวท','Cast Spell'), drill:'cast_action'},
+      {label:'Dash',           displayLabel:uiCopy('พุ่ง','Dash'), commit:{slot:'action', label:'Dash'}},
+      {label:'Disengage',      displayLabel:uiCopy('ถอนตัว','Disengage'), commit:{slot:'action', label:'Disengage'}},
+      {label:'Dodge',          displayLabel:uiCopy('หลบ','Dodge'), commit:{slot:'action', label:'Dodge'}},
+      {label:'Help',           displayLabel:uiCopy('ช่วย','Help'), drill:'help_target'},
+      {label:'Hide',           displayLabel:uiCopy('ซ่อนตัว','Hide'), commit:{slot:'action', label:'Hide'}},
+      {label:'Ready',          displayLabel:uiCopy('เตรียมแอคชัน','Ready'), drill:'ready'},
+      {label:'Search',         displayLabel:uiCopy('ค้นหา','Search'), commit:{slot:'action', label:'Search'}},
+      {label:'Use Object',     displayLabel:uiCopy('ใช้สิ่งของ','Use Object'), drill:'use_object'},
+      {label:'Grapple/Shove',  displayLabel:uiCopy('จับล็อก/ผลัก','Grapple/Shove'), drill:'grapple_target'}
     ]};
 
     if(last==='attack'){
@@ -11430,7 +11441,7 @@ window.cc = (function(){
       // v524 (เคสจริง): เดิมโชว์ 'Cast Bonus Spell' เสมอทั้งที่ตัวละครไม่มีเวท bonus action สักตัว (กดเข้าไป = ว่างเปล่า) + 'Two-Weapon (n/a)' ค้างถาวร = เมนูขยะ
       var items = [];
       var _hasBSpell = (character.spells||[]).some(function(s){return s.cast==='1B';});
-      if(_hasBSpell) items.push({label:'Cast Bonus Spell', drill:'cast_bonus'});
+      if(_hasBSpell) items.push({label:'Cast Bonus Spell', displayLabel:uiCopy('ร่ายเวทโบนัส','Cast Bonus Spell'), drill:'cast_bonus'});
       ((character.features&&character.features.bonus)||[]).forEach(function(f){
         items.push({label:f.name, meta:f.uses, commit:{slot:'bonus', label:f.name, skillId:f.id||null}});
       });
@@ -11440,7 +11451,7 @@ window.cc = (function(){
 
     if(last==='reaction'){
       var ritems = [];
-      if((character.spells||[]).some(function(s){return s.cast==='1R';})) ritems.push({label:'Ready Reaction Spell',drill:'cast_reaction'});
+      if((character.spells||[]).some(function(s){return s.cast==='1R';})) ritems.push({label:'Ready Reaction Spell',displayLabel:uiCopy('เตรียมเวทรีแอคชัน','Ready Reaction Spell'),drill:'cast_reaction'});
       ritems.push({label:uiCopy('Opportunity Attack ทำงานอัตโนมัติ','Opportunity Attacks are automatic'),meta:uiCopy('เกมจะตรวจเงื่อนไขและทอยให้เอง — ไม่ต้องใส่เป็น Reaction','The game checks the trigger and rolls automatically — do not add it as your Reaction'),dim:true});
       ((character.features&&character.features.reaction)||[]).forEach(function(f){
         ritems.push({label:f.name, meta:'passive', dim:true});
@@ -11491,7 +11502,7 @@ window.cc = (function(){
     }
 
     if(last==='narrate') return { items:[
-      {label:'TYPE NARRATION ...', narrate:true}
+      {label:'TYPE NARRATION ...', displayLabel:uiCopy('พิมพ์คำบรรยาย ...','TYPE NARRATION ...'), narrate:true}
     ]};
 
     return { items:[] };
@@ -11510,6 +11521,7 @@ window.cc = (function(){
     }
     return {
       label: label,
+      displayLabel: (SLOTN[slot]?uiCopy(SLOTN[slot].th,label):label),
       summary: summary,
       drill: filled ? 'filled_'+slot : drillEmpty
     };
@@ -11742,7 +11754,7 @@ window.cc = (function(){
       // v739 FZ-1: one RPC owns validation+idempotency+insert. No direct/fallback table write.
       try{ await submitActionV2(curRound,cid,narrativeTagged,structured); }
       catch(e){ if(typeof toast==='function') toast(e.message||uiCopy('ส่งไม่สำเร็จ','Submit failed'),true); return false; }
-      if (typeof toast==='function') toast('Action submitted ✓');
+      if (typeof toast==='function') toast(uiCopy('ส่งการกระทำแล้ว ✓','Action submitted ✓'));
       // ข้อ 3 (06-08): optimistic — อัปเดตฉากรบทันทีหลังส่ง (มาร์คเดิน/สถานะ) ไม่รอ realtime เด้งกลับ
       try{ if(typeof _bsShown!=='undefined' && _bsShown && typeof renderBattleScene==='function') renderBattleScene('manual'); }catch(e){}
       // ── B (review-r1 F15): การหัก skills.used max_uses ย้ายไป server แล้ว (structured block-and-strip · server-authoritative · กัน double-charge ที่เดิม client+server หักซ้ำ) — client ไม่หักเอง · UI รีเฟรชหลัง resolve ผ่าน loadRound ──
@@ -11753,7 +11765,7 @@ window.cc = (function(){
       return true;   // v538 M18: ส่งสำเร็จ → caller ค่อยตั้ง phase='resolved'
     }catch(err){
       if (window.console) console.error('[cc] submit failed', err);
-      if (typeof toast==='function') toast('Submit failed: '+((err && err.message) || err), true);
+      if (typeof toast==='function') toast(uiCopy('ส่งไม่สำเร็จ: ','Submit failed: ')+((err && err.message) || err), true);
       return false;
     } finally { submitting=false; }
   }
@@ -11875,7 +11887,7 @@ window.cc = (function(){
 
     var m = getMenu(stack);
     var hasAny = !!(turn.action||turn.bonus||turn.reaction||turn.movement||turn.free||turn.narrate);
-    var backHtml = stack.length>1 ? '<button class="cc-btn cc-alt" id="ccBack2" style="width:100%;margin-bottom:8px">\u25c0 BACK</button>' : '';
+    var backHtml = stack.length>1 ? uiCopy('<button class="cc-btn cc-alt" id="ccBack2" style="width:100%;margin-bottom:8px">\u25c0 ย้อนกลับ</button>','<button class="cc-btn cc-alt" id="ccBack2" style="width:100%;margin-bottom:8px">\u25c0 BACK</button>') : '';
 
     // ลำดับการกระทำ (sequence review) — แสดงที่หน้า root
     var seqHtml='';
@@ -11922,8 +11934,8 @@ window.cc = (function(){
       seqHtml +
       '<hr class="cc-divider">' +
       '<div class="cc-btn-row">' +
-        '<button class="cc-btn" id="ccSubmit"'+(hasAny?'':' disabled')+'>SUBMIT</button>' +
-        '<button class="cc-btn cc-alt" id="ccReset">RESET</button>' +
+        '<button class="cc-btn" id="ccSubmit"'+(hasAny?'':' disabled')+'>'+uiCopy('ส่ง','SUBMIT')+'</button>' +
+        '<button class="cc-btn cc-alt" id="ccReset">'+uiCopy('รีเซ็ต','RESET')+'</button>' +
       '</div>';
     var as = frame.querySelectorAll('#ccCrumb a');
     var retryPartial=frame.querySelector('#ccRetryPartial'); if(retryPartial) retryPartial.addEventListener('click',retryContextLoad);
@@ -11987,8 +11999,8 @@ window.cc = (function(){
       '<div>'+rows+'</div>' +
       '<hr class="cc-divider">' +
       '<div class="cc-btn-row">' +
-        '<button class="cc-btn" id="ccRoll">ROLL ALL</button>' +
-        '<button class="cc-btn cc-alt" id="ccBack">BACK</button>' +
+        '<button class="cc-btn" id="ccRoll">'+uiCopy('ทอยทั้งหมด','ROLL ALL')+'</button>' +
+        '<button class="cc-btn cc-alt" id="ccBack">'+uiCopy('ย้อนกลับ','BACK')+'</button>' +
       '</div>';
     document.getElementById('ccRoll').addEventListener('click', onRoll);
     document.getElementById('ccBack').addEventListener('click', onBackToBuild);
@@ -12018,7 +12030,7 @@ window.cc = (function(){
       '<div>'+rows+'</div>' +
       '<hr class="cc-divider">' +
       '<div class="cc-btn-row">' +
-        '<button class="cc-btn" id="ccCont">DONE</button>' +
+        '<button class="cc-btn" id="ccCont">'+uiCopy('เสร็จ','DONE')+'</button>' +
       '</div>';
     document.getElementById('ccCont').addEventListener('click', onContinue);
   }
@@ -12065,7 +12077,7 @@ window.cc = (function(){
       else if(phase==='resolved') renderResolved();
     } catch(err){
       var f=document.getElementById('ccFrame');
-      if (f) f.innerHTML = '<div class="cc-dice-row">ERROR: '+esc((err && err.message) || String(err))+'</div>';
+      if (f) f.innerHTML = '<div class="cc-dice-row">'+uiCopy('ข้อผิดพลาด: ','ERROR: ')+esc((err && err.message) || String(err))+'</div>';
     }
     try{ ccApplyWindow(); }catch(e){}
   }
