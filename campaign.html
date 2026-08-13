@@ -1794,7 +1794,7 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
   <div class="logo"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="7" y="5" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/><rect x="2" y="7" width="1" height="1"/><rect x="5" y="7" width="1" height="1"/></svg></div>
   <div class="ttl" id="hdTitle">TTRPG Campaign</div>
   <span class="code hidden" id="hdCode" title="Click to copy invite code"></span>
-  <span class="code hidden" id="hdWorld" title="Click to copy World ID (สำหรับ ingest ลอร์)"></span>
+  <span class="code hidden" id="hdWorld" title="World ID"></span>
   <span class="who" id="hdWho"></span>
   <div class="dot" id="hdDot"></div>
   <div class="hd-actions">
@@ -2116,7 +2116,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608130115;   // ASSETBUILD-01: EN asset ring 20260813a1 — FE-LANG-01 wall fixes reach screens
+const FRONTEND_BUILD = 202608130807;   // FE-LANG-02: residual walls (tabs/BONDS/submit/turn-note) + pet-block copy — asset ring 20260813a1 unchanged
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2536,7 +2536,24 @@ function uiLanguage(){
   return UI18N.language(pendingGameLanguage||'th');
 }
 function uiText(key,vars){ return UI18N.text(uiLanguage(),key,vars); }
-function uiCopy(th,en){ return uiLanguage()==='en'?en:th; }
+function uiCopy(th,en,lang){ return UI18N.language(lang||uiLanguage())==='en'?en:th; }
+const WORLD_TAB_COPY=Object.freeze({
+  story:Object.freeze(['เนื้อเรื่อง','Story']), me:Object.freeze(['สถานะ','Stat']),
+  items:Object.freeze(['ไอเทม','Items']), skills:Object.freeze(['ทักษะ','Skills']),
+  party:Object.freeze(['ปาร์ตี้','Party']), npc:Object.freeze(['ตัวละคร','NPC']),
+  mon:Object.freeze(['ต่อสู้','Combat']), map:Object.freeze(['แผนที่','Map']),
+  quest:Object.freeze(['เควส','Quest']), files:Object.freeze(['ไฟล์','Files']),
+  chron:Object.freeze(['พงศาวดาร','Chronicle']), companion:Object.freeze(['ผู้ติดตาม','Companion'])
+});
+function applyWorldChromeCopy(lang){
+  document.querySelectorAll('#tabs .tab[data-tab]').forEach(btn=>{
+    const label=btn.querySelector('.tlab'), pair=WORLD_TAB_COPY[btn.dataset.tab];
+    if(label&&pair) label.textContent=uiCopy(pair[0],pair[1],lang);
+  });
+  const worldId=$('hdWorld');
+  if(worldId) worldId.title=uiCopy('คลิกเพื่อคัดลอก World ID สำหรับ ingest ลอร์','Click to copy World ID for lore ingest',lang);
+}
+function primaryActionLabel(){ return uiCopy('ส่งการกระทำ','Submit Action'); }
 // ── DICE-FE1 Phase B: Canvas-first adapter; Phase A contract stays untouched ──
 function diceCanvasStableIdentity(input){
   const source=input&&typeof input==='object'?input:{};
@@ -2726,7 +2743,7 @@ function levelUpUiState(){
   const total=activeIds.size||1, done=doneIds.size;
   return {pending:done<total,done,total,mineDone:!!(myChar&&doneIds.has(String(myChar.id)))};
 }
-function applyUiLanguage(lang){ UI18N.translateDom(document,UI18N.language(lang)); if(campaign){ UI18N.installDisplayWall(document,()=>uiLanguage()); UI18N.installDialogWall(()=>uiLanguage()); } document.documentElement.lang=lang==='en'?'en':'th'; }
+function applyUiLanguage(lang){ const normalized=UI18N.language(lang); UI18N.translateDom(document,normalized); applyWorldChromeCopy(normalized); if(campaign){ UI18N.installDisplayWall(document,()=>uiLanguage()); UI18N.installDialogWall(()=>uiLanguage()); } document.documentElement.lang=normalized==='en'?'en':'th'; }
 let _i18nAssetReportSent=false;
 function englishAssetBuildProof(){return _I18N_ASSETS_OK?ENGLISH_ASSET_BUILD:null;}
 async function reportI18nAssetFailure(surface){
@@ -4402,6 +4419,7 @@ async function fillRelTop(){
     const top=rels.slice().sort((a,b)=>(+b.score||0)-(+a.score||0)).slice(0,5).filter(r=>Math.round(+r.score||0)>0||r.romance);
     const tierRank={enemy:0,hostile:1,wary:2,neutral:3,friendly:4,trusted:5,close:6,inner_circle:7};
     const tierTH={enemy:'ศัตรู',hostile:'เป็นปฏิปักษ์',wary:'ระแวง',neutral:'เป็นกลาง',friendly:'เป็นมิตร',trusted:'ไว้ใจ',close:'สนิท',inner_circle:'คนวงใน'};
+    const tierEN={enemy:'Enemy',hostile:'Hostile',wary:'Wary',neutral:'Neutral',friendly:'Friendly',trusted:'Trusted',close:'Close',inner_circle:'Inner circle'};
     const compTop=(companions||[]).flatMap(c=>(c.relationships||[]).map(r=>({name:c.name,target:r.target_character_id,tier:String(r.tier||'neutral')})))
       .sort((a,b)=>(tierRank[b.tier]??3)-(tierRank[a.tier]??3)).slice(0,5);
     if(!top.length&&!compTop.length){ el.style.display='none'; return; }
@@ -4411,12 +4429,15 @@ async function fillRelTop(){
       const np=npcs.find(n=>lc(n.name)===lc(r.npc_name))||{};
       const sx=/หญิง|female/i.test(String(np.sex||''))?'<span style="color:var(--sex-f)">♀</span>':(/ชาย|male/i.test(String(np.sex||''))?'<span style="color:var(--sex-m)">♂</span>':'');
       const col=sc>=70?'var(--rel-hi)':sc>=20?'var(--rel-good)':sc>=-19?'var(--rel-neu)':sc>=-44?'var(--rel-wary)':'var(--rel-bad)';
-      h+=`<span class="wh" title="ความสัมพันธ์ ${sc>=0?'+':''}${sc}">${sx}<b style="color:${col}">${escapeHtml(r.npc_name)}</b>${r.romance?'<span style="font-size:11px">❤</span>':''}</span>`;
+      const relTitle=uiCopy('ความสัมพันธ์ ','Relationship ')+(sc>=0?'+':'')+sc;
+      h+=`<span class="wh" title="${escapeHtml(relTitle)}">${sx}<b style="color:${col}">${escapeHtml(r.npc_name)}</b>${r.romance?'<span style="font-size:11px">❤</span>':''}</span>`;
     });
     compTop.forEach(r=>{
       const pc=(ownChars||[]).find(x=>String(x.character_id)===String(r.target));
       const col=['inner_circle','close'].includes(r.tier)?'var(--rel-hi)':['trusted','friendly'].includes(r.tier)?'var(--rel-good)':r.tier==='neutral'?'var(--rel-neu)':r.tier==='wary'?'var(--rel-wary)':'var(--rel-bad)';
-      h+=`<span class="wh" title="${escapeHtml(pc&&pc.name?pc.name+' · ':'')}${escapeHtml(tierTH[r.tier]||tierTH.neutral)}"><span style="font-size:11px">🤝</span><b style="color:${col}">${escapeHtml(r.name)}</b><small style="opacity:.75"> ${escapeHtml(tierTH[r.tier]||tierTH.neutral)}</small></span>`;
+      const tierText=uiCopy(tierTH[r.tier]||tierTH.neutral,tierEN[r.tier]||tierEN.neutral);
+      const relTitle=(pc&&pc.name?pc.name+' · ':'')+tierText;
+      h+=`<span class="wh" title="${escapeHtml(relTitle)}"><span style="font-size:11px">🤝</span><b style="color:${col}">${escapeHtml(r.name)}</b><small style="opacity:.75"> ${escapeHtml(tierText)}</small></span>`;
     });
     el.innerHTML=h; el.style.display='';
   }catch(e){ console.warn('BONDS projection failed',e); }
@@ -5806,12 +5827,12 @@ async function renderRoundbar(){
   // v2: ล็อกตาเดี่ยว — ถ้าอยู่ในคอมแบตและยังไม่ถึงตาเรา → รอ (ไม่ให้ส่ง)
   if(myPet){
     const ph=document.createElement('div'); ph.className='note'; ph.style.cssText='text-align:left;padding:6px 2px;color:#9ad;font-weight:600';
-    ph.innerHTML='⚔️ ถึงตา <b>'+escapeHtml(myPet.name)+'</b> (สัตว์เลี้ยงของคุณ) — สั่งการได้เลย'; bar.appendChild(ph);
+    ph.innerHTML=uiCopy('⚔️ ถึงตา <b>'+escapeHtml(myPet.name)+'</b> (สัตว์เลี้ยงของคุณ) — สั่งการได้เลย','⚔️ Your pet <b>'+escapeHtml(myPet.name)+'</b> — act now'); bar.appendChild(ph);
     const done=list.find(a=>a.character_id===myPet.id);
-    if(done){ const w=document.createElement('div'); w.className='note'; w.style.cssText='text-align:left;padding:6px 2px'; w.innerHTML='✓ สั่ง '+escapeHtml(myPet.name)+' แล้ว — รอ DM ดำเนินเรื่อง'; bar.appendChild(w); }
+    if(done){ const w=document.createElement('div'); w.className='note'; w.style.cssText='text-align:left;padding:6px 2px'; w.innerHTML=uiCopy('✓ สั่ง '+escapeHtml(myPet.name)+' แล้ว — รอ DM ดำเนินเรื่อง','✓ '+escapeHtml(myPet.name)+' ordered — waiting for the DM to continue'); bar.appendChild(w); }
     else {
-      const pta=document.createElement('textarea'); pta.id='petActInput'; pta.placeholder='จะให้ '+myPet.name+' ทำอะไร?'; bar.appendChild(pta);
-      const pb=document.createElement('button'); pb.className='btn'; pb.textContent='Submit ('+myPet.name+')'; pb.onclick=()=>submitAction(myPet.id); bar.appendChild(pb);
+      const pta=document.createElement('textarea'); pta.id='petActInput'; pta.placeholder=uiCopy('จะให้ '+myPet.name+' ทำอะไร?','What should '+myPet.name+' do?'); bar.appendChild(pta);
+      const pb=document.createElement('button'); pb.className='btn'; pb.textContent=uiCopy('ส่งคำสั่ง ('+myPet.name+')','Submit ('+myPet.name+')'); pb.onclick=()=>submitAction(myPet.id); bar.appendChild(pb);
     }
     if(isHost){ const f=document.createElement('button'); f.className='btn warn sm'; f.textContent=resolving?uiCopy('กำลังดำเนินเรื่อง…','Continuing…'):uiCopy('⚡ ดำเนินเรื่องต่อ','⚡ Continue Scene'); f.disabled=resolving; f.onclick=()=>forceResolveConfirm(); bar.appendChild(f); }
     return;
@@ -5861,7 +5882,7 @@ async function renderRoundbar(){
   }
   if(playerCombatUiState()==='act'){
     const w=document.createElement('div'); w.className='note'; w.style.cssText='text-align:left;padding:6px 2px;color:#FAC775;font-weight:600';
-    w.textContent='⚔️ ถึงตาคุณแล้ว — สั่งการได้เลย'; bar.appendChild(w);
+    w.textContent=uiCopy('⚔️ ถึงตาคุณแล้ว — สั่งการได้เลย','⚔️ Your turn — act now'); bar.appendChild(w);
   }
   if(!mine){
     const meta=curRound.meta||{};
@@ -5910,7 +5931,7 @@ async function renderRoundbar(){
       // One free-text draft in combat, deliberately separate from BATTLE COMMAND.
       const draft=document.createElement('div'); draft.className='copt';
       const taC=document.createElement('textarea'); taC.id='actInput'; taC.placeholder=uiCopy('พิมพ์หรือแก้การกระทำได้อิสระ — ตัวเลือกของ DM เป็นเพียงคำแนะนำ','Type or edit any action — DM options are suggestions only'); if(keepAct) taC.value=keepAct; draft.appendChild(taC);
-      const sbC=document.createElement('button'); sbC.type='button'; sbC.className='btn'; sbC.textContent=uiCopy('Submit Action','Submit Action'); sbC.onclick=()=>submitAction(); draft.appendChild(sbC); bar.appendChild(draft);
+      const sbC=document.createElement('button'); sbC.type='button'; sbC.className='btn'; sbC.textContent=primaryActionLabel(); sbC.onclick=()=>submitAction(); draft.appendChild(sbC); bar.appendChild(draft);
       if(window._dmOptionStale&&Array.isArray(cb.options)&&cb.options.length) bar.appendChild(persOptsWidget());
       // เมนู COMBAT COMMAND — ย่อเหลือปุ่มบรรทัดเดียว (ทั้ง desktop+mobile) กดแล้วขยาย: desktop=หน้าต่างลอยเยื้องซ้าย · mobile=กางในแผงเดิม
       if(typeof window.cc==='object' && window.cc && typeof window.cc.openInline==='function'){
@@ -5986,7 +6007,7 @@ async function renderRoundbar(){
       bar.appendChild(dice);
       const dn=document.createElement('div'); dn.className='econleg'; dn.textContent=uiCopy('“DM ทอยให้” = ใช้ผลสุ่มจริงตามกติกา · “ทอยเอง” = ทอยเต๋าจริงในมือแล้วใส่เลข','“DM rolls” uses a real rules-based roll · “Roll yourself” lets you enter a physical die result'); bar.appendChild(dn);
     }
-    const b=document.createElement('button'); b.className='btn'; b.textContent='Submit Action'; b.onclick=submitAction; bar.appendChild(b);
+    const b=document.createElement('button'); b.className='btn'; b.textContent=primaryActionLabel(); b.onclick=submitAction; bar.appendChild(b);
     // D: ขอตัวเลือกเฉพาะตัว — กดแล้ว DM ปั่น 3-5 ทางเลือกสำหรับ 'ตัวละครเรา' ณ สถานการณ์นี้ (on-demand ไม่เปลือง token ถ้าไม่กด)
     if(myChar){ bar.appendChild(persOptsWidget()); }
     }
