@@ -2116,7 +2116,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608141525;   // QUESTPROSE-01: quest offers stay in-world (§2.17) · difficulty stays UI chrome · asset ring 20260813a1 unchanged
+const FRONTEND_BUILD = 202608150450;   // REVIEW-01: host-only DM Options audit review card (label per exact reason) · asset ring 20260813a1 unchanged
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -10525,6 +10525,7 @@ function fileDropdown(labelText, count){
 }
 let _dmOptAuditPage=0;
 async function dmOptionsAuditCard(){
+  if(!campaign||!me||campaign.host_id!==me.id) return null;
   const pageSize=10, from=_dmOptAuditPage*pageSize;
   const setBase=()=>supa.from('system_logs').select('id',{count:'exact',head:true}).eq('campaign_id',campaign.id).eq('source','optionsAudit').eq('detail->>event','set_audit');
   const submitBase=()=>supa.from('system_logs').select('id',{count:'exact',head:true}).eq('campaign_id',campaign.id).eq('source','optionsAudit').eq('detail->>event','submit');
@@ -10534,12 +10535,41 @@ async function dmOptionsAuditCard(){
     supa.from('system_logs').select('id,level,message,detail,created_at').eq('campaign_id',campaign.id).eq('source','optionsAudit').eq('detail->>event','set_audit').order('created_at',{ascending:false}).range(from,from+pageSize-1)
   ]);
   if(rowsR.error) return null;
+  const auditRows=rowsR.data||[], reviewPolicy='dmopt-v1', logIds=auditRows.map(x=>x.id).filter(Boolean);
+  let reviewRows=[], reviewLoadError=false;
+  if(logIds.length){
+    const reviewsR=await supa.from('dm_option_candidate_reviews').select('system_log_id,candidate_ordinal,reason_code,label,policy_version,reviewed_at').in('system_log_id',logIds).eq('policy_version',reviewPolicy).order('reviewed_at',{ascending:false});
+    if(reviewsR.error) reviewLoadError=true; else reviewRows=reviewsR.data||[];
+  }
+  const reviewKey=(logId,ordinal,reason)=>logId+'\u001f'+ordinal+'\u001f'+reason;
+  const reviewsByKey=new Map(); reviewRows.forEach(x=>{ const k=reviewKey(x.system_log_id,x.candidate_ordinal,x.reason_code); if(!reviewsByKey.has(k)) reviewsByKey.set(k,x); });
+  const reviewLabels=['true_invalid','false_positive','uncertain'];
+  const reviewLabelText=label=>label==='true_invalid'?uiCopy('ตัดถูก','Valid rejection'):label==='false_positive'?uiCopy('ตัดผิด (FP)','False positive (FP)'):uiCopy('ยังไม่แน่ใจ','Uncertain');
   const total=totalR.count||0, unavail=unavailR.count||0, pages=Math.max(1,Math.ceil(total/pageSize)); if(_dmOptAuditPage>=pages) _dmOptAuditPage=pages-1;
   const card=document.createElement('div'); card.className='item';
   card.innerHTML='<div class="sectitle">🎯 DM OPTIONS AUDIT</div><div class="note" style="text-align:left">'+uiCopy('ชุดทั้งหมด ','Total sets ')+total+' · '+uiCopy('ใช้ไม่ได้ ','unavailable ')+(total?Math.round(unavail*100/total):0)+'% · '+uiCopy('เก่า ','stale ')+(staleR.count||0)+' · '+uiCopy('เขียนใหม่ ','rewritten ')+(rewriteR.count||0)+' · '+uiCopy('ข้อผิดพลาดร้ายแรง ','hard errors ')+(hardErrR.count||0)+'<br>'+uiCopy('ช่วงเก็บตัวอย่างห้าม prune system_logs ต่ำกว่า 1000 แถว; ต้องมีอย่างน้อย 100 ชุดก่อนพิจารณา enforce','During sampling, keep at least 1000 system-log rows and collect at least 100 option sets before enforce')+'</div>';
-  (rowsR.data||[]).forEach(row=>{ const det=row.detail||{}, d=document.createElement('details'); d.style.cssText='margin:5px 0;border-top:1px solid #444;padding-top:5px'; const s=document.createElement('summary'); s.textContent=new Date(row.created_at).toLocaleString()+' · '+(det.surface||'submit')+' · '+(det.wall_mode||'')+' · '+(det.unavailable?uiCopy('ใช้ไม่ได้','unavailable'):uiCopy((det.final||[]).length+' รายการสุดท้าย',(det.final||[]).length+' final')); d.appendChild(s); const b=document.createElement('div'); b.style.cssText='white-space:pre-wrap;font-size:12px;line-height:1.45;padding:5px';
+  if(reviewLoadError){ const warn=document.createElement('div'); warn.className='note'; warn.style.cssText='text-align:left;color:#FAC775'; warn.textContent=uiCopy('โหลดป้ายตรวจเดิมไม่สำเร็จ — ยังลองบันทึกป้ายใหม่ได้','Could not load existing reviews — you can still try saving a new label'); card.appendChild(warn); }
+  auditRows.forEach(row=>{ const det=row.detail||{}, d=document.createElement('details'); d.style.cssText='margin:5px 0;border-top:1px solid #444;padding-top:5px'; const s=document.createElement('summary'); s.textContent=new Date(row.created_at).toLocaleString()+' · '+(det.surface||'submit')+' · '+(det.wall_mode||'')+' · '+(det.unavailable?uiCopy('ใช้ไม่ได้','unavailable'):uiCopy((det.final||[]).length+' รายการสุดท้าย',(det.final||[]).length+' final')); d.appendChild(s); const b=document.createElement('div'); b.style.cssText='white-space:pre-wrap;font-size:12px;line-height:1.45;padding:5px';
     const reasons=(det.parsed||[]).map(x=>({raw:x.raw,reasons:x.reasons}));
-    b.textContent='original → '+JSON.stringify(det.original||[],null,2)+'\nreasons → '+JSON.stringify(reasons,null,2)+'\nfinal → '+JSON.stringify(det.final||[],null,2)+'\ntiming/model/token → '+JSON.stringify({timings:det.timings,model:det.model,token:det.token,repair:det.repair},null,2); d.appendChild(b); card.appendChild(d); });
+    b.textContent='original → '+JSON.stringify(det.original||[],null,2)+'\nreasons → '+JSON.stringify(reasons,null,2)+'\nfinal → '+JSON.stringify(det.final||[],null,2)+'\ntiming/model/token → '+JSON.stringify({timings:det.timings,model:det.model,token:det.token,repair:det.repair},null,2); d.appendChild(b);
+    const reviewBox=document.createElement('div'); reviewBox.style.cssText='display:grid;gap:6px;padding:5px'; let reviewableN=0;
+    (det.parsed||[]).forEach((candidate,index)=>{ (Array.isArray(candidate.reasons)?candidate.reasons:[]).forEach(reason=>{
+      reviewableN++; const ordinal=index+1, exactReason=String(reason), key=reviewKey(row.id,ordinal,exactReason), line=document.createElement('div'); line.style.cssText='border:1px solid #444;border-radius:7px;padding:7px;display:grid;gap:5px';
+      const title=document.createElement('div'); title.textContent='#'+ordinal+' · '+exactReason; title.style.fontWeight='700'; line.appendChild(title);
+      const status=document.createElement('div'); status.className='muted'; const buttons=[];
+      const paint=(saved=false)=>{ const current=reviewsByKey.get(key); status.textContent=current?(saved?uiCopy('บันทึกแล้ว: ','Saved: '):uiCopy('สถานะ: ','Status: '))+reviewLabelText(current.label):uiCopy('สถานะ: ยังไม่ตรวจ','Status: not reviewed'); buttons.forEach(({button,label})=>button.style.opacity=current&&current.label===label?'1':'.72'); };
+      line.appendChild(status); const actions=document.createElement('div'); actions.style.cssText='display:flex;gap:5px;flex-wrap:wrap';
+      reviewLabels.forEach(label=>{ const button=document.createElement('button'); button.className='btn ghost sm'; button.textContent=reviewLabelText(label); buttons.push({button,label}); button.onclick=async()=>{
+        buttons.forEach(x=>x.button.disabled=true); status.textContent=uiCopy('กำลังบันทึก…','Saving…');
+        const saved=await supa.rpc('upsert_dm_option_candidate_review_v1',{p_system_log_id:row.id,p_candidate_ordinal:ordinal,p_reason_code:exactReason,p_label:label,p_policy_version:reviewPolicy,p_note:null});
+        buttons.forEach(x=>x.button.disabled=false);
+        if(saved.error){ status.textContent=uiCopy('บันทึกไม่สำเร็จ โปรดลองใหม่','Review save failed. Please try again.'); return; }
+        reviewsByKey.set(key,{system_log_id:row.id,candidate_ordinal:ordinal,reason_code:exactReason,label,policy_version:reviewPolicy,reviewed_at:new Date().toISOString()}); paint(true);
+      }; actions.appendChild(button); });
+      line.appendChild(actions); paint(); reviewBox.appendChild(line);
+    }); });
+    if(!reviewableN){ const none=document.createElement('div'); none.className='muted'; none.textContent=uiCopy('ชุดนี้ไม่มีเหตุที่ต้องตรวจ','This set has no rejection reason to review'); reviewBox.appendChild(none); }
+    d.appendChild(reviewBox); card.appendChild(d); });
   const nav=document.createElement('div'); nav.style.cssText='display:flex;gap:6px;align-items:center;margin-top:7px';
   const prev=document.createElement('button'); prev.className='btn ghost sm'; prev.textContent='‹'; prev.disabled=_dmOptAuditPage<=0; prev.onclick=()=>{_dmOptAuditPage--;renderFiles();};
   const next=document.createElement('button'); next.className='btn ghost sm'; next.textContent='›'; next.disabled=_dmOptAuditPage>=pages-1; next.onclick=()=>{_dmOptAuditPage++;renderFiles();};
