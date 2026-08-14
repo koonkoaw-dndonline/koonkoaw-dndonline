@@ -2116,7 +2116,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608140605;   // FE-LANG-07: TH worlds get Thai buttons/status (ทาง ก) · EN byte-exact · headers kept — asset ring 20260813a1 unchanged
+const FRONTEND_BUILD = 202608141525;   // QUESTPROSE-01: quest offers stay in-world (§2.17) · difficulty stays UI chrome · asset ring 20260813a1 unchanged
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2158,6 +2158,10 @@ async function submitActionV2(round, characterId, text, structured){
 function questAffordanceLogReject(reason, affordance, source){
   try{ console.warn('[quest-affordance] hidden fail-closed',{reason:String(reason||'invalid_wire_shape'),source:String(source||'unknown'),id:String(affordance&&affordance.id||''),operation:String(affordance&&affordance.operation||'')}); }catch(e){}
 }
+// QUESTPROSE-01: legacy rows may still persist a difficulty glyph in the
+// identity string.  Project it away at every player display/action surface;
+// the badge itself is rendered separately from canonicalDifficulty/diff.
+function questTitleWithoutDifficultyLabel(value){ return String(value||'').replace(/(?:⭐|💀|⚠)\uFE0F?/gu,' ').replace(/\s+/g,' ').trim(); }
 function questAffordanceNormalize(affordance, source){
   if(!affordance||typeof affordance!=='object'||Array.isArray(affordance)) return null;
   const operation=String(affordance.operation||'');
@@ -2242,7 +2246,7 @@ if(typeof window.addEventListener==='function') window.addEventListener('storage
   else if(t==='story'&&typeof renderStory==='function') renderStory();
 }catch(e){} });
 function questAffordancesForUi(){ return Array.isArray(window._questAffordances)?window._questAffordances.slice():[]; }
-function questAffordanceLabel(affordance){ return uiCopy(String(affordance.label_th),String(affordance.label_en)); }
+function questAffordanceLabel(affordance){ return questTitleWithoutDifficultyLabel(uiCopy(String(affordance.label_th),String(affordance.label_en))); }
 function questAffordanceIntent(affordance, actorCharacterId){
   return {version:1,kind:'player_quest',operation:affordance.operation,target:{kind:affordance.operation==='accept'?'quest_offer':'active_quest',id:affordance.id},source:{kind:affordance.source_kind,id:affordance.source_id},actor_character_id:String(actorCharacterId)};
 }
@@ -7487,7 +7491,7 @@ async function renderQuest(){
       const row=document.createElement('div'); row.style.cssText=FONT+';font-size:12px;text-align:left;margin:5px 0;display:flex;justify-content:space-between;gap:10px';
       const ok=j.state==='applied', needsReview=j.state==='blocked';
       const detail='XP +'+Number(j.xp_per_character||0)+uiCopy('/คน',' each')+' · '+Number(j.gold_per_character||0)+' gp'+(j.loot_name?' · '+String(j.loot_name):'');
-      row.innerHTML='<span><b>'+escapeHtml(String(j.quest_title||''))+'</b><br><span class="muted">'+escapeHtml(detail)+'</span></span><span style="white-space:nowrap;color:'+(ok?'#97C459':'#FAC775')+'">'+(ok?uiCopy('✓ จ่ายแล้ว','✓ Paid'):(needsReview?uiCopy('⚠ ไม่มีผู้รับตอนปิดเควสต์','⚠ No recipient at completion'):uiCopy('⏳ ค้างจ่ายปลอดภัย','⏳ Safely pending')))+'</span>';
+      row.innerHTML='<span><b>'+escapeHtml(questTitleWithoutDifficultyLabel(j.quest_title))+'</b><br><span class="muted">'+escapeHtml(detail)+'</span></span><span style="white-space:nowrap;color:'+(ok?'#97C459':'#FAC775')+'">'+(ok?uiCopy('✓ จ่ายแล้ว','✓ Paid'):(needsReview?uiCopy('⚠ ไม่มีผู้รับตอนปิดเควสต์','⚠ No recipient at completion'):uiCopy('⏳ ค้างจ่ายปลอดภัย','⏳ Safely pending')))+'</span>';
       card.appendChild(row);
     });
     if(pending.length&&campaign.host_id===me.id){
@@ -7546,37 +7550,46 @@ async function renderQuest(){
   cls=cls.filter(c=>!CLUE_COMBAT.test(String(c.mystery||''))&&!CLUE_COMBAT.test(String(c.clue||''))).slice().reverse();   // v854 U1-R1: query/limit เดิม; แสดงใหม่สุดก่อนโดยไม่ตัดแถว
   // กันเควสซ้ำในการแสดงผล (เผื่อมีชื่อซ้ำค้างใน DB) — เก็บอันล่าสุดต่อชื่อ
   const seen=new Set();
-  const dedup=quests.filter(q=>{ const k=String(q.title||'').toLowerCase().trim(); if(seen.has(k))return false; seen.add(k); return true; });
+  const dedup=quests.filter(q=>{ const k=questTitleWithoutDifficultyLabel(q.title).toLowerCase(); if(seen.has(k))return false; seen.add(k); return true; });
   const active=dedup.filter(q=>q.status==='active');
   const ended=dedup.filter(q=>q.status==='completed'||q.status==='failed');   // v178: ซ่อน 'merged' (เควสรวมซ้ำ ไม่ใช่เควสที่สำเร็จ)
   const clueProjection=questClueProjection(active.concat(ended),cls);
   const questAffordances=questAffordancesForUi();
   const acceptAffordances=questAffordances.filter(aff=>aff.operation==='accept');
   const turnInAffordances=questAffordances.filter(aff=>aff.operation==='turn_in');
+  // QUESTPROSE-01: difficulty is typed metadata. Active/ended quests use
+  // blueprint.diff; offers match their immutable offer_id back to board.diff.
+  // Never infer mechanics from public_title or a legacy label string.
+  const BP_BADGE={easy:[uiCopy('⭐ ง่าย','⭐ Easy'),'#97C459'],normal:[uiCopy('⭐⭐ ปกติ','⭐⭐ Normal'),'#FAC775'],hard:[uiCopy('⭐⭐⭐ ยาก','⭐⭐⭐ Hard'),'#E8915B'],epic:[uiCopy('💀 มหาโหด','💀 Epic'),'#E24B4A']};
+  const questDifficultyCodeForUi=(q)=>{
+    const code=(v)=>['easy','normal','hard','epic'].includes(String(v||''))?String(v):'';
+    const direct=code(q&&q.canonicalDifficulty)||code(q&&q.diff)||code(q&&q.blueprint&&q.blueprint.diff); if(direct) return direct;
+    const boardOffers=((((worldState||{}).settings||{}).quest_board||{}).offers)||[];
+    const offer=Array.isArray(boardOffers)?boardOffers.find(o=>String(o&&o.offer_id||'')===String(q&&q.id||'')):null;
+    return code(offer&&offer.canonicalDifficulty)||code(offer&&offer.diff)||code(offer&&offer.bp&&offer.bp.diff);
+  };
+  const bpBadge=(q)=>{
+    if(q.blueprint&&q.blueprint.kind==='standing') return ' <span style="font-weight:600;font-size:11px;color:#6cb6ff;border:1px solid #6cb6ff;border-radius:6px;padding:0 6px;white-space:nowrap">'+uiCopy('🛡 เฝ้าระวัง (ต่อเนื่อง)','🛡 Standing Watch (ongoing)')+'</span>';   // v431: เควสเฝ้าระวัง/ถาวร — ไม่ใช่ศึกครั้งเดียว
+    const x=BP_BADGE[questDifficultyCodeForUi(q)]; if(!x) return '';
+    return ' <span style="font-weight:600;font-size:11px;color:'+x[1]+';border:1px solid '+x[1]+';border-radius:6px;padding:0 6px;white-space:nowrap">'+x[0]+'</span>'; };
   if(acceptAffordances.length){
     const offers=document.createElement('div'); offers.className='item quest-affordance-offers'; offers.style.cssText=FONT;
     const head=document.createElement('div'); head.style.cssText=FONT+';font-size:15px;font-weight:700;text-align:left;padding:2px 0 6px;border-bottom:1px solid #444;margin-bottom:6px'; head.textContent=uiCopy('📜 งานที่รับได้ตอนนี้','📜 Quests available now'); offers.appendChild(head);
     acceptAffordances.forEach(aff=>{
       const row=document.createElement('div'); row.className='quest-affordance-row'; row.style.cssText=FONT+';text-align:left;padding:7px 0;border-bottom:1px solid #333';
-      const title=document.createElement('div'); title.style.cssText='font-size:14px;font-weight:700'; title.textContent=aff.public_title; row.appendChild(title);
+      const title=document.createElement('div'); title.style.cssText='font-size:14px;font-weight:700'; title.innerHTML=escapeHtml(questTitleWithoutDifficultyLabel(aff.public_title))+bpBadge(aff); row.appendChild(title);
       if(aff.public_premise){ const premise=document.createElement('div'); premise.style.cssText='font-size:12px;color:#aaa;line-height:1.55;margin:3px 0 6px'; premise.textContent=aff.public_premise; row.appendChild(premise); }
       const button=document.createElement('button'); button.type='button'; button.className='btn sm'; button.textContent=questAffordanceLabel(aff); button.disabled=!!window._questAffordanceSubmitting||!!resolving; button.onclick=()=>submitQuestAffordance(aff); row.appendChild(button); offers.appendChild(row);
     });
     p.appendChild(offers);
   }
-  // v194: ป้ายความยากจาก quests.blueprint (server ทอยล็อกตอนรับเควส — ผู้เล่นเห็นแค่ป้าย+คำใบ้ ตัวเลขเป็นความลับผู้กำกับ)
-  const BP_BADGE={easy:[uiCopy('⭐ ง่าย','⭐ Easy'),'#97C459'],normal:[uiCopy('⭐⭐ ปกติ','⭐⭐ Normal'),'#FAC775'],hard:[uiCopy('⭐⭐⭐ ยาก','⭐⭐⭐ Hard'),'#E8915B'],epic:[uiCopy('💀 มหาโหด','💀 Epic'),'#E24B4A']};
-  const bpBadge=(q)=>{
-    if(q.blueprint&&q.blueprint.kind==='standing') return ' <span style="font-weight:600;font-size:11px;color:#6cb6ff;border:1px solid #6cb6ff;border-radius:6px;padding:0 6px;white-space:nowrap">'+uiCopy('🛡 เฝ้าระวัง (ต่อเนื่อง)','🛡 Standing Watch (ongoing)')+'</span>';   // v431: เควสเฝ้าระวัง/ถาวร — ไม่ใช่ศึกครั้งเดียว
-    const d=q.blueprint&&q.blueprint.diff; const x=BP_BADGE[d]; if(!x) return '';
-    return ' <span style="font-weight:600;font-size:11px;color:'+x[1]+';border:1px solid '+x[1]+';border-radius:6px;padding:0 6px;white-space:nowrap">'+x[0]+'</span>'; };
   // v490 hook badge: ป้าย "ที่มาของเควส" จาก blueprint.hook (hook director ฝั่ง server stamp ตอนรับเควส)
   const HOOK_BADGE={npc_plea:[uiCopy('🙏 คำขอร้อง','🙏 A Plea'),'#B6D88A'],thread:[uiCopy('🕸 จากปมค้าง','🕸 World Thread'),'#b09ae8'],faction_call:[uiCopy('⚔ งานฝ่าย','⚔ Faction Call'),'#6cb6ff'],rumor:[uiCopy('👂 ตามเบาะแส','👂 Rumor'),'#FAC775'],board:[uiCopy('🪧 กระดาน','🪧 Quest Board'),'#9a9a9a'],lore:[uiCopy('📜 จากตำนาน','📜 From Lore'),'#c9b98a']};   // v508: +lore (v507 เควสจากหนังสือ ingest — ป้ายฝั่ง frontend ที่ตกหล่น)
   const hookBadge=(q)=>{
     const hk=q.blueprint&&q.blueprint.hook; const x=hk&&HOOK_BADGE[hk.channel]; if(!x) return '';
     const who=hk.npc?(' · '+String(hk.npc)):(hk.faction?(' · '+String(hk.faction)):'');
     return ' <span style="font-weight:600;font-size:11px;color:'+x[1]+';border:1px dashed '+x[1]+';border-radius:6px;padding:0 6px;white-space:nowrap">'+x[0]+escapeHtml(who)+'</span>'; };
-  const bpTitle=(q)=>escapeHtml(String(q.title||'').replace(/^[\s💀⭐]+/,''));   // ตัดอิโมจิหน้าชื่อ (ป้ายแสดงแยกแล้ว)
+  const bpTitle=(q)=>escapeHtml(questTitleWithoutDifficultyLabel(q.title));   // legacy DB title stays untouched; display badge is separate typed metadata
   if(!active.length&&!acceptAffordances.length){ const d=document.createElement('div'); d.className='muted'; d.textContent=uiCopy('ยังไม่มีเควสที่กำลังทำ','No active quests yet'); p.appendChild(d); }
   // เควสที่กำลังทำ — ดรอปดาวน์ทีละเควส (ลดความรก) · เปิดเควสแรกไว้ให้เห็นทันที
   const mountedTurnInIds=new Set();
@@ -7596,7 +7609,7 @@ async function renderQuest(){
   });
   turnInAffordances.filter(aff=>!mountedTurnInIds.has(aff.id)).forEach(aff=>{
     const card=document.createElement('div'); card.className='item quest-affordance-turnin'; card.style.cssText=FONT+';text-align:left';
-    const title=document.createElement('div'); title.style.cssText='font-size:14px;font-weight:700;margin-bottom:6px'; title.textContent=aff.public_title; card.appendChild(title);
+    const title=document.createElement('div'); title.style.cssText='font-size:14px;font-weight:700;margin-bottom:6px'; const quest=active.find(q=>String(q.id)===String(aff.id)||String(q.id)===String(aff.source_id))||aff; title.innerHTML=escapeHtml(questTitleWithoutDifficultyLabel(aff.public_title))+bpBadge(quest); card.appendChild(title);
     const button=document.createElement('button'); button.type='button'; button.className='btn sm'; button.textContent=questAffordanceLabel(aff); button.disabled=!!window._questAffordanceSubmitting||!!resolving; button.onclick=()=>submitQuestAffordance(aff); card.appendChild(button); p.appendChild(card);
   });
   // เควสที่จบแล้ว (สำเร็จ/ล้มเหลว) — พับเก็บ
@@ -10419,7 +10432,7 @@ async function renderMap(){
         if(revealed&&(sr.cleared||sr.looted)) svg2+=`<text x="${x.toFixed(0)}" y="${i%2?'104':'18'}" text-anchor="middle" font-size="10">${sr.cleared?'⚔️':''}${sr.looted?'💰':''}</text>`;}
       svg2+='</svg></div>';
       const qm=document.createElement('div'); qm.className='item';
-      qm.innerHTML='<div class="sectitle">QUEST ROUTE</div><div class="note" style="text-align:left;padding:2px 2px 0">'+escapeHtml(String(q0.title||'').replace(/^[\s💀⭐]+/,''))+'</div>'+svg2+'<div class="note" style="text-align:left;padding:4px 2px;font-size:11px">'+uiCopy('🟢 ผ่านแล้ว · 🟡 ฉากปัจจุบัน · ? = ฉากถัดไป (ยังไม่เปิดเผย) · ⚔️ เคลียร์ศัตรู · 💰 เก็บสมบัติแล้ว','🟢 Completed · 🟡 Current scene · ? = Next scene (not yet revealed) · ⚔️ Enemies cleared · 💰 Treasure collected')+'</div>';
+      qm.innerHTML='<div class="sectitle">QUEST ROUTE</div><div class="note" style="text-align:left;padding:2px 2px 0">'+escapeHtml(questTitleWithoutDifficultyLabel(q0.title))+'</div>'+svg2+'<div class="note" style="text-align:left;padding:4px 2px;font-size:11px">'+uiCopy('🟢 ผ่านแล้ว · 🟡 ฉากปัจจุบัน · ? = ฉากถัดไป (ยังไม่เปิดเผย) · ⚔️ เคลียร์ศัตรู · 💰 เก็บสมบัติแล้ว','🟢 Completed · 🟡 Current scene · ? = Next scene (not yet revealed) · ⚔️ Enemies cleared · 💰 Treasure collected')+'</div>';
       p.appendChild(qm);
     }
   }catch(e){}
