@@ -2116,7 +2116,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608150714;   // REVIEW-01: host-only DM Options audit review card (label per exact reason) · asset ring 20260813a1 unchanged
+const FRONTEND_BUILD = 202608150752;   // REVIEW-01: host-only DM Options audit review card (label per exact reason) · asset ring 20260813a1 unchanged
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2274,10 +2274,10 @@ async function retractActionForEdit(actionId, draftText){
     if(rpc.error||!rpc.data||rpc.data.ok!==true) throw new Error(actionIngressError(rpc.data&&rpc.data.error,rpc.error&&rpc.error.message));
     if(rpc.data.status==='not_found') throw new Error(uiCopy('(แก้: ไม่พบการกระทำนี้ในรอบปัจจุบัน — ฉบับร่างยังอยู่ครบ กรุณาโหลดรอบล่าสุด)','(Fixed: that action was not found in the current round. Your draft is preserved; load the latest round.)'));
     window._actionEditDraft=String(draftText||''); window._actionRepair=null;
-    toast(uiCopy('(แก้: ปลด action ที่ค้างแล้ว — แก้ข้อความและส่งใหม่ได้)','(Fixed: the stuck action was released — edit it and submit again.)'));
+    toast(uiCopy('(แก้: ปลดคำสั่งที่ค้างแล้ว — แก้ข้อความและส่งใหม่ได้)','(Fixed: the stuck action was released — edit it and submit again.)'));
     await loadRound(); renderRoundbar();
     return true;
-  }catch(e){ toast(e.message||uiCopy('ปลด action ไม่สำเร็จ','Could not release the action'),true); return false; }
+  }catch(e){ toast(e.message||uiCopy('ปลดคำสั่งไม่สำเร็จ','Could not release the action'),true); return false; }
 }
 async function resolveInventoryAffordance(actionId, affordance){
   if(resolving||!curRound||!actionId||!affordance||!affordance.payload) return;
@@ -2298,13 +2298,13 @@ async function resolveInventoryAffordance(actionId, affordance){
       if(j.action_preserved===true){
         window._actionRepair={round_id:curRound.id,action_id:j.action_id||String(actionId),reason_code:j.reason_code||'player_inventory_action_preserved',generic:true,affordances:Array.isArray(j.affordances)?j.affordances:[]};
       }
-      toast(j.detail||uiCopy('(แก้: ยังยืนยันตัวเลือกคลังไม่ได้ — action เดิมยังอยู่และลองใหม่ได้)','(Fixed: the inventory choice could not be confirmed — the original action is preserved and can be retried.)'),true);
+      toast(j.detail||uiCopy('(แก้: ยังยืนยันตัวเลือกคลังไม่ได้ — คำสั่งเดิมยังอยู่และลองใหม่ได้)','(Fixed: the inventory choice could not be confirmed — the original action is preserved and can be retried.)'),true);
     }else{
       window._actionRepair=null;
       toast(j.status==='resolved'?uiCopy('เลือกของและดำเนินเรื่องแล้ว ✓','Item selected and story resolved ✓'):uiCopy('ส่งตัวเลือกแล้ว ✓','Choice submitted ✓'));
     }
   }catch(e){
-    toast(uiCopy('เชื่อมต่อ resolver ไม่สำเร็จ — action เดิมยังอยู่','Could not reach the resolver — the original action is preserved'),true);
+    toast(uiCopy('เชื่อมต่อ resolver ไม่สำเร็จ — คำสั่งเดิมยังอยู่','Could not reach the resolver — the original action is preserved'),true);
   }finally{
     resolving=false; setMyThinking(false); await refreshAll(); renderStory(); renderRoundbar();
   }
@@ -6185,7 +6185,7 @@ async function renderRoundbar(){
     // REPAIR-EDIT-01: owner edit is derived from the active DB row, so reload cannot erase the affordance.
     const _myActiveAction=list.find(a=>String(a.user_id)===String(me&&me.id));
     if(_myActiveAction&&curRound.phase==='awaiting_actions'){
-      const eb=document.createElement('button'); eb.className='btn warn sm'; eb.textContent=uiCopy('✎ แก้ action ของฉัน','✎ Edit my action');
+      const eb=document.createElement('button'); eb.className='btn warn sm'; eb.textContent=uiCopy('✎ แก้คำสั่งของฉัน','✎ Edit my action');
       eb.disabled=!!resolving; eb.onclick=()=>retractActionForEdit(_myActiveAction.id,_myActiveAction.action_text||''); bar.appendChild(eb);
     }
     const _wedge=(worldState&&worldState.settings&&worldState.settings.enc_action_wedge)||null;
@@ -6195,13 +6195,13 @@ async function renderRoundbar(){
     if(_repair&&_canRepair&&curRound.phase==='awaiting_actions'){
       const _ownerEditAlreadyShown=String(_stuckAction.id)===String(_myActiveAction&&_myActiveAction.id);
       if(!_ownerEditAlreadyShown){
-        const eb=document.createElement('button'); eb.className='btn warn sm'; eb.textContent=_repair.generic?uiCopy('✎ แก้ action ก่อนลองใหม่','✎ Edit action before retry'):(isHost?uiCopy('✎ ปลด action ที่ค้าง','✎ Release stuck action'):uiCopy('✎ แก้ action ของคุณ','✎ Edit your action'));
+        const eb=document.createElement('button'); eb.className='btn warn sm'; eb.textContent=_repair.generic?uiCopy('✎ แก้คำสั่งก่อนลองใหม่','✎ Edit action before retry'):(isHost?uiCopy('✎ ปลดคำสั่งที่ค้าง','✎ Release stuck action'):uiCopy('✎ แก้คำสั่งของคุณ','✎ Edit your action'));
         eb.disabled=!!resolving; eb.onclick=()=>retractActionForEdit(_stuckAction.id,String(_stuckAction.user_id)===String(me&&me.id)?(_stuckAction.action_text||''):''); bar.appendChild(eb);
       }
       const _inventoryAffordances=Array.isArray(_repair.affordances)?_repair.affordances:[];
       const _inventoryChoiceOwner=String(_stuckAction.user_id)===String(me&&me.id);
       if(_inventoryAffordances.length&&_inventoryChoiceOwner){
-        const ah=document.createElement('div'); ah.className='note'; ah.textContent=uiCopy('🎒 เลือกของที่อยู่ในฉากจริง — action เดิมจะยังอยู่จนกว่าระบบยืนยันตัวเลือก','🎒 Choose an item that is actually in the scene — the original action remains until the choice is confirmed.'); bar.appendChild(ah);
+        const ah=document.createElement('div'); ah.className='note'; ah.textContent=uiCopy('🎒 เลือกของที่อยู่ในฉากจริง — คำสั่งเดิมจะยังอยู่จนกว่าระบบยืนยันตัวเลือก','🎒 Choose an item that is actually in the scene — the original action remains until the choice is confirmed.'); bar.appendChild(ah);
         _inventoryAffordances.slice(0,6).forEach(aff=>{ const ab=document.createElement('button'); ab.type='button'; ab.className='btn ghost sm'; ab.textContent=uiCopy(String(aff&&aff.label_th||'เลือกของ'),String(aff&&aff.label_en||'Choose item')); ab.disabled=!!resolving; ab.onclick=()=>resolveInventoryAffordance(_stuckAction.id,aff); bar.appendChild(ab); });
       }
     }else if(!pending.length && curRound.phase==='awaiting_actions'){
@@ -6690,12 +6690,12 @@ async function resolveRound(force, mode){
       const _repairReasons=['atk_narr_damage_blocked','encounter_redo_claim_blocked','attack_claim_without_mechanics'];
       if(_repairReasons.includes(j.reason_code)&&j.action_preserved===true&&j.action_id){
         window._actionRepair={round_id:curRound&&curRound.id,action_id:j.action_id,reason_code:j.reason_code};
-        toast((j.detail||uiCopy('(แก้: action เดิมถูกเก็บไว้ — กด “แก้ action ของคุณ” เพื่อปลดและเขียนใหม่)','(Fixed: the original action was preserved — choose “Edit your action” to release and rewrite it.)')),true);
+        toast((j.detail||uiCopy('(แก้: คำสั่งเดิมถูกเก็บไว้ — กด “แก้คำสั่งของคุณ” เพื่อปลดและเขียนใหม่)','(Fixed: the original action was preserved — choose “Edit your action” to release and rewrite it.)')),true);
       }else if(j.action_preserved===true&&j.retryable!==false){
         window._actionRepair={round_id:curRound&&curRound.id,action_id:j.action_id||null,reason_code:j.reason_code||'action_preserved_retryable',generic:true,affordances:Array.isArray(j.affordances)?j.affordances:[]};
-        toast((j.detail||uiCopy('(แก้: action เดิมยังอยู่ — จะลองใหม่หรือกด “แก้ action ก่อนลองใหม่” ก็ได้)','(Fixed: the original action is preserved — retry it or choose “Edit action before retry.”)')),true);
+        toast((j.detail||uiCopy('(แก้: คำสั่งเดิมยังอยู่ — จะลองใหม่หรือกด “แก้คำสั่งก่อนลองใหม่” ก็ได้)','(Fixed: the original action is preserved — retry it or choose “Edit action before retry.”)')),true);
       }else if(j.reason_code==='action_auto_voided'){
-        window._actionRepair=null; window._actionEditDraft=''; toast(j.note||uiCopy('(แก้: ระบบปลด action ที่ค้างแล้ว กรุณาส่ง action ใหม่)','(Fixed: the stuck action was released; submit a new action.)'),true);
+        window._actionRepair=null; window._actionEditDraft=''; toast(j.note||uiCopy('(แก้: ระบบปลดคำสั่งที่ค้างแล้ว กรุณาส่งคำสั่งใหม่)','(Fixed: the stuck action was released; submit a new action.)'),true);
       }else toast((j.error||uiCopy('ประมวลผลรอบไม่สำเร็จ','Resolve failed'))+(j.detail?(' — '+String(j.detail).slice(0,220)):''),true);
     }
     else if(j.status==='waiting'){ if(afterSubmit) _waitRetry=true; var _wS=(j.submitted!=null?j.submitted:0), _wT=(j.total!=null?j.total:(members&&members.length)||'?'); toast(j.turn?uiCopy('ถึงตา ','Turn: ')+j.turn:uiCopy(`กำลังรอทุกคน (${_wS}/${_wT})`,`Waiting for everyone (${_wS}/${_wT})`)); }   /* v634ui DYN-20: backend ตอบ waiting ไม่มี counts (เช่นรอเทิร์นในศึก) → เดิมโชว์ undefined/undefined · fallback 0/N หรือชื่อคนที่ถึงตา */
