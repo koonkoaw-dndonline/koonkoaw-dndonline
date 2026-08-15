@@ -23,7 +23,7 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./grid-command-flow.js?v=822"></script>
 <script src="./grid-command-adapter.js?v=822"></script>
 <script src="./grid-board-replacement-lease.js?v=202608110249"></script>
-<script src="./dice-fx.js?v=1410"></script>
+<script src="./dice-fx.js?v=1643"></script>
 <script src="./dice-canvas.js?v=1100"></script>
 <script src="./music-playback-owner.js?v=847"></script>
 <script src="./music-v2-dark-launch.js?v=1211"></script>
@@ -93,6 +93,14 @@ input,textarea,select{font-family:inherit;}
 /* กลุ่มปุ่ม music/end/logout — อยู่ติดกันบรรทัดเดียวเสมอ */
 .hd-actions{display:flex;align-items:center;gap:6px;margin-left:auto;flex-shrink:0;flex-wrap:nowrap;}
 .hd-actions .btn{white-space:nowrap;}   /* v612: ปุ่ม header ไม่ตัดบรรทัด — ขนาดตัวอักษรเท่ากันทุกปุ่ม (คำสั่ง Koon 07-12) */
+.game-settings{position:relative;flex-shrink:0;}
+.game-settings>summary{list-style:none;}
+.game-settings>summary::-webkit-details-marker{display:none;}
+.game-settings-menu{position:absolute;right:0;top:calc(100% + 7px);z-index:80;width:min(82vw,260px);padding:10px;border:2px solid var(--white);border-radius:8px;background:var(--black);box-shadow:0 8px 22px rgba(0,0,0,.55);}
+.game-settings-row{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:9px;padding:8px 6px;color:var(--white);font-size:13px;line-height:1.3;cursor:pointer;}
+.game-settings-row+ .game-settings-row{border-top:1px solid #3b3b3b;}
+.game-settings-row input{width:18px;height:18px;margin:0;accent-color:#f5b942;}
+.game-settings-state{color:#f5d486;font-size:12px;}
 @media (max-width:560px){
   .hd-actions{width:100%;justify-content:flex-end;margin-left:0;}
   .hd-actions .btn{font-size:12px;padding:5px 7px;letter-spacing:0;}
@@ -1802,6 +1810,13 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
     <button class="btn ghost sm" id="hdSkin" onclick="toggleSkin()" title="Switch theme">&#128220; Paper</button>
     <select class="hidden" id="hdMusicSel" onchange="setMusicMood(this.value)" title="Choose music mood" style="font-size:11px;background:#11141c;color:#cfd6e6;border:1px solid #333;border-radius:6px;padding:2px 4px;max-width:104px"><option value="">&#127925; Auto</option><option value="battle">ต่อสู้</option><option value="boss">บอส</option><option value="capital">เมืองหลวง</option><option value="dungeon">ดันเจี้ยน</option><option value="forest">ป่า/เดินทาง</option><option value="rest">พักแรม</option><option value="tavern">โรงเตี๊ยม</option><option value="town">เมือง</option><option value="village">หมู่บ้าน</option></select>
     <input class="hidden" id="hdMusicVol" type="range" min="0" max="100" value="50" oninput="setMusicVol(this.value)" title="Music volume" style="width:64px;accent-color:#f5b942;vertical-align:middle">
+    <details class="game-settings hidden" id="hdGameSettings">
+      <summary class="btn ghost sm" id="hdGameSettingsLabel" aria-label="⚙">⚙</summary>
+      <div class="game-settings-menu" id="dicePreferenceControls" role="group" aria-label="⚙">
+        <label class="game-settings-row" for="diceFxToggle"><input id="diceFxToggle" type="checkbox" onchange="setDicePreference('dice_fx',this.checked)"><span id="diceFxLabel"></span><span class="game-settings-state" id="diceFxState"></span></label>
+        <label class="game-settings-row" for="diceSfxToggle"><input id="diceSfxToggle" type="checkbox" onchange="setDicePreference('dice_sfx',this.checked)"><span id="diceSfxLabel"></span><span class="game-settings-state" id="diceSfxState"></span></label>
+      </div>
+    </details>
     <button class="btn ghost sm hidden" id="hdToken">&#128273; Ingest token</button>
     <button class="btn ghost sm hidden" id="hdWorldSwitch" onclick="requestWorldSwitch()"></button>
     <button class="btn ghost sm hidden" id="hdEnd"></button>
@@ -2116,7 +2131,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608151410;   // REVIEW-01: host-only DM Options audit review card (label per exact reason) · asset ring 20260813a1 unchanged
+const FRONTEND_BUILD = 202608151643;   // REVIEW-01: host-only DM Options audit review card (label per exact reason) · asset ring 20260813a1 unchanged
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2568,9 +2583,47 @@ function applyWorldChromeCopy(lang){
   const skin=$('hdSkin'); if(skin) skin.title=uiCopy('สลับสกิน: กระดาษนิยาย / คลาสสิก (พิกเซล)','Switch theme: story paper / classic (pixel)',lang);
   const musicMood=$('hdMusicSel'); if(musicMood) musicMood.title=uiCopy('เลือกหมวดเพลง (Auto = เปลี่ยนตามฉาก)','Choose music mood (Auto follows the scene)',lang);
   const musicVol=$('hdMusicVol'); if(musicVol) musicVol.title=uiCopy('ระดับเสียงดนตรี (ค่าเริ่มต้น 50%)','Music volume (default 50%)',lang);
-  updateMusicBtn(lang); updateSkinBtn(lang);
+  updateMusicBtn(lang); updateSkinBtn(lang); updateDicePreferenceControls(lang);
 }
 function primaryActionLabel(){ return uiCopy('ส่งการกระทำ','Submit Action'); }
+// DICE-04 preference controls start
+const DICE_PREFERENCE_KEYS=Object.freeze(new Set(['dice_fx','dice_sfx']));
+const _dicePreferenceFallback=Object.create(null);
+function dicePreferenceEnabled(key){
+  if(!DICE_PREFERENCE_KEYS.has(key))return true;
+  if(Object.prototype.hasOwnProperty.call(_dicePreferenceFallback,key))return _dicePreferenceFallback[key]!==false;
+  try{return localStorage.getItem(key)!=='off';}catch(_dicePreferenceReadError){return true;}
+}
+function dicePreferenceCopy(lang){
+  return Object.freeze({
+    settings:uiCopy('⚙ ตั้งค่าเกม','⚙ Game settings',lang),
+    visuals:uiCopy('แสดงการทอยเต๋า','Show dice rolls',lang),
+    sounds:uiCopy('เสียงทอยเต๋า','Dice roll sounds',lang),
+    on:uiCopy('เปิด','On',lang),
+    off:uiCopy('ปิด','Off',lang)
+  });
+}
+function updateDicePreferenceControls(lang){
+  const copy=dicePreferenceCopy(lang),settings=$('hdGameSettings'),summary=$('hdGameSettingsLabel'),group=$('dicePreferenceControls');
+  if(summary){summary.textContent=copy.settings;summary.title=copy.settings;summary.setAttribute('aria-label',copy.settings);}
+  if(group)group.setAttribute('aria-label',copy.settings);
+  [['dice_fx','diceFxToggle','diceFxLabel','diceFxState',copy.visuals],['dice_sfx','diceSfxToggle','diceSfxLabel','diceSfxState',copy.sounds]].forEach(function(row){
+    const enabled=dicePreferenceEnabled(row[0]),input=$(row[1]),label=$(row[2]),state=$(row[3]);
+    if(input){input.checked=enabled;input.setAttribute('aria-label',row[4]);}
+    if(label)label.textContent=row[4];
+    if(state)state.textContent=enabled?copy.on:copy.off;
+  });
+  return !!settings;
+}
+function setDicePreference(key,enabled){
+  if(!DICE_PREFERENCE_KEYS.has(key))return false;
+  const next=enabled===true;_dicePreferenceFallback[key]=next;
+  try{localStorage.setItem(key,next?'on':'off');}catch(_dicePreferenceWriteError){}
+  updateDicePreferenceControls();
+  try{if(key==='dice_fx'&&typeof resumeVisibleRoundDicePlayback==='function')resumeVisibleRoundDicePlayback('preference');}catch(_dicePreferenceResumeError){}
+  return true;
+}
+// DICE-04 preference controls end
 // ── DICE-FE1 Phase B: Canvas-first adapter; Phase A contract stays untouched ──
 function diceCanvasStableIdentity(input){
   const source=input&&typeof input==='object'?input:{};
@@ -2620,7 +2673,6 @@ function diceRawChipPayload(input){
 const DICE_CANVAS_JOB_TIMEOUT_MS=2600;
 function diceCanvasDefaultEnvironment(){
   let legacyMuteCount=0;
-  function settingEnabled(key){ try{ return localStorage.getItem(key)!=='off'; }catch(_error){ return true; } }
   function ensureStyle(){
     if(!document||!document.head||document.getElementById('diceCanvasWireStyle')) return;
     const style=document.createElement('style'); style.id='diceCanvasWireStyle';
@@ -2628,7 +2680,7 @@ function diceCanvasDefaultEnvironment(){
     document.head.appendChild(style);
   }
   return {
-    fxEnabled:()=>settingEnabled('dice_fx'), sfxEnabled:()=>settingEnabled('dice_sfx'),
+    fxEnabled:()=>dicePreferenceEnabled('dice_fx'), sfxEnabled:()=>dicePreferenceEnabled('dice_sfx'),
     reducedMotion:()=>{ try{ return !!window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(_error){ return false; } },
     setTimer:(callback,delay)=>setTimeout(callback,delay), clearTimer:id=>clearTimeout(id),
     mount:()=>{
@@ -2670,6 +2722,7 @@ function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
   const environment=Object.assign({},diceCanvasDefaultEnvironment(),overrides||{});
   const queue=[]; let activeJob=null, canvasReady=false;
   function safeDone(input){ try{ if(input&&typeof input.onDone==='function') input.onDone(); }catch(_error){} }
+  function onceDone(input){ let done=false; return ()=>{if(done)return false;done=true;safeDone(input);return true;}; }
   function complete(job){
     if(!job||job.done) return; job.done=true;
     try{ if(job.announceTimer!==null) environment.clearTimer(job.announceTimer); }catch(_error){}
@@ -2764,12 +2817,13 @@ function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
   }
   function choreograph(input){
     const runner=legacyDiceFx&&legacyDiceFx._pure&&legacyDiceFx._pure.runChoreography;
-    if(typeof runner!=='function'){ safeDone(input); return Object.freeze({started:false,skipped:true,cancel:()=>false}); }
-    try{ return runner(input,{roll:roll,setTimer:environment.setTimer,clearTimer:environment.clearTimer}); }
-    catch(_error){ safeDone(input); return Object.freeze({started:false,skipped:true,cancel:()=>false}); }
+    const finish=onceDone(input),source=Object.assign({},input&&typeof input==='object'?input:{},{onDone:finish});
+    if(typeof runner!=='function'){ finish(); return Object.freeze({started:false,skipped:true,cancel:()=>false}); }
+    try{ return runner(source,{roll:roll,setTimer:environment.setTimer,clearTimer:environment.clearTimer}); }
+    catch(_error){ finish(); return Object.freeze({started:false,skipped:true,cancel:()=>false}); }
   }
   return Object.freeze({
-    build:'20260815-dice03-r2', init:init, roll:roll, choreograph:choreograph, pending:pending,
+    build:'20260815-dice04-r1', init:init, roll:roll, choreograph:choreograph, pending:pending,
     _pure:Object.freeze(Object.assign({},legacyDiceFx&&legacyDiceFx._pure||{},{diceCanvasStableIdentity:diceCanvasStableIdentity,diceCanvasEventFromLegacy:diceCanvasEventFromLegacy,diceRawChipPayload:diceRawChipPayload})),
     __diceCanvasAdapter:true
   });
@@ -3504,6 +3558,7 @@ async function enterCampaign(){
   $('hdMusic').classList.remove('hidden');
   // v228: เปิดตัวควบคุมเพลง — slider เสียง (default 50%) + dropdown เลือกหมวดเอง (จำค่าใน localStorage)
   try{ const vs=$('hdMusicVol'); if(vs){ vs.classList.remove('hidden'); vs.value=String(Math.round(musicVol*100)); } const ms=$('hdMusicSel'); if(ms){ ms.classList.remove('hidden'); ms.value=musicOverride; } }catch(e){}
+  try{ const gs=$('hdGameSettings'); if(gs)gs.classList.remove('hidden'); updateDicePreferenceControls(); }catch(_dicePreferenceInitError){}
   // โชว์จาก cache ทันที (ถ้ามี) แล้วค่อยอัปเดตจาก DB
   hydrateCache();
   show('campaign');
@@ -3633,12 +3688,16 @@ function diceMetaOwnerKey(value){
   try{ return String(value||'').normalize('NFC').replace(/[\u200B-\u200D\uFEFF]/g,'').trim().toLocaleLowerCase(); }
   catch(_diceMetaOwnerKeyError){ return String(value||'').trim().toLocaleLowerCase(); }
 }
+function dicePlaybackSessionStore(){ try{return typeof sessionStorage!=='undefined'?sessionStorage:null;}catch(_diceSessionStoreError){return null;} }
+function dicePlaybackSurfaceVisible(){ try{return typeof document==='undefined'||document.hidden!==true;}catch(_diceSurfaceVisibilityError){return true;} }
 function dicePlaybackLedgerState(campaignId){
   const id=String(campaignId||'');
   const key=id?'ttrpg_dice_meta_seen_v1_'+id:'';
-  if(!key) return {key:'',ledger:[],error:''};
-  try{ const parsed=JSON.parse(localStorage.getItem(key)||'[]'); return {key:key,ledger:Array.isArray(parsed)?parsed.filter(value=>typeof value==='string').slice(-256):[],error:''}; }
-  catch(_dicePlaybackLedgerReadError){ return {key:key,ledger:[],error:'read_error'}; }
+  const storage=dicePlaybackSessionStore();
+  if(!key) return {key:'',ledger:[],error:'',storage:storage};
+  if(!storage)return {key:key,ledger:[],error:'session_unavailable',storage:null};
+  try{ const parsed=JSON.parse(storage.getItem(key)||'[]'); return {key:key,ledger:Array.isArray(parsed)?parsed.filter(value=>typeof value==='string').slice(-256):[],error:'',storage:storage}; }
+  catch(_dicePlaybackLedgerReadError){ return {key:key,ledger:[],error:'read_error',storage:storage}; }
 }
 const DICE_PLAYBACK_DIAG_MAX_CHARS=65536;
 function dicePlaybackDiagJson(){
@@ -3743,9 +3802,11 @@ function combatDiceUnionFromMeta(meta){
 }
 function combatDicePlaybackLedgerState(campaignId){
   const id=String(campaignId||''),key=id?'ttrpg_combat_dice_seen_v1_'+id:'';
-  if(!key)return {key:'',ledger:[],error:''};
-  try{const parsed=JSON.parse(localStorage.getItem(key)||'[]');return {key:key,ledger:Array.isArray(parsed)?parsed.filter(value=>typeof value==='string').slice(-256):[],error:''};}
-  catch(_combatDiceLedgerReadError){return {key:key,ledger:[],error:'read_error'};}
+  const storage=dicePlaybackSessionStore();
+  if(!key)return {key:'',ledger:[],error:'',storage:storage};
+  if(!storage)return {key:key,ledger:[],error:'session_unavailable',storage:null};
+  try{const parsed=JSON.parse(storage.getItem(key)||'[]');return {key:key,ledger:Array.isArray(parsed)?parsed.filter(value=>typeof value==='string').slice(-256):[],error:'',storage:storage};}
+  catch(_combatDiceLedgerReadError){return {key:key,ledger:[],error:'read_error',storage:storage};}
 }
 function combatDiceModeLabel(mode){ if(mode==='advantage')return uiCopy('ได้เปรียบ','Advantage'); if(mode==='disadvantage')return uiCopy('เสียเปรียบ','Disadvantage'); return ''; }
 function combatDiceReceiptLabel(receipt){
@@ -3788,112 +3849,138 @@ function endDiceNarrationHold(token){
   try{if(activeTab()==='story')renderStory();}catch(_diceNarrationReleaseRenderError){}
   return true;
 }
+const DICE_PLAYBACK_CALLBACK_TIMEOUT_MS=3200;
 function playRoundDiceMeta(round,character,choreography){
-  let receipts=[],ownName='',campaignId='',roundId='',stored=[];
+  let receipts=[],ownName='',campaignId='',roundId='',stored=[],ledgerState=null;
   let choreographyDone=false;
-  const finishChoreography=function(){if(choreographyDone)return;choreographyDone=true;try{if(choreography&&typeof choreography.onDone==='function')choreography.onDone();}catch(_diceMetaDoneError){}};
+  const finishChoreography=function(){if(choreographyDone)return false;choreographyDone=true;try{if(choreography&&typeof choreography.onDone==='function')choreography.onDone();}catch(_diceMetaDoneError){}return true;};
   try{
     receipts=round&&round.meta&&Array.isArray(round.meta.dice)?round.meta.dice:[];
-    ownName=diceMetaOwnerKey(character&&character.name);
-    campaignId=String(campaign&&campaign.id||'');
-    roundId=String(round&&round.id||'');
-    const ledgerState=dicePlaybackLedgerState(campaignId); stored=ledgerState.ledger;
-    const emit=function(reason,extra){ return dicePlaybackLog(reason,Object.assign({roundId:roundId,receiptCount:receipts.length,ownName:ownName,ledgerSize:stored.length,campaignId:campaignId,ledgerError:ledgerState.error},extra||{})); };
-    if(!receipts.length){ emit('no_receipts'); finishChoreography(); return 0; }
-    if(!ownName){ emit('no_own_name'); finishChoreography(); return 0; }
-    if(!campaignId){ emit('no_campaign'); finishChoreography(); return 0; }
-    if(!roundId){ emit('no_round'); finishChoreography(); return 0; }
-    const seen=new Set(stored);
-    const memorySeen=window._diceMetaSeenFallback instanceof Set?window._diceMetaSeenFallback:(window._diceMetaSeenFallback=new Set());
-    const inFlight=window._diceMetaInFlight instanceof Set?window._diceMetaInFlight:(window._diceMetaInFlight=new Set());
-    const burn=function(receiptKey){ seen.add(receiptKey); memorySeen.add(receiptKey); stored.push(receiptKey); if(stored.length>256) stored=stored.slice(-256); try{ localStorage.setItem(ledgerState.key,JSON.stringify(stored)); }catch(_diceMetaWriteError){} };
-    let played=0; const queued=[];
+    ownName=diceMetaOwnerKey(character&&character.name);campaignId=String(campaign&&campaign.id||'');roundId=String(round&&round.id||'');
+    ledgerState=dicePlaybackLedgerState(campaignId);stored=ledgerState.ledger;
+    const emit=function(reason,extra){return dicePlaybackLog(reason,Object.assign({roundId:roundId,receiptCount:receipts.length,ownName:ownName,ledgerSize:stored.length,campaignId:campaignId,ledgerError:ledgerState.error},extra||{}));};
+    if(!receipts.length){emit('no_receipts');finishChoreography();return 0;}
+    if(!ownName){emit('no_own_name');finishChoreography();return 0;}
+    if(!campaignId){emit('no_campaign');finishChoreography();return 0;}
+    if(!roundId){emit('no_round');finishChoreography();return 0;}
+    if(!dicePlaybackSurfaceVisible()){emit('surface_hidden');finishChoreography();return 0;}
+    const seen=new Set(stored),memorySeen=window._diceMetaSeenFallback instanceof Set?window._diceMetaSeenFallback:(window._diceMetaSeenFallback=new Set()),inFlight=window._diceMetaInFlight instanceof Set?window._diceMetaInFlight:(window._diceMetaInFlight=new Set());
+    const burn=function(receiptKey){if(seen.has(receiptKey))return;seen.add(receiptKey);memorySeen.add(receiptKey);stored.push(receiptKey);if(stored.length>256)stored=stored.slice(-256);try{if(ledgerState.storage)ledgerState.storage.setItem(ledgerState.key,JSON.stringify(stored));}catch(_diceMetaWriteError){}};
+    const queued=[];let started=0,directPending=0,directEnumerated=false;
+    const maybeFinishDirect=function(){if(directEnumerated&&directPending===0)finishChoreography();};
     receipts.forEach(function(receipt,index){
       try{
-        if(!receipt||typeof receipt!=='object'){ emit('invalid_receipt',{receiptIndex:index}); return; }
-        if(diceMetaOwnerKey(receipt.who)!==ownName){ emit('not_my_receipt',{receiptIndex:index,receiptWho:receipt.who}); return; }
-        const roll=receipt.roll;
-        const total=receipt.total;
-        if(!Number.isInteger(roll)||roll<1||roll>20||!Number.isFinite(total)){ emit('invalid_receipt',{receiptIndex:index,receiptWho:receipt.who}); return; }
+        if(!receipt||typeof receipt!=='object'){emit('invalid_receipt',{receiptIndex:index});return;}
+        if(diceMetaOwnerKey(receipt.who)!==ownName){emit('not_my_receipt',{receiptIndex:index,receiptWho:receipt.who});return;}
+        const roll=receipt.roll,total=receipt.total;
+        if(!Number.isInteger(roll)||roll<1||roll>20||!Number.isFinite(total)){emit('invalid_receipt',{receiptIndex:index,receiptWho:receipt.who});return;}
         const receiptKey=JSON.stringify([campaignId,roundId,index,String(receipt.who||''),String(receipt.kind||''),String(receipt.skill||''),roll,receipt.bonus,total,receipt.dc,receipt.tier,receipt.pass]);
-        if(seen.has(receiptKey)||memorySeen.has(receiptKey)||inFlight.has(receiptKey)){ emit('already_seen',{receiptIndex:index,receiptWho:receipt.who}); return; }
-        let diceFxOff=false;
-        try{ diceFxOff=localStorage.getItem('dice_fx')==='off'; }catch(_diceFxPrefReadError){}
-        if(diceFxOff){ burn(receiptKey); emit('fx_disabled',{receiptIndex:index,receiptWho:receipt.who}); return; }
+        if(seen.has(receiptKey)||memorySeen.has(receiptKey)||inFlight.has(receiptKey)){emit('already_seen',{receiptIndex:index,receiptWho:receipt.who});return;}
+        if(!dicePreferenceEnabled('dice_fx')){burn(receiptKey);emit('fx_disabled',{receiptIndex:index,receiptWho:receipt.who});return;}
         const diceFx=window.DiceFx;
-        if(!diceFx||typeof diceFx.roll!=='function'){ emit('dicefx_missing',{receiptIndex:index,receiptWho:receipt.who}); return; }
+        if(!diceFx||typeof diceFx.roll!=='function'){burn(receiptKey);emit('dicefx_missing_fail_open',{receiptIndex:index,receiptWho:receipt.who});return;}
         const payload={eventId:'dice-meta:'+receiptKey,dice:[{die:'d20',value:roll}],flat:Number.isFinite(receipt.bonus)?receipt.bonus:0,total:total,dc:Number.isFinite(receipt.dc)?receipt.dc:null,pass:typeof receipt.pass==='boolean'?receipt.pass:null,tier:typeof receipt.tier==='string'?receipt.tier:'',label:String(receipt.skill||receipt.kind||'')};
-        if(choreography){ queued.push({payload:payload,receiptKey:receiptKey,index:index,who:receipt.who}); return; }
-        inFlight.add(receiptKey);
-        try{ diceFx.roll(payload); }
-        catch(_diceMetaRollError){ emit('roll_threw',{receiptIndex:index,receiptWho:receipt.who}); return; }
-        finally{ inFlight.delete(receiptKey); }
-        burn(receiptKey); played++; emit('played',{receiptIndex:index,receiptWho:receipt.who});
-      }catch(_diceMetaReceiptError){ emit('receipt_error',{receiptIndex:index}); }
+        if(choreography){queued.push({payload:payload,receiptKey:receiptKey,index:index,who:receipt.who});return;}
+        inFlight.add(receiptKey);directPending++;
+        let receiptDone=false,timer=null;
+        const complete=function(reason){if(receiptDone)return false;receiptDone=true;if(timer!==null)try{clearTimeout(timer);}catch(_diceMetaTimerClearError){}inFlight.delete(receiptKey);burn(receiptKey);emit(reason,{receiptIndex:index,receiptWho:receipt.who});directPending--;maybeFinishDirect();return true;};
+        try{const handle=diceFx.roll(Object.assign({},payload,{onDone:()=>complete('played')}));started++;if(handle&&handle.skipped===true)complete('playback_skipped');else if(!receiptDone)timer=setTimeout(()=>complete('playback_timeout'),DICE_PLAYBACK_CALLBACK_TIMEOUT_MS);}
+        catch(_diceMetaRollError){complete('roll_threw_fail_open');}
+      }catch(_diceMetaReceiptError){emit('receipt_error',{receiptIndex:index});}
     });
-    if(!choreography){ finishChoreography(); return played; }
-    if(!queued.length){ finishChoreography(); return played; }
+    if(!choreography){directEnumerated=true;maybeFinishDirect();return started;}
+    if(!queued.length){finishChoreography();return 0;}
     const diceFx=window.DiceFx;
-    if(!diceFx||typeof diceFx.choreograph!=='function'){
-      emit('choreography_missing');
-      queued.forEach(item=>{try{diceFx.roll(item.payload);burn(item.receiptKey);played++;emit('played',{receiptIndex:item.index,receiptWho:item.who});}catch(_diceMetaLegacyRollError){emit('roll_threw',{receiptIndex:item.index,receiptWho:item.who});}});
-      finishChoreography(); return played;
-    }
+    let settled=false;
+    const settleQueued=function(reason){if(settled)return false;settled=true;queued.forEach(function(item){inFlight.delete(item.receiptKey);burn(item.receiptKey);emit(reason,{receiptIndex:item.index,receiptWho:item.who});});finishChoreography();return true;};
+    if(!diceFx||typeof diceFx.choreograph!=='function'){settleQueued('choreography_missing_fail_open');return 0;}
     queued.forEach(item=>inFlight.add(item.receiptKey));
     let handle=null;
-    try{handle=diceFx.choreograph({events:queued.map(item=>item.payload),onStart:()=>{try{if(typeof choreography.onStart==='function')choreography.onStart();}catch(_diceMetaStartError){}},onDone:()=>{queued.forEach(item=>inFlight.delete(item.receiptKey));finishChoreography();}});}
-    catch(_diceMetaChoreographyError){queued.forEach(item=>inFlight.delete(item.receiptKey));emit('choreography_threw');finishChoreography();return played;}
-    if(!handle||handle.started!==true){queued.forEach(item=>inFlight.delete(item.receiptKey));finishChoreography();return played;}
-    queued.forEach(item=>{burn(item.receiptKey);played++;emit('played',{receiptIndex:item.index,receiptWho:item.who});});
-    return played;
-  }catch(_diceMetaPlaybackError){ finishChoreography(); dicePlaybackLog('playback_error',{roundId:roundId,receiptCount:receipts.length,ownName:ownName,ledgerSize:stored.length,campaignId:campaignId}); return 0; }
+    try{handle=diceFx.choreograph({events:queued.map(item=>item.payload),onStart:()=>{try{if(typeof choreography.onStart==='function')choreography.onStart();}catch(_diceMetaStartError){}},onDone:()=>settleQueued('played')});}
+    catch(_diceMetaChoreographyError){settleQueued('choreography_threw_fail_open');return 0;}
+    if(!handle||handle.started!==true){settleQueued('choreography_skipped_fail_open');return 0;}
+    return queued.length;
+  }catch(_diceMetaPlaybackError){finishChoreography();dicePlaybackLog('playback_error',{roundId:roundId,receiptCount:receipts.length,ownName:ownName,ledgerSize:stored.length,campaignId:campaignId});return 0;}
 }
-function playRoundCombatDiceMeta(round,character){
-  let parsed=null; try{parsed=combatDiceUnionFromMeta(round&&round.meta);}catch(_combatDiceMetaReadError){return 0;} if(!parsed.present)return 0;
-  let campaignId='',roundId='',stored=[]; const ownName=diceMetaOwnerKey(character&&character.name);
+function playRoundCombatDiceMeta(round,character,choreography){
+  let parsed=null;try{parsed=combatDiceUnionFromMeta(round&&round.meta);}catch(_combatDiceMetaReadError){parsed={present:false,receipts:[],unknown:0,invalid:1,capped:0};}
+  let done=false;const finish=function(){if(done)return false;done=true;try{if(choreography&&typeof choreography.onDone==='function')choreography.onDone();}catch(_combatDiceDoneError){}return true;};
+  if(!parsed.present){finish();return 0;}
+  let campaignId='',roundId='',stored=[];const ownName=diceMetaOwnerKey(character&&character.name);
   try{
-    campaignId=String(campaign&&campaign.id||''); roundId=String(round&&round.id||'');
-    const ledgerState=combatDicePlaybackLedgerState(campaignId); stored=ledgerState.ledger;
+    campaignId=String(campaign&&campaign.id||'');roundId=String(round&&round.id||'');
+    const ledgerState=combatDicePlaybackLedgerState(campaignId);stored=ledgerState.ledger;
     const emit=function(reason,extra){return dicePlaybackLog(reason,Object.assign({roundId:roundId,receiptCount:parsed.receipts.length,combatReceiptCount:parsed.receipts.length,combatUnknownKindCount:parsed.unknown,combatInvalidCount:parsed.invalid,combatCappedCount:parsed.capped,ledgerSize:stored.length,campaignId:campaignId,ledgerError:ledgerState.error},extra||{}));};
     emit('combat_union_parsed');
-    if(!campaignId){emit('combat_union_no_campaign');return 0;}
-    if(!roundId){emit('combat_union_no_round');return 0;}
-    if(!ownName){emit('combat_union_no_own_character');return 0;}
-    if(!parsed.receipts.length)return 0;
+    if(!campaignId){emit('combat_union_no_campaign');finish();return 0;}
+    if(!roundId){emit('combat_union_no_round');finish();return 0;}
+    if(!ownName){emit('combat_union_no_own_character');finish();return 0;}
+    if(!parsed.receipts.length){finish();return 0;}
+    if(!dicePlaybackSurfaceVisible()){emit('combat_union_surface_hidden');finish();return 0;}
     const seen=new Set(stored),memorySeen=window._combatDiceSeenFallback instanceof Set?window._combatDiceSeenFallback:(window._combatDiceSeenFallback=new Set()),inFlight=window._combatDiceInFlight instanceof Set?window._combatDiceInFlight:(window._combatDiceInFlight=new Set());
-    const burn=function(receiptId){seen.add(receiptId);memorySeen.add(receiptId);stored.push(receiptId);if(stored.length>256)stored=stored.slice(-256);try{localStorage.setItem(ledgerState.key,JSON.stringify(stored));}catch(_combatDiceLedgerWriteError){}};
-    let played=0;
+    const burn=function(receiptId){if(seen.has(receiptId))return;seen.add(receiptId);memorySeen.add(receiptId);stored.push(receiptId);if(stored.length>256)stored=stored.slice(-256);try{if(ledgerState.storage)ledgerState.storage.setItem(ledgerState.key,JSON.stringify(stored));}catch(_combatDiceLedgerWriteError){}};
+    const queued=[];let started=0,directPending=0,directEnumerated=false;
+    const maybeFinishDirect=function(){if(directEnumerated&&directPending===0)finish();};
     parsed.receipts.forEach(function(receipt,index){
       const receiptId=receipt.receiptId,detail={receiptIndex:index,receiptWho:receipt.who,receiptId:receiptId,receiptKind:receipt.kind};
       try{
         if(receipt.actorKind!=='player'||diceMetaOwnerKey(receipt.who)!==ownName){emit('combat_union_not_own_character',detail);return;}
         if(seen.has(receiptId)||memorySeen.has(receiptId)||inFlight.has(receiptId)){emit('combat_union_already_seen',detail);return;}
-        let diceFxOff=false;try{diceFxOff=localStorage.getItem('dice_fx')==='off';}catch(_combatDiceFxPrefReadError){}
-        if(diceFxOff){burn(receiptId);emit('combat_union_fx_disabled',detail);return;}
-        const diceFx=window.DiceFx;if(!diceFx||typeof diceFx.roll!=='function'){emit('combat_union_dicefx_missing',detail);return;}
-        inFlight.add(receiptId);
-        try{diceFx.roll(combatDicePlaybackPayload(receipt));}
-        catch(_combatDiceRollError){emit('combat_union_roll_threw',detail);return;}
-        finally{inFlight.delete(receiptId);}
-        burn(receiptId);played++;emit('combat_union_played',detail);
+        if(!dicePreferenceEnabled('dice_fx')){burn(receiptId);emit('combat_union_fx_disabled',detail);return;}
+        const diceFx=window.DiceFx;if(!diceFx||typeof diceFx.roll!=='function'){burn(receiptId);emit('combat_union_dicefx_missing_fail_open',detail);return;}
+        const payload=combatDicePlaybackPayload(receipt);
+        if(choreography){queued.push({payload:payload,receiptId:receiptId,detail:detail});return;}
+        inFlight.add(receiptId);directPending++;
+        let receiptDone=false,timer=null;
+        const complete=function(reason){if(receiptDone)return false;receiptDone=true;if(timer!==null)try{clearTimeout(timer);}catch(_combatDiceTimerClearError){}inFlight.delete(receiptId);burn(receiptId);emit(reason,detail);directPending--;maybeFinishDirect();return true;};
+        try{const handle=diceFx.roll(Object.assign({},payload,{onDone:()=>complete('combat_union_played')}));started++;if(handle&&handle.skipped===true)complete('combat_union_skipped');else if(!receiptDone)timer=setTimeout(()=>complete('combat_union_timeout'),DICE_PLAYBACK_CALLBACK_TIMEOUT_MS);}
+        catch(_combatDiceRollError){complete('combat_union_roll_threw_fail_open');}
       }catch(_combatDiceReceiptError){emit('combat_union_receipt_error',detail);}
     });
-    return played;
-  }catch(_combatDicePlaybackError){dicePlaybackLog('combat_union_playback_error',{roundId:roundId,receiptCount:parsed.receipts.length,combatReceiptCount:parsed.receipts.length,combatUnknownKindCount:parsed.unknown,combatInvalidCount:parsed.invalid,combatCappedCount:parsed.capped,ledgerSize:stored.length,campaignId:campaignId});return 0;}
+    if(!choreography){directEnumerated=true;maybeFinishDirect();return started;}
+    if(!queued.length){finish();return 0;}
+    const diceFx=window.DiceFx;let settled=false;
+    const settleQueued=function(reason){if(settled)return false;settled=true;queued.forEach(function(item){inFlight.delete(item.receiptId);burn(item.receiptId);emit(reason,item.detail);});finish();return true;};
+    if(!diceFx||typeof diceFx.choreograph!=='function'){settleQueued('combat_union_choreography_missing_fail_open');return 0;}
+    queued.forEach(item=>inFlight.add(item.receiptId));
+    let handle=null;
+    try{handle=diceFx.choreograph({events:queued.map(item=>item.payload),onStart:()=>{try{if(typeof choreography.onStart==='function')choreography.onStart();}catch(_combatDiceStartError){}},onDone:()=>settleQueued('combat_union_played')});}
+    catch(_combatDiceChoreographyError){settleQueued('combat_union_choreography_threw_fail_open');return 0;}
+    if(!handle||handle.started!==true){settleQueued('combat_union_choreography_skipped_fail_open');return 0;}
+    return queued.length;
+  }catch(_combatDicePlaybackError){finish();dicePlaybackLog('combat_union_playback_error',{roundId:roundId,receiptCount:parsed.receipts.length,combatReceiptCount:parsed.receipts.length,combatUnknownKindCount:parsed.unknown,combatInvalidCount:parsed.invalid,combatCappedCount:parsed.capped,ledgerSize:stored.length,campaignId:campaignId});return 0;}
+}
+let _diceDeferredNarrationHold=null;
+function diceRoundHasOwnPlayback(round,character){
+  if(!dicePreferenceEnabled('dice_fx'))return false;
+  const ownName=diceMetaOwnerKey(character&&character.name);if(!ownName)return false;
+  const story=round&&round.meta&&Array.isArray(round.meta.dice)?round.meta.dice:[];
+  if(story.some(receipt=>receipt&&typeof receipt==='object'&&diceMetaOwnerKey(receipt.who)===ownName&&Number.isInteger(receipt.roll)&&receipt.roll>=1&&receipt.roll<=20&&Number.isFinite(receipt.total)))return true;
+  try{return combatDiceUnionFromMeta(round&&round.meta).receipts.some(receipt=>receipt.actorKind==='player'&&diceMetaOwnerKey(receipt.who)===ownName);}catch(_diceRoundCombatProbeError){return false;}
 }
 function setVisibleRound(nextRound,character,source){
   curRound=nextRound||null;
-  try{
-    const receipts=curRound&&curRound.meta&&Array.isArray(curRound.meta.dice)?curRound.meta.dice:[];
-    const campaignId=String(campaign&&campaign.id||'');
-    const ledgerState=dicePlaybackLedgerState(campaignId);
-    dicePlaybackLog('visible_round',{roundId:String(curRound&&curRound.id||''),receiptCount:receipts.length,ownName:diceMetaOwnerKey(character&&character.name),ledgerSize:ledgerState.ledger.length,campaignId:campaignId,ledgerError:ledgerState.error,source:String(source||'unknown')});
-  }catch(_diceVisibleRoundLogError){ dicePlaybackLog('visible_round_error',{roundId:'',receiptCount:0,ownName:'',ledgerSize:0,campaignId:'',source:String(source||'unknown')}); }
+  const roundId=String(curRound&&curRound.id||''),surfaceVisible=dicePlaybackSurfaceVisible();
+  try{const receipts=curRound&&curRound.meta&&Array.isArray(curRound.meta.dice)?curRound.meta.dice:[],campaignId=String(campaign&&campaign.id||''),ledgerState=dicePlaybackLedgerState(campaignId);dicePlaybackLog('visible_round',{roundId:roundId,receiptCount:receipts.length,ownName:diceMetaOwnerKey(character&&character.name),ledgerSize:ledgerState.ledger.length,campaignId:campaignId,ledgerError:ledgerState.error,source:String(source||'unknown')});}
+  catch(_diceVisibleRoundLogError){dicePlaybackLog('visible_round_error',{roundId:'',receiptCount:0,ownName:'',ledgerSize:0,campaignId:'',source:String(source||'unknown')});}
+  if(_diceDeferredNarrationHold&&_diceDeferredNarrationHold.roundId!==roundId){endDiceNarrationHold(_diceDeferredNarrationHold.token);_diceDeferredNarrationHold=null;}
+  if(!surfaceVisible){
+    if(roundId&&diceRoundHasOwnPlayback(curRound,character)&&!_diceDeferredNarrationHold)_diceDeferredNarrationHold={roundId:roundId,token:beginDiceNarrationHold(roundId)};
+    else if(!diceRoundHasOwnPlayback(curRound,character)&&_diceDeferredNarrationHold){endDiceNarrationHold(_diceDeferredNarrationHold.token);_diceDeferredNarrationHold=null;}
+  }
   let holdToken=null;
-  playRoundDiceMeta(curRound,character,{onStart:()=>{holdToken=beginDiceNarrationHold(curRound&&curRound.id);},onDone:()=>{if(holdToken){endDiceNarrationHold(holdToken);holdToken=null;}}});
-  playRoundCombatDiceMeta(curRound,character);
+  if(surfaceVisible&&_diceDeferredNarrationHold&&_diceDeferredNarrationHold.roundId===roundId){holdToken=_diceDeferredNarrationHold.token;_diceDeferredNarrationHold=null;}
+  let sequenceDone=false;
+  const startHold=function(){if(!holdToken)holdToken=beginDiceNarrationHold(roundId);};
+  const finishSequence=function(){if(sequenceDone)return false;sequenceDone=true;if(surfaceVisible&&holdToken){endDiceNarrationHold(holdToken);holdToken=null;}return true;};
+  playRoundDiceMeta(curRound,character,{onStart:startHold,onDone:()=>playRoundCombatDiceMeta(curRound,character,{onStart:startHold,onDone:finishSequence})});
   return curRound;
 }
+function resumeVisibleRoundDicePlayback(source){
+  if(!dicePlaybackSurfaceVisible()||!curRound)return false;
+  setVisibleRound(curRound,myChar,source||'visibility');return true;
+}
+try{document.addEventListener('visibilitychange',()=>{if(!document.hidden)resumeVisibleRoundDicePlayback('visibility');});}catch(_diceVisibilityListenerError){}
 // ── FE-14: exact-receipt, bounded post-flip round re-fetch ──
 // earlyFlip can publish the next round before the background story-check tail writes
 // meta.dice. The existing system:story-check receipt is the authority that a retry is
@@ -4154,6 +4241,19 @@ function mergeNarrative(row){
   cacheSave('narrative_g'+terminalGroupForUi(),narrative);
   try{if(typeof triggerPostFlipRoundRefetch==='function')triggerPostFlipRoundRefetch(row);}catch(_postFlipMergeTriggerError){}
   try{if(typeof triggerFreshnessReconcile==='function')triggerFreshnessReconcile({kind:'narrative_receipt',row:row,campaign_id:String(campaign&&campaign.id||''),group_no:terminalGroupForUi()});}catch(_freshnessMergeTriggerError){}
+}
+function diceNarrativeIngressRoundId(row){
+  try{
+    const roundId=String(row&&row.round_id||'');
+    if(!roundId||String(row&&row.status||'').toLowerCase()==='placeholder'||String(row&&row.status||'').toLowerCase()==='invalidated')return '';
+    return roundId;
+  }catch(_diceNarrativeIngressReadError){return '';}
+}
+async function mergeNarrativeOrdered(row){
+  const roundId=diceNarrativeIngressRoundId(row),ingressHold=roundId?beginDiceNarrationHold(roundId):null;
+  try{mergeNarrative(row);if(ingressHold)await loadRound('narrative');return true;}
+  catch(_diceNarrativeIngressError){return false;}
+  finally{if(ingressHold)endDiceNarrationHold(ingressHold);}
 }
 // ── FE-10 Phase A: dormant narration hold surface + exact-ID reconcile ──
 // The next frontend slice supplies adapter parameters after the S3-B contract exists.
@@ -11138,7 +11238,7 @@ function subscribeRealtime(){
     }, 30000);
   }
   var _rtCh = supa.channel('camp-'+campaign.id)
-    .on('postgres_changes',{event:'*',schema:'public',table:'narrative',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ rtLastSyncTs=Date.now(); if(payload&&payload.new&&payload.eventType!=='DELETE'){ mergeNarrative(payload.new); } else { await loadNarrative(); }
+    .on('postgres_changes',{event:'*',schema:'public',table:'narrative',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ rtLastSyncTs=Date.now(); if(payload&&payload.new&&payload.eventType!=='DELETE'){ await mergeNarrativeOrdered(payload.new); } else { await loadNarrative(); }
       /* v634ui DYN-29: บรรทัดระบบที่บอกว่าชีทเปลี่ยน (พัก/เงิน/ฟื้น/แพ้/ตื่น) → reload ชีท+สมาชิก (เดิม mySheet ไม่มี realtime — แท็บ Stat ค้าง HP/เงินเก่าจน reload หน้า · throttle 15s) */
       try{ var _c634=String((payload&&payload.new&&payload.new.content)||''),_fe16Exact=freshnessReconcileEvidence({kind:'narrative_receipt',row:payload&&payload.new,campaign_id:String(campaign&&campaign.id||''),group_no:terminalGroupForUi()}); if(!_fe16Exact&&/^(🛏|💰|⚠️|💀|💤)/.test(_c634) && (!window._shReloadTs || Date.now()-window._shReloadTs>15000)){ window._shReloadTs=Date.now(); refreshAll().then(function(){ if(activeTab()==='me') renderMe(); if(activeTab()==='party') renderParty(); }).catch(function(e){}); } }catch(e){}
       if(activeTab()==='story') renderStory(); if(activeTab()==='quest') renderQuest(); if(typeof scheduleBattleScene==='function') scheduleBattleScene(); })

@@ -11,7 +11,7 @@
 (function attachDiceFx(){
   'use strict';
 
-  const BUILD='20260815-dice03-r2';
+  const BUILD='20260815-dice04-r1';
   const MAX_VISIBLE_DICE=6;
   const MAX_IN_FLIGHT=2;
   const PENDING_TIMEOUT_MS=20000;
@@ -713,14 +713,17 @@
   }
 
   function choreograph(input){
+    let done=false;
+    const finish=function(){ if(done)return false;done=true;safeCall(input&&input.onDone);return true; };
+    const source=Object.assign({},input&&typeof input==='object'?input:{},{onDone:finish});
     try{
-      return runChoreography(input,{
+      return runChoreography(source,{
         roll:roll,
         setTimer:function(callback,delay){ return environment.setTimer(callback,delay); },
         clearTimer:function(timer){ return environment.clearTimer(timer); }
       });
     }catch(error){
-      safeCall(input&&input.onDone);
+      finish();
       return Object.freeze({started:false,skipped:true,cancel:function(){ return false; }});
     }
   }
