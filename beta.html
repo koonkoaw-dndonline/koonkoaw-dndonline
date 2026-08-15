@@ -23,7 +23,7 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./grid-command-flow.js?v=822"></script>
 <script src="./grid-command-adapter.js?v=822"></script>
 <script src="./grid-board-replacement-lease.js?v=202608110249"></script>
-<script src="./dice-fx.js?v=1331"></script>
+<script src="./dice-fx.js?v=1410"></script>
 <script src="./dice-canvas.js?v=1100"></script>
 <script src="./music-playback-owner.js?v=847"></script>
 <script src="./music-v2-dark-launch.js?v=1211"></script>
@@ -2116,7 +2116,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608151331;   // REVIEW-01: host-only DM Options audit review card (label per exact reason) · asset ring 20260813a1 unchanged
+const FRONTEND_BUILD = 202608151410;   // REVIEW-01: host-only DM Options audit review card (label per exact reason) · asset ring 20260813a1 unchanged
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -10640,7 +10640,15 @@ async function dmOptionsAuditCard(){
     const reasons=(det.parsed||[]).map(x=>({raw:x.raw,reasons:x.reasons}));
     b.textContent='original → '+JSON.stringify(det.original||[],null,2)+'\nreasons → '+JSON.stringify(reasons,null,2)+'\nfinal → '+JSON.stringify(det.final||[],null,2)+'\ntiming/model/token → '+JSON.stringify({timings:det.timings,model:det.model,token:det.token,repair:det.repair},null,2); d.appendChild(b);
     const reviewBox=document.createElement('div'); reviewBox.style.cssText='display:grid;gap:6px;padding:5px'; let reviewableN=0;
-    (det.parsed||[]).forEach((candidate,index)=>{ (Array.isArray(candidate.reasons)?candidate.reasons:[]).forEach(reason=>{
+    (det.parsed||[]).forEach((candidate,index)=>{ const candidateReasons=Array.isArray(candidate.reasons)?candidate.reasons:[];
+      if(!candidateReasons.length){
+        const ordinal=index+1, line=document.createElement('div'); line.style.cssText='border:1px solid #444;border-radius:7px;padding:7px;display:grid;gap:5px';
+        // FE-AUDIT-02 pass label start
+        const title=document.createElement('div'); title.textContent='#'+ordinal+' · '+uiCopy('ผ่าน','Passed'); title.style.fontWeight='700'; line.appendChild(title);
+        // FE-AUDIT-02 pass label end
+        const origin=document.createElement('div'); origin.className='muted'; origin.textContent=dmOptionCandidateOriginLine(candidate); line.appendChild(origin); reviewBox.appendChild(line); return;
+      }
+      candidateReasons.forEach(reason=>{
       reviewableN++; const ordinal=index+1, exactReason=String(reason), key=reviewKey(row.id,ordinal,exactReason), line=document.createElement('div'); line.style.cssText='border:1px solid #444;border-radius:7px;padding:7px;display:grid;gap:5px';
       const title=document.createElement('div'); title.textContent='#'+ordinal+' · '+exactReason; title.style.fontWeight='700'; line.appendChild(title); const origin=document.createElement('div'); origin.className='muted'; origin.textContent=dmOptionCandidateOriginLine(candidate); line.appendChild(origin);
       const status=document.createElement('div'); status.className='muted'; const buttons=[];
@@ -10654,7 +10662,8 @@ async function dmOptionsAuditCard(){
         reviewsByKey.set(key,{system_log_id:row.id,candidate_ordinal:ordinal,reason_code:exactReason,label,policy_version:reviewPolicy,reviewed_at:new Date().toISOString()}); paint(true);
       }; actions.appendChild(button); });
       line.appendChild(actions); paint(); reviewBox.appendChild(line);
-    }); });
+      });
+    });
     if(!reviewableN){ const none=document.createElement('div'); none.className='muted'; none.textContent=uiCopy('ชุดนี้ไม่มีเหตุที่ต้องตรวจ','This set has no rejection reason to review'); reviewBox.appendChild(none); }
     d.appendChild(reviewBox); card.appendChild(d); });
   const nav=document.createElement('div'); nav.style.cssText='display:flex;gap:6px;align-items:center;margin-top:7px';
