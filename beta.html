@@ -23,7 +23,7 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./grid-command-flow.js?v=822"></script>
 <script src="./grid-command-adapter.js?v=822"></script>
 <script src="./grid-board-replacement-lease.js?v=202608110249"></script>
-<script src="./dice-fx.js?v=1952"></script>
+<script src="./dice-fx.js?v=0126"></script>
 <script src="./dice-canvas.js?v=1100"></script>
 <script src="./music-playback-owner.js?v=847"></script>
 <script src="./music-v2-dark-launch.js?v=1211"></script>
@@ -2131,7 +2131,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608151952;   // REVIEW-01: host-only DM Options audit review card (label per exact reason) · asset ring 20260813a1 unchanged
+const FRONTEND_BUILD = 202608160126;   // REVIEW-01: host-only DM Options audit review card (label per exact reason) · asset ring 20260813a1 unchanged
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2670,6 +2670,32 @@ function diceRawChipPayload(input){
   if(!Number.isInteger(total)||total<0||total>1000000000) return null;
   return {values:values,visibleValues:values.slice(0,6),collapsedCount:Math.max(0,values.length-6)+truncated,rollTotal:values.reduce((sum,value)=>sum+value,0),label:String(source.label||'').slice(0,320),announcement:String(source.announcement||source.label||'').slice(0,500),total:total};
 }
+// DICE-05 machine-only visual proof; never stores faces, totals, DCs, or labels.
+function diceVisualProofState(){
+  const prior=window.__diceVisualProof;
+  if(prior&&typeof prior==='object'&&prior.version==='v1')return prior;
+  const initial={version:'v1',overlayMountCount:0,canvasRenderAcceptedCount:0,paintedAnimationCount:0,overlayRemoveCount:0,lastOverlayMountedAt:'',lastCanvasAcceptedAt:'',lastCanvasPaintedAt:'',lastOverlayRemovedAt:'',lastPaintedFrameCount:0,lastProof:'none'};
+  window.__diceVisualProof=initial;return initial;
+}
+function diceVisualProofSnapshot(){
+  const state=diceVisualProofState();
+  return {version:'v1',overlayMountCount:Number(state.overlayMountCount)||0,canvasRenderAcceptedCount:Number(state.canvasRenderAcceptedCount)||0,paintedAnimationCount:Number(state.paintedAnimationCount)||0,overlayRemoveCount:Number(state.overlayRemoveCount)||0,lastOverlayMountedAt:String(state.lastOverlayMountedAt||''),lastCanvasAcceptedAt:String(state.lastCanvasAcceptedAt||''),lastCanvasPaintedAt:String(state.lastCanvasPaintedAt||''),lastOverlayRemovedAt:String(state.lastOverlayRemovedAt||''),lastPaintedFrameCount:Number(state.lastPaintedFrameCount)||0,lastProof:String(state.lastProof||'none')};
+}
+function recordDiceVisualProof(phase,detail){
+  try{
+    const state=diceVisualProofState(),d=detail&&typeof detail==='object'?detail:{},at=new Date().toISOString();
+    if(phase==='overlay_mounted'&&d.connected===true){state.overlayMountCount++;state.lastOverlayMountedAt=at;state.lastProof='overlay_connected';}
+    else if(phase==='canvas_render_accepted'){state.canvasRenderAcceptedCount++;state.lastCanvasAcceptedAt=at;state.lastProof='canvas_render_accepted';}
+    else if(phase==='canvas_finished'){
+      const frames=Number.isInteger(d.frameCount)&&d.frameCount>0?Math.min(d.frameCount,100000):0;
+      if(frames>0){state.paintedAnimationCount++;state.lastCanvasPaintedAt=at;state.lastPaintedFrameCount=frames;state.lastProof='canvas_frame_observed';}
+      else state.lastProof='canvas_finished_without_frame';
+    }else if(phase==='overlay_removed'){state.overlayRemoveCount++;state.lastOverlayRemovedAt=at;}
+    window.__diceVisualProof=state;
+    try{if(typeof dicePlaybackDiagSync==='function')dicePlaybackDiagSync();}catch(_diceVisualProofSyncError){}
+    return diceVisualProofSnapshot();
+  }catch(_diceVisualProofRecordError){return null;}
+}
 const DICE_CANVAS_JOB_TIMEOUT_MS=2600;
 function diceCanvasDefaultEnvironment(){
   let legacyMuteCount=0;
@@ -2683,6 +2709,7 @@ function diceCanvasDefaultEnvironment(){
     fxEnabled:()=>dicePreferenceEnabled('dice_fx'), sfxEnabled:()=>dicePreferenceEnabled('dice_sfx'),
     reducedMotion:()=>{ try{ return !!window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(_error){ return false; } },
     setTimer:(callback,delay)=>setTimeout(callback,delay), clearTimer:id=>clearTimeout(id),
+    visualProof:(phase,detail)=>recordDiceVisualProof(phase,detail),
     mount:()=>{
       try{
         if(!document||!document.body) return null;
@@ -2694,7 +2721,9 @@ function diceCanvasDefaultEnvironment(){
         const live=document.createElement('div'); live.setAttribute('role','status'); live.setAttribute('aria-live','polite');
         live.style.cssText='position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0';
         overlay.appendChild(stage); overlay.appendChild(live); document.body.appendChild(overlay);
-        return {container:stage,announce:text=>{ live.textContent=String(text||''); },dispose:()=>{ try{ overlay.remove(); }catch(_error){} }};
+        let connected=false;try{connected=overlay.isConnected===true||!!(document.documentElement&&typeof document.documentElement.contains==='function'&&document.documentElement.contains(overlay));}catch(_diceOverlayConnectedError){}
+        recordDiceVisualProof('overlay_mounted',{connected:connected});
+        return {container:stage,announce:text=>{ live.textContent=String(text||''); },dispose:()=>{ try{ overlay.remove(); }catch(_error){} try{recordDiceVisualProof('overlay_removed');}catch(_diceOverlayRemovedProofError){} }};
       }catch(_error){ return null; }
     },
     renderRawChips:(container,payload)=>{
@@ -2725,6 +2754,11 @@ function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
   function onceDone(input){ let done=false; return ()=>{if(done)return false;done=true;safeDone(input);return true;}; }
   function complete(job){
     if(!job||job.done) return; job.done=true;
+    if(job.canvasHandle){
+      let frameCount=0;
+      try{const state=diceCanvas&&diceCanvas._test&&typeof diceCanvas._test.state==='function'?diceCanvas._test.state():null;frameCount=state&&state.last&&Number.isInteger(state.last.frameCount)?state.last.frameCount:0;}catch(_diceCanvasProofStateError){}
+      try{environment.visualProof('canvas_finished',{frameCount:frameCount});}catch(_diceCanvasProofCompleteError){}
+    }
     try{ if(job.announceTimer!==null) environment.clearTimer(job.announceTimer); }catch(_error){}
     try{ if(job.rawTimer!==null) environment.clearTimer(job.rawTimer); }catch(_error){}
     try{ if(job.mount) job.mount.dispose(); }catch(_error){}
@@ -2781,6 +2815,7 @@ function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
       try{ mounted.dispose(); }catch(_disposeError){} job.mount=null; legacyFallback(job); return;
     }
     committed=true; job.canvasHandle=handle;
+    try{environment.visualProof('canvas_render_accepted');}catch(_diceCanvasProofAcceptedError){}
     try{ job.rawTimer=environment.setTimer(()=>complete(job),DICE_CANVAS_JOB_TIMEOUT_MS); }catch(_error){ complete(job); return; }
     if(handle.mirror&&handle.mirror.announcement){
       const delay=Math.max(0,Number(handle.mirror.announceAtMs)||0);
@@ -3723,7 +3758,7 @@ function dicePlaybackDiagJson(){
     if(Number.isInteger(entry.combatCappedCount)) compact.combatCappedCount=entry.combatCappedCount;
     return compact;
   });
-  const compact={at:String(payload.at||'').slice(0,64),campaignId:String(payload.campaignId||'').slice(0,128),roundId:String(payload.roundId||'').slice(0,128),receiptCount:Number.isInteger(payload.receiptCount)?payload.receiptCount:0,ledgerKey:String(payload.ledgerKey||'').slice(0,256),ledger:[],ledgerSize:Number.isInteger(payload.ledgerSize)?payload.ledgerSize:0,ledgerError:String(payload.ledgerError||'').slice(0,128),log:compactLog,hasDiceFx:!!payload.hasDiceFx,diceFxRoll:!!payload.diceFxRoll,diceFxSetting:payload.diceFxSetting===null?null:String(payload.diceFxSetting||'').slice(0,64),diceFxSettingError:String(payload.diceFxSettingError||'').slice(0,128),probeError:String(payload.probeError||'').slice(0,128),truncated:true,originalChars:typeof json==='string'?json.length:null};
+  const compact={at:String(payload.at||'').slice(0,64),campaignId:String(payload.campaignId||'').slice(0,128),roundId:String(payload.roundId||'').slice(0,128),receiptCount:Number.isInteger(payload.receiptCount)?payload.receiptCount:0,ledgerKey:String(payload.ledgerKey||'').slice(0,256),ledger:[],ledgerSize:Number.isInteger(payload.ledgerSize)?payload.ledgerSize:0,ledgerError:String(payload.ledgerError||'').slice(0,128),log:compactLog,visualProof:diceVisualProofSnapshot(),hasDiceFx:!!payload.hasDiceFx,diceFxRoll:!!payload.diceFxRoll,diceFxSetting:payload.diceFxSetting===null?null:String(payload.diceFxSetting||'').slice(0,64),diceFxSettingError:String(payload.diceFxSettingError||'').slice(0,128),probeError:String(payload.probeError||'').slice(0,128),truncated:true,originalChars:typeof json==='string'?json.length:null};
   let compactJson=JSON.stringify(compact);
   if(compactJson.length>DICE_PLAYBACK_DIAG_MAX_CHARS){ compact.log=compact.log.slice(-10); compactJson=JSON.stringify(compact); }
   return compactJson.length<=DICE_PLAYBACK_DIAG_MAX_CHARS?compactJson:'{"probeError":"diag_too_large","log":[],"truncated":true}';
@@ -3829,7 +3864,7 @@ window.__diceProbe=function(){
   let diceFxSetting=null,settingError='';
   try{ diceFxSetting=localStorage.getItem('dice_fx'); }catch(_diceProbeSettingError){ settingError='read_error'; }
   try{ round=typeof curRound!=='undefined'?curRound:null; receipts=round&&round.meta&&Array.isArray(round.meta.dice)?round.meta.dice:[]; }catch(_diceProbeRoundError){ probeError=probeError||'round_read_error'; round=null; receipts=[]; }
-  return {at:new Date().toISOString(),campaignId:campaignId,roundId:String(round&&round.id||''),receiptCount:receipts.length,ledgerKey:ledgerState.key,ledger:ledgerState.ledger.slice(),ledgerSize:ledgerState.ledger.length,ledgerError:ledgerState.error,log:Array.isArray(window.__dicePlaybackLog)?window.__dicePlaybackLog.slice(-50):[],hasDiceFx:!!window.DiceFx,diceFxRoll:!!(window.DiceFx&&typeof window.DiceFx.roll==='function'),diceFxSetting:diceFxSetting,diceFxSettingError:settingError,probeError:probeError};
+  return {at:new Date().toISOString(),campaignId:campaignId,roundId:String(round&&round.id||''),receiptCount:receipts.length,ledgerKey:ledgerState.key,ledger:ledgerState.ledger.slice(),ledgerSize:ledgerState.ledger.length,ledgerError:ledgerState.error,log:Array.isArray(window.__dicePlaybackLog)?window.__dicePlaybackLog.slice(-50):[],visualProof:diceVisualProofSnapshot(),hasDiceFx:!!window.DiceFx,diceFxRoll:!!(window.DiceFx&&typeof window.DiceFx.roll==='function'),diceFxSetting:diceFxSetting,diceFxSettingError:settingError,probeError:probeError};
 };
 const _diceNarrationHolds=new Map(); let _diceNarrationHoldSeq=0;
 function diceNarrationRowHeld(row){
@@ -3876,7 +3911,7 @@ function playRoundDiceMeta(round,character,choreography){
         if(!Number.isInteger(roll)||roll<1||roll>20||!Number.isFinite(total)){emit('invalid_receipt',{receiptIndex:index,receiptWho:receipt.who});return;}
         const receiptKey=JSON.stringify([campaignId,roundId,index,String(receipt.who||''),String(receipt.kind||''),String(receipt.skill||''),roll,receipt.bonus,total,receipt.dc,receipt.tier,receipt.pass]);
         if(seen.has(receiptKey)||memorySeen.has(receiptKey)||inFlight.has(receiptKey)){emit('already_seen',{receiptIndex:index,receiptWho:receipt.who});return;}
-        if(!dicePreferenceEnabled('dice_fx')){burn(receiptKey);emit('fx_disabled',{receiptIndex:index,receiptWho:receipt.who});return;}
+        if(!dicePreferenceEnabled('dice_fx')){emit('fx_disabled_unseen',{receiptIndex:index,receiptWho:receipt.who});return;}
         const diceFx=window.DiceFx;
         if(!diceFx||typeof diceFx.roll!=='function'){burn(receiptKey);emit('dicefx_missing_fail_open',{receiptIndex:index,receiptWho:receipt.who});return;}
         const payload={eventId:'dice-meta:'+receiptKey,dice:[{die:'d20',value:roll}],flat:Number.isFinite(receipt.bonus)?receipt.bonus:0,total:total,dc:Number.isFinite(receipt.dc)?receipt.dc:null,pass:typeof receipt.pass==='boolean'?receipt.pass:null,tier:typeof receipt.tier==='string'?receipt.tier:'',label:String(receipt.skill||receipt.kind||'')};
@@ -3926,7 +3961,7 @@ function playRoundCombatDiceMeta(round,character,choreography){
       try{
         if(receipt.actorKind!=='player'||diceMetaOwnerKey(receipt.who)!==ownName){emit('combat_union_not_own_character',detail);return;}
         if(seen.has(receiptId)||memorySeen.has(receiptId)||inFlight.has(receiptId)){emit('combat_union_already_seen',detail);return;}
-        if(!dicePreferenceEnabled('dice_fx')){burn(receiptId);emit('combat_union_fx_disabled',detail);return;}
+        if(!dicePreferenceEnabled('dice_fx')){emit('combat_union_fx_disabled_unseen',detail);return;}
         const diceFx=window.DiceFx;if(!diceFx||typeof diceFx.roll!=='function'){burn(receiptId);emit('combat_union_dicefx_missing_fail_open',detail);return;}
         const payload=combatDicePlaybackPayload(receipt);
         if(choreography){queued.push({payload:payload,receiptId:receiptId,detail:detail});return;}
