@@ -11,10 +11,11 @@
 (function attachDiceFx(){
   'use strict';
 
-  const BUILD='20260809-dice01-r2';
+  const BUILD='20260815-dice03-r2';
   const MAX_VISIBLE_DICE=6;
   const MAX_IN_FLIGHT=2;
   const PENDING_TIMEOUT_MS=20000;
+  const CHOREOGRAPHY_STEP_TIMEOUT_MS=3000;
   const MASTER_GAIN=0.25;
   const DIE_SIDES=Object.freeze({d4:4,d6:6,d8:8,d10:10,d12:12,d20:20});
   const SVG_NS='http://www.w3.org/2000/svg';
@@ -266,6 +267,51 @@
 
   function finishCallbacks(callbacks){
     (callbacks||[]).forEach(safeCall);
+  }
+
+  function runChoreography(input,runtime){
+    const source=input&&typeof input==='object'?input:{};
+    const events=Array.isArray(source.events)
+      ?source.events.filter(function(event){ return event&&typeof event==='object'&&!Array.isArray(event); }).slice(0,32)
+      :[];
+    const adapter=runtime&&typeof runtime==='object'?runtime:{};
+    const rollOne=typeof adapter.roll==='function'?adapter.roll:null;
+    const setTimer=typeof adapter.setTimer==='function'?adapter.setTimer:null;
+    const clearTimer=typeof adapter.clearTimer==='function'?adapter.clearTimer:function(){};
+    let finished=false;
+    let timer=null;
+    let index=0;
+    function complete(){
+      if(finished) return false;
+      finished=true;
+      if(timer!==null){ try{ clearTimer(timer); }catch(error){} timer=null; }
+      safeCall(source.onDone);
+      return true;
+    }
+    if(!events.length||!rollOne){
+      complete();
+      return Object.freeze({started:false,skipped:true,cancel:function(){ return false; }});
+    }
+    safeCall(source.onStart);
+    function next(){
+      if(finished) return;
+      if(timer!==null){ try{ clearTimer(timer); }catch(error){} timer=null; }
+      if(index>=events.length){ complete(); return; }
+      const event=events[index++];
+      let advanced=false;
+      function advance(){ if(advanced||finished)return; advanced=true; next(); }
+      if(!setTimer){ advance(); return; }
+      try{ timer=setTimer(advance,CHOREOGRAPHY_STEP_TIMEOUT_MS); }
+      catch(error){ advance(); return; }
+      try{ rollOne(Object.assign({},event,{onDone:advance})); }
+      catch(error){ advance(); }
+    }
+    next();
+    return Object.freeze({
+      started:true,
+      skipped:false,
+      cancel:function(){ return complete(); }
+    });
   }
 
   function localize(th,en){
@@ -666,6 +712,19 @@
     catch(error){ return immediateHandle(callbacks,'error'); }
   }
 
+  function choreograph(input){
+    try{
+      return runChoreography(input,{
+        roll:roll,
+        setTimer:function(callback,delay){ return environment.setTimer(callback,delay); },
+        clearTimer:function(timer){ return environment.clearTimer(timer); }
+      });
+    }catch(error){
+      safeCall(input&&input.onDone);
+      return Object.freeze({started:false,skipped:true,cancel:function(){ return false; }});
+    }
+  }
+
   function inertPending(input,reason){
     const initialCallbacks=callbackList(input);
     finishCallbacks(initialCallbacks);
@@ -775,17 +834,20 @@
     build:BUILD,
     init:init,
     roll:roll,
+    choreograph:choreograph,
     pending:pending,
     _pure:Object.freeze({
       MAX_VISIBLE_DICE:MAX_VISIBLE_DICE,
       PENDING_TIMEOUT_MS:PENDING_TIMEOUT_MS,
+      CHOREOGRAPHY_STEP_TIMEOUT_MS:CHOREOGRAPHY_STEP_TIMEOUT_MS,
       normalizeDice:normalizeDice,
       planRollVisual:planRollVisual,
       finalFacesOf:finalFacesOf,
       splitTotalCosmetic:splitTotalCosmetic,
       resultExpression:resultExpression,
       visualDurationFor:visualDurationFor,
-      sfxPlan:sfxPlan
+      sfxPlan:sfxPlan,
+      runChoreography:runChoreography
     }),
     _test:Object.freeze({
       configure:configureTestEnvironment,

@@ -23,7 +23,7 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./grid-command-flow.js?v=822"></script>
 <script src="./grid-command-adapter.js?v=822"></script>
 <script src="./grid-board-replacement-lease.js?v=202608110249"></script>
-<script src="./dice-fx.js?v=1220"></script>
+<script src="./dice-fx.js?v=1331"></script>
 <script src="./dice-canvas.js?v=1100"></script>
 <script src="./music-playback-owner.js?v=847"></script>
 <script src="./music-v2-dark-launch.js?v=1211"></script>
@@ -2116,7 +2116,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608151127;   // REVIEW-01: host-only DM Options audit review card (label per exact reason) · asset ring 20260813a1 unchanged
+const FRONTEND_BUILD = 202608151331;   // REVIEW-01: host-only DM Options audit review card (label per exact reason) · asset ring 20260813a1 unchanged
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2612,10 +2612,12 @@ function diceRawChipPayload(input){
   if(!Array.isArray(source.rawValues)||!source.rawValues.length||source.rawValues.length>32) return null;
   const values=source.rawValues.slice();
   if(values.some(value=>!Number.isInteger(value)||value<1||value>100)) return null;
+  const truncated=Number.isInteger(source.rawValuesTruncated)&&source.rawValuesTruncated>=0?source.rawValuesTruncated:0;
   const total=source.total;
   if(!Number.isInteger(total)||total<0||total>1000000000) return null;
-  return {values:values,label:String(source.label||'').slice(0,320),announcement:String(source.announcement||source.label||'').slice(0,500),total:total};
+  return {values:values,visibleValues:values.slice(0,6),collapsedCount:Math.max(0,values.length-6)+truncated,rollTotal:values.reduce((sum,value)=>sum+value,0),label:String(source.label||'').slice(0,320),announcement:String(source.announcement||source.label||'').slice(0,500),total:total};
 }
+const DICE_CANVAS_JOB_TIMEOUT_MS=2600;
 function diceCanvasDefaultEnvironment(){
   let legacyMuteCount=0;
   function settingEnabled(key){ try{ return localStorage.getItem(key)!=='off'; }catch(_error){ return true; } }
@@ -2650,7 +2652,8 @@ function diceCanvasDefaultEnvironment(){
         panel.style.cssText='min-height:330px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;color:#f5e7c6;text-align:center';
         const label=document.createElement('div'); label.style.cssText='max-width:480px;font:600 16px/1.4 Georgia,serif;color:#f5e7c6'; label.textContent=payload.label; panel.appendChild(label);
         const chips=document.createElement('div'); chips.style.cssText='display:flex;flex-wrap:wrap;justify-content:center;gap:9px;max-width:480px';
-        payload.values.forEach(value=>{ const chip=document.createElement('span'); chip.setAttribute('data-combat-dice-raw-value',String(value)); chip.style.cssText='min-width:42px;padding:9px 12px;border:2px solid #d9b978;border-radius:999px;background:rgba(43,29,17,.96);color:#fff4d6;font:700 20px Georgia,serif;box-shadow:0 5px 13px rgba(10,6,2,.32)'; chip.textContent=String(value); chips.appendChild(chip); });
+        payload.visibleValues.forEach(value=>{ const chip=document.createElement('span'); chip.setAttribute('data-combat-dice-raw-value',String(value)); chip.style.cssText='min-width:42px;padding:9px 12px;border:2px solid #d9b978;border-radius:999px;background:rgba(43,29,17,.96);color:#fff4d6;font:700 20px Georgia,serif;box-shadow:0 5px 13px rgba(10,6,2,.32)'; chip.textContent=String(value); chips.appendChild(chip); });
+        if(payload.collapsedCount>0){ const collapsed=document.createElement('span'); collapsed.setAttribute('data-combat-dice-raw-collapsed',String(payload.collapsedCount)); collapsed.style.cssText='min-width:42px;padding:9px 12px;border:2px solid #d9b978;border-radius:999px;background:rgba(43,29,17,.96);color:#fff4d6;font:700 20px Georgia,serif;box-shadow:0 5px 13px rgba(10,6,2,.32)'; collapsed.textContent='+'+String(payload.collapsedCount); chips.appendChild(collapsed); }
         panel.appendChild(chips); container.appendChild(panel); return true;
       }catch(_error){ return false; }
     },
@@ -2725,6 +2728,7 @@ function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
       try{ mounted.dispose(); }catch(_disposeError){} job.mount=null; legacyFallback(job); return;
     }
     committed=true; job.canvasHandle=handle;
+    try{ job.rawTimer=environment.setTimer(()=>complete(job),DICE_CANVAS_JOB_TIMEOUT_MS); }catch(_error){ complete(job); return; }
     if(handle.mirror&&handle.mirror.announcement){
       const delay=Math.max(0,Number(handle.mirror.announceAtMs)||0);
       try{ job.announceTimer=environment.setTimer(()=>{ try{ mounted.announce(handle.mirror.announcement); }catch(_error){} },delay); }catch(_error){}
@@ -2758,8 +2762,14 @@ function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
     }catch(_error){ canvasReady=false; }
     return initialized;
   }
+  function choreograph(input){
+    const runner=legacyDiceFx&&legacyDiceFx._pure&&legacyDiceFx._pure.runChoreography;
+    if(typeof runner!=='function'){ safeDone(input); return Object.freeze({started:false,skipped:true,cancel:()=>false}); }
+    try{ return runner(input,{roll:roll,setTimer:environment.setTimer,clearTimer:environment.clearTimer}); }
+    catch(_error){ safeDone(input); return Object.freeze({started:false,skipped:true,cancel:()=>false}); }
+  }
   return Object.freeze({
-    build:'20260810-dice-fe1-phase-b', init:init, roll:roll, pending:pending,
+    build:'20260815-dice03-r2', init:init, roll:roll, choreograph:choreograph, pending:pending,
     _pure:Object.freeze(Object.assign({},legacyDiceFx&&legacyDiceFx._pure||{},{diceCanvasStableIdentity:diceCanvasStableIdentity,diceCanvasEventFromLegacy:diceCanvasEventFromLegacy,diceRawChipPayload:diceRawChipPayload})),
     __diceCanvasAdapter:true
   });
@@ -3748,7 +3758,7 @@ function combatDicePlaybackPayload(receipt){
   const label=combatDiceReceiptLabel(receipt);
   if(receipt.kind==='attack')return {eventId:receipt.receiptId,kind:'attack',role:'attack',dice:[{die:'d20',value:receipt.roll}],flat:receipt.total-receipt.roll,total:receipt.total,pass:receipt.hit,tier:receipt.crit?'crit-success':receipt.hit?'success':'failure',label:label,critical:receipt.crit};
   if(receipt.kind==='save')return {eventId:receipt.receiptId,kind:'save',role:'save',dice:[{die:'d20',value:receipt.roll}],flat:receipt.bonus,total:receipt.total,dc:receipt.dc,pass:receipt.pass,tier:receipt.pass?'success':'failure',label:label};
-  return {eventId:receipt.receiptId,kind:'damage',role:'damage',rawValues:receipt.rolls.slice(),total:receipt.damage,label:label,announcement:label+' · '+receipt.rolls.join(', ')};
+  return {eventId:receipt.receiptId,kind:'damage',role:'damage',rawValues:receipt.rolls.slice(),rawValuesTruncated:receipt.rollsTruncated,total:receipt.damage,label:label,announcement:label+' · '+receipt.rolls.join(', ')};
 }
 // ── /DICE-FE ──
 window.__diceProbe=function(){
@@ -3760,8 +3770,28 @@ window.__diceProbe=function(){
   try{ round=typeof curRound!=='undefined'?curRound:null; receipts=round&&round.meta&&Array.isArray(round.meta.dice)?round.meta.dice:[]; }catch(_diceProbeRoundError){ probeError=probeError||'round_read_error'; round=null; receipts=[]; }
   return {at:new Date().toISOString(),campaignId:campaignId,roundId:String(round&&round.id||''),receiptCount:receipts.length,ledgerKey:ledgerState.key,ledger:ledgerState.ledger.slice(),ledgerSize:ledgerState.ledger.length,ledgerError:ledgerState.error,log:Array.isArray(window.__dicePlaybackLog)?window.__dicePlaybackLog.slice(-50):[],hasDiceFx:!!window.DiceFx,diceFxRoll:!!(window.DiceFx&&typeof window.DiceFx.roll==='function'),diceFxSetting:diceFxSetting,diceFxSettingError:settingError,probeError:probeError};
 };
-function playRoundDiceMeta(round,character){
+const _diceNarrationHolds=new Map(); let _diceNarrationHoldSeq=0;
+function diceNarrationRowHeld(row){
+  const roundId=String(row&&row.round_id||''),tokens=roundId&&_diceNarrationHolds.get(roundId);
+  return !!(tokens&&tokens.size);
+}
+function beginDiceNarrationHold(roundId){
+  const id=String(roundId||''); if(!id)return null;
+  const token={roundId:id,id:++_diceNarrationHoldSeq},tokens=_diceNarrationHolds.get(id)||new Set(); tokens.add(token.id); _diceNarrationHolds.set(id,tokens);
+  try{if(activeTab()==='story')renderStory();}catch(_diceNarrationHoldRenderError){}
+  return token;
+}
+function endDiceNarrationHold(token){
+  if(!token||!token.roundId)return false;
+  const tokens=_diceNarrationHolds.get(token.roundId); if(!tokens||!tokens.delete(token.id))return false;
+  if(!tokens.size)_diceNarrationHolds.delete(token.roundId);
+  try{if(activeTab()==='story')renderStory();}catch(_diceNarrationReleaseRenderError){}
+  return true;
+}
+function playRoundDiceMeta(round,character,choreography){
   let receipts=[],ownName='',campaignId='',roundId='',stored=[];
+  let choreographyDone=false;
+  const finishChoreography=function(){if(choreographyDone)return;choreographyDone=true;try{if(choreography&&typeof choreography.onDone==='function')choreography.onDone();}catch(_diceMetaDoneError){}};
   try{
     receipts=round&&round.meta&&Array.isArray(round.meta.dice)?round.meta.dice:[];
     ownName=diceMetaOwnerKey(character&&character.name);
@@ -3769,15 +3799,15 @@ function playRoundDiceMeta(round,character){
     roundId=String(round&&round.id||'');
     const ledgerState=dicePlaybackLedgerState(campaignId); stored=ledgerState.ledger;
     const emit=function(reason,extra){ return dicePlaybackLog(reason,Object.assign({roundId:roundId,receiptCount:receipts.length,ownName:ownName,ledgerSize:stored.length,campaignId:campaignId,ledgerError:ledgerState.error},extra||{})); };
-    if(!receipts.length){ emit('no_receipts'); return 0; }
-    if(!ownName){ emit('no_own_name'); return 0; }
-    if(!campaignId){ emit('no_campaign'); return 0; }
-    if(!roundId){ emit('no_round'); return 0; }
+    if(!receipts.length){ emit('no_receipts'); finishChoreography(); return 0; }
+    if(!ownName){ emit('no_own_name'); finishChoreography(); return 0; }
+    if(!campaignId){ emit('no_campaign'); finishChoreography(); return 0; }
+    if(!roundId){ emit('no_round'); finishChoreography(); return 0; }
     const seen=new Set(stored);
     const memorySeen=window._diceMetaSeenFallback instanceof Set?window._diceMetaSeenFallback:(window._diceMetaSeenFallback=new Set());
     const inFlight=window._diceMetaInFlight instanceof Set?window._diceMetaInFlight:(window._diceMetaInFlight=new Set());
     const burn=function(receiptKey){ seen.add(receiptKey); memorySeen.add(receiptKey); stored.push(receiptKey); if(stored.length>256) stored=stored.slice(-256); try{ localStorage.setItem(ledgerState.key,JSON.stringify(stored)); }catch(_diceMetaWriteError){} };
-    let played=0;
+    let played=0; const queued=[];
     receipts.forEach(function(receipt,index){
       try{
         if(!receipt||typeof receipt!=='object'){ emit('invalid_receipt',{receiptIndex:index}); return; }
@@ -3792,19 +3822,35 @@ function playRoundDiceMeta(round,character){
         if(diceFxOff){ burn(receiptKey); emit('fx_disabled',{receiptIndex:index,receiptWho:receipt.who}); return; }
         const diceFx=window.DiceFx;
         if(!diceFx||typeof diceFx.roll!=='function'){ emit('dicefx_missing',{receiptIndex:index,receiptWho:receipt.who}); return; }
+        const payload={eventId:'dice-meta:'+receiptKey,dice:[{die:'d20',value:roll}],flat:Number.isFinite(receipt.bonus)?receipt.bonus:0,total:total,dc:Number.isFinite(receipt.dc)?receipt.dc:null,pass:typeof receipt.pass==='boolean'?receipt.pass:null,tier:typeof receipt.tier==='string'?receipt.tier:'',label:String(receipt.skill||receipt.kind||'')};
+        if(choreography){ queued.push({payload:payload,receiptKey:receiptKey,index:index,who:receipt.who}); return; }
         inFlight.add(receiptKey);
-        try{ diceFx.roll({eventId:'dice-meta:'+receiptKey,dice:[{die:'d20',value:roll}],flat:Number.isFinite(receipt.bonus)?receipt.bonus:0,total:total,dc:Number.isFinite(receipt.dc)?receipt.dc:null,pass:typeof receipt.pass==='boolean'?receipt.pass:null,tier:typeof receipt.tier==='string'?receipt.tier:'',label:String(receipt.skill||receipt.kind||'')}); }
+        try{ diceFx.roll(payload); }
         catch(_diceMetaRollError){ emit('roll_threw',{receiptIndex:index,receiptWho:receipt.who}); return; }
         finally{ inFlight.delete(receiptKey); }
         burn(receiptKey); played++; emit('played',{receiptIndex:index,receiptWho:receipt.who});
       }catch(_diceMetaReceiptError){ emit('receipt_error',{receiptIndex:index}); }
     });
+    if(!choreography){ finishChoreography(); return played; }
+    if(!queued.length){ finishChoreography(); return played; }
+    const diceFx=window.DiceFx;
+    if(!diceFx||typeof diceFx.choreograph!=='function'){
+      emit('choreography_missing');
+      queued.forEach(item=>{try{diceFx.roll(item.payload);burn(item.receiptKey);played++;emit('played',{receiptIndex:item.index,receiptWho:item.who});}catch(_diceMetaLegacyRollError){emit('roll_threw',{receiptIndex:item.index,receiptWho:item.who});}});
+      finishChoreography(); return played;
+    }
+    queued.forEach(item=>inFlight.add(item.receiptKey));
+    let handle=null;
+    try{handle=diceFx.choreograph({events:queued.map(item=>item.payload),onStart:()=>{try{if(typeof choreography.onStart==='function')choreography.onStart();}catch(_diceMetaStartError){}},onDone:()=>{queued.forEach(item=>inFlight.delete(item.receiptKey));finishChoreography();}});}
+    catch(_diceMetaChoreographyError){queued.forEach(item=>inFlight.delete(item.receiptKey));emit('choreography_threw');finishChoreography();return played;}
+    if(!handle||handle.started!==true){queued.forEach(item=>inFlight.delete(item.receiptKey));finishChoreography();return played;}
+    queued.forEach(item=>{burn(item.receiptKey);played++;emit('played',{receiptIndex:item.index,receiptWho:item.who});});
     return played;
-  }catch(_diceMetaPlaybackError){ dicePlaybackLog('playback_error',{roundId:roundId,receiptCount:receipts.length,ownName:ownName,ledgerSize:stored.length,campaignId:campaignId}); return 0; }
+  }catch(_diceMetaPlaybackError){ finishChoreography(); dicePlaybackLog('playback_error',{roundId:roundId,receiptCount:receipts.length,ownName:ownName,ledgerSize:stored.length,campaignId:campaignId}); return 0; }
 }
-function playRoundCombatDiceMeta(round){
+function playRoundCombatDiceMeta(round,character){
   let parsed=null; try{parsed=combatDiceUnionFromMeta(round&&round.meta);}catch(_combatDiceMetaReadError){return 0;} if(!parsed.present)return 0;
-  let campaignId='',roundId='',stored=[];
+  let campaignId='',roundId='',stored=[]; const ownName=diceMetaOwnerKey(character&&character.name);
   try{
     campaignId=String(campaign&&campaign.id||''); roundId=String(round&&round.id||'');
     const ledgerState=combatDicePlaybackLedgerState(campaignId); stored=ledgerState.ledger;
@@ -3812,6 +3858,7 @@ function playRoundCombatDiceMeta(round){
     emit('combat_union_parsed');
     if(!campaignId){emit('combat_union_no_campaign');return 0;}
     if(!roundId){emit('combat_union_no_round');return 0;}
+    if(!ownName){emit('combat_union_no_own_character');return 0;}
     if(!parsed.receipts.length)return 0;
     const seen=new Set(stored),memorySeen=window._combatDiceSeenFallback instanceof Set?window._combatDiceSeenFallback:(window._combatDiceSeenFallback=new Set()),inFlight=window._combatDiceInFlight instanceof Set?window._combatDiceInFlight:(window._combatDiceInFlight=new Set());
     const burn=function(receiptId){seen.add(receiptId);memorySeen.add(receiptId);stored.push(receiptId);if(stored.length>256)stored=stored.slice(-256);try{localStorage.setItem(ledgerState.key,JSON.stringify(stored));}catch(_combatDiceLedgerWriteError){}};
@@ -3819,6 +3866,7 @@ function playRoundCombatDiceMeta(round){
     parsed.receipts.forEach(function(receipt,index){
       const receiptId=receipt.receiptId,detail={receiptIndex:index,receiptWho:receipt.who,receiptId:receiptId,receiptKind:receipt.kind};
       try{
+        if(receipt.actorKind!=='player'||diceMetaOwnerKey(receipt.who)!==ownName){emit('combat_union_not_own_character',detail);return;}
         if(seen.has(receiptId)||memorySeen.has(receiptId)||inFlight.has(receiptId)){emit('combat_union_already_seen',detail);return;}
         let diceFxOff=false;try{diceFxOff=localStorage.getItem('dice_fx')==='off';}catch(_combatDiceFxPrefReadError){}
         if(diceFxOff){burn(receiptId);emit('combat_union_fx_disabled',detail);return;}
@@ -3841,8 +3889,9 @@ function setVisibleRound(nextRound,character,source){
     const ledgerState=dicePlaybackLedgerState(campaignId);
     dicePlaybackLog('visible_round',{roundId:String(curRound&&curRound.id||''),receiptCount:receipts.length,ownName:diceMetaOwnerKey(character&&character.name),ledgerSize:ledgerState.ledger.length,campaignId:campaignId,ledgerError:ledgerState.error,source:String(source||'unknown')});
   }catch(_diceVisibleRoundLogError){ dicePlaybackLog('visible_round_error',{roundId:'',receiptCount:0,ownName:'',ledgerSize:0,campaignId:'',source:String(source||'unknown')}); }
-  playRoundDiceMeta(curRound,character);
-  playRoundCombatDiceMeta(curRound);
+  let holdToken=null;
+  playRoundDiceMeta(curRound,character,{onStart:()=>{holdToken=beginDiceNarrationHold(curRound&&curRound.id);},onDone:()=>{if(holdToken){endDiceNarrationHold(holdToken);holdToken=null;}}});
+  playRoundCombatDiceMeta(curRound,character);
   return curRound;
 }
 // ── FE-14: exact-receipt, bounded post-flip round re-fetch ──
@@ -5496,10 +5545,10 @@ async function renderStory(){
   renderClock();
   try{ renderVoteCard(); }catch(e){}
   const isStreaming = n => n.status==='placeholder' && n.content && !/^_/.test(String(n.content).trim());
-  const receiptRows=narrative.filter(n=>n.status!=='placeholder'&&isProgressiveReceiptNarrative(n)&&String(n.round_id||'')===String((curRound&&curRound.id)||''));
+  const receiptRows=narrative.filter(n=>n.status!=='placeholder'&&isProgressiveReceiptNarrative(n)&&String(n.round_id||'')===String((curRound&&curRound.id)||'')).filter(n=>!diceNarrationRowHeld(n));
   renderProgressiveReceipts(receiptRows);
   const receiptIds=new Set(receiptRows.map(n=>String(n.id)));
-  const shown = narrative.filter(n => (n.status !== 'placeholder' || isStreaming(n))&&!receiptIds.has(String(n.id))&&(isStreaming(n)||!!narrText(n)));
+  const shown = narrative.filter(n => (n.status !== 'placeholder' || isStreaming(n))&&!receiptIds.has(String(n.id))&&(isStreaming(n)||!!narrText(n))).filter(n=>!diceNarrationRowHeld(n));
   const feed=$('narrFeed');
   const isig = n => (n.status||'')+':'+(n.author||'')+':'+narrText(n).length+':'+(n.projection_status||'')+':'+(n.projection_note||'');
   const cdraw = n => isStreaming(n) ? (colorizeNarr(n.content)+'<span class="dots">▌</span>') : narrDraw(n);
