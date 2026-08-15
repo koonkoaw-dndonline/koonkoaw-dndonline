@@ -23,7 +23,7 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./grid-command-flow.js?v=822"></script>
 <script src="./grid-command-adapter.js?v=822"></script>
 <script src="./grid-board-replacement-lease.js?v=202608110249"></script>
-<script src="./dice-fx.js?v=1643"></script>
+<script src="./dice-fx.js?v=1952"></script>
 <script src="./dice-canvas.js?v=1100"></script>
 <script src="./music-playback-owner.js?v=847"></script>
 <script src="./music-v2-dark-launch.js?v=1211"></script>
@@ -2131,7 +2131,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608151643;   // REVIEW-01: host-only DM Options audit review card (label per exact reason) · asset ring 20260813a1 unchanged
+const FRONTEND_BUILD = 202608151952;   // REVIEW-01: host-only DM Options audit review card (label per exact reason) · asset ring 20260813a1 unchanged
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -5250,7 +5250,7 @@ function switchTab(t){
   else if(t==='mon') renderCombat();
   else if(t==='map') renderMap();
   else if(t==='quest') renderQuest();
-  else if(t==='files') renderFiles();
+  else if(t==='files'){ dmOptionsReadoutOpen(); renderFiles(); }
   else if(t==='chron') renderChronicle();
   else if(t==='companion') renderCompanion();
 }
@@ -10711,6 +10711,85 @@ function dmOptionAuditSetLines(detail){
 }
 function dmOptionCandidateOriginLine(candidate){ return uiCopy('ที่มา: ','Origin: ')+dmOptionOriginText(candidate&&candidate.candidate_origin); }
 // FE-AUDIT-01 origin surface end
+// DMOPT-READOUT-01B host readout start
+let _dmOptionsReadoutOpenState={campaignId:'',promise:null};
+function dmOptionsReadoutCount(value){ return Number.isSafeInteger(value)&&value>=0?value:null; }
+function dmOptionsReadoutRatio(value){
+  if(!value||typeof value!=='object') return null;
+  const numerator=dmOptionsReadoutCount(value.numerator), denominator=dmOptionsReadoutCount(value.denominator), missing=dmOptionsReadoutCount(value.missing), raw=value.value;
+  if(numerator===null||denominator===null||missing===null) return null;
+  if(raw==='UNKNOWN') return {known:false,numerator,denominator,missing,value:raw};
+  if(typeof raw!=='number'||!Number.isFinite(raw)||raw<0||raw>1||denominator<=0||missing>0) return null;
+  if(Math.abs(raw-(numerator/denominator))>1e-9) return null;
+  return {known:true,numerator,denominator,missing,value:raw};
+}
+function dmOptionsReadoutReason(value){
+  if(!value||typeof value!=='object'||typeof value.reason!=='string'||!value.reason.trim()||typeof value.reason_class!=='string') return null;
+  const candidateN=dmOptionsReadoutCount(value.candidate_n), labels=value.labels&&typeof value.labels==='object'?value.labels:null;
+  if(candidateN===null||!labels) return null;
+  const trueInvalidN=dmOptionsReadoutCount(labels.true_invalid_n), falsePositiveN=dmOptionsReadoutCount(labels.false_positive_n), uncertainN=dmOptionsReadoutCount(labels.uncertain_n), missingN=dmOptionsReadoutCount(labels.missing_n);
+  if([trueInvalidN,falsePositiveN,uncertainN,missingN].some(x=>x===null)||trueInvalidN+falsePositiveN+uncertainN+missingN!==candidateN) return null;
+  const rate=dmOptionsReadoutRatio(value.false_positive_rate);
+  if(!rate||rate.numerator!==falsePositiveN||rate.denominator!==trueInvalidN+falsePositiveN||rate.missing!==uncertainN+missingN) return null;
+  return {reason:value.reason.trim(),reason_class:value.reason_class,candidate_n:candidateN,labels:{true_invalid_n:trueInvalidN,false_positive_n:falsePositiveN,uncertain_n:uncertainN,missing_n:missingN},false_positive_rate:rate};
+}
+function dmOptionsReadoutShape(value){
+  if(!value||typeof value!=='object'||value.ok!==true||value.schema!=='dm_options_readout_v1') return null;
+  const cap=value.cap&&typeof value.cap==='object'?value.cap:null, sets=value.sets&&typeof value.sets==='object'?value.sets:null, labels=value.labels&&typeof value.labels==='object'?value.labels:null;
+  if(!cap||!sets||!labels||!Array.isArray(value.reason_codes)) return null;
+  const rowCap=dmOptionsReadoutCount(cap.row_cap), matchedN=dmOptionsReadoutCount(cap.matched_n), selectedN=dmOptionsReadoutCount(cap.selected_n), observedN=dmOptionsReadoutCount(sets.observed_n), thresholdN=dmOptionsReadoutCount(sets.threshold_n), labeledN=dmOptionsReadoutCount(labels.labeled_n), labelRequiredN=dmOptionsReadoutCount(labels.label_required_n), missingN=dmOptionsReadoutCount(labels.missing_n);
+  if(rowCap===null||rowCap<1||matchedN===null||selectedN===null||selectedN>rowCap||selectedN>matchedN||typeof cap.truncated!=='boolean'||!['exact','observed_lower_bound'].includes(cap.count_semantics)) return null;
+  if(observedN===null||thresholdN!==100||!['met','not_met','unknown'].includes(sets.threshold_status)||!['exact','observed_lower_bound'].includes(sets.count_semantics)) return null;
+  if(labeledN===null||labelRequiredN===null||missingN===null||labeledN+missingN!==labelRequiredN) return null;
+  const progress=dmOptionsReadoutRatio(sets.progress), coverage=dmOptionsReadoutRatio(labels.coverage);
+  if(!progress||progress.numerator!==observedN||progress.denominator!==thresholdN||!coverage||coverage.numerator!==labeledN||coverage.denominator!==labelRequiredN) return null;
+  const reasonCodes=value.reason_codes.map(dmOptionsReadoutReason); if(reasonCodes.some(x=>!x)) return null;
+  reasonCodes.sort((a,b)=>a.false_positive_rate.known===b.false_positive_rate.known?(a.false_positive_rate.known?(b.false_positive_rate.value-a.false_positive_rate.value):a.reason.localeCompare(b.reason)):(a.false_positive_rate.known?-1:1));
+  return {cap:{row_cap:rowCap,matched_n:matchedN,selected_n:selectedN,truncated:cap.truncated,count_semantics:cap.count_semantics},sets:{observed_n:observedN,threshold_n:thresholdN,progress,threshold_status:sets.threshold_status,count_semantics:sets.count_semantics},labels:{labeled_n:labeledN,label_required_n:labelRequiredN,missing_n:missingN,coverage},reason_codes:reasonCodes};
+}
+function dmOptionsReadoutPercent(ratio){ return ratio&&ratio.known?(String(Math.round(ratio.value*1000)/10)+'%'):uiCopy('ไม่มีข้อมูล','No data'); }
+function dmOptionsReadoutNode(result){
+  const box=document.createElement('div'); box.className='note'; box.dataset.dmOptionsReadout='v1'; box.style.cssText='text-align:left;display:grid;gap:5px;margin:7px 0;padding:8px;border:1px solid #555';
+  const add=(text,style)=>{ const line=document.createElement('div'); line.textContent=text; if(style) line.style.cssText=style; box.appendChild(line); return line; };
+  if(!result||result.ok!==true||!result.data){ add(uiCopy('โหลดภาพรวมการตรวจไม่สำเร็จ — รายการตรวจด้านล่างยังใช้งานได้','Could not load the audit readout — the review list below is still available'),'color:#FAC775'); return box; }
+  const data=result.data;
+  add(uiCopy('ภาพรวมการตรวจ 30 วัน','30-day audit readout'),'font-weight:700');
+  const thresholdText=data.sets.threshold_status==='met'?uiCopy('ถึงเกณฑ์ทบทวนแล้ว','review threshold met'):data.sets.threshold_status==='not_met'?uiCopy('ยังไม่ถึงเกณฑ์ทบทวน','review threshold not met'):uiCopy('ยังสรุปเกณฑ์ไม่ได้','threshold cannot be determined');
+  add(uiCopy('ความคืบหน้า: ','Progress: ')+data.sets.observed_n+'/'+data.sets.threshold_n+' · '+dmOptionsReadoutPercent(data.sets.progress)+' · '+thresholdText);
+  add(uiCopy('ความครอบคลุมของป้าย: ','Label coverage: ')+data.labels.labeled_n+'/'+data.labels.label_required_n+' · '+dmOptionsReadoutPercent(data.labels.coverage));
+  if(data.cap.truncated===true||data.cap.count_semantics==='observed_lower_bound'||data.sets.count_semantics==='observed_lower_bound') add(uiCopy('⚠ นับข้อมูลไม่ครบ — ตัวเลขเป็นค่าขั้นต่ำจากข้อมูลที่เลือกมา','⚠ Incomplete count — figures are lower bounds from the selected rows'),'color:#FAC775;font-weight:700');
+  add(uiCopy('อัตราตัดผิดแยกตามเหตุผล','FP rate by reason'),'font-weight:700;margin-top:2px');
+  if(!data.reason_codes.length) add(uiCopy('ไม่มีข้อมูลเหตุผลสำหรับคำนวณ','No reason data is available'));
+  data.reason_codes.forEach(row=>add(row.reason+' · '+uiCopy('อัตราตัดผิด ','FP rate ')+dmOptionsReadoutPercent(row.false_positive_rate)+' ('+row.false_positive_rate.numerator+'/'+row.false_positive_rate.denominator+')'));
+  return box;
+}
+function dmOptionsReadoutInsert(card,result){
+  const node=dmOptionsReadoutNode(result), summary=card&&typeof card.querySelector==='function'?card.querySelector('.sectitle + .note'):null;
+  if(summary&&typeof summary.insertAdjacentElement==='function') summary.insertAdjacentElement('afterend',node); else if(card&&typeof card.appendChild==='function') card.appendChild(node);
+  return node;
+}
+async function dmOptionsReadoutFetch(campaignId){
+  let timer=null;
+  try{
+    const token=(await supa.auth.getSession()).data.session?.access_token; if(!token) return {ok:false};
+    const controller=typeof AbortController==='function'?new AbortController():null; if(controller) timer=setTimeout(()=>{try{controller.abort();}catch(e){}},7000);
+    const response=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({campaign_id:campaignId,rules_info:{kind:'dm_options_readout',window_days:30}}),signal:controller?controller.signal:undefined});
+    let payload=null; try{ payload=await response.json(); }catch(e){} if(!response.ok) return {ok:false};
+    const data=dmOptionsReadoutShape(payload); return data?{ok:true,data}:{ok:false};
+  }catch(e){ return {ok:false}; }finally{ if(timer!==null) clearTimeout(timer); }
+}
+function dmOptionsReadoutOpen(){
+  const campaignId=campaign&&campaign.id?String(campaign.id):'';
+  const isHost=!!(campaignId&&typeof me!=='undefined'&&me&&campaign.host_id===me.id);
+  const promise=isHost?dmOptionsReadoutFetch(campaignId):Promise.resolve({ok:false,hidden:true});
+  _dmOptionsReadoutOpenState={campaignId,promise}; return promise;
+}
+function dmOptionsReadoutForCard(){
+  const campaignId=campaign&&campaign.id?String(campaign.id):'';
+  if(_dmOptionsReadoutOpenState.campaignId!==campaignId||!_dmOptionsReadoutOpenState.promise) return dmOptionsReadoutOpen();
+  return _dmOptionsReadoutOpenState.promise;
+}
+// DMOPT-READOUT-01B host readout end
 async function dmOptionsAuditCard(){
   if(!campaign||!me||campaign.host_id!==me.id) return null;
   const pageSize=10, from=_dmOptAuditPage*pageSize;
@@ -10788,7 +10867,7 @@ async function renderFiles(){
         p.appendChild(card);
       }
     }catch(e){}
-    try{ const oa=await dmOptionsAuditCard(); if(oa) p.appendChild(oa); }catch(e){}
+    try{ const oa=await dmOptionsAuditCard(); if(oa){ p.appendChild(oa); Promise.resolve(dmOptionsReadoutForCard()).then(readout=>{try{dmOptionsReadoutInsert(oa,readout);}catch(e){}}).catch(()=>{try{dmOptionsReadoutInsert(oa,{ok:false});}catch(e){}}); } }catch(e){}
   }
   let files=null;
   try{ const r=await supa.from('references_files').select('*').eq('campaign_id',campaign.id).order('created_at',{ascending:false}); if(!r.error) files=r.data||[]; }catch(e){}
