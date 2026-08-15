@@ -2116,7 +2116,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608150450;   // REVIEW-01: host-only DM Options audit review card (label per exact reason) · asset ring 20260813a1 unchanged
+const FRONTEND_BUILD = 202608150714;   // REVIEW-01: host-only DM Options audit review card (label per exact reason) · asset ring 20260813a1 unchanged
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -6182,13 +6182,22 @@ async function renderRoundbar(){
     else if(pending.length) w.innerHTML=uiCopy('✓ คุณส่งแล้ว — กำลังรอคำตอบจากสมาชิกในปาร์ตี้ <b>','✓ Submitted — waiting for <b>')+escapeHtml(pending.join(', '))+uiCopy('</b><br><span class="muted">เมื่อทุกคนพร้อม ผู้ดูแลสามารถดำเนินเรื่องต่อได้</span>','</b><br><span class="muted">Once everyone is ready, the host can continue the scene.</span>');
     else w.innerHTML=uiCopy('✓ ส่งครบแล้ว — พร้อมลองดำเนินเรื่องรอบนี้อีกครั้งหาก DM หยุดก่อนจบ<br><span class="muted">(แก้: เกมจะไม่ลองซ้ำเอง เพื่อไม่ให้ผู้เล่าเรื่องทำงานซ้ำ)</span>','✓ All actions are submitted — this round is ready for a deliberate retry if the DM stopped early.<br><span class="muted">(Fixed: the game will not retry by itself, avoiding duplicate storyteller requests.)</span>');
     bar.appendChild(w);
+    // REPAIR-EDIT-01: owner edit is derived from the active DB row, so reload cannot erase the affordance.
+    const _myActiveAction=list.find(a=>String(a.user_id)===String(me&&me.id));
+    if(_myActiveAction&&curRound.phase==='awaiting_actions'){
+      const eb=document.createElement('button'); eb.className='btn warn sm'; eb.textContent=uiCopy('✎ แก้ action ของฉัน','✎ Edit my action');
+      eb.disabled=!!resolving; eb.onclick=()=>retractActionForEdit(_myActiveAction.id,_myActiveAction.action_text||''); bar.appendChild(eb);
+    }
     const _wedge=(worldState&&worldState.settings&&worldState.settings.enc_action_wedge)||null;
     const _repair=window._actionRepair&&window._actionRepair.round_id===curRound.id?window._actionRepair:(_wedge&&String(_wedge.round_id)===String(curRound.id)?_wedge:null);
     const _stuckAction=_repair?(_repair.action_id?list.find(a=>String(a.id)===String(_repair.action_id)):list.find(a=>String(a.user_id)===String(me&&me.id))):null;
     const _canRepair=!!_stuckAction&&(isHost||String(_stuckAction.user_id)===String(me&&me.id));
     if(_repair&&_canRepair&&curRound.phase==='awaiting_actions'){
-      const eb=document.createElement('button'); eb.className='btn warn sm'; eb.textContent=_repair.generic?uiCopy('✎ แก้ action ก่อนลองใหม่','✎ Edit action before retry'):(isHost?uiCopy('✎ ปลด action ที่ค้าง','✎ Release stuck action'):uiCopy('✎ แก้ action ของคุณ','✎ Edit your action'));
-      eb.disabled=!!resolving; eb.onclick=()=>retractActionForEdit(_stuckAction.id,String(_stuckAction.user_id)===String(me&&me.id)?(_stuckAction.action_text||''):''); bar.appendChild(eb);
+      const _ownerEditAlreadyShown=String(_stuckAction.id)===String(_myActiveAction&&_myActiveAction.id);
+      if(!_ownerEditAlreadyShown){
+        const eb=document.createElement('button'); eb.className='btn warn sm'; eb.textContent=_repair.generic?uiCopy('✎ แก้ action ก่อนลองใหม่','✎ Edit action before retry'):(isHost?uiCopy('✎ ปลด action ที่ค้าง','✎ Release stuck action'):uiCopy('✎ แก้ action ของคุณ','✎ Edit your action'));
+        eb.disabled=!!resolving; eb.onclick=()=>retractActionForEdit(_stuckAction.id,String(_stuckAction.user_id)===String(me&&me.id)?(_stuckAction.action_text||''):''); bar.appendChild(eb);
+      }
       const _inventoryAffordances=Array.isArray(_repair.affordances)?_repair.affordances:[];
       const _inventoryChoiceOwner=String(_stuckAction.user_id)===String(me&&me.id);
       if(_inventoryAffordances.length&&_inventoryChoiceOwner){
