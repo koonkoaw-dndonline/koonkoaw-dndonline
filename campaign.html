@@ -2116,7 +2116,7 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608151009;   // REVIEW-01: host-only DM Options audit review card (label per exact reason) · asset ring 20260813a1 unchanged
+const FRONTEND_BUILD = 202608151127;   // REVIEW-01: host-only DM Options audit review card (label per exact reason) · asset ring 20260813a1 unchanged
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -10533,6 +10533,35 @@ function fileDropdown(labelText, count){
   det._body=body; return det;
 }
 let _dmOptAuditPage=0;
+// FE-AUDIT-01 origin surface start
+function dmOptionOriginText(origin){
+  const value=String(origin||'').trim();
+  if(value==='llm') return uiCopy('จาก DM','From DM');
+  if(value==='fallback_contextual') return uiCopy('สำรอง (บริบท)','Fallback (context)');
+  if(value==='fallback_full') return uiCopy('สำรอง (ทั้งชุด)','Fallback (full set)');
+  if(value==='fallback_fill') return uiCopy('สำรอง (เติมชุด)','Fallback (fill)');
+  if(value==='repair') return uiCopy('ซ่อม','Repair');
+  if(value==='server_synth') return uiCopy('ระบบสังเคราะห์','Server synthesized');
+  return uiCopy('ไม่มีข้อมูล','No data');
+}
+function dmOptionAuditValue(value){ const text=String(value??'').trim(); return text||uiCopy('ไม่มีข้อมูล','No data'); }
+function dmOptionIngressText(ingress){
+  const value=ingress&&typeof ingress==='object'?ingress:{};
+  const status=String(value.status||'');
+  const statusText=status==='measured'?uiCopy('ตรวจวัดแล้ว','Measured'):status==='bypassed'?uiCopy('ข้ามการตรวจวัด','Bypassed'):uiCopy('ไม่มีข้อมูล','No data');
+  const parts=[uiCopy('ทางเข้า: ','Ingress: ')+statusText];
+  [['input_n',uiCopy('รับเข้า ','Input ')],['accepted_n',uiCopy('ยอมรับ ','Accepted ')],['reconstructed_n',uiCopy('ประกอบใหม่ ','Reconstructed ')],['rejected_format_n',uiCopy('ตัดเพราะรูปแบบ ','Format rejects ')],['rejected_language_n',uiCopy('ตัดเพราะภาษา ','Language rejects ')]].forEach(([key,label])=>{
+    const count=value[key]; if(Number.isSafeInteger(count)&&count>=0) parts.push(label+count);
+  });
+  if(value.capped===true) parts.push(uiCopy('ตัวนับถูกจำกัดที่ 64','Counters capped at 64'));
+  return parts.join(' · ');
+}
+function dmOptionAuditSetLines(detail){
+  const det=detail&&typeof detail==='object'?detail:{};
+  return [dmOptionIngressText(det.ingress),uiCopy('รหัสคำขอ: ','Request ID: ')+dmOptionAuditValue(det.request_id),uiCopy('รอบต้นทาง: ','Source round: ')+dmOptionAuditValue(det.source_round)];
+}
+function dmOptionCandidateOriginLine(candidate){ return uiCopy('ที่มา: ','Origin: ')+dmOptionOriginText(candidate&&candidate.candidate_origin); }
+// FE-AUDIT-01 origin surface end
 async function dmOptionsAuditCard(){
   if(!campaign||!me||campaign.host_id!==me.id) return null;
   const pageSize=10, from=_dmOptAuditPage*pageSize;
@@ -10558,13 +10587,13 @@ async function dmOptionsAuditCard(){
   const card=document.createElement('div'); card.className='item';
   card.innerHTML='<div class="sectitle">🎯 DM OPTIONS AUDIT</div><div class="note" style="text-align:left">'+uiCopy('ชุดทั้งหมด ','Total sets ')+total+' · '+uiCopy('ใช้ไม่ได้ ','unavailable ')+(total?Math.round(unavail*100/total):0)+'% · '+uiCopy('เก่า ','stale ')+(staleR.count||0)+' · '+uiCopy('เขียนใหม่ ','rewritten ')+(rewriteR.count||0)+' · '+uiCopy('ข้อผิดพลาดร้ายแรง ','hard errors ')+(hardErrR.count||0)+'<br>'+uiCopy('ช่วงเก็บตัวอย่างห้าม prune system_logs ต่ำกว่า 1000 แถว; ต้องมีอย่างน้อย 100 ชุดก่อนพิจารณา enforce','During sampling, keep at least 1000 system-log rows and collect at least 100 option sets before enforce')+'</div>';
   if(reviewLoadError){ const warn=document.createElement('div'); warn.className='note'; warn.style.cssText='text-align:left;color:#FAC775'; warn.textContent=uiCopy('โหลดป้ายตรวจเดิมไม่สำเร็จ — ยังลองบันทึกป้ายใหม่ได้','Could not load existing reviews — you can still try saving a new label'); card.appendChild(warn); }
-  auditRows.forEach(row=>{ const det=row.detail||{}, d=document.createElement('details'); d.style.cssText='margin:5px 0;border-top:1px solid #444;padding-top:5px'; const s=document.createElement('summary'); s.textContent=new Date(row.created_at).toLocaleString()+' · '+(det.surface||'submit')+' · '+(det.wall_mode||'')+' · '+(det.unavailable?uiCopy('ใช้ไม่ได้','unavailable'):uiCopy((det.final||[]).length+' รายการสุดท้าย',(det.final||[]).length+' final')); d.appendChild(s); const b=document.createElement('div'); b.style.cssText='white-space:pre-wrap;font-size:12px;line-height:1.45;padding:5px';
+  auditRows.forEach(row=>{ const det=row.detail||{}, d=document.createElement('details'); d.style.cssText='margin:5px 0;border-top:1px solid #444;padding-top:5px'; const s=document.createElement('summary'); s.textContent=new Date(row.created_at).toLocaleString()+' · '+(det.surface||'submit')+' · '+(det.wall_mode||'')+' · '+(det.unavailable?uiCopy('ใช้ไม่ได้','unavailable'):uiCopy((det.final||[]).length+' รายการสุดท้าย',(det.final||[]).length+' final')); d.appendChild(s); const auditMeta=document.createElement('div'); auditMeta.className='muted'; auditMeta.style.cssText='display:grid;gap:2px;padding:5px;font-size:11px'; dmOptionAuditSetLines(det).forEach(text=>{ const line=document.createElement('div'); line.textContent=text; auditMeta.appendChild(line); }); d.appendChild(auditMeta); const b=document.createElement('div'); b.style.cssText='white-space:pre-wrap;font-size:12px;line-height:1.45;padding:5px';
     const reasons=(det.parsed||[]).map(x=>({raw:x.raw,reasons:x.reasons}));
     b.textContent='original → '+JSON.stringify(det.original||[],null,2)+'\nreasons → '+JSON.stringify(reasons,null,2)+'\nfinal → '+JSON.stringify(det.final||[],null,2)+'\ntiming/model/token → '+JSON.stringify({timings:det.timings,model:det.model,token:det.token,repair:det.repair},null,2); d.appendChild(b);
     const reviewBox=document.createElement('div'); reviewBox.style.cssText='display:grid;gap:6px;padding:5px'; let reviewableN=0;
     (det.parsed||[]).forEach((candidate,index)=>{ (Array.isArray(candidate.reasons)?candidate.reasons:[]).forEach(reason=>{
       reviewableN++; const ordinal=index+1, exactReason=String(reason), key=reviewKey(row.id,ordinal,exactReason), line=document.createElement('div'); line.style.cssText='border:1px solid #444;border-radius:7px;padding:7px;display:grid;gap:5px';
-      const title=document.createElement('div'); title.textContent='#'+ordinal+' · '+exactReason; title.style.fontWeight='700'; line.appendChild(title);
+      const title=document.createElement('div'); title.textContent='#'+ordinal+' · '+exactReason; title.style.fontWeight='700'; line.appendChild(title); const origin=document.createElement('div'); origin.className='muted'; origin.textContent=dmOptionCandidateOriginLine(candidate); line.appendChild(origin);
       const status=document.createElement('div'); status.className='muted'; const buttons=[];
       const paint=(saved=false)=>{ const current=reviewsByKey.get(key); status.textContent=current?(saved?uiCopy('บันทึกแล้ว: ','Saved: '):uiCopy('สถานะ: ','Status: '))+reviewLabelText(current.label):uiCopy('สถานะ: ยังไม่ตรวจ','Status: not reviewed'); buttons.forEach(({button,label})=>button.style.opacity=current&&current.label===label?'1':'.72'); };
       line.appendChild(status); const actions=document.createElement('div'); actions.style.cssText='display:flex;gap:5px;flex-wrap:wrap';
