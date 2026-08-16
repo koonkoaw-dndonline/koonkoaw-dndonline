@@ -238,6 +238,19 @@ a.link:hover{background:var(--white);color:var(--black);}
   border-top:var(--px) solid var(--white);
   padding:11px 11px 12px;display:flex;flex-direction:column;gap:9px;margin-top:6px;
 }
+.party-decision-mount:empty{display:none;}
+.party-decision-mount{display:flex;flex-direction:column;gap:9px;}
+.party-decision-card{
+  background:var(--black);border:var(--px) solid var(--white);border-radius:9px;
+  padding:12px;display:flex;flex-direction:column;gap:10px;
+  box-shadow:0 0 0 var(--px) var(--black),inset 0 0 0 2px var(--black);
+}
+.party-decision-message{font-size:13px;line-height:1.65;color:var(--gray);}
+.party-decision-question{font-size:16px;line-height:1.55;color:var(--white);}
+.party-decision-options{display:flex;flex-direction:column;gap:7px;}
+.party-decision-option{width:100%;text-align:left;justify-content:flex-start;white-space:normal;line-height:1.45;}
+.party-decision-option[aria-pressed="true"]{background:var(--white);color:var(--black);border-style:double;}
+.party-decision-status{font-size:12px;line-height:1.6;color:var(--gray);border-top:2px dashed var(--gray-dim);padding-top:8px;}
 .statusline{font-size:13px;color:var(--gray);display:flex;align-items:center;gap:8px;flex-wrap:wrap;line-height:1.5;}
 .statusline i{color:var(--white);font-style:normal;}
 .pill{
@@ -390,14 +403,14 @@ body.ui-min #worldClock{display:none!important;}
   .panel[data-tab="story"].active{
     display:grid;
     grid-template-columns:minmax(0,1fr) 380px;
-    grid-template-rows:auto 1fr;
+    grid-template-rows:auto auto minmax(0,1fr);
     gap:0 24px;
     max-width:none;width:100%;
     overflow:hidden;            /* ไม่ให้ทั้ง panel เลื่อน */
   }
   .panel[data-tab="story"].active #worldClock{grid-column:1 / -1;grid-row:1;}
   .panel[data-tab="story"].active #narrFeed{
-    grid-column:1;grid-row:2;min-width:0;
+    grid-column:1;grid-row:2 / 4;min-width:0;
     overflow-y:auto;max-height:100%;padding-right:8px;   /* แถบ scroll ติดเนื้อเรื่อง */
     scrollbar-width:thin;scrollbar-color:#2a2a2a transparent;
   }
@@ -407,10 +420,13 @@ body.ui-min #worldClock{display:none!important;}
   .panel[data-tab="story"].active #narrFeed::-webkit-scrollbar-thumb{background:#2a2a2a;border:0;border-radius:4px;}
   .panel[data-tab="story"].active #narrFeed::-webkit-scrollbar-thumb:hover{background:#444;}
   .panel[data-tab="story"].active .roundbar{
-    grid-column:2;grid-row:2;align-self:stretch;
+    grid-column:2;grid-row:3;align-self:stretch;
     overflow-y:auto;max-height:100%;                       /* ปกติไม่เลื่อน เผื่อยาวมากค่อยเลื่อนเฉพาะกล่องนี้ */
     border-top:none;border-left:var(--px) solid var(--white);
     padding:2px 0 80px 18px;margin:0;max-width:none;width:100%;
+  }
+  .panel[data-tab="story"].active #partyDecisionMount{
+    grid-column:2;grid-row:2;padding:0 0 12px 18px;
   }
 }
 /* ≥1300: World HUD ลอยซ้าย (ตำแหน่งเดิม) → เว้นที่ให้เนื้อเรื่องไม่ทับ */
@@ -2096,6 +2112,7 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
   <div id="worldClock" class="worldhud hidden"></div>
   <div id="inventoryReceiptFirst" role="status" aria-live="polite" style="display:none;"></div><!-- v782: S4 receipt-first mount above narration -->
   <div id="narrFeed" style="display:flex;flex-direction:column;gap:12px;"></div>
+  <div id="partyDecisionMount" class="party-decision-mount" role="status" aria-live="polite"></div>
   <div class="roundbar" id="roundbar"></div>
 </div>
 <div class="panel" id="panel-me" data-tab="me"></div>
@@ -2131,7 +2148,8 @@ function edgeFunctionResolverUrl(region){
 }
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
-const FRONTEND_BUILD = 202608160126;   // REVIEW-01: host-only DM Options audit review card (label per exact reason) · asset ring 20260813a1 unchanged
+const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
+const FRONTEND_BUILD = 202608170641;   // REVIEW-01: host-only DM Options audit review card (label per exact reason) · asset ring 20260813a1 unchanged
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2556,6 +2574,162 @@ function uiLanguage(){
 }
 function uiText(key,vars){ return UI18N.text(uiLanguage(),key,vars); }
 function uiCopy(th,en,lang){ return UI18N.language(lang||uiLanguage())==='en'?en:th; }
+// PARTYDEC-03 ballot UI start
+// Exact mirror of party-decision-ballot-copy.ts. The golden locks this mirror
+// to the server catalog; question and option prose still comes only from the
+// authenticated privacy projection.
+const PARTY_DECISION_UI_COPY=Object.freeze({
+  open:Object.freeze(['ความเห็นของคณะยังแยกเป็นสองทาง—ถึงเวลาที่ทุกเสียงจะเลือกเส้นทางข้างหน้า','The party stands between competing paths—now every voice may choose the way forward.']),
+  vote:Object.freeze(['คำเลือกของคุณยืนอยู่ร่วมกับเสียงของคณะแล้ว','Your choice now stands with the voices of the party.']),
+  'change-vote':Object.freeze(['คุณเปลี่ยนใจแล้ว และคำเลือกใหม่นี้แทนคำเดิมของคุณ','You have changed your mind, and this new choice replaces your former one.']),
+  abstain:Object.freeze(['คุณถอยจากการเลือกครั้งนี้ และฝากเส้นทางไว้กับสหายร่วมคณะ','You step back from this choice and leave the path to your companions.']),
+  'quorum-wait':Object.freeze(['คณะยังได้ยินเสียงไม่ครบพอ การตัดสินใจจึงยังเปิดรออยู่','The party has not heard enough voices yet, so the choice remains open.']),
+  'stale-ballot':Object.freeze(['ทางเลือกเปลี่ยนไประหว่างที่คุณกำลังตัดสินใจ โปรดมองเส้นทางปัจจุบันแล้วเลือกอีกครั้ง','The paths shifted while you were deciding; look over the choices now before choosing again.']),
+  close:Object.freeze(['เสียงของคณะลงเอยแล้ว และเส้นทางที่เลือกกำลังพาทุกคนเดินหน้าต่อ',"The party's choice is settled, and the chosen path now carries everyone onward."]),
+  replay:Object.freeze(['เสียงนี้ได้รับการรับฟังแล้ว ทุกอย่างจึงคงเดิมตามคำเลือกของคุณ','This voice was already heard, so your choice remains just as you left it.'])
+});
+const PARTY_DECISION_UI_SURFACES=Object.freeze(Object.keys(PARTY_DECISION_UI_COPY));
+const PARTY_DECISION_UI_UUID_RE=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+function partyDecisionUiCopy(surface,lang){
+  const pair=PARTY_DECISION_UI_COPY[surface]||PARTY_DECISION_UI_COPY['stale-ballot'];
+  return uiCopy(pair[0],pair[1],lang);
+}
+function partyDecisionCanonicalLanguage(){ return campaign&&campaign.game_language==='th'?'th':campaign&&campaign.game_language==='en'?'en':null; }
+function partyDecisionUiInteger(value){ const n=Number(value); return Number.isSafeInteger(n)&&n>=0?n:null; }
+function partyDecisionUiUuid(value){ const s=String(value||'').trim().toLowerCase(); return PARTY_DECISION_UI_UUID_RE.test(s)?s:null; }
+function partyDecisionProjectionForUi(raw,canonicalLanguage,groupNo){
+  if(!raw||typeof raw!=='object'||Array.isArray(raw)) return null;
+  const decisionId=partyDecisionUiUuid(raw.decision_id), revision=partyDecisionUiInteger(raw.revision);
+  const status=String(raw.status||''), language=String(raw.content_language||''), scope=String(raw.scope_kind||'');
+  const question=String(raw.question_text||'').trim(), accepting=raw.accepting_ballots===true;
+  const participating=partyDecisionUiInteger(raw.participating_count), eligible=partyDecisionUiInteger(raw.eligible_count), quorum=partyDecisionUiInteger(raw.quorum_required);
+  if(!decisionId||revision===null||revision<1||(status!=='open'&&status!=='runoff')||language!==canonicalLanguage||!question||participating===null||eligible===null||quorum===null||participating>eligible||quorum>eligible) return null;
+  if(scope==='group'){ if(Number(raw.group_no)!==groupNo) return null; }
+  else if(scope==='party'){ if(raw.group_no!==null) return null; }
+  else return null;
+  if(!Array.isArray(raw.options)||raw.options.length<2||raw.options.length>3) return null;
+  const seen=new Set(), options=[];
+  for(const item of raw.options){
+    if(!item||typeof item!=='object'||Array.isArray(item)) return null;
+    const id=partyDecisionUiUuid(item.option_id), ordinal=partyDecisionUiInteger(item.ordinal), label=String(item.label_text||'').trim();
+    if(!id||seen.has(id)||ordinal===null||ordinal<1||ordinal>3||!label) return null;
+    seen.add(id); options.push(Object.freeze({id:id,ordinal:ordinal,label:label}));
+  }
+  options.sort((a,b)=>a.ordinal-b.ordinal);
+  let ownBallot=null;
+  if(raw.own_ballot!==null&&raw.own_ballot!==undefined){
+    const own=raw.own_ballot;
+    if(!own||typeof own!=='object'||Array.isArray(own)) return null;
+    const id=partyDecisionUiUuid(own.id), ownRevision=partyDecisionUiInteger(own.revision), optionId=own.option_id===null?null:partyDecisionUiUuid(own.option_id), abstain=own.abstain===true;
+    if(!id||ownRevision!==revision||((optionId!==null)===abstain)||(optionId!==null&&!seen.has(optionId))) return null;
+    ownBallot=Object.freeze({id:id,revision:ownRevision,optionId:optionId,abstain:abstain});
+  }
+  return Object.freeze({decisionId:decisionId,revision:revision,status:status,language:language,question:question,accepting:accepting,participating:participating,eligible:eligible,quorum:quorum,options:Object.freeze(options),ownBallot:ownBallot,surface:accepting?'open':'stale-ballot'});
+}
+function partyDecisionReaderForUi(raw,canonicalLanguage,groupNo){
+  if(!raw||raw.ok!==true||raw.source!=='normalized_party_decisions'||raw.language!==canonicalLanguage||Number(raw.group_no)!==groupNo||!Array.isArray(raw.decisions)) return null;
+  const decisions=[];
+  for(const item of raw.decisions){ const safe=partyDecisionProjectionForUi(item,canonicalLanguage,groupNo); if(!safe) return null; decisions.push(safe); }
+  return Object.freeze(decisions);
+}
+function partyDecisionBallotPayloadForUi(decision,campaignId,speakerId,optionId,abstain,requestId){
+  if(!decision||!decision.accepting||!partyDecisionUiUuid(campaignId)||!partyDecisionUiUuid(speakerId)||!partyDecisionUiUuid(requestId)||typeof abstain!=='boolean') return null;
+  const selected=optionId===null?null:partyDecisionUiUuid(optionId), offered=selected!==null&&decision.options.some(item=>item.id===selected);
+  if((selected!==null)===abstain||(selected!==null&&!offered)) return null;
+  if(decision.ownBallot&&decision.ownBallot.abstain===abstain&&decision.ownBallot.optionId===selected) return null;
+  return {campaign_id:campaignId,decision_id:decision.decisionId,revision:decision.revision,speaker_character_id:speakerId,option_id:selected,abstain:abstain,expected_ballot_id:decision.ownBallot?decision.ownBallot.id:null,client_request_id:requestId};
+}
+function partyDecisionWaitCount(decision){ return Math.max(0,Number(decision.quorum)-Number(decision.participating)); }
+let _partyDecisionState={decisions:[],noticeByDecision:Object.create(null),errorSurface:null,inFlight:new Set(),generation:0};
+let _partyDecisionReaderPromise=null,_partyDecisionReaderQueued=false,_partyDecisionRequestMemory=Object.create(null);
+function partyDecisionReset(){
+  _partyDecisionState={decisions:[],noticeByDecision:Object.create(null),errorSurface:null,inFlight:new Set(),generation:_partyDecisionState.generation+1};
+  _partyDecisionReaderQueued=false; _partyDecisionRequestMemory=Object.create(null); partyDecisionRender();
+}
+function partyDecisionRequestSeed(decision,speakerId,optionId,abstain){
+  const expected=decision.ownBallot?decision.ownBallot.id:null;
+  const raw=[decision.decisionId,decision.revision,speakerId,optionId,abstain,expected].join('|'); let hash=2166136261;
+  for(let i=0;i<raw.length;i++){ hash^=raw.charCodeAt(i); hash=Math.imul(hash,16777619); }
+  const slot='ttrpg_party_decision_req_'+decision.decisionId+'_'+(hash>>>0).toString(16); let id=_partyDecisionRequestMemory[slot]||'';
+  try{ id=id||sessionStorage.getItem(slot)||''; }catch(e){}
+  if(!partyDecisionUiUuid(id)){ id=crypto.randomUUID(); try{ sessionStorage.setItem(slot,id); }catch(e){} }
+  _partyDecisionRequestMemory[slot]=id; return {id:id,slot:slot};
+}
+function partyDecisionRequestClear(slot){ delete _partyDecisionRequestMemory[slot]; try{ sessionStorage.removeItem(slot); }catch(e){} }
+function partyDecisionNode(tag,className,text){ const el=document.createElement(tag); if(className) el.className=className; if(text!==undefined) el.textContent=String(text); return el; }
+function partyDecisionRender(){
+  const mount=document.getElementById('partyDecisionMount'); if(!mount) return; mount.replaceChildren();
+  if(!campaign||!myChar) return;
+  const lang=partyDecisionCanonicalLanguage(); if(!lang) return; const busyIds=_partyDecisionState.inFlight;
+  /* reviewer fix 08-16: no last-good ballot ⇒ nothing to be stale about — a reader hiccup must not conjure a "paths shifted" card for a vote the player never saw (with no ballot producer live yet, that card would be the only thing this surface ever showed) · with last-good cards the stale copy rides on each card below */
+  if(!_partyDecisionState.decisions.length) return;
+  for(const decision of _partyDecisionState.decisions){
+    const busy=busyIds.has(decision.decisionId), card=partyDecisionNode('section','party-decision-card'); card.dataset.decisionId=decision.decisionId;
+    card.appendChild(partyDecisionNode('div','party-decision-message',partyDecisionUiCopy(decision.surface,lang)));
+    card.appendChild(partyDecisionNode('div','party-decision-question',decision.question));
+    const options=partyDecisionNode('div','party-decision-options');
+    for(const option of decision.options){
+      const current=!!(decision.ownBallot&&!decision.ownBallot.abstain&&decision.ownBallot.optionId===option.id), button=partyDecisionNode('button','btn party-decision-option',option.label);
+      button.type='button'; button.disabled=busy||!decision.accepting||current; button.setAttribute('aria-pressed',current?'true':'false'); button.title=partyDecisionUiCopy(decision.ownBallot&&!current?'change-vote':'vote',lang);
+      button.addEventListener('click',()=>partyDecisionCast(decision.decisionId,option.id,false)); options.appendChild(button);
+    }
+    const abstaining=!!(decision.ownBallot&&decision.ownBallot.abstain), abstainButton=partyDecisionNode('button','btn ghost party-decision-option',partyDecisionUiCopy('abstain',lang));
+    abstainButton.type='button'; abstainButton.disabled=busy||!decision.accepting||abstaining; abstainButton.setAttribute('aria-pressed',abstaining?'true':'false'); abstainButton.title=partyDecisionUiCopy('abstain',lang); abstainButton.addEventListener('click',()=>partyDecisionCast(decision.decisionId,null,true)); options.appendChild(abstainButton); card.appendChild(options);
+    const notice=_partyDecisionState.noticeByDecision[decision.decisionId];
+    if(notice||decision.ownBallot){ const surface=notice||(decision.ownBallot.abstain?'abstain':'vote'); card.appendChild(partyDecisionNode('div','party-decision-status',partyDecisionUiCopy(surface,lang))); }
+    if(_partyDecisionState.errorSurface&&_partyDecisionState.errorSurface!==notice) card.appendChild(partyDecisionNode('div','party-decision-status',partyDecisionUiCopy(_partyDecisionState.errorSurface,lang)));
+    const waiting=partyDecisionWaitCount(decision); if(waiting>0) card.appendChild(partyDecisionNode('div','party-decision-status',partyDecisionUiCopy('quorum-wait',lang)+' · '+waiting));
+    mount.appendChild(card);
+  }
+}
+async function partyDecisionFetchJson(url,init,timeoutMs){
+  const controller=new AbortController(), timer=setTimeout(()=>controller.abort(),Math.max(1,Number(timeoutMs)||8000));
+  try{ const response=await fetch(url,Object.assign({},init||{},{signal:controller.signal})); let data=null; try{ data=await response.json(); }catch(e){} return {ok:response.ok,status:response.status,data:data}; }
+  finally{ clearTimeout(timer); }
+}
+async function partyDecisionAuthHeaders(){
+  const token=(await supa.auth.getSession()).data.session?.access_token; if(!token) throw new Error('party_decision_auth_missing');
+  return {'Content-Type':'application/json','Authorization':'Bearer '+token};
+}
+function partyDecisionReaderUrl(campaignId,groupNo){ return PARTY_DECISION_SURFACE_FN+'?campaign_id='+encodeURIComponent(campaignId)+'&group_no='+encodeURIComponent(groupNo); }
+async function partyDecisionRefresh(reason){
+  if(_partyDecisionReaderPromise){ _partyDecisionReaderQueued=true; return _partyDecisionReaderPromise; }
+  if(!campaign||!myChar){ partyDecisionRender(); return false; }
+  const language=partyDecisionCanonicalLanguage(); if(!language){ partyDecisionRender(); return false; }
+  const campaignId=String(campaign.id), groupNo=terminalGroupForUi(), generation=_partyDecisionState.generation;
+  _partyDecisionReaderPromise=(async()=>{
+    try{
+      const headers=await partyDecisionAuthHeaders(), response=await partyDecisionFetchJson(partyDecisionReaderUrl(campaignId,groupNo),{method:'GET',headers:headers},8000);
+      if(!response.ok) throw new Error('party_decision_reader_failed');
+      const decisions=partyDecisionReaderForUi(response.data,language,groupNo); if(!decisions) throw new Error('party_decision_projection_invalid');
+      if(!_partyDecisionState||generation!==_partyDecisionState.generation||!campaign||String(campaign.id)!==campaignId||terminalGroupForUi()!==groupNo) return false;
+      _partyDecisionState.decisions=decisions; _partyDecisionState.errorSurface=null; partyDecisionRender(); return true;
+    }catch(e){
+      if(_partyDecisionState&&generation===_partyDecisionState.generation&&campaign&&String(campaign.id)===campaignId){ _partyDecisionState.errorSurface='stale-ballot'; partyDecisionRender(); }
+      return false;
+    }
+  })().finally(()=>{
+    _partyDecisionReaderPromise=null;
+    if(_partyDecisionReaderQueued){ _partyDecisionReaderQueued=false; partyDecisionRefresh('queued'); }
+  });
+  return _partyDecisionReaderPromise;
+}
+function partyDecisionHintRefresh(reason){ return partyDecisionRefresh(reason).catch(()=>false); }
+async function partyDecisionCast(decisionId,optionId,abstain){
+  const decision=_partyDecisionState.decisions.find(item=>item.decisionId===decisionId); if(!decision||_partyDecisionState.inFlight.has(decisionId)||!campaign||!myChar) return false;
+  const seed=partyDecisionRequestSeed(decision,myChar.id,optionId,abstain), payload=partyDecisionBallotPayloadForUi(decision,campaign.id,myChar.id,optionId,abstain,seed.id); if(!payload) return false;
+  const campaignId=String(campaign.id), generation=_partyDecisionState.generation; _partyDecisionState.inFlight.add(decisionId); partyDecisionRender();
+  try{
+    const headers=await partyDecisionAuthHeaders(), response=await partyDecisionFetchJson(PARTY_DECISION_SURFACE_FN+'/ballot',{method:'POST',headers:headers,body:JSON.stringify(payload)},8000);
+    if(!_partyDecisionState||generation!==_partyDecisionState.generation||!campaign||String(campaign.id)!==campaignId) return false;
+    const body=response.data||{}, surface=PARTY_DECISION_UI_SURFACES.includes(body.surface)?body.surface:'stale-ballot';
+    if(!response.ok||body.ok!==true){ _partyDecisionState.errorSurface=surface; _partyDecisionState.noticeByDecision[decisionId]=surface; if(surface==='stale-ballot') await partyDecisionRefresh('stale-ballot'); return false; }
+    if(body.shadow_only!==true||String(body.decision_id)!==decisionId||Number(body.revision)!==decision.revision||!['vote','change-vote','abstain','replay'].includes(surface)){ _partyDecisionState.errorSurface='stale-ballot'; return false; }
+    _partyDecisionState.noticeByDecision[decisionId]=surface; _partyDecisionState.errorSurface=null; partyDecisionRequestClear(seed.slot); await partyDecisionRefresh('ballot'); return true;
+  }catch(e){ _partyDecisionState.errorSurface='stale-ballot'; return false; }
+  finally{ if(_partyDecisionState&&generation===_partyDecisionState.generation){ _partyDecisionState.inFlight.delete(decisionId); partyDecisionRender(); } }
+}
+// PARTYDEC-03 ballot UI end
 const WORLD_TAB_COPY=Object.freeze({
   story:Object.freeze(['เนื้อเรื่อง','Story']), me:Object.freeze(['สถานะ','Stat']),
   items:Object.freeze(['ไอเทม','Items']), skills:Object.freeze(['ทักษะ','Skills']),
@@ -3599,6 +3773,7 @@ async function enterCampaign(){
   show('campaign');
   configureWorldSwitcherHeader();   // after hiding the selector so uiCopy follows the selected world's DB language
   switchTab('story');
+  partyDecisionReset();
   await refreshAll();
   if(activeTab()==='story') renderStory(); else switchTab(activeTab()||'story');
   await loadMusicLibrary();
@@ -3631,6 +3806,7 @@ async function _refreshAllInner(){
   await loadSlowlifeState();   // v710: hydrate before renderRoundbar so the main action box never flashes during a live window
   if(myChar){ try{ const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle(); if(r.error) throw r.error; mySheet=r.data?.sheet||{}; mySheetUpdatedAt=r.data?.updated_at||null; cacheSave('sheet_'+myChar.id, mySheet); }catch(e){ const c=cacheLoad('sheet_'+myChar.id); mySheet=c||mySheet||{}; } }
   await Promise.all([updateCombatBadge(), refreshCombatTurn()]);   // v638 BUG2: await combat-state hydration ก่อน render ถัดไป — กัน branch race (roundbar เลือกสาขา non-combat ผิดตอนเปิดศึก → combat options หลุดทุกจอ)
+  partyDecisionHintRefresh('refresh-all');
   scheduleBattleScene();
 }
 // v739 FZ-2: combat_state ไม่มี group_no โดยตรง จึง scope ผ่าน encounter→initiative เสมอ
@@ -11362,8 +11538,8 @@ function subscribeRealtime(){
     .on('postgres_changes',{event:'*',schema:'public',table:'rounds',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ rtLastSyncTs=Date.now(); try{const row=payload&&payload.new,receipts=row&&row.meta&&Array.isArray(row.meta.dice)?row.meta.dice:[];dicePlaybackLog('rounds_realtime_event',{roundId:String(row&&row.id||''),receiptCount:receipts.length,campaignId:String(campaign&&campaign.id||''),source:String(payload&&payload.eventType||'unknown').toLowerCase()});}catch(_roundsRealtimeLogError){} await loadRound('realtime'); const _narrTailChanged=await reconcileNarrativeTail(); if(activeTab()==='story'&&!_narrTailChanged) renderStory(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'actions',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'character_sheets',filter:'character_id=eq.'+((myChar&&myChar.id)||'00000000-0000-0000-0000-000000000000')}, async()=>{ rtLastSyncTs=Date.now(); await reloadMySheet(); await refreshCombatTurn(); if(activeTab()==='story') renderRoundbar(); if(activeTab()==='me') renderMe(); })
-    .on('postgres_changes',{event:'*',schema:'public',table:'characters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ var _oldGroup=terminalGroupForUi(); await loadCharacters(); myChar=characters.find(c=>c.user_id===me.id)||null; if(_oldGroup!==terminalGroupForUi()){ window._combatActive=undefined; window.gEncId=null; await Promise.all([loadRound(),loadNarrative(),updateCombatBadge(),refreshCombatTurn()]); } if(activeTab()==='party') renderParty(); if(typeof scheduleBattleScene==='function') scheduleBattleScene(); })   // v739 FZ-2: group move rebinds scoped round/story/combat before render
-    .on('postgres_changes',{event:'*',schema:'public',table:'campaign_state',filter:'campaign_id=eq.'+campaign.id}, async()=>{ var _vaWasFin=!!(currentTerminalGate()&&currentTerminalGate().active); await loadState(); /* v739 FZ-2: reload sheet only when this character's group gate clears */ if(_vaWasFin && !(currentTerminalGate()&&currentTerminalGate().active) && myChar){ try{ var _sr=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle(); if(!_sr.error){ mySheet=_sr.data?.sheet||{}; mySheetUpdatedAt=_sr.data?.updated_at||null; cacheSave('sheet_'+myChar.id, mySheet); } }catch(e){} } applyMood(); refreshSelectionGate(); if(activeTab()==='story'){ renderClock(); renderRoundbar(); } if(activeTab()==='map') renderMap(); const _lu=worldState&&worldState.level_up; if(activeTab()==='me'){ const md=_lu&&_lu.active&&(_lu.done||[]).includes(myChar&&myChar.id); if(!_lu||!_lu.active||md) renderMe(); } else if(worldState&&worldState.settings&&worldState.settings.prepare_due&&Array.isArray(worldState.settings.prepare_due.ids)&&worldState.settings.prepare_due.ids.includes(myChar&&myChar.id)){ /* เตรียมเวทค้าง: ปล่อยให้ blink เตือน */ } })
+    .on('postgres_changes',{event:'*',schema:'public',table:'characters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ var _oldGroup=terminalGroupForUi(); await loadCharacters(); myChar=characters.find(c=>c.user_id===me.id)||null; if(_oldGroup!==terminalGroupForUi()){ window._combatActive=undefined; window.gEncId=null; await Promise.all([loadRound(),loadNarrative(),updateCombatBadge(),refreshCombatTurn()]); } partyDecisionHintRefresh('characters-realtime'); if(activeTab()==='party') renderParty(); if(typeof scheduleBattleScene==='function') scheduleBattleScene(); })   // v739 FZ-2: group move rebinds scoped round/story/combat before render
+    .on('postgres_changes',{event:'*',schema:'public',table:'campaign_state',filter:'campaign_id=eq.'+campaign.id}, async()=>{ var _vaWasFin=!!(currentTerminalGate()&&currentTerminalGate().active); await loadState(); /* v739 FZ-2: reload sheet only when this character's group gate clears */ if(_vaWasFin && !(currentTerminalGate()&&currentTerminalGate().active) && myChar){ try{ var _sr=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle(); if(!_sr.error){ mySheet=_sr.data?.sheet||{}; mySheetUpdatedAt=_sr.data?.updated_at||null; cacheSave('sheet_'+myChar.id, mySheet); } }catch(e){} } partyDecisionHintRefresh('campaign-state-hint'); applyMood(); refreshSelectionGate(); if(activeTab()==='story'){ renderClock(); renderRoundbar(); } if(activeTab()==='map') renderMap(); const _lu=worldState&&worldState.level_up; if(activeTab()==='me'){ const md=_lu&&_lu.active&&(_lu.done||[]).includes(myChar&&myChar.id); if(!_lu||!_lu.active||md) renderMe(); } else if(worldState&&worldState.settings&&worldState.settings.prepare_due&&Array.isArray(worldState.settings.prepare_due.ids)&&worldState.settings.prepare_due.ids.includes(myChar&&myChar.id)){ /* เตรียมเวทค้าง: ปล่อยให้ blink เตือน */ } })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_messages',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ const row=payload.new; if(row&&row.id&&!chatMsgs.some(m=>m.id===row.id)){ chatMsgs.push(row); if(chatMsgs.length>300) chatMsgs=chatMsgs.slice(-300); cacheSave('chat',chatMsgs); } if(_bsShown){ try{ renderBattleChat(); }catch(e){} } if(activeTab()==='party'){ renderChatList(); } else if(row && row.user_id!==me.id){ const t=document.querySelector('.tab[data-tab="party"]'); if(t) t.classList.add('blink'); if(_bsShown){ const mb=document.querySelector('#bsMobBar button[data-sheet="chat"]'); if(mb) mb.classList.add('blink'); } } })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'chronicles',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='chron'){ renderChronicle(); } else { const t=document.querySelector('.tab[data-tab="chron"]'); if(t) t.classList.add('blink'); } })
     .on('postgres_changes',{event:'*',schema:'public',table:'music_tracks',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadMusicLibrary(); if(activeTab()==='files') renderFiles(); })
@@ -11410,6 +11586,7 @@ async function resyncAll(force,narrativeTailOnly){
     var _groupBeforeResync=terminalGroupForUi();
     await Promise.all([loadCharacters(), loadState()]);
     myChar=characters.find(c=>c.user_id===me.id)||null;
+    partyDecisionHintRefresh('resync');
     await reloadMySheet();
     if(_groupBeforeResync!==terminalGroupForUi()){ window._combatActive=undefined; window.gEncId=null; }
     if(narrativeTailOnly){ await loadRound(); _tailChanged=await reconcileNarrativeTail(); }
