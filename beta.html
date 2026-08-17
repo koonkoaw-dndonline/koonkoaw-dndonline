@@ -2149,7 +2149,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202608171930;   // REVIEW-01: host-only DM Options audit review card (label per exact reason) · asset ring 20260813a1 unchanged
+const FRONTEND_BUILD = 202608172117;   // REVIEW-01: host-only DM Options audit review card (label per exact reason) · asset ring 20260813a1 unchanged
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -9625,7 +9625,7 @@ async function renderBattleInitLog(initEl, logEl){
 function combatLogServerRolled(row){
   const d=row&&row.detail&&typeof row.detail==='object'?row.detail:{};
   const p=d.provenance&&typeof d.provenance==='object'?d.provenance:{};
-  return p.server_rolled===true||d.server_rolled===true||/\[server-rolled(?:[^\]]*)\]/i.test(String(row&&row.summary||''));
+  return p.server_rolled===true||d.server_rolled===true||/\[(?:server-rolled|authoritative-roll)(?:[^\]]*)\]/i.test(String(row&&row.summary||''));
 }
 /* v899 LOGCLEAN-01: แถวที่เนื้อความเหลือแค่ "กฎเซิร์ฟเวอร์ปรับผลลัพธ์นี้ ดู System Logs" ไม่บอกอะไรผู้เล่นเลย
    (เกิดเมื่อกำแพงภาษาปฏิเสธ summary แล้วแทนทั้งก้อน) — ซ่อนจาก battle log, หลักฐานเต็มยังอยู่ใน system_logs
