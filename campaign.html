@@ -2149,7 +2149,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202608170641;   // REVIEW-01: host-only DM Options audit review card (label per exact reason) · asset ring 20260813a1 unchanged
+const FRONTEND_BUILD = 202608171930;   // REVIEW-01: host-only DM Options audit review card (label per exact reason) · asset ring 20260813a1 unchanged
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -9652,7 +9652,7 @@ function playerCombatSummary(row){
   return String(row&&row.summary||'')
     .replace(/\s+(?:armor|shield|persona|personality|owner|action|level|max_hp|hp|ac|abilities|class|race|sex|summon_days|summon_kind)\s*:[\s\S]*?(?=\s*\((?:STR|DEX|CON|INT|WIS|CHA)[+-])/i,' ')
     .replace(/\s*\((?:แก้|Fixed)\s*:[^)]*\)\s*/gi,' ')
-    .replace(/\s*\[server-rolled(?:[^\]]*)\]/gi,'')
+    .replace(/\s*\[(?:server-rolled|authoritative-roll)(?:[^\]]*)\]/gi,'')
     .replace(/\[\s*ทอย\s*2(?:\s*ลูก)?\s*ใช้(?:ค่า)?ต่ำ\s*\]/gi,'[เสียเปรียบ]')
     .replace(/\[\s*ทอย\s*2(?:\s*ลูก)?\s*ใช้(?:ค่า)?สูง\s*\]/gi,'[ได้เปรียบ]')
     .replace(/\s{2,}/g,' ')
