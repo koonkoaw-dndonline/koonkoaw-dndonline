@@ -20,7 +20,7 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./runtime-copy-en.js?v=20260813a1"></script>
 <script src="./i18n-runtime.js?v=20260813a1"></script>
 <script src="./character-content-en.js?v=20260813a1"></script>
-<script src="./grid-command-flow.js?v=822"></script>
+<script src="./grid-command-flow.js?v=961"></script>
 <script src="./grid-command-adapter.js?v=822"></script>
 <script src="./grid-board-replacement-lease.js?v=202608110249"></script>
 <script src="./dice-fx.js?v=0126"></script>
@@ -2149,7 +2149,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202608172117;   // REVIEW-01: host-only DM Options audit review card (label per exact reason) · asset ring 20260813a1 unchanged
+const FRONTEND_BUILD = 202608190647;   // REVIEW-01: host-only DM Options audit review card (label per exact reason) · asset ring 20260813a1 unchanged
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -3138,6 +3138,11 @@ let aoeMode=null, aoeCenter=null, pendingAoE=null, aoePickOpen=false, _lastGrid=
 let moveMode=null, moveSel=null;  // โหมดแตะกริดเลือกช่องเดินเอง
 let _gridCache=null, _gridUseCache=false;  // (06-10) cache ข้อมูลสนามรบ — แตะเลือกช่องวาดใหม่ทันทีไม่ยิง query (แก้หน่วง)
 let gridCommandAdapter=null, gridCommandFlow=null, gridCommandSession=null;
+// ── GRID-G5 (08-19): ปิด state-split "flow idle แต่ UI ยังโชว์ MOVE/AoE" ──
+//   ราก: host เคลียร์ gridCommandSession เองทุกครั้งที่มีสัญญาณ invalidate โดยไม่ดูว่า flow ยอมทิ้ง session จริงไหม
+//   (identity เดิม ⇒ flow คืน 'identity-unchanged' แต่ session ฝั่ง UI หายไปแล้ว = แตะช่องแล้วไม่มีอะไรรับ · ✕ ไม่กลับ root)
+//   กติกาใหม่: gridCommandSyncSession() คือ "จุดเขียนจุดเดียว" ของ gridCommandSession — UI = ภาพฉายของ flow เสมอ
+let gridCommandLastBinding=null, gridCommandPickerIdentity=null, gridCommandReenter=null, gridCommandReenterLog=[];
 
 // ── FE-11: one module-owned replacement lease per live board scope ──
 // language-impact: none — machine-only picker/render lifecycle; no runtime copy.
@@ -3238,8 +3243,116 @@ function createGridPickLeaseHost(deps){
 }
 
 function gridBoardLeaseIdentity(){ try{ return gridCommandAdapter&&gridCommandAdapter.readIdentity?gridCommandAdapter.readIdentity():null; }catch(error){ return null; } }
+function gridCommandFlowState(){ try{ return gridCommandFlow?gridCommandFlow.state():null; }catch(error){ return null; } }
+// diag ถาวรแบบเงียบ (ring 20 · ไม่มี console) — ใบวัดบนอุปกรณ์จริงอ่าน reason ที่ยิงจริงผ่าน window.gridCommandDiag()
+const gridCommandDiagRing=[];
+function gridCommandNote(event,reason){
+  try{
+    const st=gridCommandFlowState()||{};
+    gridCommandDiagRing.push({at:Date.now(),event:String(event||''),reason:String(reason||''),phase:st.phase||'none',kind:st.kind||null,session:!!gridCommandSession,lease:!!gridPickLeaseHost.state().active});
+    if(gridCommandDiagRing.length>20) gridCommandDiagRing.shift();
+  }catch(error){}
+}
+window.gridCommandDiag=function(){ return gridCommandDiagRing.slice(); };
+function gridCommandUiReset(reason){
+  // เมนูคำสั่งต้องกลับ root เสมอเมื่อ picker จบ (จบเอง/ถูกยกเลิก/ถูก invalidate) — ใช้ public API ของเมนู cc ทางเดียว
+  let popped=false;
+  try{ if(window.cc&&typeof window.cc.escBack==='function'){ for(let guard=0;guard<12&&window.cc.escBack();guard++) popped=true; } }catch(error){}
+  return popped;
+}
+function gridCommandUiPickerActive(kind){
+  const st=gridCommandFlowState();
+  if(st&&st.phase==='picking'&&(!kind||st.kind===kind)) return true;
+  if(kind==='move') return !!moveMode;
+  if(kind==='aoe') return !!aoeMode;
+  return !!moveMode||!!aoeMode;
+}
+function gridCommandHandlersFromFlow(){
+  // handler ที่ผูกกับ "session ที่ flow ถืออยู่ตอนนี้" — ใช้กู้เมื่อ handle เดิมหาย แต่ picker ยังสด (ห้ามให้ delegate คืน false ตอนจอยังโชว์ picker)
+  const flow=gridCommandFlow;
+  return Object.freeze({
+    select:function(cell){ return flow.select(cell); },
+    confirm:function(){ return flow.confirm(); },
+    cancel:function(){ return flow.cancel('user'); }
+  });
+}
+function gridCommandSyncSession(reason){
+  const st=gridCommandFlowState();
+  if(st&&st.phase==='picking'){
+    if(!gridCommandSession||gridCommandSession.kind!==st.kind||!gridCommandSession.handlers) gridCommandSession={kind:st.kind,handlers:gridCommandHandlersFromFlow()};
+    return true;
+  }
+  if(gridCommandSession){ gridCommandSession=null; gridCommandUiReset(reason||'flow-idle'); }
+  return false;
+}
+function gridCommandPlanReenter(reason){
+  // จำ "กระดาน+คำสั่งที่ผู้เล่นกำลังเลือก" ไว้ก่อนที่ flow จะทิ้ง session ตามสัญญาเดิม — ใช้เปิด picker คืนให้อัตโนมัติเมื่อกระดานเดิมกลับมา
+  gridCommandReenter=null;
+  const st=gridCommandFlowState();
+  if(!st||st.phase!=='picking'||!gridCommandLastBinding||!gridCommandAdapter) return false;
+  // ⚠ ต้องใช้ identity ของ "กระดานที่ picker ถูกกางไว้จริง" (จาก mountPicker) ไม่ใช่ readIdentity() ตอนนี้ —
+  //   รอบใหม่/ฉากใหม่มักมาถึง state ก่อนสัญญาณ invalidate ⇒ readIdentity() จะเป็นของกระดานใหม่ไปแล้ว = เทียบไม่เจอความต่าง
+  if(!gridCommandPickerIdentity) return false;
+  gridCommandReenter={kind:st.kind,binding:gridCommandLastBinding,identity:gridCommandPickerIdentity,reason:reason||'invalidated'};
+  return true;
+}
+function gridCommandReenterAllowed(){
+  const now=Date.now();
+  gridCommandReenterLog=gridCommandReenterLog.filter(function(ts){ return now-ts<10000; });
+  if(gridCommandReenterLog.length>=3) return false;   // กันวนเปิด-ปิดไม่จบเมื่อกระดานถูกเขียนรัวๆ
+  gridCommandReenterLog.push(now);
+  return true;
+}
+function gridCommandTryReenter(){
+  const plan=gridCommandReenter;
+  if(!plan) return false;
+  gridCommandReenter=null;
+  if(!gridCommandAdapter||!gridCommandFlow) return false;
+  const st=gridCommandFlowState();
+  if(st&&st.phase==='picking') return false;
+  let next=null; try{ next=gridCommandAdapter.readIdentity()||null; }catch(error){ next=null; }
+  const flowApi=window.TTRPG_GRID_COMMAND_FLOW;
+  const continuity=(flowApi&&typeof flowApi.boardContinuity==='function')?flowApi.boardContinuity(plan.identity,next):'unknown';
+  if(continuity!=='same-board') return false;         // กระดานคนละอัน = ปล่อยให้ UI ที่รีเซ็ตแล้วยืนอยู่ (flow บอกเหตุด้วย toast 'stale' ไปแล้ว)
+  if(!gridCommandReenterAllowed()) return false;
+  if(!gridCommandAdapter.bindCommand(plan.binding)) return false;
+  const opened=gridCommandFlow.open({
+    kind:plan.kind,
+    language:uiLanguage(),
+    commandKey:plan.kind==='move'?'movement':'action',
+    requestToken:String((curRound&&curRound.id)||'')+'|'+plan.kind
+  });
+  if(!opened||!opened.ok){ gridCommandNote('reenter-failed',plan.reason); gridCommandSyncSession('reenter-failed'); return false; }
+  gridCommandSession={kind:plan.kind,handlers:opened.handlers};
+  gridCommandNote('reenter',plan.reason);
+  return true;
+}
+function gridCommandBoardReplaced(trigger){
+  // กระดานกำลังถูกวาดทับ ⇒ overlay ของ picker จะหายไปกับ DOM เก่า · ต้องปิด picker ให้ flow รู้ (ไม่งั้น flow ค้าง picking บนกระดานที่ไม่มีอยู่จริง)
+  const st=gridCommandFlowState();
+  if(!st||st.phase!=='picking') return false;
+  gridCommandNote('board-replaced',String(trigger||'render'));
+  gridCommandPlanReenter('board-replaced-'+String(trigger||'render'));
+  try{ gridCommandFlow.cancel('board-replaced'); }catch(error){}
+  gridCommandSyncSession('board-replaced');
+  return true;
+}
 function gridPickLeaseInvalidateFlow(reason){
-  try{ if(gridCommandAdapter&&gridCommandFlow){ const next=gridCommandAdapter.readIdentity(); gridCommandFlow.invalidate(next||null,reason); gridCommandSession=null; } }catch(error){}
+  try{
+    if(!gridCommandAdapter||!gridCommandFlow) return;
+    gridCommandNote('lease-signal',reason);
+    const next=gridCommandAdapter.readIdentity();
+    gridCommandPlanReenter(reason);
+    const result=gridCommandFlow.invalidate(next||null,reason);
+    if(result&&result.ok===false&&result.reason==='identity-unchanged'){
+      // กระดาน/หมากเดิมทุกฟิลด์ — flow ยังถือ session อยู่ ⇒ ห้ามทิ้ง UI · คืน lease ให้ picker เดิมแทน (ผู้เล่นไม่รู้สึกสะดุด)
+      gridCommandReenter=null;
+      gridCommandSyncSession(reason);
+      if(next) gridPickLeaseEnter('grid-command-resync',next);
+      return;
+    }
+    gridCommandSyncSession(reason);
+  }catch(error){}
 }
 const gridPickLeaseHost=createGridPickLeaseHost({
   api:()=>window.TTRPG_GRID_BOARD_REPLACEMENT_LEASE,
@@ -3249,13 +3362,20 @@ const gridPickLeaseHost=createGridPickLeaseHost({
   onFailOpen:()=>gridPickLeaseInvalidateFlow('lease-fail-open'),
   onAuthoritativeRevision:()=>gridPickLeaseInvalidateFlow('lease-authoritative-revision')
 });
-function gridBoardRequestRender(trigger,effect){ return gridPickLeaseHost.requestRender(trigger,gridBoardLeaseIdentity(),effect); }
+function gridBoardRequestRender(trigger,effect){ return gridPickLeaseHost.requestRender(trigger,gridBoardLeaseIdentity(),function(){ gridCommandBoardReplaced(trigger); return effect(); }); }
 function gridPickLeaseEnter(pickerId,identity){ return gridPickLeaseHost.enterPicker(pickerId,identity||gridBoardLeaseIdentity()); }
 function gridPickLeaseActivity(code){ return gridPickLeaseHost.pickerActivity(code); }
 function gridPickLeaseExit(reason){ return gridPickLeaseHost.exitPicker(reason); }
 function gridPickLeaseDisconnect(){ return gridPickLeaseHost.disconnect(); }
 function gridPickLeaseAdapter(base){
-  const wrapped=Object.create(base);
+  // ⛔ GRID-G5 (08-19) ราก state-split ตัวจริง: เดิมใช้ Object.create(base) — แต่ base ถูก Object.freeze
+  //   ⇒ prop บน prototype เป็น non-writable ⇒ การ assign ทับ (sloppy mode) "ล้มเงียบ" ทุกตัว
+  //   ⇒ wrapper ทั้งก้อนไม่เคยทำงาน: picker ของ fast path ไม่เคยถือ lease กระดาน ⇒ board render ครั้งถัดไป
+  //     (realtime token/grid · poll · manual) ลบ overlay ทิ้ง ขณะ flow ยังคิดว่ากำลัง picking = แตะช่องแล้วไม่มีอะไรรับ
+  //   ทางแก้: ก๊อป own prop มาเป็นวัตถุใหม่ (เขียนทับได้จริง) · ห้าม freeze ซ้ำ ไม่งั้นกับดักเดิมกลับมา
+  const wrapped={};
+  Object.getOwnPropertyNames(base).forEach(function(name){ wrapped[name]=base[name]; });
+  wrapped.bindCommand=function(next){ const bound=base.bindCommand(next); if(bound) gridCommandLastBinding=next; return bound; };   // จำ binding ล่าสุดไว้เปิด picker คืนอัตโนมัติ (GRID-G5)
   wrapped.mountPicker=function(view){
     const handlers=view&&view.handlers;
     const next=handlers?Object.assign({},view,{handlers:Object.freeze({
@@ -3264,7 +3384,7 @@ function gridPickLeaseAdapter(base){
       cancel:function(){ gridPickLeaseActivity('tap'); return handlers.cancel(); }
     })}):view;
     const mounted=base.mountPicker(next);
-    if(mounted!==false&&view&&view.snapshot) gridPickLeaseEnter('grid-command-'+view.sessionId,view.snapshot.identity);
+    if(mounted!==false&&view&&view.snapshot){ gridCommandPickerIdentity=view.snapshot.identity; gridPickLeaseEnter('grid-command-'+view.sessionId,view.snapshot.identity); }
     return mounted;
   };
   wrapped.unmountPicker=function(info){
@@ -3289,7 +3409,14 @@ try{
       sheet:()=>mySheet,
       language:()=>uiLanguage(),
       closeCommandSheet:()=>{ if(typeof bsCloseSheets!=='function') return false; bsCloseSheets(); return true; },
-      announce:(info)=>{ if(!info||!info.text||typeof toast!=='function') return false; toast(info.text,info.level==='error'); return true; }
+      announce:(info)=>{ if(!info||!info.text||typeof toast!=='function') return false; toast(info.text,info.level==='error'); return true; },
+      resumeCommandMenu:(info)=>{ gridCommandSession=null; gridCommandUiReset((info&&info.reason)||'resume'); return true; },   // GRID-G5: ทางกลับ root ที่ไม่พึ่ง binding (binding ถูกกินไปแล้ว = เดิมไม่มีใครรีเซ็ต UI)
+      onEvent:(event)=>{
+        const type=event&&event.type;
+        if(type==='snapshot-primed'){ if(gridCommandReenter) setTimeout(gridCommandTryReenter,0); return true; }   // รอ DOM กระดานใหม่ติดจอก่อน แล้วค่อยเปิด picker คืน
+        if(type==='picker-invalidated'||type==='picker-cancelled'||type==='draft-ready'||type==='fallback-requested') gridCommandSyncSession(type);
+        return true;
+      }
     });
     gridCommandAdapter=gridPickLeaseAdapter(gridCommandAdapter);
     gridCommandFlow=window.TTRPG_GRID_COMMAND_FLOW.createController(gridCommandAdapter);
@@ -3298,20 +3425,37 @@ try{
 
 function gridCommandInvalidate(reason){
   if(!gridCommandAdapter||!gridCommandFlow) return false;
+  gridCommandNote('invalidate',reason);
+  gridCommandPlanReenter(reason);   // เก็บแผนก่อน — invalidate จะทิ้ง session ตามสัญญาเดิมของ flow (board authority ชนะเสมอ)
   gridPickLeaseDisconnect();
   gridCommandAdapter.bumpRevision();
   const next=gridCommandAdapter.readIdentity();
   gridCommandFlow.invalidate(next||null,reason);
-  gridCommandSession=null;
+  gridCommandSyncSession(reason);
+  return true;
+}
+
+function gridCommandStranded(kind,action){
+  // flow ไม่มี picker แล้ว แต่จอยังค้างโหมดเลือกตำแหน่ง และไม่มี legacy mode รองรับ ⇒ กู้ UI กลับ root แทนที่จะเงียบ
+  if(kind==='move'?!!moveMode:!!aoeMode) return false;
+  gridCommandNote('stranded',String(kind||'')+':'+String(action||''));
+  gridCommandUiReset('stranded-'+String(action||''));
+  if(action==='select') return false;
+  // ใช้ข้อความคู่ภาษาของโมดูล flow (COPY.cancelled) — ไม่สร้างสตริงใหม่ในหน้าเพจ
+  try{ const flowApi=window.TTRPG_GRID_COMMAND_FLOW; const text=flowApi&&typeof flowApi.message==='function'?flowApi.message(uiLanguage(),'cancelled'):''; if(text) toast(text); }catch(error){}
   return true;
 }
 
 function gridCommandDelegate(kind,action,arg){
+  const picking=gridCommandSyncSession('delegate-'+String(action||''));   // ภาพฉายก่อนเสมอ: session ที่ค้างจาก flow ที่ตายแล้วห้ามกลืนการแตะ
   const session=gridCommandSession;
-  if(!session||session.kind!==kind||!session.handlers||typeof session.handlers[action]!=='function') return false;
+  if(!session||session.kind!==kind||!session.handlers||typeof session.handlers[action]!=='function'){
+    return picking?false:gridCommandStranded(kind,action);
+  }
   if(action==='select') gridPickLeaseActivity('select'); else if(action==='confirm') gridPickLeaseActivity('confirm_attempt'); else if(action==='cancel') gridPickLeaseActivity('tap');
   const result=session.handlers[action](arg);
   if(action!=='select'&&result&&(result.ok||result.reason==='context-changed'||result.reason==='stale-session')) gridCommandSession=null;
+  gridCommandSyncSession('delegate-result');
   return true;
 }
 

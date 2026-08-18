@@ -123,6 +123,24 @@
     return !!a&&!!b&&IDENTITY_FIELDS.every(function(field){ return a[field]===b[field]; });
   }
 
+  // GRID-G5 (2026-08-19): กติกาเดียวที่ตัดสินว่า identity ที่เปลี่ยนระหว่างผู้เล่นกำลังเลือกตำแหน่ง
+  // "ยังเป็นกระดานเดิม" หรือไม่ — host ใช้ตัดสินระหว่าง re-enter อัตโนมัติ (ผู้เล่นไม่สะดุด)
+  // กับ reset UI พร้อมบอกเหตุ · ตัวสัญญาของ invalidate()/prime() ไม่เปลี่ยน (พินไว้ใน golden เดิม)
+  //   'same-board'      = campaign/encounter/round/group/grid เดิมทั้งหมด ต่างแค่ gridRevision (realtime token/grid หรือ bumpRevision ฝั่ง host)
+  //   'different-board' = อย่างน้อยหนึ่งใน 5 ฟิลด์ผูกฉากเปลี่ยน ⇒ ตำแหน่งเก่าใช้ไม่ได้แน่นอน
+  //   'unknown'         = อ่าน identity ฝั่งใดฝั่งหนึ่งไม่ได้ ⇒ ห้ามเดา ให้ผู้เรียกถือว่าไม่ต่อเนื่อง
+  const CONTINUITY_FIELDS=Object.freeze(IDENTITY_FIELDS.filter(function(field){
+    return field!=='gridRevision';
+  }));
+
+  function boardContinuity(previous,next){
+    const a=normalizeIdentity(previous), b=normalizeIdentity(next);
+    if(!a||!b) return 'unknown';
+    return CONTINUITY_FIELDS.every(function(field){ return a[field]===b[field]; })
+      ?'same-board'
+      :'different-board';
+  }
+
   function normalizeShape(raw){
     if(!isObject(raw)) return null;
     const kind=cleanText(raw.kind,20);
@@ -567,6 +585,7 @@
     normalizeSnapshot:normalizeSnapshot,
     snapshotKey:snapshotKey,
     sameIdentity:sameIdentity,
+    boardContinuity:boardContinuity,
     parseAreaTarget:parseAreaTarget,
     affectedCells:affectedCells,
     createController:createController
