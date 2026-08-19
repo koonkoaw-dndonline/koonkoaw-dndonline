@@ -1816,7 +1816,7 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
 <div id="topbar">
 <div class="hd">
   <div class="logo"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="7" y="5" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/><rect x="2" y="7" width="1" height="1"/><rect x="5" y="7" width="1" height="1"/></svg></div>
-  <div class="ttl" id="hdTitle">TTRPG Campaign</div>
+  <div class="ttl" id="hdTitle" onclick="gridDiagHatchClick()">TTRPG Campaign</div>
   <span class="code hidden" id="hdCode" title="Click to copy invite code"></span>
   <span class="code hidden" id="hdWorld" title="World ID"></span>
   <span class="who" id="hdWho"></span>
@@ -2149,7 +2149,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202608190647;   // REVIEW-01: host-only DM Options audit review card (label per exact reason) · asset ring 20260813a1 unchanged
+const FRONTEND_BUILD = 202608191417;   // REVIEW-01: host-only DM Options audit review card (label per exact reason) · asset ring 20260813a1 unchanged
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -3143,6 +3143,7 @@ let gridCommandAdapter=null, gridCommandFlow=null, gridCommandSession=null;
 //   (identity เดิม ⇒ flow คืน 'identity-unchanged' แต่ session ฝั่ง UI หายไปแล้ว = แตะช่องแล้วไม่มีอะไรรับ · ✕ ไม่กลับ root)
 //   กติกาใหม่: gridCommandSyncSession() คือ "จุดเขียนจุดเดียว" ของ gridCommandSession — UI = ภาพฉายของ flow เสมอ
 let gridCommandLastBinding=null, gridCommandPickerIdentity=null, gridCommandReenter=null, gridCommandReenterLog=[];
+const GRID_DIAG_STORE_KEY='ttrpg_grid_diag';   // GRID-DIAG-HATCH-01: ring สำรองต่อแท็บ — ใบวัดมือถือเก็บได้แม้แท็บถูกโหลดใหม่
 
 // ── FE-11: one module-owned replacement lease per live board scope ──
 // language-impact: none — machine-only picker/render lifecycle; no runtime copy.
@@ -3251,6 +3252,7 @@ function gridCommandNote(event,reason){
     const st=gridCommandFlowState()||{};
     gridCommandDiagRing.push({at:Date.now(),event:String(event||''),reason:String(reason||''),phase:st.phase||'none',kind:st.kind||null,session:!!gridCommandSession,lease:!!gridPickLeaseHost.state().active});
     if(gridCommandDiagRing.length>20) gridCommandDiagRing.shift();
+    try{ if(window.sessionStorage) window.sessionStorage.setItem(GRID_DIAG_STORE_KEY,JSON.stringify(gridCommandDiagRing)); }catch(storeError){}   // มือถือ: แท็บถูกโหลดใหม่ระหว่างเล่นแล้ว ring ในหน่วยความจำหาย
   }catch(error){}
 }
 window.gridCommandDiag=function(){ return gridCommandDiagRing.slice(); };
@@ -3462,6 +3464,125 @@ function gridCommandDelegate(kind,action,arg){
 function $(id){return document.getElementById(id);}
 let _toastWriteSeq=0;
 function toast(msg,isErr){const t=$('toast'),seq=++_toastWriteSeq;t.removeAttribute('data-language-wall');t.textContent=msg;t.className='toast show'+(isErr?' err':'');setTimeout(()=>{if(seq!==_toastWriteSeq)return;t.className='toast';t.textContent='';t.removeAttribute('data-language-wall');},2600);}
+// GRID-DIAG-HATCH-01 diagnostics panel start
+// ท่าเปิดบันทึกวินิจฉัยกระดานรบสำหรับใบวัดบนมือถือ (R75 ข้อ 8 เก็บ diag ไม่ได้เพราะเรียกได้แต่ผ่าน DevTools)
+//   แตะชื่อเกมบนแถบหัว 5 ครั้งใน 3 วินาที → กล่องอ่านอย่างเดียว + ปุ่มคัดลอก
+//   ⛔ อ่านอย่างเดียวจริง: ไม่ยิง network · ไม่แตะ state เกม · แสดงเฉพาะฟิลด์ whitelist ของ grid flow (ไม่มี token/คีย์/อีเมล)
+const GRID_DIAG_TAPS=5, GRID_DIAG_WINDOW_MS=3000, GRID_DIAG_MAX_ROWS=20;
+const GRID_DIAG_FIELDS=['at','event','reason','phase','kind','session','lease'];
+let _gridDiagTaps=[];
+function gridDiagHatchTap(now){
+  const at=Number.isFinite(Number(now))?Number(now):Date.now();
+  _gridDiagTaps=_gridDiagTaps.filter(function(ts){ return at-ts<GRID_DIAG_WINDOW_MS; });
+  _gridDiagTaps.push(at);
+  if(_gridDiagTaps.length<GRID_DIAG_TAPS) return false;
+  _gridDiagTaps=[];
+  return true;
+}
+function gridDiagSanitize(rows){
+  // whitelist ฟิลด์ — ฟิลด์อื่นที่อาจถูกเพิ่มในอนาคตจะไม่มีวันโผล่บนจอ (กันข้อมูลอ่อนไหวหลุดโดยไม่ตั้งใจ)
+  if(!Array.isArray(rows)) return [];
+  return rows.slice(-GRID_DIAG_MAX_ROWS).map(function(entry){
+    const out={};
+    if(!entry||typeof entry!=='object') return out;
+    GRID_DIAG_FIELDS.forEach(function(field){
+      if(!Object.prototype.hasOwnProperty.call(entry,field)) return;
+      const value=entry[field];
+      if(typeof value==='string') out[field]=value.slice(0,80);
+      else if(typeof value==='number'&&Number.isFinite(value)) out[field]=value;
+      else if(typeof value==='boolean'||value===null) out[field]=value;
+    });
+    return out;
+  });
+}
+function gridDiagRows(){
+  let live=[], stored=[];
+  try{ live=typeof window.gridCommandDiag==='function'?window.gridCommandDiag():[]; }catch(error){ live=[]; }
+  try{
+    const raw=window.sessionStorage?window.sessionStorage.getItem(GRID_DIAG_STORE_KEY):'';
+    const parsed=raw?JSON.parse(raw):[];
+    stored=Array.isArray(parsed)?parsed:[];
+  }catch(error){ stored=[]; }
+  const merged=[], seen={};
+  gridDiagSanitize(stored).concat(gridDiagSanitize(live)).forEach(function(row){
+    const key=String(row.at)+'|'+String(row.event)+'|'+String(row.reason);
+    if(seen[key]) return;
+    seen[key]=1;
+    merged.push(row);
+  });
+  merged.sort(function(a,b){ return (Number(a.at)||0)-(Number(b.at)||0); });
+  return merged.slice(-GRID_DIAG_MAX_ROWS);
+}
+function gridDiagPanelClose(){
+  const el=document.getElementById('gridDiagPanel');
+  if(!el) return false;
+  try{ el.remove(); }catch(error){ if(el.parentNode) el.parentNode.removeChild(el); }
+  return true;
+}
+function gridDiagCopyFallback(){ try{ return !!(document.execCommand&&document.execCommand('copy')); }catch(error){ return false; } }
+function gridDiagCopy(area){
+  try{ area.focus(); area.select(); if(area.setSelectionRange) area.setSelectionRange(0,String(area.value||'').length); }catch(error){}
+  const done=function(ok){
+    try{ toast(ok?uiCopy('คัดลอกบันทึกแล้ว ✓','Diagnostics copied ✓'):uiCopy('คัดลอกอัตโนมัติไม่ได้ — กดค้างบนข้อความเพื่อคัดลอกเอง','Automatic copy failed — long-press the text to copy it manually'),!ok); }catch(error){}
+  };
+  try{
+    if(window.navigator&&window.navigator.clipboard&&typeof window.navigator.clipboard.writeText==='function'){
+      window.navigator.clipboard.writeText(String(area.value||'')).then(function(){ done(true); },function(){ done(gridDiagCopyFallback()); });
+      return true;
+    }
+  }catch(error){}
+  done(gridDiagCopyFallback());
+  return true;
+}
+function gridDiagPanelOpen(){
+  gridDiagPanelClose();
+  const rows=gridDiagRows();
+  const wrap=document.createElement('div');
+  wrap.id='gridDiagPanel';
+  wrap.setAttribute('role','dialog');
+  wrap.setAttribute('aria-modal','true');
+  wrap.setAttribute('data-grid-diag-panel','1');
+  wrap.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:14px';
+  wrap.addEventListener('click',function(ev){ if(ev.target===wrap) gridDiagPanelClose(); });
+  const box=document.createElement('div');
+  box.style.cssText='background:#11141c;border:1px solid #444;border-radius:10px;width:100%;max-width:560px;max-height:82vh;display:flex;flex-direction:column;gap:8px;padding:12px';
+  const ttl=document.createElement('div');
+  ttl.className='dicelbl';
+  ttl.textContent=uiCopy('บันทึกวินิจฉัยกระดานรบ (อ่านอย่างเดียว)','Battle grid diagnostics (read-only)');
+  box.appendChild(ttl);
+  if(!rows.length){
+    const hint=document.createElement('div');
+    hint.className='dicelbl';
+    hint.textContent=uiCopy('ยังไม่มีเหตุการณ์ — ลองเปิดโหมดเดินหรือเล็งพื้นที่บนกระดานก่อน แล้วเปิดกล่องนี้อีกครั้ง','No events yet — open the move or area picker on the battle grid first, then reopen this box.');
+    box.appendChild(hint);
+  }
+  const area=document.createElement('textarea');
+  area.readOnly=true;
+  area.setAttribute('readonly','readonly');
+  area.setAttribute('data-grid-diag-text','1');
+  area.setAttribute('aria-label',uiCopy('บันทึกวินิจฉัยกระดานรบ','Battle grid diagnostics'));
+  area.value=JSON.stringify(rows,null,2);
+  area.style.cssText='width:100%;flex:1 1 auto;min-height:180px;font-family:monospace;font-size:11px;line-height:1.45;background:#0d1018;color:#cfd6e6;border:1px solid #333;border-radius:6px;padding:8px';
+  box.appendChild(area);
+  const row=document.createElement('div');
+  row.className='optrow';
+  const copyBtn=document.createElement('button');
+  copyBtn.className='btn sm'; copyBtn.type='button';
+  copyBtn.textContent=uiCopy('คัดลอก','Copy');
+  copyBtn.addEventListener('click',function(){ gridDiagCopy(area); });
+  const closeBtn=document.createElement('button');
+  closeBtn.className='btn ghost sm'; closeBtn.type='button';
+  closeBtn.textContent=uiCopy('ปิด','Close');
+  closeBtn.addEventListener('click',function(){ gridDiagPanelClose(); });
+  row.appendChild(copyBtn);
+  row.appendChild(closeBtn);
+  box.appendChild(row);
+  wrap.appendChild(box);
+  document.body.appendChild(wrap);
+  return true;
+}
+function gridDiagHatchClick(){ return gridDiagHatchTap(Date.now())?gridDiagPanelOpen():false; }
+// GRID-DIAG-HATCH-01 diagnostics panel end
 function toggleUI(){
   const min=document.body.classList.toggle('ui-min');
   const t=document.getElementById('uiToggle'); if(t) t.textContent = min ? '›' : '‹';
