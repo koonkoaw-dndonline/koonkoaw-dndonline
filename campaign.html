@@ -24,7 +24,7 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./grid-command-adapter.js?v=822"></script>
 <script src="./grid-board-replacement-lease.js?v=202608110249"></script>
 <script src="./dice-fx.js?v=0126"></script>
-<script src="./dice-canvas.js?v=1100"></script>
+<script src="./dice-canvas.js?v=1101"></script>
 <script src="./music-playback-owner.js?v=847"></script>
 <script src="./music-v2-dark-launch.js?v=1211"></script>
 <style>
@@ -2149,7 +2149,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202608200842;   // REVIEW-01: host-only DM Options audit review card (label per exact reason) · asset ring 20260813a1 unchanged
+const FRONTEND_BUILD = 202608210652;   // REVIEW-01: host-only DM Options audit review card (label per exact reason) · asset ring 20260813a1 unchanged
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -4374,16 +4374,22 @@ function combatDicePlaybackLedgerState(campaignId){
   catch(_combatDiceLedgerReadError){return {key:key,ledger:[],error:'read_error',storage:storage};}
 }
 function combatDiceModeLabel(mode){ if(mode==='advantage')return uiCopy('ได้เปรียบ','Advantage'); if(mode==='disadvantage')return uiCopy('เสียเปรียบ','Disadvantage'); return ''; }
+// DICEART-01 playback copy start
+function combatDiceInitiativeCopy(){return uiCopy('ทอยลำดับการรบ','Initiative');}
+function combatDiceTotalCopy(){return uiCopy('รวม ','Total ');}
+function combatDiceDeathSaveCopy(){return uiCopy('เซฟความตาย','Death save');}
+// DICEART-01 playback copy end
+function combatDiceSaveFlavor(receipt){const ability=String(receipt&&receipt.ability||'').trim().toLowerCase().replace(/[\s_]+/g,'-');return ability==='initiative'?'initiative':ability==='death'||ability==='death-save'?'death-save':'save';}
 function combatDiceReceiptLabel(receipt){
   const mode=combatDiceModeLabel(receipt.mode),modePart=mode?' · '+mode:'';
   if(receipt.kind==='attack'){const outcome=receipt.crit?uiCopy('คริติคอล','Critical hit'):receipt.hit?uiCopy('โจมตีโดน','Hit'):uiCopy('โจมตีพลาด','Miss');return receipt.who+' · '+uiCopy('โจมตี','Attack')+' '+receipt.target+' · '+receipt.weapon+modePart+' · AC '+receipt.ac+' · '+outcome;}
-  if(receipt.kind==='save'){const outcome=receipt.pass?uiCopy('ผ่านเซฟ','Save passed'):uiCopy('ไม่ผ่านเซฟ','Save failed');return receipt.who+' · '+(receipt.ability||uiCopy('การเซฟ','Save'))+modePart+' · DC '+receipt.dc+' · '+outcome;}
+  if(receipt.kind==='save'){const flavor=combatDiceSaveFlavor(receipt);if(flavor==='initiative')return receipt.who+' · '+combatDiceInitiativeCopy()+modePart+' · '+combatDiceTotalCopy()+receipt.total;const outcome=receipt.pass?uiCopy('ผ่านเซฟ','Save passed'):uiCopy('ไม่ผ่านเซฟ','Save failed'),ability=flavor==='death-save'?combatDiceDeathSaveCopy():(receipt.ability||uiCopy('การเซฟ','Save'));return receipt.who+' · '+ability+modePart+' · DC '+receipt.dc+' · '+outcome;}
   return receipt.who+' → '+receipt.target+' · '+uiCopy('ดาเมจ','Damage')+' '+receipt.damage+' · '+uiCopy('ค่าดิบ','Raw values');
 }
 function combatDicePlaybackPayload(receipt){
   const label=combatDiceReceiptLabel(receipt);
   if(receipt.kind==='attack')return {eventId:receipt.receiptId,kind:'attack',role:'attack',dice:[{die:'d20',value:receipt.roll}],flat:receipt.total-receipt.roll,total:receipt.total,pass:receipt.hit,tier:receipt.crit?'crit-success':receipt.hit?'success':'failure',label:label,critical:receipt.crit};
-  if(receipt.kind==='save')return {eventId:receipt.receiptId,kind:'save',role:'save',dice:[{die:'d20',value:receipt.roll}],flat:receipt.bonus,total:receipt.total,dc:receipt.dc,pass:receipt.pass,tier:receipt.pass?'success':'failure',label:label};
+  if(receipt.kind==='save'){const flavor=combatDiceSaveFlavor(receipt);if(flavor==='initiative')return {eventId:receipt.receiptId,kind:'initiative',role:'check',dice:[{die:'d20',value:receipt.roll}],flat:receipt.bonus,total:receipt.total,label:label};return {eventId:receipt.receiptId,kind:'save',role:flavor,dice:[{die:'d20',value:receipt.roll}],flat:receipt.bonus,total:receipt.total,dc:receipt.dc,pass:receipt.pass,tier:receipt.pass?'success':'failure',label:label};}
   return {eventId:receipt.receiptId,kind:'damage',role:'damage',rawValues:receipt.rolls.slice(),rawValuesTruncated:receipt.rollsTruncated,total:receipt.damage,label:label,announcement:label+' · '+receipt.rolls.join(', ')};
 }
 // ── /DICE-FE ──
@@ -10328,6 +10334,7 @@ if(typeof window!=='undefined'){ window._charSprites=true; window._isoGrid=true;
 //   opt-in window._charSprites=true (อัป bundle ลง bucket 'sprites/characters/' ก่อน · override path: window._spriteBase)
 const SPRITE_ROOT=(typeof window!=='undefined'&&window._spriteRoot)||((typeof PUBLIC_URL!=='undefined'?PUBLIC_URL:'')+'sprites/');
 const SPRITE_BASE=(typeof window!=='undefined'&&window._spriteBase)||(SPRITE_ROOT+'characters/');
+const NPC_SPRITE_BASE=(typeof window!=='undefined'&&window._npcSpriteBase)||(SPRITE_ROOT+'characters-v1/');   // LOOKFEEL-01: PC/ally stay on V2; hostile registered NPCs explicitly flagged sprite_set:v1 use the retired character pack
 // v418: asset packs — terrain(iso diamond) · object · monster(size-aware) · background · เปิดด้วย window._charSprites เดียวกัน
 const _ASSET={terrain:SPRITE_ROOT+'terrain/', object:SPRITE_ROOT+'objects/', monster:SPRITE_ROOT+'monsters/', bg:SPRITE_ROOT+'backgrounds/'};
 const _OBJ_KEYS=new Set(['pine','tree','cave','rock','table','fireplace','fire','barrel','chest','crate','door','well','tent','torch','grave','statue','crystal','banner','bush','mushroom','stump','log','bridge','stairs','altar','pillar','bones','skull','bookshelf','bed','cauldron','anvil','signpost','coffin','magiccircle','lever','fence','haystack','lantern','web','flower','cactus','wagon','animal_skull','armor_stand','ash_pile','bar_counter','basalt_column','basket','bench','berry_bush','boulder','brazier','broken_pillar','cage','cairn','cart','cattail','chains','chair','chandelier','crates_stack','creek','cupboard','dead_tree','dune','fallen_tree','fern','fire_crystal','fountain','frozen_tree','ice_crystal','ice_shard','icicle','iron_fence','lamppost','lava_floor','lava_pool','lilypad','magma_vent','mangrove','market_stall','mausoleum','mud_mound','oasis','obelisk','obsidian','ore_vein','palm','pond','portcullis','reeds','roots','rubble','rug','sandstone_ruin','sarcophagus','shelf','snowdrift','spike_trap','stalactite','stool','tall_grass','throne','urn','water_grass','weapon_rack']);
@@ -10358,6 +10365,7 @@ function _spriteRaceKey(raw){ const r=String(HD2D.normalizeRace(raw)).toLowerCas
   if(r.includes('dragonborn')) return 'dragonborn'; if(r.includes('dwarf')) return 'dwarf'; if(r.includes('gnome')) return 'gnome';
   if(r.includes('goliath')) return 'goliath'; if(r.includes('halfling')) return 'halfling'; if(r.includes('aasimar')) return 'aasimar';
   if(r.includes('tiefling')) return 'tiefling'; if(r==='orc') return 'orc'; if(r.includes('elf')) return 'elf'; return 'human'; }
+function tokenSpriteSet(t){ if(!t||!Array.isArray(t.flags)) return 'v2'; for(const _f of t.flags){ const _m=/^sprite_set:(v1|v2)$/i.exec(String(_f||'')); if(_m) return _m[1].toLowerCase(); } return 'v2'; }
 function hd2dCharHref(t){
   try{
     if(!t) return null;
@@ -10375,12 +10383,14 @@ function hd2dCharHref(t){
     } else return null;
     const facing=(t.facing==='W')?'W':'E';
     // v417: เปิด raster sprites + อัปไฟล์แล้ว → คืน URL PNG (class_sex_race) แทน procedural SVG (ใช้ได้ทั้ง 2.5D + iso)
-    if(window._charSprites===true && SPRITE_BASE){
+    const spriteSet=tokenSpriteSet(t), spriteBase=(spriteSet==='v1')?NPC_SPRITE_BASE:SPRITE_BASE;
+    if(window._charSprites===true && spriteBase){
       const classKey=String(HD2D.normalizeClass(cls)).toLowerCase().replace(/[^a-z]/g,'');
       const sexKey=(HD2D.normalizeSex(sex)==='female')?'female':'male';
-      const raceKey=_spriteRaceKey(race), pkey='png|'+classKey+'|'+sexKey+'|'+raceKey;
+      const raceKey=_spriteRaceKey(race), pkey='png|'+spriteSet+'|'+classKey+'|'+sexKey+'|'+raceKey;
       let purl=_hd2dCache.get(pkey);
-      if(purl===undefined){ purl=SPRITE_BASE+classKey+'_'+sexKey+'_'+raceKey+'.png'; _hd2dCache.set(pkey,purl); }
+      if(purl===undefined){ purl=spriteBase+classKey+'_'+sexKey+'_'+raceKey+'.png'; _hd2dCache.set(pkey,purl); }
+      if(spriteSet==='v1'&&window._monImg&&window._monImg[purl]===false){ const fkey='fallback|v1|'+classKey+'|'+sexKey+'|'+raceKey+'|'+facing; let fallback=_hd2dCache.get(fkey); if(fallback===undefined){ fallback=HD2D.spriteDataUri(HD2D.renderCharacterSvg({className:cls,sex:sex,race:race,facing:facing})); _hd2dCache.set(fkey,fallback); } return fallback; }   // เจ้าของอัป V1 ภายหลังได้: object-not-found → repaint เป็น procedural character ทันที ไม่ตกเป็น pawn/blank
       return purl;
     }
     const key=cls+'|'+sex+'|'+race+'|'+facing;
@@ -10566,7 +10576,7 @@ async function renderBattleGrid(p){
       if(OBJ_INDEX.common&&OBJ_INDEX.common.has(key)) return {url:_ASSET.object+'common/'+key+'.png',tiles:1};
       for(const _b in OBJ_INDEX){ if(_b!==_bk&&OBJ_INDEX[_b]&&OBJ_INDEX[_b].has(key)) return {url:_ASSET.object+_b+'/'+key+'.png',tiles:1}; }   // v505: ค้นข้าม biome ก่อนถอยไปไฟล์แบน — เคสจริง 07-04: tall_grass มีแค่ plain/ แต่ถูกวางในป่า → path แบน 400 = ไอคอนรูปเสีย "กล่องสีฟ้า" กลางฉาก
       return {url:_ASSET.object+key+'.png',tiles:1}; }
-    if(t.kind==='monster'){ const id=_monId(t); let _mtl=_MON_TILES[id]||1; if(_mtl>1&&/\b(cub|pup|puppy|whelp|hatchling|baby|infant|juvenile|kitten|chick|piglet|fledgling|calf|foal|kit)\b/i.test(String(t.label||''))) _mtl=1; return {url:_MON_RENDERED.has(id)?(_ASSET.monster+id+'.png'):null, tiles:_mtl}; }   // revert: มอน = ×tiles (Large2/Huge3/Garg4) · v569: ลูกสัตว์ (cub/pup/whelp..) = 1 ช่อง ไม่รับ footprint ตัวโตเต็มวัย (Owlbear Cub ตัดคำเหลือ owlbear=Large2 → ใหญ่เกิน 2×2) · ยกเว้น young (young dragon = Large จริง)
+    if(t.kind==='monster'){ if(tokenSpriteSet(t)==='v1') return {url:null,tiles:1}; const id=_monId(t); let _mtl=_MON_TILES[id]||1; if(_mtl>1&&/\b(cub|pup|puppy|whelp|hatchling|baby|infant|juvenile|kitten|chick|piglet|fledgling|calf|foal|kit)\b/i.test(String(t.label||''))) _mtl=1; return {url:_MON_RENDERED.has(id)?(_ASSET.monster+id+'.png'):null, tiles:_mtl}; }   // LOOKFEEL-01: structural V1 NPC flag outranks generic guard/bandit monster art · revert: มอน = ×tiles (Large2/Huge3/Garg4) · v569: ลูกสัตว์ (cub/pup/whelp..) = 1 ช่อง ไม่รับ footprint ตัวโตเต็มวัย (Owlbear Cub ตัดคำเหลือ owlbear=Large2 → ใหญ่เกิน 2×2) · ยกเว้น young (young dragon = Large จริง)
     return null;
   }catch(e){ return null; } }
   // v483 proportional sizing: สเกลวัตถุเทียบ "มนุษย์=1.0" (แก้วัตถุขนาดเท่ากันหมด) — คูณ _SZ.ob (PNG) / scale transform (SVG) · ปรับค่าตรงนี้จูนได้
@@ -10729,10 +10739,10 @@ async function renderBattleGrid(p){
     if(t.kind==='pc'||t.kind==='ally'||t.kind==='npc'){ const _dc=characters.find(x=>x.id===t.ref_char_id); if(_dc&&/^0\s*\//.test(String((_dc.public_status||{}).hp||''))){ down=true; _supine=true; } } else if(t.kind==='monster'){ const _dcs=csMap[t.ref_combat_state_id]; if(_dcs&&Number.isFinite(+_dcs.cur_hp)&&+_dcs.cur_hp<=0){ down=true; _supine=true; } }   // v448 ล้ม=HP0 · v458 HP0=หงาย
     const _lieDeg=_supine?-74:74;
     const op=(down&&t.kind!=='pc'&&t.kind!=='ally'&&t.kind!=='npc')?0.4:1;   // v449.1: ตัวละครล้ม = หมุนนอนตะแคงแต่ "ไม่จางสี" (ผู้ใช้ขอ) · มอน/วัตถุล้มยังจางเหมือนเดิม
-    const _hd=hd2dCharHref(t);   // v1 HD2D: PC/ally → sprite ตาม class (null = pawn เดิม)
+    const _hd=hd2dCharHref(t), _hdOk=!!(_hd&&(tokenSpriteSet(t)!=='v1'||monSpriteOk(_hd)));   // LOOKFEEL-01: legacy renderer must observe V1 object-not-found too; PC/ally V2 behavior stays unchanged
     svg+=`<g class="gtok"${t._deco?' style="pointer-events:none"':''} onclick="this.classList.toggle('lblon')"><title>${escapeHtml(t.label||'')}</title>`;
     // เงา (HD2D มีฐานในตัว — ข้ามเงาซ้ำ)
-    if(!_hd) svg+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy+5).toFixed(1)}" rx="${t._deco?9:13}" ry="${t._deco?3.2:4.5}" fill="rgba(0,0,0,${t._deco?0.3:0.45})"/>`;
+    if(!_hdOk) svg+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy+5).toFixed(1)}" rx="${t._deco?9:13}" ry="${t._deco?3.2:4.5}" fill="rgba(0,0,0,${t._deco?0.3:0.45})"/>`;
     const _spr=(t.kind==='object')?spriteFn(t):null;
     const gly=glyphFor(t);
     if(_spr){
@@ -10748,7 +10758,7 @@ async function renderBattleGrid(p){
     } else if(t.kind==='marker'){
       svg+=`<polygon points="${fx},${fy-12} ${fx+9},${fy} ${fx},${fy+8} ${fx-9},${fy}" fill="${t.color||'#b06cff'}" opacity="0.6"/>`;
     } else {
-      if(_hd){
+      if(_hdOk){
         // HD2D character sprite — anchor 64/112 → footX/footY (pixelated, ตามทิศ facing)
         const _sz=36;
         svg+=`<image href="${_hd}" x="${(fx-_sz/2).toFixed(1)}" y="${(fy-_sz*0.875).toFixed(1)}" width="${_sz}" height="${_sz}" style="image-rendering:pixelated" opacity="${op}"${down?` transform="rotate(${_lieDeg} ${fx.toFixed(1)} ${(fy-_sz*0.375).toFixed(1)})"`:''}/>`;   // v449: ล้ม=หมุนรอบกึ่งกลางภาพ (นอนตะแคงอยู่กับที่)

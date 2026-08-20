@@ -40,6 +40,10 @@
   });
   const THEME_NAMES = Object.freeze(["light", "dark"]);
   const TAU = Math.PI * 2;
+  // The whole scene is painted into a half-resolution backing buffer and the
+  // browser enlarges it by this integer factor. Geometry is also snapped to
+  // the same grid, so moving dice keep deliberately hard pixel edges.
+  const PIXEL_ART_SCALE = 2;
 
   let localizer = null;
   let environment = null;
@@ -609,11 +613,11 @@
     }
     const descriptor = {
       d4: { vertices: 3, read: "apex", facets: 4 },
-      d6: { vertices: 4, read: "face", facets: 4 },
+      d6: { vertices: 6, read: "face", facets: 6 },
       d8: { vertices: 4, read: "face", facets: 8 },
-      d10: { vertices: 10, read: "face", facets: 10 },
-      d12: { vertices: 12, read: "face", facets: 12 },
-      d20: { vertices: 10, read: "face", facets: 20 },
+      d10: { vertices: 6, read: "face", facets: 10 },
+      d12: { vertices: 10, read: "face", facets: 12 },
+      d20: { vertices: 6, read: "face", facets: 20 },
     }[key];
     return deepFreeze({
       die: key,
@@ -632,12 +636,15 @@
     const width = clamp(integer(viewportWidth) || 720, 240, 2400);
     const mobile = width < 640;
     const visual = visualDiceFor({ groups: groups });
-    const baseSize = mobile ? 54 : 64;
+    // 60/72 keeps a single roll compact on phones while giving the facet grid
+    // at least 30/36 logical pixels. Under crowd pressure, 36 is the smallest
+    // useful size: 18 low-resolution pixels instead of the previous 12.
+    const baseSize = mobile ? 60 : 72;
     const scalePressure = Math.max(
       1,
       Math.sqrt(Math.max(1, visual.length) / (mobile ? 12 : 20)),
     );
-    const dieSize = clamp(Math.floor(baseSize / scalePressure), 24, baseSize);
+    const dieSize = clamp(Math.floor(baseSize / scalePressure), 36, baseSize);
     const dieGap = Math.max(4, Math.floor(dieSize * .12));
     const groupGap = mobile ? 22 : 28;
     const sidePadding = mobile ? 14 : 22;
@@ -985,20 +992,168 @@
     });
   }
 
+  // Normalized orthographic silhouettes and visible face meshes. Facet counts
+  // in faceGeometryFor still describe the physical dice; this table contains
+  // only the faces visible from the fixed pixel-art camera.
+  const PIXEL_DIE_MODELS = deepFreeze({
+    d4: {
+      vertices: [[0, -1], [.9, .72], [-.9, .72], [0, .12]],
+      outline: [0, 1, 2],
+      facets: [
+        { vertices: [0, 1, 3], tone: 4 },
+        { vertices: [1, 2, 3], tone: 1 },
+        { vertices: [2, 0, 3], tone: 2 },
+      ],
+    },
+    d6: {
+      vertices: [
+        [0, -.92], [.82, -.42], [.82, .44], [0, .92],
+        [-.82, .44], [-.82, -.42], [0, .08],
+      ],
+      outline: [0, 1, 2, 3, 4, 5],
+      facets: [
+        { vertices: [0, 1, 6, 5], tone: 4 },
+        { vertices: [1, 2, 3, 6], tone: 2 },
+        { vertices: [5, 6, 3, 4], tone: 0 },
+      ],
+    },
+    d8: {
+      vertices: [[0, -1], [.86, 0], [0, 1], [-.86, 0], [0, .02]],
+      outline: [0, 1, 2, 3],
+      facets: [
+        { vertices: [0, 1, 4], tone: 4 },
+        { vertices: [1, 2, 4], tone: 2 },
+        { vertices: [2, 3, 4], tone: 0 },
+        { vertices: [3, 0, 4], tone: 3 },
+      ],
+    },
+    d10: {
+      vertices: [
+        [0, -1], [.72, -.4], [.58, .52], [0, 1],
+        [-.58, .52], [-.72, -.4], [0, -.45], [0, .06],
+      ],
+      outline: [0, 1, 2, 3, 4, 5],
+      facets: [
+        { vertices: [0, 1, 6], tone: 4 },
+        { vertices: [1, 7, 6], tone: 3 },
+        { vertices: [1, 2, 7], tone: 2 },
+        { vertices: [2, 3, 7], tone: 1 },
+        { vertices: [3, 4, 7], tone: 0 },
+        { vertices: [4, 5, 7], tone: 1 },
+        { vertices: [5, 6, 7], tone: 2 },
+        { vertices: [5, 0, 6], tone: 3 },
+      ],
+    },
+    d12: {
+      vertices: [
+        [0, -1], [.58, -.78], [.92, -.26], [.84, .38], [.38, .9],
+        [-.38, .9], [-.84, .38], [-.92, -.26], [-.58, -.78],
+        [0, -.46], [.42, -.14], [.26, .42], [-.26, .42], [-.42, -.14],
+      ],
+      outline: [0, 1, 2, 3, 4, 5, 6, 7, 8],
+      facets: [
+        { vertices: [9, 10, 11, 12, 13], tone: 3 },
+        { vertices: [0, 1, 10, 9, 8], tone: 4 },
+        { vertices: [1, 2, 3, 11, 10], tone: 2 },
+        { vertices: [3, 4, 5, 12, 11], tone: 1 },
+        { vertices: [5, 6, 7, 13, 12], tone: 0 },
+        { vertices: [7, 8, 9, 13], tone: 2 },
+      ],
+    },
+    d20: {
+      vertices: [
+        [0, -1], [.78, -.46], [.92, .25], [0, 1],
+        [-.92, .25], [-.78, -.46], [0, -.42], [.4, .08],
+        [.28, .58], [-.28, .58], [-.4, .08],
+      ],
+      outline: [0, 1, 2, 3, 4, 5],
+      facets: [
+        { vertices: [0, 5, 6], tone: 4 },
+        { vertices: [0, 6, 1], tone: 3 },
+        { vertices: [5, 4, 10], tone: 2 },
+        { vertices: [5, 10, 6], tone: 3 },
+        { vertices: [6, 10, 7], tone: 1 },
+        { vertices: [6, 7, 1], tone: 4 },
+        { vertices: [1, 7, 2], tone: 2 },
+        { vertices: [10, 4, 9], tone: 0 },
+        { vertices: [10, 9, 7], tone: 2 },
+        { vertices: [7, 9, 8], tone: 1 },
+        { vertices: [7, 8, 2], tone: 3 },
+        { vertices: [4, 3, 9], tone: 0 },
+        { vertices: [9, 3, 8], tone: 1 },
+        { vertices: [8, 3, 2], tone: 2 },
+      ],
+    },
+  });
+
+  function pixelStepFor(size) {
+    return clamp(Math.round((finiteNumber(size) || 48) / 32), 2, 3);
+  }
+
+  function pixelArtPlanFor(item) {
+    const geometry = faceGeometryFor(item && item.die);
+    const model = PIXEL_DIE_MODELS[geometry.die] || PIXEL_DIE_MODELS.d6;
+    const size = Math.max(24, finiteNumber(item && item.size) || 48);
+    const radius = size * .48;
+    const step = pixelStepFor(size);
+    const centerX = finiteNumber(item && item.x) || 0;
+    const centerY = finiteNumber(item && item.y) || 0;
+    const rotation = geometry.read === "apex"
+      ? 0
+      : finiteNumber(item && item.angle) || 0;
+    const cosine = Math.cos(rotation);
+    const sine = Math.sin(rotation);
+    const vertices = model.vertices.map(function (vertex) {
+      const x = vertex[0] * cosine - vertex[1] * sine;
+      const y = vertex[0] * sine + vertex[1] * cosine;
+      return {
+        x: Math.round((centerX + x * radius) / step) * step,
+        y: Math.round((centerY + y * radius) / step) * step,
+      };
+    });
+    return deepFreeze({
+      die: geometry.die,
+      pixelScale: PIXEL_ART_SCALE,
+      pixelStep: step,
+      outline: model.outline.map(function (index) {
+        return vertices[index];
+      }),
+      facets: model.facets.map(function (facet) {
+        return {
+          tone: facet.tone,
+          points: facet.vertices.map(function (index) {
+            return vertices[index];
+          }),
+        };
+      }),
+    });
+  }
+
   function polygonPoints(item) {
-    const geometry = faceGeometryFor(item.die);
-    const count = geometry.vertices;
-    const radius = item.size * .48;
-    const offset = geometry.read === "apex" ? -Math.PI / 2 : item.angle;
-    const points = [];
-    for (let index = 0; index < count; index++) {
-      const angle = offset + TAU * index / count;
-      points.push({
-        x: item.x + Math.cos(angle) * radius,
-        y: item.y + Math.sin(angle) * radius,
-      });
-    }
-    return points;
+    return pixelArtPlanFor(item).outline;
+  }
+
+  function mixHexColor(source, target, ratio) {
+    const clean = String(source || "#555555").replace("#", "");
+    const fallback = clean.length === 6 ? clean : "555555";
+    const amount = clamp(finiteNumber(ratio) || 0, 0, 1);
+    const channels = [0, 2, 4].map(function (offset) {
+      const from = parseInt(fallback.slice(offset, offset + 2), 16);
+      const to = target === "white" ? 255 : 0;
+      return Math.round(from + (to - from) * amount).toString(16)
+        .padStart(2, "0");
+    });
+    return "#" + channels.join("").toUpperCase();
+  }
+
+  function pixelFacetPalette(fill) {
+    return deepFreeze([
+      mixHexColor(fill, "black", .44),
+      mixHexColor(fill, "black", .24),
+      String(fill),
+      mixHexColor(fill, "white", .2),
+      mixHexColor(fill, "white", .38),
+    ]);
   }
 
   function safeContextCall(context, name, args) {
@@ -1151,16 +1306,7 @@
     return String(item.displayFace);
   }
 
-  function drawDie(context, item, settings, quality) {
-    const colors = paletteForItem(item, settings.theme, settings.colorBlind);
-    const points = polygonPoints(item);
-    safeContextCall(context, "save");
-    try {
-      context.fillStyle = colors.fill;
-      context.shadowColor = "rgba(0,0,0,.42)";
-      context.shadowBlur = quality.shadowBlur;
-      context.shadowOffsetY = quality.shadowBlur ? 3 : 0;
-    } catch (error) {}
+  function tracePolygon(context, points) {
     safeContextCall(context, "beginPath");
     points.forEach(function (point, index) {
       safeContextCall(context, index === 0 ? "moveTo" : "lineTo", [
@@ -1169,11 +1315,44 @@
       ]);
     });
     safeContextCall(context, "closePath");
+  }
+
+  function drawDie(context, item, settings, quality) {
+    const colors = paletteForItem(item, settings.theme, settings.colorBlind);
+    const art = pixelArtPlanFor(item);
+    const points = art.outline;
+    const facetPalette = pixelFacetPalette(colors.fill);
+    safeContextCall(context, "save");
+    try {
+      context.imageSmoothingEnabled = false;
+      context.lineJoin = "miter";
+      context.lineCap = "butt";
+      context.fillStyle = facetPalette[0];
+      context.shadowColor = "rgba(0,0,0,.42)";
+      context.shadowBlur = quality.shadowBlur;
+      context.shadowOffsetY = quality.shadowBlur ? art.pixelStep : 0;
+    } catch (error) {}
+    tracePolygon(context, points);
     safeContextCall(context, "fill");
     try {
       context.shadowBlur = 0;
       context.shadowOffsetY = 0;
     } catch (error) {}
+
+    art.facets.forEach(function (facet) {
+      try {
+        context.fillStyle = facetPalette[facet.tone] || facetPalette[2];
+      } catch (error) {}
+      tracePolygon(context, facet.points);
+      safeContextCall(context, "fill");
+      try {
+        context.strokeStyle = facetPalette[0];
+        context.lineWidth = art.pixelStep;
+        context.setLineDash([]);
+      } catch (error) {}
+      safeContextCall(context, "stroke");
+    });
+
     drawPattern(context, points, colors.pattern, "rgba(255,255,255,.42)");
     strokePolygon(
       context,
@@ -1191,8 +1370,9 @@
     if (item.displayFace !== null) {
       try {
         context.fillStyle = colors.ink;
-        context.font = "700 " +
-          String(Math.max(12, Math.round(item.size * .3))) + "px sans-serif";
+        context.font = "800 " +
+          String(Math.max(12, Math.round(item.size * .28))) +
+          "px ui-monospace,monospace";
         context.textAlign = "center";
         context.textBaseline = "middle";
       } catch (error) {}
@@ -1539,15 +1719,23 @@
       motion.quality.pixelRatioCap,
       Math.max(1, finiteNumber(environment.pixelRatio()) || 1),
     );
+    const backingRatio = clamp(Math.floor(ratio), 1, 2);
+    const bufferWidth = Math.max(1, Math.floor(width / PIXEL_ART_SCALE));
+    const bufferHeight = Math.max(1, Math.floor(height / PIXEL_ART_SCALE));
     try {
-      canvas.width = Math.round(width * ratio);
-      canvas.height = Math.round(height * ratio);
+      canvas.width = bufferWidth * backingRatio;
+      canvas.height = bufferHeight * backingRatio;
       if (canvas.style) {
-        canvas.style.width = String(width) + "px";
-        canvas.style.height = String(height) + "px";
+        canvas.style.width = String(bufferWidth * PIXEL_ART_SCALE) + "px";
+        canvas.style.height = String(bufferHeight * PIXEL_ART_SCALE) + "px";
+        canvas.style.imageRendering = "pixelated";
       }
-      if (ratio !== 1 && typeof context.scale === "function") {
-        context.scale(ratio, ratio);
+      context.imageSmoothingEnabled = false;
+      if (typeof context.scale === "function") {
+        context.scale(
+          backingRatio / PIXEL_ART_SCALE,
+          backingRatio / PIXEL_ART_SCALE,
+        );
       }
       if (environment.appendCanvas(source.container, canvas) !== true) {
         return fallbackRender(event, onDone, "container-unavailable");
@@ -1746,6 +1934,8 @@
       timelineFor: timelineFor,
       qualityPlan: qualityPlan,
       faceGeometryFor: faceGeometryFor,
+      pixelArtPlanFor: pixelArtPlanFor,
+      pixelFacetPalette: pixelFacetPalette,
       layoutGroups: layoutGroups,
       visualDiceFor: visualDiceFor,
       finalFacesFor: finalFacesFor,
