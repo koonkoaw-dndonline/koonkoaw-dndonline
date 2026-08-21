@@ -23,7 +23,7 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./grid-command-flow.js?v=961"></script>
 <script src="./grid-command-adapter.js?v=822"></script>
 <script src="./grid-board-replacement-lease.js?v=202608110249"></script>
-<script src="./dice-fx.js?v=0126"></script>
+<script src="./dice-fx.js?v=0127"></script>
 <script src="./dice-canvas.js?v=1101"></script>
 <script src="./music-playback-owner.js?v=847"></script>
 <script src="./music-v2-dark-launch.js?v=1211"></script>
@@ -2149,7 +2149,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202608210652;   // REVIEW-01: host-only DM Options audit review card (label per exact reason) · asset ring 20260813a1 unchanged
+const FRONTEND_BUILD = 202608211045;   // REVIEW-01: host-only DM Options audit review card (label per exact reason) · asset ring 20260813a1 unchanged
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -4389,7 +4389,7 @@ function combatDiceReceiptLabel(receipt){
 function combatDicePlaybackPayload(receipt){
   const label=combatDiceReceiptLabel(receipt);
   if(receipt.kind==='attack')return {eventId:receipt.receiptId,kind:'attack',role:'attack',dice:[{die:'d20',value:receipt.roll}],flat:receipt.total-receipt.roll,total:receipt.total,pass:receipt.hit,tier:receipt.crit?'crit-success':receipt.hit?'success':'failure',label:label,critical:receipt.crit};
-  if(receipt.kind==='save'){const flavor=combatDiceSaveFlavor(receipt);if(flavor==='initiative')return {eventId:receipt.receiptId,kind:'initiative',role:'check',dice:[{die:'d20',value:receipt.roll}],flat:receipt.bonus,total:receipt.total,label:label};return {eventId:receipt.receiptId,kind:'save',role:flavor,dice:[{die:'d20',value:receipt.roll}],flat:receipt.bonus,total:receipt.total,dc:receipt.dc,pass:receipt.pass,tier:receipt.pass?'success':'failure',label:label};}
+  if(receipt.kind==='save'){const mapper=window.DiceFx&&window.DiceFx._pure&&window.DiceFx._pure.combatSaveReceiptPlaybackPayload;return typeof mapper==='function'?mapper(receipt,label):null;}
   return {eventId:receipt.receiptId,kind:'damage',role:'damage',rawValues:receipt.rolls.slice(),rawValuesTruncated:receipt.rollsTruncated,total:receipt.damage,label:label,announcement:label+' · '+receipt.rolls.join(', ')};
 }
 // ── /DICE-FE ──
@@ -4500,6 +4500,7 @@ function playRoundCombatDiceMeta(round,character,choreography){
         if(!dicePreferenceEnabled('dice_fx')){emit('combat_union_fx_disabled_unseen',detail);return;}
         const diceFx=window.DiceFx;if(!diceFx||typeof diceFx.roll!=='function'){burn(receiptId);emit('combat_union_dicefx_missing_fail_open',detail);return;}
         const payload=combatDicePlaybackPayload(receipt);
+        if(!payload){burn(receiptId);emit('combat_union_save_payload_invalid',detail);return;}
         if(choreography){queued.push({payload:payload,receiptId:receiptId,detail:detail});return;}
         inFlight.add(receiptId);directPending++;
         let receiptDone=false,timer=null;
@@ -4557,9 +4558,9 @@ try{document.addEventListener('visibilitychange',()=>{if(!document.hidden)resume
 // meta.dice. The existing system:story-check receipt is the authority that a retry is
 // useful; ordinary rounds therefore pay no extra rounds query.
 // language-impact: none — machine-only orchestration and diagnostics; no runtime copy.
-const POST_FLIP_REFETCH_DELAYS_MS=Object.freeze([150,350,700,1400,2800]);
+const POST_FLIP_REFETCH_DELAYS_MS=Object.freeze([150,350,700,1400,2800,5600,11200]);
 function createPostFlipRoundRefetch(deps){
-  const d=deps||{}, triggered=new Set(), running=new Map();
+  const d=deps||{}, completed=new Set(), running=new Map();
   const delays=Array.isArray(d.delaysMs)&&d.delaysMs.length?d.delaysMs.slice():POST_FLIP_REFETCH_DELAYS_MS.slice();
   const visibleRound=()=>typeof d.visibleRound==='function'?d.visibleRound():null;
   const hasDice=round=>!!(round&&round.meta&&Array.isArray(round.meta.dice)&&round.meta.dice.length);
@@ -4574,14 +4575,13 @@ function createPostFlipRoundRefetch(deps){
     }catch(_postFlipCandidateError){return null;}
   }
   async function trigger(row){
-    const match=candidate(row); if(!match||triggered.has(match.key)||running.has(match.key))return false;
-    triggered.add(match.key); if(triggered.size>64)triggered.delete(triggered.values().next().value);
+    const match=candidate(row); if(!match||completed.has(match.key)||running.has(match.key))return false;
     const task=(async()=>{
       log('post_flip_refetch_trigger',{roundId:match.roundId,source:'story_check_receipt'});
       for(let attempt=0;attempt<delays.length;attempt++){
-        const before=visibleRound(); if(String(before&&before.id||'')!==match.roundId||hasDice(before))return hasDice(before);
+        const before=visibleRound(); if(String(before&&before.id||'')!==match.roundId)return false;if(hasDice(before))return true;
         try{const waitMs=Math.max(0,Number(delays[attempt])||0);if(waitMs&&typeof d.wait==='function')await d.wait(waitMs);}catch(_postFlipWaitError){return false;}
-        const current=visibleRound(); if(String(current&&current.id||'')!==match.roundId||hasDice(current))return hasDice(current);
+        const current=visibleRound(); if(String(current&&current.id||'')!==match.roundId)return false;if(hasDice(current))return true;
         try{
           const fetched=typeof d.fetchRound==='function'?await d.fetchRound(match.roundId,'post_flip'):null;
           if(fetched&&String(fetched.id||'')===match.roundId&&hasDice(fetched)){log('post_flip_refetch_ready',{roundId:match.roundId,source:'post_flip',attempt:attempt+1});return true;}
@@ -4590,7 +4590,7 @@ function createPostFlipRoundRefetch(deps){
       log('post_flip_refetch_cap',{roundId:match.roundId,source:'post_flip',attempts:delays.length}); return false;
     })();
     running.set(match.key,task);
-    try{return await task;}catch(error){log('post_flip_refetch_error',{roundId:match.roundId,source:'post_flip',error:String(error&&error.message||error||'unexpected').slice(0,160)});return false;}
+    try{const ready=await task;if(ready){completed.add(match.key);if(completed.size>64)completed.delete(completed.values().next().value);}return ready;}catch(error){log('post_flip_refetch_error',{roundId:match.roundId,source:'post_flip',error:String(error&&error.message||error||'unexpected').slice(0,160)});return false;}
     finally{running.delete(match.key);}
   }
   function triggerLatest(rows){
@@ -4598,7 +4598,7 @@ function createPostFlipRoundRefetch(deps){
     for(let i=rows.length-1;i>=0;i--){if(candidate(rows[i]))return trigger(rows[i]);}
     return Promise.resolve(false);
   }
-  return Object.freeze({trigger:trigger,triggerLatest:triggerLatest,pendingCount:()=>running.size,triggeredCount:()=>triggered.size});
+  return Object.freeze({trigger:trigger,triggerLatest:triggerLatest,pendingCount:()=>running.size,triggeredCount:()=>completed.size});
 }
 let _postFlipRoundRefetch=null;
 function postFlipRoundRefetchController(){

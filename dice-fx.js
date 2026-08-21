@@ -102,6 +102,25 @@
     return Object.freeze(dice);
   }
 
+  // DICESURFACE-02: one pure mapping seam for authoritative combat save
+  // receipts. The UI owns paired labels; this function only carries server
+  // values into the existing save choreography and never derives a face/total.
+  function combatSaveReceiptPlaybackPayload(receipt,label){
+    const source=receipt&&typeof receipt==='object'&&!Array.isArray(receipt)?receipt:null;
+    if(!source||source.kind!=='save') return null;
+    const eventId=cleanText(source.receiptId,260),cleanLabel=cleanText(label,320);
+    const roll=Number.isInteger(source.roll)&&source.roll>=1&&source.roll<=20?source.roll:null;
+    const bonus=Number.isInteger(source.bonus)&&source.bonus>=-100&&source.bonus<=1000?source.bonus:null;
+    const total=Number.isInteger(source.total)&&source.total>=-100&&source.total<=1000?source.total:null;
+    const dc=Number.isInteger(source.dc)&&source.dc>=0&&source.dc<=1000?source.dc:null;
+    const pass=typeof source.pass==='boolean'?source.pass:null;
+    if(!eventId||roll===null||bonus===null||total===null||dc===null||pass===null||total!==roll+bonus) return null;
+    const ability=String(source.ability||'').trim().toLowerCase().replace(/[\s_]+/g,'-');
+    if(ability==='initiative') return Object.freeze({eventId:eventId,kind:'initiative',role:'check',dice:[{die:'d20',value:roll}],flat:bonus,total:total,label:cleanLabel});
+    if(ability==='death'||ability==='death-save'||ability==='deathsave') return Object.freeze({eventId:eventId,kind:'save',role:'death-save',dice:[{die:'d20',value:roll}],flat:bonus,total:total,dc:dc,pass:pass,tier:pass?'success':'failure',label:cleanLabel});
+    return Object.freeze({eventId:eventId,kind:'save',role:'save',dice:[{die:'d20',value:roll}],flat:bonus,total:total,dc:dc,pass:pass,tier:pass?'success':'failure',label:cleanLabel});
+  }
+
   function visualDurationFor(diceCount,seed,reducedMotion){
     if(reducedMotion) return 140;
     const count=Math.max(1,Math.min(MAX_VISIBLE_DICE,boundedInteger(diceCount,1,64,1)));
@@ -844,6 +863,7 @@
       PENDING_TIMEOUT_MS:PENDING_TIMEOUT_MS,
       CHOREOGRAPHY_STEP_TIMEOUT_MS:CHOREOGRAPHY_STEP_TIMEOUT_MS,
       normalizeDice:normalizeDice,
+      combatSaveReceiptPlaybackPayload:combatSaveReceiptPlaybackPayload,
       planRollVisual:planRollVisual,
       finalFacesOf:finalFacesOf,
       splitTotalCosmetic:splitTotalCosmetic,
