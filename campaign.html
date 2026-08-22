@@ -2150,7 +2150,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202608220823;   // DICE-PRESS-ROLL-01: owner press window + d6/d20 live-face landing + self-hosted bounce clunks
+const FRONTEND_BUILD = 202608221626;   // AID-ANSWERABLE-01: exact-recipient combat-aid card remains reachable while down
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -6559,6 +6559,62 @@ function _optIsMine(cb){
   if(o.conflict) return false;
   return !o.id || !!(typeof myChar!=='undefined' && myChar && o.id===String(myChar.id));
 }
+const NPC_COMBAT_AID_SURFACE_RE=/^system:npc-offer:p9:(offered|accepted|declined|expired):(p9_combat_aid:([0-9a-f-]{36}):([0-9a-f-]{36}):([0-9a-f-]{36}))$/i;
+function npcCombatAidOfferCardState(rows,recipientId){
+  const recipient=String(recipientId||'').toLowerCase(), byOffer=new Map();
+  if(!recipient) return [];
+  (Array.isArray(rows)?rows:[]).forEach(row=>{
+    const match=String(row&&row.source_content||'').trim().match(NPC_COMBAT_AID_SURFACE_RE);
+    if(!match||String(match[3]||'').toLowerCase()!==recipient) return;
+    const status=String(match[1]||'').toLowerCase(), offerKey=String(match[2]||'');
+    const prior=byOffer.get(offerKey)||{offerKey:offerKey,content:'',offered:false,terminal:false};
+    if(status==='offered'){ prior.offered=true; prior.content=String(row&&row.content||'').trim(); }
+    else prior.terminal=true;
+    byOffer.set(offerKey,prior);
+  });
+  const local=window._npcAidOfferLocalStatus||{};
+  return [...byOffer.values()].filter(row=>row.offered&&!row.terminal&&!local[row.offerKey]).map(row=>({offerKey:row.offerKey,content:row.content}));
+}
+async function respondNpcCombatAidOffer(offerKey,decision){
+  if(window.frontendWriteBlocked){ toast(uiCopy('(แก้: หน้าเกมรุ่นเก่าถูกหยุดก่อนส่งคำตอบ — รีเฟรชหน้าแล้วลองใหม่)','(Fixed: this older page was stopped before sending the answer — reload and try again.)'),true); return; }
+  const match=String(offerKey||'').match(/^p9_combat_aid:[0-9a-f-]{36}:([0-9a-f-]{36}):[0-9a-f-]{36}$/i);
+  if(!match||!myChar||String(match[1]).toLowerCase()!==String(myChar.id||'').toLowerCase()||!curRound||!['accept','decline'].includes(decision)){
+    toast(uiCopy('(แก้: คำตอบนี้ไม่ตรงกับข้อเสนอที่ส่งถึงเจ้า จึงไม่มีสิ่งใดเปลี่ยนแปลง)','(Fixed: this answer did not match the offer addressed to you, so nothing changed.)'),true); return;
+  }
+  if(window._npcAidOfferSubmitting) return; window._npcAidOfferSubmitting=true;
+  try{
+    const payload={schema:'npc_offer_response_v1',campaign_id:campaign.id,offer_key:offerKey,recipient_character_id:myChar.id,decision:decision,response_key:offerKey+':'+decision,current_round_id:curRound.id,source_action_id:null};
+    const {data,error}=await supa.rpc('respond_npc_offer_consent_v1',{p_response:payload});
+    if(error) throw error;
+    const status=String(data&&data.status||'');
+    if(status==='expired'){
+      window._npcAidOfferLocalStatus=window._npcAidOfferLocalStatus||{}; window._npcAidOfferLocalStatus[offerKey]='expired';
+      toast(uiCopy('ข้อเสนอนี้ถูกเก็บไว้แล้วก่อนคำตอบจะไปถึง ไม่มีการยินยอมแทนเจ้า','The offer was set aside before your answer arrived; no consent was inferred for you'));
+      renderRoundbar(); return;
+    }
+    if(!(data&&data.ok===true)&&!['accepted','declined'].includes(status)) throw new Error(String(data&&data.reason_code||'offer_response_failed'));
+    window._npcAidOfferLocalStatus=window._npcAidOfferLocalStatus||{};
+    window._npcAidOfferLocalStatus[offerKey]=status||((decision==='accept')?'accepted':'declined');
+    toast(decision==='accept'?uiCopy('คำตอบรับของเจ้าถูกส่งถึงผู้ยื่นข้อเสนอแล้ว','Your acceptance has reached the one who made the offer'):uiCopy('คำปฏิเสธของเจ้าถูกส่งถึงผู้ยื่นข้อเสนอแล้ว','Your refusal has reached the one who made the offer'));
+    renderRoundbar();
+  }catch(e){ toast(uiCopy('(แก้: คำตอบยังส่งไปไม่ถึง — ข้อเสนอยังคงเดิมและลองตอบใหม่ได้)','(Fixed: the answer did not reach its destination; the offer is unchanged and you may try again.)'),true); }
+  finally{ window._npcAidOfferSubmitting=false; }
+}
+function renderNpcCombatAidOfferCard(bar){
+  if(!bar||!myChar) return;
+  const states=npcCombatAidOfferCardState(narrative,myChar.id);
+  states.forEach(state=>{
+    const card=document.createElement('div'); card.className='note npc-combat-aid-offer'; card.style.cssText='text-align:left;padding:10px 9px;line-height:1.6;border:1px solid rgba(250,199,117,.65);border-radius:8px;background:rgba(250,199,117,.07);margin:6px 0';
+    const copy=document.createElement('div'); copy.textContent=state.content||uiCopy('มีผู้ยื่นมือขอร่วมยืนในแนวรบ และกำลังรอฟังคำตอบของเจ้า','Someone has offered to stand in the battle line and waits for your answer'); card.appendChild(copy);
+    const row=document.createElement('div'); row.style.cssText='display:flex;gap:8px;margin-top:8px;flex-wrap:wrap';
+    const yes=document.createElement('button'); yes.type='button'; yes.className='btn sm'; yes.textContent=uiCopy('ตอบรับให้ร่วมรบ','Accept their aid'); yes.disabled=!!window._npcAidOfferSubmitting; yes.onclick=()=>respondNpcCombatAidOffer(state.offerKey,'accept'); row.appendChild(yes);
+    const no=document.createElement('button'); no.type='button'; no.className='btn ghost sm'; no.textContent=uiCopy('ปฏิเสธครั้งนี้','Decline for now'); no.disabled=!!window._npcAidOfferSubmitting; no.onclick=()=>respondNpcCombatAidOffer(state.offerKey,'decline'); row.appendChild(no);
+    card.appendChild(row); bar.appendChild(card);
+  });
+  const local=window._npcAidOfferLocalStatus||{}, ownPrefix='p9_combat_aid:';
+  const latest=Object.entries(local).reverse().find(([key])=>key.startsWith(ownPrefix)&&key.split(':')[2]===String(myChar.id));
+  if(latest){ const note=document.createElement('div'); note.className='note npc-combat-aid-response'; note.style.cssText='text-align:left;padding:8px 7px;color:#FAC775'; note.textContent=latest[1]==='accepted'?uiCopy('(แก้: คำตอบรับของเจ้าถูกส่งถึงผู้ยื่นข้อเสนอแล้ว เขาจะเข้าประจำที่เมื่อแนวรบเปิดทาง)','(Fixed: your acceptance has reached the one who made the offer; they will take their place when the battle line opens)'):latest[1]==='expired'?uiCopy('(แก้: ข้อเสนอนั้นถูกเก็บไว้ก่อนคำตอบจะไปถึง และไม่มีผู้ใดถือความเงียบเป็นคำยินยอม)','(Fixed: the offer was set aside before the answer arrived, and no one treated silence as consent)'):uiCopy('(แก้: คำปฏิเสธของเจ้าถูกส่งถึงผู้ยื่นข้อเสนอแล้ว และข้อเสนอนั้นถูกเก็บไว้)','(Fixed: your refusal has reached the one who made the offer, and the offer has been set aside)'); bar.appendChild(note); }
+}
 async function renderRoundbar(){
   const myseq=++roundbarSeq;            // กัน render ซ้อน (ต้นเหตุกล่องตอบซ้ำ)
   const bar=$('roundbar');
@@ -6741,6 +6797,7 @@ async function renderRoundbar(){
     }
   }catch(e){}
   // v2: ล็อกตาเดี่ยว — ถ้าอยู่ในคอมแบตและยังไม่ถึงตาเรา → รอ (ไม่ให้ส่ง)
+  renderNpcCombatAidOfferCard(bar);
   if(myPet){
     const ph=document.createElement('div'); ph.className='note'; ph.style.cssText='text-align:left;padding:6px 2px;color:#9ad;font-weight:600';
     ph.innerHTML=uiCopy('⚔️ ถึงตา <b>'+escapeHtml(myPet.name)+'</b> (สัตว์เลี้ยงของคุณ) — สั่งการได้เลย','⚔️ Your pet <b>'+escapeHtml(myPet.name)+'</b> — act now'); bar.appendChild(ph);
