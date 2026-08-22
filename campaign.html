@@ -23,8 +23,9 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./grid-command-flow.js?v=961"></script>
 <script src="./grid-command-adapter.js?v=822"></script>
 <script src="./grid-board-replacement-lease.js?v=202608110249"></script>
-<script src="./dice-fx.js?v=0127"></script>
-<script src="./dice-canvas.js?v=1101"></script>
+<script src="./dice-roll-sound.js?v=0823"></script>
+<script src="./dice-fx.js?v=0823"></script>
+<script src="./dice-canvas.js?v=0823"></script>
 <script src="./music-playback-owner.js?v=847"></script>
 <script src="./music-v2-dark-launch.js?v=1211"></script>
 <style>
@@ -2149,7 +2150,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202608211045;   // REVIEW-01: host-only DM Options audit review card (label per exact reason) · asset ring 20260813a1 unchanged
+const FRONTEND_BUILD = 202608220823;   // DICE-PRESS-ROLL-01: owner press window + d6/d20 live-face landing + self-hosted bounce clunks
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2960,6 +2961,7 @@ function recordDiceVisualProof(phase,detail){
   }catch(_diceVisualProofRecordError){return null;}
 }
 const DICE_CANVAS_JOB_TIMEOUT_MS=2600;
+const DICE_PRESS_AUTO_MS=2200;
 function diceCanvasDefaultEnvironment(){
   let legacyMuteCount=0;
   function ensureStyle(){
@@ -2969,7 +2971,8 @@ function diceCanvasDefaultEnvironment(){
     document.head.appendChild(style);
   }
   return {
-    fxEnabled:()=>dicePreferenceEnabled('dice_fx'), sfxEnabled:()=>dicePreferenceEnabled('dice_sfx'),
+    fxEnabled:()=>dicePreferenceEnabled('dice_fx'), sfxEnabled:()=>dicePreferenceEnabled('dice_sfx')&&musicOn===true,
+    copy:(th,en)=>uiCopy(th,en),
     reducedMotion:()=>{ try{ return !!window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(_error){ return false; } },
     setTimer:(callback,delay)=>setTimeout(callback,delay), clearTimer:id=>clearTimeout(id),
     visualProof:(phase,detail)=>recordDiceVisualProof(phase,detail),
@@ -2988,6 +2991,20 @@ function diceCanvasDefaultEnvironment(){
         recordDiceVisualProof('overlay_mounted',{connected:connected});
         return {container:stage,announce:text=>{ live.textContent=String(text||''); },dispose:()=>{ try{ overlay.remove(); }catch(_error){} try{recordDiceVisualProof('overlay_removed');}catch(_diceOverlayRemovedProofError){} }};
       }catch(_error){ return null; }
+    },
+    mountPlayerRollPrompt:model=>{
+      try{
+        if(!document||!document.body)return null;
+        const overlay=document.createElement('div');overlay.setAttribute('data-dice-press-roll','1');overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-label',String(model&&model.title||''));
+        overlay.style.cssText='position:fixed;inset:0;z-index:2147482050;display:grid;place-items:center;padding:18px;pointer-events:auto;background:rgba(17,10,5,.24);';
+        const card=document.createElement('div');card.style.cssText='width:min(92vw,390px);padding:20px 18px 18px;border:3px double #8b602f;border-radius:12px;background:linear-gradient(145deg,#f4e4bd,#d9bd82);color:#2a1a0d;text-align:center;box-shadow:0 14px 34px rgba(20,10,2,.45),inset 0 0 0 2px rgba(255,250,226,.55);font-family:Trirong,Georgia,serif;';
+        const title=document.createElement('div');title.textContent=String(model&&model.title||'');title.style.cssText='font-size:18px;font-weight:700;line-height:1.45;margin-bottom:8px;';
+        const label=document.createElement('div');label.textContent=String(model&&model.label||'');label.style.cssText='font-size:13px;line-height:1.45;opacity:.8;margin-bottom:14px;overflow-wrap:anywhere;';
+        const button=document.createElement('button');button.type='button';button.textContent=String(model&&model.buttonLabel||'');button.style.cssText='min-width:190px;min-height:58px;padding:12px 22px;border:3px solid #2f1c0d;border-radius:10px;background:#3b2412;color:#fff2cf;font:700 20px/1.2 Trirong,Georgia,serif;box-shadow:0 5px 0 #170d06;touch-action:manipulation;';button.onclick=()=>{try{if(model&&typeof model.onPress==='function')model.onPress();}catch(_dicePressClickError){}};
+        const hint=document.createElement('div');hint.textContent=String(model&&model.hint||'');hint.style.cssText='font-size:12px;line-height:1.45;margin-top:14px;opacity:.72;';
+        card.appendChild(title);card.appendChild(label);card.appendChild(button);card.appendChild(hint);overlay.appendChild(card);document.body.appendChild(overlay);try{button.focus({preventScroll:true});}catch(_dicePressFocusError){}
+        let closed=false;return {close:()=>{if(closed)return;closed=true;try{overlay.remove();}catch(_dicePressRemoveError){}}};
+      }catch(_dicePressMountError){return null;}
     },
     renderRawChips:(container,payload)=>{
       try{
@@ -3024,6 +3041,8 @@ function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
     }
     try{ if(job.announceTimer!==null) environment.clearTimer(job.announceTimer); }catch(_error){}
     try{ if(job.rawTimer!==null) environment.clearTimer(job.rawTimer); }catch(_error){}
+    try{ if(job.pressTimer!==null) environment.clearTimer(job.pressTimer); }catch(_error){}
+    try{ if(job.pressPrompt) job.pressPrompt.close(); }catch(_error){}
     try{ if(job.mount) job.mount.dispose(); }catch(_error){}
     if(activeJob===job) activeJob=null;
     safeDone(job.input); runNext();
@@ -3037,14 +3056,22 @@ function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
     }catch(_error){}
     complete(job);
   }
-  function legacySoundOnly(job){
+  function legacySoundOnly(job,canvasHandle){
     if(!environment.sfxEnabled()||!legacyDiceFx||typeof legacyDiceFx.roll!=='function') return;
     let released=false;
     const release=()=>{ if(released)return; released=true; try{ environment.muteLegacy(false); }catch(_error){} };
     try{
       environment.muteLegacy(true);
-      legacyDiceFx.roll(Object.assign({},job.input,{onDone:release}));
+      const rollMs=canvasHandle&&canvasHandle.timeline?Number(canvasHandle.timeline.rollMs):null;
+      legacyDiceFx.roll(Object.assign({},job.input,{sfxDurationMs:Number.isFinite(rollMs)?rollMs:null,onDone:release}));
     }catch(_error){ release(); }
+  }
+  function startJob(job,pressedByPlayer){
+    if(!job||job.done||job.started)return false;job.started=true;
+    try{if(job.pressTimer!==null)environment.clearTimer(job.pressTimer);}catch(_error){}job.pressTimer=null;
+    try{if(job.pressPrompt)job.pressPrompt.close();}catch(_error){}job.pressPrompt=null;
+    try{if(typeof job.input.onRollTrigger==='function')job.input.onRollTrigger(pressedByPlayer===true);}catch(_error){}
+    queue.push(job);runNext();return true;
   }
   function runNext(){
     if(activeJob||!queue.length) return;
@@ -3084,12 +3111,18 @@ function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
       const delay=Math.max(0,Number(handle.mirror.announceAtMs)||0);
       try{ job.announceTimer=environment.setTimer(()=>{ try{ mounted.announce(handle.mirror.announcement); }catch(_error){} },delay); }catch(_error){}
     }
-    legacySoundOnly(job);
+    legacySoundOnly(job,handle);
   }
   function roll(input){
     const source=input&&typeof input==='object'?input:{};
     if(!environment.fxEnabled()){ safeDone(source); return Object.freeze({skipped:true,reason:'disabled',cancel:()=>false}); }
-    const job={input:source,done:false,mount:null,canvasHandle:null,announceTimer:null,rawTimer:null}; queue.push(job); runNext();
+    const job={input:source,done:false,started:false,mount:null,canvasHandle:null,announceTimer:null,rawTimer:null,pressTimer:null,pressPrompt:null};
+    if(source.pressToRoll===true&&typeof environment.mountPlayerRollPrompt==='function'){
+      const copy=(th,en)=>{try{return typeof environment.copy==='function'?String(environment.copy(th,en)||en):en;}catch(_error){return en;}};
+      try{job.pressPrompt=environment.mountPlayerRollPrompt({title:copy('ถึงตาคุณทอย','Your roll'),label:String(source.label||copy('ผลทอยของตัวละครคุณพร้อมแล้ว','Your character\'s roll is ready')),buttonLabel:copy('🎲 ทอยเต๋า','🎲 ROLL'),hint:copy('ถ้าไม่กด ระบบจะทอยให้อัตโนมัติ','Auto-roll starts shortly if you do not press'),onPress:()=>startJob(job,true)});}catch(_error){job.pressPrompt=null;}
+      if(job.pressPrompt){try{job.pressTimer=environment.setTimer(()=>startJob(job,false),DICE_PRESS_AUTO_MS);}catch(_error){startJob(job,false);} }
+      else startJob(job,false);
+    }else startJob(job,false);
     return Object.freeze({skipped:false,cancel:()=>{ if(job.done)return false; if(job.canvasHandle&&typeof job.canvasHandle.cancel==='function'){ try{ job.canvasHandle.cancel(); }catch(_error){} } complete(job); return true; }});
   }
   function pending(input){
@@ -4286,6 +4319,7 @@ function dicePlaybackDiagJson(){
     if(Number.isInteger(entry.combatUnknownKindCount)) compact.combatUnknownKindCount=entry.combatUnknownKindCount;
     if(Number.isInteger(entry.combatInvalidCount)) compact.combatInvalidCount=entry.combatInvalidCount;
     if(Number.isInteger(entry.combatCappedCount)) compact.combatCappedCount=entry.combatCappedCount;
+    if(typeof entry.pressed_by_player==='boolean') compact.pressed_by_player=entry.pressed_by_player;
     return compact;
   });
   const compact={at:String(payload.at||'').slice(0,64),campaignId:String(payload.campaignId||'').slice(0,128),roundId:String(payload.roundId||'').slice(0,128),receiptCount:Number.isInteger(payload.receiptCount)?payload.receiptCount:0,ledgerKey:String(payload.ledgerKey||'').slice(0,256),ledger:[],ledgerSize:Number.isInteger(payload.ledgerSize)?payload.ledgerSize:0,ledgerError:String(payload.ledgerError||'').slice(0,128),log:compactLog,visualProof:diceVisualProofSnapshot(),hasDiceFx:!!payload.hasDiceFx,diceFxRoll:!!payload.diceFxRoll,diceFxSetting:payload.diceFxSetting===null?null:String(payload.diceFxSetting||'').slice(0,64),diceFxSettingError:String(payload.diceFxSettingError||'').slice(0,128),probeError:String(payload.probeError||'').slice(0,128),truncated:true,originalChars:typeof json==='string'?json.length:null};
@@ -4317,6 +4351,7 @@ function dicePlaybackLog(reason,detail){
     if(Number.isInteger(d.combatUnknownKindCount)) entry.combatUnknownKindCount=d.combatUnknownKindCount;
     if(Number.isInteger(d.combatInvalidCount)) entry.combatInvalidCount=d.combatInvalidCount;
     if(Number.isInteger(d.combatCappedCount)) entry.combatCappedCount=d.combatCappedCount;
+    if(typeof d.pressed_by_player==='boolean') entry.pressed_by_player=d.pressed_by_player;
     const log=Array.isArray(window.__dicePlaybackLog)?window.__dicePlaybackLog:[];
     log.push(entry); if(log.length>50) log.splice(0,log.length-50); window.__dicePlaybackLog=log;
     try{ dicePlaybackDiagSync(); }catch(_dicePlaybackDiagMirrorError){}
@@ -4420,7 +4455,7 @@ function endDiceNarrationHold(token){
   try{if(activeTab()==='story')renderStory();}catch(_diceNarrationReleaseRenderError){}
   return true;
 }
-const DICE_PLAYBACK_CALLBACK_TIMEOUT_MS=3200;
+const DICE_PLAYBACK_CALLBACK_TIMEOUT_MS=7000;
 function playRoundDiceMeta(round,character,choreography){
   let receipts=[],ownName='',campaignId='',roundId='',stored=[],ledgerState=null;
   let choreographyDone=false;
@@ -4450,7 +4485,7 @@ function playRoundDiceMeta(round,character,choreography){
         if(!dicePreferenceEnabled('dice_fx')){emit('fx_disabled_unseen',{receiptIndex:index,receiptWho:receipt.who});return;}
         const diceFx=window.DiceFx;
         if(!diceFx||typeof diceFx.roll!=='function'){burn(receiptKey);emit('dicefx_missing_fail_open',{receiptIndex:index,receiptWho:receipt.who});return;}
-        const payload={eventId:'dice-meta:'+receiptKey,dice:[{die:'d20',value:roll}],flat:Number.isFinite(receipt.bonus)?receipt.bonus:0,total:total,dc:Number.isFinite(receipt.dc)?receipt.dc:null,pass:typeof receipt.pass==='boolean'?receipt.pass:null,tier:typeof receipt.tier==='string'?receipt.tier:'',label:String(receipt.skill||receipt.kind||'')};
+        const payload={eventId:'dice-meta:'+receiptKey,dice:[{die:'d20',value:roll}],flat:Number.isFinite(receipt.bonus)?receipt.bonus:0,total:total,dc:Number.isFinite(receipt.dc)?receipt.dc:null,pass:typeof receipt.pass==='boolean'?receipt.pass:null,tier:typeof receipt.tier==='string'?receipt.tier:'',label:String(receipt.skill||receipt.kind||''),pressToRoll:true,onRollTrigger:pressed=>emit('roll_triggered',{receiptIndex:index,receiptWho:receipt.who,pressed_by_player:pressed===true})};
         if(choreography){queued.push({payload:payload,receiptKey:receiptKey,index:index,who:receipt.who});return;}
         inFlight.add(receiptKey);directPending++;
         let receiptDone=false,timer=null;
@@ -4499,7 +4534,7 @@ function playRoundCombatDiceMeta(round,character,choreography){
         if(seen.has(receiptId)||memorySeen.has(receiptId)||inFlight.has(receiptId)){emit('combat_union_already_seen',detail);return;}
         if(!dicePreferenceEnabled('dice_fx')){emit('combat_union_fx_disabled_unseen',detail);return;}
         const diceFx=window.DiceFx;if(!diceFx||typeof diceFx.roll!=='function'){burn(receiptId);emit('combat_union_dicefx_missing_fail_open',detail);return;}
-        const payload=combatDicePlaybackPayload(receipt);
+        const basePayload=combatDicePlaybackPayload(receipt),payload=basePayload?Object.assign({},basePayload,{pressToRoll:true,onRollTrigger:pressed=>emit('combat_union_roll_triggered',Object.assign({},detail,{pressed_by_player:pressed===true}))}):null;
         if(!payload){burn(receiptId);emit('combat_union_save_payload_invalid',detail);return;}
         if(choreography){queued.push({payload:payload,receiptId:receiptId,detail:detail});return;}
         inFlight.add(receiptId);directPending++;

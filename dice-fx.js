@@ -1,5 +1,5 @@
 /*
- * DICE-01 "Dice Feel" — server-value visualizer and synthesized roll SFX.
+ * DICE-01 "Dice Feel" — server-value visualizer and self-hosted roll SFX.
  *
  * The caller owns every mechanical value. Math.random() is used only for
  * cosmetic flight/noise details; a settled face always comes from input.value.
@@ -11,11 +11,11 @@
 (function attachDiceFx(){
   'use strict';
 
-  const BUILD='20260815-dice04-r1';
+  const BUILD='20260822-dice-press-roll-01';
   const MAX_VISIBLE_DICE=6;
   const MAX_IN_FLIGHT=2;
   const PENDING_TIMEOUT_MS=20000;
-  const CHOREOGRAPHY_STEP_TIMEOUT_MS=3000;
+  const CHOREOGRAPHY_STEP_TIMEOUT_MS=7000;
   const MASTER_GAIN=0.25;
   const DIE_SIDES=Object.freeze({d4:4,d6:6,d8:8,d10:10,d12:12,d20:20});
   const SVG_NS='http://www.w3.org/2000/svg';
@@ -227,10 +227,13 @@
     return /(?:^|[-_])(crit|critical|nat20)(?:$|[-_])|crit-success/.test(String(kind||'').toLowerCase());
   }
 
-  function sfxPlan(kind,diceCount,seed){
+  function sfxPlan(kind,diceCount,seed,durationOverride){
     const count=Math.max(1,Math.min(MAX_VISIBLE_DICE,boundedInteger(diceCount,1,64,1)));
     const random=seededRng(seed);
-    const durationMs=visualDurationFor(count,seed,false);
+    const override=finiteNumber(durationOverride);
+    const durationMs=override===null
+      ?visualDurationFor(count,seed,false)
+      :Math.max(600,Math.min(5000,Math.round(override)));
     const events=[];
     let at=30;
     const shakeCount=3+Math.min(5,count);
@@ -245,10 +248,10 @@
       }));
       at+=60+progress*80+random()*20;
     }
-    const settleStart=Math.min(durationMs-180,760+Math.round(random()*70));
-    for(let index=0;index<count;index++){
+    const impactFractions=[.54,.76,.90];
+    for(let index=0;index<impactFractions.length;index++){
       events.push(Object.freeze({
-        t:Math.min(durationMs-90,settleStart+index*74),
+        t:Math.round(durationMs*impactFractions[index]),
         type:'settle',
         durationMs:58,
         freqBand:Object.freeze([Math.round(2100+random()*500),Math.round(3600+random()*400)]),
@@ -505,6 +508,39 @@
     try{ return window.AudioContext||window.webkitAudioContext||null; }catch(error){ return null; }
   }
 
+  function impactAsset(){
+    try{
+      const asset=window.DiceRollSound;
+      if(!asset||typeof asset.url!=='string'||!asset.url.startsWith('data:audio/wav;base64,')) return null;
+      return asset;
+    }catch(error){ return null; }
+  }
+
+  function scheduleImpactAsset(events,nodes){
+    const asset=impactAsset();
+    let AudioPlayer=null;
+    try{ AudioPlayer=window.Audio; }catch(error){}
+    if(!asset||typeof AudioPlayer!=='function'||!userGestureReady()) return false;
+    events.filter(function(event){ return event.type==='settle'; }).forEach(function(event){
+      const timer=window.setTimeout(function(){
+        let player=null;
+        try{
+          player=new AudioPlayer(asset.url);
+          player.preload='auto';
+          player.volume=Math.max(0,Math.min(1,MASTER_GAIN*event.gain*2.2));
+          nodes.add(player);
+          const played=player.play();
+          if(played&&typeof played.catch==='function') played.catch(function(){});
+          player.onended=function(){ nodes.delete(player); };
+        }catch(error){ if(player)nodes.delete(player); }
+      },Math.max(0,Math.round(event.t)));
+      nodes.add(Object.freeze({
+        stop:function(){ try{ window.clearTimeout(timer); }catch(error){} }
+      }));
+    });
+    return true;
+  }
+
   function noiseBuffer(context,durationMs){
     const length=Math.max(1,Math.ceil(context.sampleRate*durationMs/1000));
     const buffer=context.createBuffer(1,length,context.sampleRate);
@@ -577,18 +613,22 @@
       cancelled=true;
       nodes.forEach(function(node){
         try{ if(typeof node.stop==='function') node.stop(); }catch(error){}
+        try{ if(typeof node.pause==='function'){ node.pause(); node.currentTime=0; } }catch(error){}
         try{ if(typeof node.disconnect==='function') node.disconnect(); }catch(error){}
       });
       nodes.clear();
     }
     try{
+      if(!userGestureReady()) return Object.freeze({stop:stop});
+      const usesImpactAsset=scheduleImpactAsset(events,nodes);
       const Constructor=audioCtor();
-      if(!Constructor||!userGestureReady()) return Object.freeze({stop:stop});
+      if(!Constructor) return Object.freeze({stop:stop});
       if(!audioContext) audioContext=new Constructor();
       const ready=function(){
         if(cancelled||!audioContext||audioContext.state!=='running') return;
         const baseTime=audioContext.currentTime+.015;
         events.forEach(function(event){
+          if(usesImpactAsset&&event.type==='settle') return;
           if(event.type==='ting') connectTingEvent(audioContext,event,baseTime,nodes);
           else connectNoiseEvent(audioContext,event,baseTime,nodes);
         });
@@ -669,7 +709,7 @@
       return;
     }
     if(soundEnabled()){
-      try{ audio=environment.playSfx(sfxPlan(job.plan.tier||'roll',job.plan.visibleDice.length||1,job.plan.seed),job.plan); }
+      try{ audio=environment.playSfx(sfxPlan(job.plan.tier||'roll',job.plan.visibleDice.length||1,job.plan.seed,job.sfxDurationMs),job.plan); }
       catch(error){}
     }
     job.view=view;
@@ -706,6 +746,7 @@
     const job={
       id:++sequence,
       plan:plan,
+      sfxDurationMs:finiteNumber(source.sfxDurationMs),
       callbacks:callbacks,
       timer:null,
       view:null,

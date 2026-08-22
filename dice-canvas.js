@@ -1,5 +1,5 @@
 /*
- * DICE-FE1 Phase A — deterministic Canvas 2D roll-event renderer.
+ * DICE-FE1 + DICE-PRESS-01 — deterministic Canvas roll renderer.
  *
  * The server owns every face and outcome. This module only lays out and paints
  * values already present in rollEvent.groups[].rolls.
@@ -10,7 +10,7 @@
 (function attachDiceCanvas() {
   "use strict";
 
-  const BUILD = "20260810-dice-fe1-phase-a";
+  const BUILD = "20260822-dice-press-roll-01";
   const SOURCE_CATEGORIES = Object.freeze([
     "weapon",
     "spell",
@@ -237,6 +237,281 @@
 
   function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
+  }
+
+  // DICE-PRESS-01 live-face geometry. d6 and d20 are true projected
+  // meshes: the face labels belong to mesh faces throughout the tumble, and
+  // the final quaternion is solved from the server-owned face. Other dice keep
+  // the established pixel-art fallback until their meshes are added.
+  function vec3(x, y, z) {
+    return { x: x, y: y, z: z };
+  }
+
+  function vecAdd(left, right) {
+    return vec3(left.x + right.x, left.y + right.y, left.z + right.z);
+  }
+
+  function vecScale(value, amount) {
+    return vec3(value.x * amount, value.y * amount, value.z * amount);
+  }
+
+  function vecDot(left, right) {
+    return left.x * right.x + left.y * right.y + left.z * right.z;
+  }
+
+  function vecCross(left, right) {
+    return vec3(
+      left.y * right.z - left.z * right.y,
+      left.z * right.x - left.x * right.z,
+      left.x * right.y - left.y * right.x,
+    );
+  }
+
+  function vecNormalize(value) {
+    const length = Math.sqrt(vecDot(value, value)) || 1;
+    return vecScale(value, 1 / length);
+  }
+
+  function quat(x, y, z, w) {
+    return { x: x, y: y, z: z, w: w };
+  }
+
+  function quatNormalize(value) {
+    const length = Math.sqrt(
+      value.x * value.x + value.y * value.y + value.z * value.z +
+        value.w * value.w,
+    ) || 1;
+    return quat(
+      value.x / length,
+      value.y / length,
+      value.z / length,
+      value.w / length,
+    );
+  }
+
+  function quatMultiply(left, right) {
+    return quatNormalize(quat(
+      left.w * right.x + left.x * right.w + left.y * right.z -
+        left.z * right.y,
+      left.w * right.y - left.x * right.z + left.y * right.w +
+        left.z * right.x,
+      left.w * right.z + left.x * right.y - left.y * right.x +
+        left.z * right.w,
+      left.w * right.w - left.x * right.x - left.y * right.y -
+        left.z * right.z,
+    ));
+  }
+
+  function quatFromAxisAngle(axis, angle) {
+    const normal = vecNormalize(axis);
+    const half = angle / 2;
+    const sine = Math.sin(half);
+    return quatNormalize(quat(
+      normal.x * sine,
+      normal.y * sine,
+      normal.z * sine,
+      Math.cos(half),
+    ));
+  }
+
+  function quatRotate(value, point) {
+    const qv = vec3(value.x, value.y, value.z);
+    const uv = vecCross(qv, point);
+    const uuv = vecCross(qv, uv);
+    return vecAdd(
+      point,
+      vecAdd(vecScale(uv, 2 * value.w), vecScale(uuv, 2)),
+    );
+  }
+
+  function quatFromUnitVectors(fromValue, toValue) {
+    const from = vecNormalize(fromValue);
+    const to = vecNormalize(toValue);
+    let scalar = vecDot(from, to) + 1;
+    let axis;
+    if (scalar < .000001) {
+      scalar = 0;
+      axis = Math.abs(from.x) > Math.abs(from.z)
+        ? vec3(-from.y, from.x, 0)
+        : vec3(0, -from.z, from.y);
+    } else {
+      axis = vecCross(from, to);
+    }
+    return quatNormalize(quat(axis.x, axis.y, axis.z, scalar));
+  }
+
+  function quatSlerp(firstValue, secondValue, progress) {
+    const first = quatNormalize(firstValue);
+    let second = quatNormalize(secondValue);
+    let cosine = first.x * second.x + first.y * second.y +
+      first.z * second.z + first.w * second.w;
+    if (cosine < 0) {
+      cosine = -cosine;
+      second = quat(-second.x, -second.y, -second.z, -second.w);
+    }
+    const amount = clamp(progress, 0, 1);
+    if (cosine > .9995) {
+      return quatNormalize(quat(
+        first.x + (second.x - first.x) * amount,
+        first.y + (second.y - first.y) * amount,
+        first.z + (second.z - first.z) * amount,
+        first.w + (second.w - first.w) * amount,
+      ));
+    }
+    const theta = Math.acos(clamp(cosine, -1, 1));
+    const sine = Math.sin(theta) || 1;
+    const leftWeight = Math.sin((1 - amount) * theta) / sine;
+    const rightWeight = Math.sin(amount * theta) / sine;
+    return quatNormalize(quat(
+      first.x * leftWeight + second.x * rightWeight,
+      first.y * leftWeight + second.y * rightWeight,
+      first.z * leftWeight + second.z * rightWeight,
+      first.w * leftWeight + second.w * rightWeight,
+    ));
+  }
+
+  function polyFace(vertices, indices, value) {
+    let ordered = indices.slice();
+    const a = vertices[ordered[0]];
+    const b = vertices[ordered[1]];
+    const c = vertices[ordered[2]];
+    let normal = vecNormalize(vecCross(
+      vecAdd(b, vecScale(a, -1)),
+      vecAdd(c, vecScale(a, -1)),
+    ));
+    const center = ordered.reduce(function (sum, index) {
+      return vecAdd(sum, vertices[index]);
+    }, vec3(0, 0, 0));
+    if (vecDot(normal, center) < 0) {
+      ordered = ordered.slice().reverse();
+      normal = vecScale(normal, -1);
+    }
+    return { value: value, indices: ordered, normal: normal };
+  }
+
+  function buildPolyhedronModels() {
+    const cubeVertices = [
+      [-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1],
+      [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1],
+    ].map(function (row) {
+      return vecNormalize(vec3(row[0], row[1], row[2]));
+    });
+    const cubeFaces = [
+      [4, 5, 6, 7], [3, 2, 1, 0], [7, 6, 2, 3],
+      [0, 1, 5, 4], [1, 2, 6, 5], [4, 7, 3, 0],
+    ].map(function (indices, index) {
+      return polyFace(cubeVertices, indices, [1, 6, 2, 5, 3, 4][index]);
+    });
+    const golden = (1 + Math.sqrt(5)) / 2;
+    const icoVertices = [
+      [-1, golden, 0], [1, golden, 0], [-1, -golden, 0],
+      [1, -golden, 0], [0, -1, golden], [0, 1, golden],
+      [0, -1, -golden], [0, 1, -golden], [golden, 0, -1],
+      [golden, 0, 1], [-golden, 0, -1], [-golden, 0, 1],
+    ].map(function (row) {
+      return vecNormalize(vec3(row[0], row[1], row[2]));
+    });
+    const icoIndices = [
+      [0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11],
+      [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8],
+      [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9],
+      [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1],
+    ];
+    const icoFaces = icoIndices.map(function (indices, index) {
+      return polyFace(icoVertices, indices, index + 1);
+    });
+    return deepFreeze({
+      d6: { die: "d6", vertices: cubeVertices, faces: cubeFaces },
+      d20: { die: "d20", vertices: icoVertices, faces: icoFaces },
+    });
+  }
+
+  const LIVE_FACE_MODELS = buildPolyhedronModels();
+
+  function liveFaceModelFor(die) {
+    return LIVE_FACE_MODELS[String(die || "")] || null;
+  }
+
+  function landingOrientationFor(die, face, seed) {
+    const model = liveFaceModelFor(die);
+    if (!model) return null;
+    const targetFace = model.faces.find(function (candidate) {
+      return candidate.value === integer(face);
+    });
+    if (!targetFace) return null;
+    const align = quatFromUnitVectors(targetFace.normal, vec3(0, 0, 1));
+    const random = createMotionPrng((integer(seed) || 0) ^ targetFace.value);
+    const yaw = quatFromAxisAngle(vec3(0, 0, 1), random() * TAU);
+    return deepFreeze(quatMultiply(yaw, align));
+  }
+
+  function topFaceForOrientation(die, orientation) {
+    const model = liveFaceModelFor(die);
+    if (!model || !orientation) return null;
+    let bestFace = null;
+    let bestDot = -Infinity;
+    model.faces.forEach(function (face) {
+      const dot = quatRotate(orientation, face.normal).z;
+      if (dot > bestDot) {
+        bestDot = dot;
+        bestFace = face.value;
+      }
+    });
+    return bestFace;
+  }
+
+  function smoothStep(value) {
+    const amount = clamp(value, 0, 1);
+    return amount * amount * (3 - 2 * amount);
+  }
+
+  function tumbleOrientationFor(die, face, seed, progress) {
+    const target = landingOrientationFor(die, face, seed);
+    if (!target) return null;
+    const random = createMotionPrng((integer(seed) || 0) ^ 0xd1ce2026);
+    const start = quatMultiply(
+      quatFromAxisAngle(vec3(1, 0, 0), random() * TAU),
+      quatFromAxisAngle(vec3(0, 1, 0), random() * TAU),
+    );
+    const axis = vecNormalize(vec3(
+      random() * 2 - 1,
+      random() * 2 - 1,
+      .35 + random(),
+    ));
+    const turns = 3.5 + random() * 2.5;
+    const amount = clamp(finiteNumber(progress) || 0, 0, 1);
+    const spin = quatMultiply(
+      quatFromAxisAngle(axis, turns * TAU * amount),
+      start,
+    );
+    const landingBlend = smoothStep((amount - .68) / .32);
+    return deepFreeze(quatSlerp(spin, target, landingBlend));
+  }
+
+  function landingMotionAt(progress) {
+    const amount = clamp(finiteNumber(progress) || 0, 0, 1);
+    let height = 0;
+    if (amount < .54) height = 1 - amount / .54;
+    else if (amount < .76) {
+      const bounce = (amount - .54) / .22;
+      height = .32 * 4 * bounce * (1 - bounce);
+    } else if (amount < .90) {
+      const bounce = (amount - .76) / .14;
+      height = .13 * 4 * bounce * (1 - bounce);
+    }
+    return deepFreeze({
+      progress: amount,
+      height: height,
+      scale: 1 + height * .72,
+      shadowScale: .46 + (1 - height) * .54,
+    });
+  }
+
+  function landingImpactTimes(durationMs) {
+    const duration = Math.max(1, finiteNumber(durationMs) || 1);
+    return deepFreeze([.54, .76, .90].map(function (fraction) {
+      return Math.round(duration * fraction);
+    }));
   }
 
   function cleanText(value, maxLength) {
@@ -724,8 +999,16 @@
       const target = positionById.get(item.id);
       const size = target ? target.size : 48;
       const radius = bodyRadius(item.die, size);
-      const x = radius + random() * Math.max(1, width - radius * 2);
-      const y = radius + random() * Math.max(1, height * .55 - radius * 2);
+      const liveFace = !!liveFaceModelFor(item.die);
+      // Supported dice enter close to the camera at the visual center, then
+      // drift onto the tabletop. The small deterministic spread prevents a
+      // multi-die packet from becoming one unreadable stack.
+      const x = liveFace
+        ? width / 2 + (index - (dice.length - 1) / 2) * Math.min(9, radius * .16)
+        : radius + random() * Math.max(1, width - radius * 2);
+      const y = liveFace
+        ? height / 2 + (random() - .5) * Math.min(12, radius * .2)
+        : radius + random() * Math.max(1, height * .55 - radius * 2);
       const speed = .32 + random() * .48;
       const direction = random() * TAU;
       return {
@@ -959,12 +1242,62 @@
       items: items.map(function (item) {
         const die = diceById.get(item.id);
         const target = targetById.get(item.id);
+        const liveFace = !!liveFaceModelFor(die.die);
+        const tumbleProgress = clamp(
+          elapsed / Math.max(1, motion.timeline.rollMs),
+          0,
+          1,
+        );
+        const landing = liveFace
+          ? landingMotionAt(tumbleProgress)
+          : { height: 0, scale: 1, shadowScale: 1 };
+        const orientationSeed = motion.seed ^ motionSeedFrom(item.id);
+        let orientation = liveFace
+          ? tumbleOrientationFor(
+            die.die,
+            die.authoritativeFace,
+            orientationSeed,
+            tumbleProgress,
+          )
+          : null;
+        if (liveFace && elapsed > motion.timeline.rollMs) {
+          const settleProgress = clamp(
+            (elapsed - motion.timeline.rollMs) /
+              Math.max(1, motion.timeline.settleMs),
+            0,
+            1,
+          );
+          const targetOrientation = landingOrientationFor(
+            die.die,
+            die.authoritativeFace,
+            orientationSeed,
+          );
+          const wobble = Math.sin(settleProgress * Math.PI * 5) *
+            (1 - settleProgress) * .075;
+          orientation = quatMultiply(
+            quatFromAxisAngle(vec3(1, .35, 0), wobble),
+            targetOrientation,
+          );
+        }
+        const liveX = liveFace && elapsed < motion.timeline.rollMs
+          ? lerp(motion.width / 2, item.x, smoothStep(tumbleProgress))
+          : item.x;
+        const liveY = liveFace && elapsed < motion.timeline.rollMs
+          ? lerp(motion.height / 2, item.y, smoothStep(tumbleProgress))
+          : item.y;
         return Object.assign({}, item, {
+          x: liveX,
+          y: liveY,
           size: target ? target.size : 48,
           die: die.die,
           groupIndex: die.groupIndex,
           authoritativeFace: settled ? die.authoritativeFace : null,
           displayFace: settled ? die.displayFace : null,
+          orientation: orientation,
+          topFace: liveFace ? topFaceForOrientation(die.die, orientation) : null,
+          height: landing.height,
+          scale: landing.scale,
+          shadowScale: landing.shadowScale,
           percentilePart: die.percentilePart,
           role: die.role,
           damageType: die.damageType,
@@ -1317,7 +1650,162 @@
     safeContextCall(context, "closePath");
   }
 
+  function drawPolyhedronDie(context, item, settings, quality) {
+    const model = liveFaceModelFor(item.die);
+    if (!model || !item.orientation) return false;
+    const colors = paletteForItem(item, settings.theme, settings.colorBlind);
+    const facetPalette = pixelFacetPalette(colors.fill);
+    const step = pixelStepFor(item.size);
+    const radius = item.size * .54 * (finiteNumber(item.scale) || 1);
+    const shadowRadius = item.size * .43 *
+      (finiteNumber(item.shadowScale) || 1);
+    safeContextCall(context, "save");
+    try {
+      context.fillStyle = "rgba(20,12,7,.34)";
+      context.shadowColor = "rgba(12,7,3,.28)";
+      context.shadowBlur = quality.shadowBlur;
+    } catch (error) {}
+    safeContextCall(context, "beginPath");
+    if (context && typeof context.ellipse === "function") {
+      safeContextCall(context, "ellipse", [
+        item.x,
+        item.y + item.size * .38,
+        shadowRadius,
+        Math.max(4, shadowRadius * .28),
+        0,
+        0,
+        TAU,
+      ]);
+    } else {
+      safeContextCall(context, "arc", [
+        item.x,
+        item.y + item.size * .38,
+        shadowRadius * .62,
+        0,
+        TAU,
+      ]);
+    }
+    safeContextCall(context, "fill");
+    try {
+      context.shadowBlur = 0;
+    } catch (error) {}
+
+    const transformed = model.vertices.map(function (vertex) {
+      return quatRotate(item.orientation, vertex);
+    });
+    const projected = transformed.map(function (vertex) {
+      const perspective = 1 + vertex.z * .12;
+      return {
+        x: Math.round((item.x + vertex.x * radius * perspective) / step) * step,
+        y: Math.round((item.y + vertex.y * radius * perspective) / step) * step,
+        z: vertex.z,
+      };
+    });
+    const faces = model.faces.map(function (face) {
+      const normal = quatRotate(item.orientation, face.normal);
+      const points = face.indices.map(function (index) {
+        return projected[index];
+      });
+      const center = points.reduce(function (sum, point) {
+        return {
+          x: sum.x + point.x / points.length,
+          y: sum.y + point.y / points.length,
+          z: sum.z + point.z / points.length,
+        };
+      }, { x: 0, y: 0, z: 0 });
+      return { face: face, normal: normal, points: points, center: center };
+    }).filter(function (row) {
+      return row.normal.z > -.02;
+    }).sort(function (left, right) {
+      return left.center.z - right.center.z;
+    });
+
+    faces.forEach(function (row) {
+      const light = clamp(
+        .5 + row.normal.x * -.16 + row.normal.y * -.2 + row.normal.z * .36,
+        0,
+        .999,
+      );
+      const tone = clamp(Math.floor(light * facetPalette.length), 0, 4);
+      try {
+        context.fillStyle = facetPalette[tone];
+        context.strokeStyle = facetPalette[0];
+        context.lineWidth = step;
+        context.lineJoin = "miter";
+        context.setLineDash([]);
+      } catch (error) {}
+      tracePolygon(context, row.points);
+      safeContextCall(context, "fill");
+      safeContextCall(context, "stroke");
+    });
+
+    const outlinePoints = faces.reduce(function (points, row) {
+      return points.concat(row.points);
+    }, []);
+    if (outlinePoints.length) {
+      // The physical mesh already supplies every edge. A light second pass is
+      // enough to keep the family resemblance with DICE-ART-01 pixel facets.
+      faces.forEach(function (row) {
+        try {
+          context.strokeStyle = "rgba(244,225,184,.42)";
+          context.lineWidth = Math.max(1, step * .55);
+        } catch (error) {}
+        tracePolygon(context, row.points);
+        safeContextCall(context, "stroke");
+      });
+    }
+
+    faces.filter(function (row) {
+      return row.normal.z > (item.die === "d6" ? .12 : .34);
+    }).forEach(function (row) {
+      const fontSize = Math.max(
+        item.die === "d6" ? 12 : 9,
+        Math.round(item.size * (item.die === "d6" ? .24 : .145) *
+          Math.min(1.2, finiteNumber(item.scale) || 1)),
+      );
+      try {
+        context.font = "800 " + String(fontSize) +
+          "px ui-monospace,monospace";
+        context.textAlign = "center";
+        context.textBaseline = "middle";
+        context.lineWidth = Math.max(2, step);
+        context.strokeStyle = "rgba(31,18,9,.82)";
+        context.fillStyle = colors.ink;
+      } catch (error) {}
+      safeContextCall(context, "strokeText", [
+        String(row.face.value),
+        row.center.x,
+        row.center.y,
+      ]);
+      safeContextCall(context, "fillText", [
+        String(row.face.value),
+        row.center.x,
+        row.center.y,
+      ]);
+    });
+    if (item.critical || item.natOne) {
+      const border = item.critical ? criticalBorder : natOneBorder;
+      const ring = Math.max(8, item.size * .56 * (finiteNumber(item.scale) || 1));
+      safeContextCall(context, "beginPath");
+      safeContextCall(context, "arc", [item.x, item.y, ring, 0, TAU]);
+      try {
+        context.strokeStyle = border.color;
+        context.lineWidth = item.critical ? 4 : 3;
+        context.setLineDash(border.dash || []);
+      } catch (error) {}
+      safeContextCall(context, "stroke");
+    }
+    safeContextCall(context, "restore");
+    return true;
+  }
+
   function drawDie(context, item, settings, quality) {
+    if (
+      liveFaceModelFor(item.die) && item.orientation &&
+      !(settings.reducedMotion === true && settings.settled !== true)
+    ) {
+      return drawPolyhedronDie(context, item, settings, quality);
+    }
     const colors = paletteForItem(item, settings.theme, settings.colorBlind);
     const art = pixelArtPlanFor(item);
     const points = art.outline;
@@ -1439,7 +1927,12 @@
   function drawFrame(context, motion, frame, settings) {
     safeContextCall(context, "clearRect", [0, 0, motion.width, motion.height]);
     frame.items.forEach(function (item) {
-      drawDie(context, item, settings, motion.quality);
+      drawDie(
+        context,
+        item,
+        Object.assign({}, settings, { settled: frame.settled }),
+        motion.quality,
+      );
     });
     drawActiveEffects(context, motion, frame);
     if (frame.revealed) {
@@ -1778,6 +2271,7 @@
         drawFrame(context, motion, frame, {
           theme: settings.theme,
           colorBlind: settings.colorBlind === true,
+          reducedMotion: reduced,
         });
       } catch (error) {}
       state.frameCount++;
@@ -1934,6 +2428,11 @@
       timelineFor: timelineFor,
       qualityPlan: qualityPlan,
       faceGeometryFor: faceGeometryFor,
+      landingOrientationFor: landingOrientationFor,
+      topFaceForOrientation: topFaceForOrientation,
+      tumbleOrientationFor: tumbleOrientationFor,
+      landingMotionAt: landingMotionAt,
+      landingImpactTimes: landingImpactTimes,
       pixelArtPlanFor: pixelArtPlanFor,
       pixelFacetPalette: pixelFacetPalette,
       layoutGroups: layoutGroups,
