@@ -10,7 +10,7 @@
 (function attachDiceCanvas() {
   "use strict";
 
-  const BUILD = "20260822-dice-press-roll-01";
+  const BUILD = "20260823-dice-feel-01";
   const SOURCE_CATEGORIES = Object.freeze([
     "weapon",
     "spell",
@@ -1106,7 +1106,12 @@
       id: body.id,
       x: Number(body.x.toFixed(4)),
       y: Number(body.y.toFixed(4)),
+      vx: Number(body.vx.toFixed(6)),
+      vy: Number(body.vy.toFixed(6)),
       angle: Number(body.angle.toFixed(6)),
+      angular: Number(body.angular.toFixed(8)),
+      mass: Number(body.mass.toFixed(4)),
+      radius: Number(body.radius.toFixed(4)),
       collisions: body.collisions,
     });
   }
@@ -1180,11 +1185,64 @@
           id: item.id,
           x: lerp(item.x, target.x, progress),
           y: lerp(item.y, target.y, progress),
+          vx: lerp(item.vx, target.vx, progress),
+          vy: lerp(item.vy, target.vy, progress),
           angle: lerp(item.angle, target.angle, progress),
+          angular: lerp(item.angular, target.angular, progress),
+          mass: target.mass,
+          radius: target.radius,
           collisions: target.collisions,
         };
       }),
     };
+  }
+
+  function physicsMotionForBody(body) {
+    const vx = finiteNumber(body && body.vx) || 0;
+    const vy = finiteNumber(body && body.vy) || 0;
+    const angular = finiteNumber(body && body.angular) || 0;
+    const mass = Math.max(.5, finiteNumber(body && body.mass) || 1);
+    const radius = Math.max(1, finiteNumber(body && body.radius) || 24);
+    const collisions = Math.max(0, integer(body && body.collisions) || 0);
+    const speed = Math.sqrt(vx * vx + vy * vy);
+    const rotationalSpeed = Math.abs(angular) * radius;
+    const collisionDamping = 1 / (1 + collisions * .08);
+    const height = clamp(
+      (speed * .42 + rotationalSpeed * .34) *
+        (1.08 - Math.min(.28, (mass - .72) * .18)) * collisionDamping,
+      0,
+      .92,
+    );
+    return deepFreeze({
+      speed: speed,
+      rotationalSpeed: rotationalSpeed,
+      height: height,
+      scale: 1 + height * .38,
+      shadowScale: 1 - height * .48,
+    });
+  }
+
+  function physicsOrientationFor(die, face, seed, body) {
+    const target = landingOrientationFor(die, face, seed);
+    if (!target) return null;
+    const random = createMotionPrng((integer(seed) || 0) ^ 0x51d2a77);
+    const start = quatMultiply(
+      quatFromAxisAngle(vec3(1, 0, 0), random() * TAU),
+      quatFromAxisAngle(vec3(0, 1, 0), random() * TAU),
+    );
+    const vx = finiteNumber(body && body.vx) || 0;
+    const vy = finiteNumber(body && body.vy) || 0;
+    const angular = finiteNumber(body && body.angular) || 0;
+    const radius = Math.max(1, finiteNumber(body && body.radius) || 24);
+    const speed = Math.sqrt(vx * vx + vy * vy);
+    const axis = vecNormalize(vec3(
+      vy + (random() - .5) * .3,
+      -vx + (random() - .5) * .3,
+      .28 + Math.abs(angular) * radius,
+    ));
+    const spin = (finiteNumber(body && body.angle) || 0) +
+      angular * radius * 2.4 + speed * .65;
+    return deepFreeze(quatMultiply(quatFromAxisAngle(axis, spin), start));
   }
 
   function framePlanAt(motion, elapsedMs) {
@@ -1218,7 +1276,12 @@
           id: item.id,
           x: target ? lerp(item.x, target.x, progress) : item.x,
           y: target ? lerp(item.y, target.y, progress) : item.y,
+          vx: item.vx,
+          vy: item.vy,
           angle: item.angle,
+          angular: item.angular,
+          mass: item.mass,
+          radius: item.radius,
           collisions: item.collisions,
         };
       });
@@ -1243,23 +1306,19 @@
         const die = diceById.get(item.id);
         const target = targetById.get(item.id);
         const liveFace = !!liveFaceModelFor(die.die);
-        const tumbleProgress = clamp(
-          elapsed / Math.max(1, motion.timeline.rollMs),
-          0,
-          1,
-        );
-        const landing = liveFace
-          ? landingMotionAt(tumbleProgress)
+        const bodyMotion = liveFace
+          ? physicsMotionForBody(item)
           : { height: 0, scale: 1, shadowScale: 1 };
         const orientationSeed = motion.seed ^ motionSeedFrom(item.id);
         let orientation = liveFace
-          ? tumbleOrientationFor(
+          ? physicsOrientationFor(
             die.die,
             die.authoritativeFace,
             orientationSeed,
-            tumbleProgress,
+            item,
           )
           : null;
+        let landing = bodyMotion;
         if (liveFace && elapsed > motion.timeline.rollMs) {
           const settleProgress = clamp(
             (elapsed - motion.timeline.rollMs) /
@@ -1272,22 +1331,22 @@
             die.authoritativeFace,
             orientationSeed,
           );
+          const blend = smoothStep(settleProgress);
           const wobble = Math.sin(settleProgress * Math.PI * 5) *
             (1 - settleProgress) * .075;
           orientation = quatMultiply(
             quatFromAxisAngle(vec3(1, .35, 0), wobble),
-            targetOrientation,
+            quatSlerp(orientation, targetOrientation, blend),
           );
+          landing = {
+            height: lerp(bodyMotion.height, 0, blend),
+            scale: lerp(bodyMotion.scale, 1, blend),
+            shadowScale: lerp(bodyMotion.shadowScale, 1, blend),
+          };
         }
-        const liveX = liveFace && elapsed < motion.timeline.rollMs
-          ? lerp(motion.width / 2, item.x, smoothStep(tumbleProgress))
-          : item.x;
-        const liveY = liveFace && elapsed < motion.timeline.rollMs
-          ? lerp(motion.height / 2, item.y, smoothStep(tumbleProgress))
-          : item.y;
         return Object.assign({}, item, {
-          x: liveX,
-          y: liveY,
+          x: item.x,
+          y: item.y,
           size: target ? target.size : 48,
           die: die.die,
           groupIndex: die.groupIndex,
@@ -1965,9 +2024,10 @@
     }
   }
 
-  function accessibleMirrorModel(rollEvent, t) {
+  function accessibleMirrorModel(rollEvent, t, layout) {
     const event = rollEvent && typeof rollEvent === "object" ? rollEvent : {};
-    const groups = eventGroups(event).map(function (group) {
+    const normalizedGroups = eventGroups(event);
+    const groups = normalizedGroups.map(function (group) {
       return {
         id: group.id,
         label: group.label,
@@ -1975,6 +2035,33 @@
         die: group.die,
         rolls: group.rolls.slice(),
         subtotal: group.subtotal,
+      };
+    });
+    const positions = new Map(
+      (layout && Array.isArray(layout.positions) ? layout.positions : [])
+        .map(function (position) {
+          return [position.id, position];
+        }),
+    );
+    const dice = visualDiceFor(event).map(function (die) {
+      const group = normalizedGroups[die.groupIndex] || {};
+      const position = positions.get(die.id);
+      return {
+        id: die.id,
+        groupId: group.id || "",
+        groupIndex: die.groupIndex,
+        serverIndex: die.rollIndex,
+        label: group.label || "",
+        formula: group.formula || "",
+        die: die.declaredDie,
+        visualDie: die.die,
+        value: die.authoritativeFace,
+        displayValue: die.displayFace,
+        percentilePart: die.percentilePart,
+        subtotal: group.subtotal,
+        position: position
+          ? { x: position.x, y: position.y, size: position.size }
+          : null,
       };
     });
     const title = cleanText(event.title, 180);
@@ -2001,6 +2088,7 @@
       formula: formula,
       total: total,
       groups: groups,
+      dice: dice,
       announcement: pieces.join(" · "),
     });
   }
@@ -2218,6 +2306,9 @@
     try {
       canvas.width = bufferWidth * backingRatio;
       canvas.height = bufferHeight * backingRatio;
+      if (typeof canvas.setAttribute === "function") {
+        canvas.setAttribute("aria-hidden", "true");
+      }
       if (canvas.style) {
         canvas.style.width = String(bufferWidth * PIXEL_ART_SCALE) + "px";
         canvas.style.height = String(bufferHeight * PIXEL_ART_SCALE) + "px";
@@ -2241,7 +2332,7 @@
     }
 
     const t = typeof settings.t === "function" ? settings.t : localizer;
-    const mirror = accessibleMirrorModel(event, t);
+    const mirror = accessibleMirrorModel(event, t, motion.layout);
     const state = {
       id: ++renderSequence,
       status: "rendering",
@@ -2440,6 +2531,8 @@
       finalFacesFor: finalFacesFor,
       motionFramesFor: motionFramesFor,
       framePlanAt: framePlanAt,
+      physicsMotionForBody: physicsMotionForBody,
+      physicsOrientationFor: physicsOrientationFor,
       accessibleMirrorModel: accessibleMirrorModel,
     },
     _test: {

@@ -25,7 +25,7 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./grid-board-replacement-lease.js?v=202608110249"></script>
 <script src="./dice-roll-sound.js?v=0823"></script>
 <script src="./dice-fx.js?v=0823"></script>
-<script src="./dice-canvas.js?v=0823"></script>
+<script src="./dice-canvas.js?v=1209"></script>
 <script src="./music-playback-owner.js?v=847"></script>
 <script src="./music-v2-dark-launch.js?v=1211"></script>
 <style>
@@ -2150,7 +2150,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202608221626;   // AID-ANSWERABLE-01: exact-recipient combat-aid card remains reachable while down
+const FRONTEND_BUILD = 202608231209;   // DICE-FEEL-01: hold authoritative faces for acknowledgement, expose per-die details, and draw the deterministic physics path
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2962,6 +2962,34 @@ function recordDiceVisualProof(phase,detail){
 }
 const DICE_CANVAS_JOB_TIMEOUT_MS=2600;
 const DICE_PRESS_AUTO_MS=2200;
+const DICE_CANVAS_TIMELINE_FALLBACK_MS=6000;
+const DICE_RESULT_ACK_AUTO_MS=25000;
+const DICE_CANVAS_JOB_MARGIN_MS=1500;
+const DICE_CANVAS_CALLBACK_MARGIN_MS=1500;
+function diceCanvasTimelineTotalMs(handle){const value=Number(handle&&handle.timeline&&handle.timeline.totalMs);return Number.isFinite(value)&&value>=0?value:null;}
+function diceCanvasJobTimeoutMs(handle){const total=diceCanvasTimelineTotalMs(handle);return total===null?DICE_CANVAS_JOB_TIMEOUT_MS:Math.max(DICE_CANVAS_JOB_TIMEOUT_MS,total+DICE_RESULT_ACK_AUTO_MS+DICE_CANVAS_JOB_MARGIN_MS);}
+function diceCanvasCallbackBudgetMs(pressToRoll){return (pressToRoll===true?DICE_PRESS_AUTO_MS:0)+DICE_CANVAS_TIMELINE_FALLBACK_MS+DICE_RESULT_ACK_AUTO_MS+DICE_CANVAS_CALLBACK_MARGIN_MS;}
+let _diceDetailMirrorSeq=0;
+function diceDetailTextFor(die,copy){
+  const c=(th,en)=>{try{return typeof copy==='function'?String(copy(th,en)||en):en;}catch(_error){return en;}};
+  const source=String(die&&die.label||'').trim()||c('ไม่ระบุที่มา','Unclassified source'),formula=String(die&&die.formula||'').trim(),value=Number(die&&die.value),subtotal=Number(die&&die.subtotal),serverIndex=Number(die&&die.serverIndex);
+  return [c('ที่มา','Source')+': '+source,formula?c('สูตร','Formula')+': '+formula:'',c('ค่าดิบ','Raw value')+(Number.isInteger(serverIndex)?' '+String(serverIndex+1):'')+': '+(Number.isFinite(value)?String(value):'—'),Number.isFinite(subtotal)?c('ผลรวมย่อย','Subtotal')+': '+String(subtotal):''].filter(Boolean).join(' · ');
+}
+function mountDiceDetailMirror(documentRef,stage,mirror,copy){
+  try{
+    const dice=mirror&&Array.isArray(mirror.dice)?mirror.dice.filter(die=>die&&die.position&&Number.isFinite(Number(die.position.x))&&Number.isFinite(Number(die.position.y))):[];
+    if(!documentRef||!stage||!dice.length)return null;
+    const layer=documentRef.createElement('div');layer.setAttribute('data-dice-detail-mirror','1');layer.setAttribute('aria-label',typeof copy==='function'?copy('รายละเอียดเต๋า','Dice details'):'Dice details');layer.style.cssText='position:absolute;inset:0;z-index:3;pointer-events:none';
+    const tooltip=documentRef.createElement('div'),tooltipId='diceDetailTooltip'+String(++_diceDetailMirrorSeq);tooltip.id=tooltipId;tooltip.setAttribute('role','tooltip');tooltip.setAttribute('aria-hidden','true');tooltip.hidden=true;tooltip.style.cssText='position:absolute;left:50%;bottom:84px;transform:translateX(-50%);z-index:5;width:min(88%,430px);padding:10px 12px;border:2px solid #d9b978;border-radius:8px;background:rgba(22,14,8,.96);color:#fff4d6;font:600 13px/1.5 Trirong,Georgia,serif;text-align:left;pointer-events:none;box-shadow:0 8px 22px rgba(0,0,0,.45)';
+    let activeButton=null,closed=false;const buttons=[];
+    const show=(button,die)=>{if(closed)return false;if(activeButton&&activeButton!==button)try{activeButton.removeAttribute('aria-describedby');activeButton.style.borderColor='transparent';}catch(_error){}activeButton=button;tooltip.textContent=diceDetailTextFor(die,copy);tooltip.hidden=false;tooltip.setAttribute('aria-hidden','false');button.setAttribute('aria-describedby',tooltipId);button.style.borderColor='#f5d486';return true;};
+    const hide=returnFocus=>{if(tooltip.hidden)return false;tooltip.hidden=true;tooltip.setAttribute('aria-hidden','true');const prior=activeButton;if(prior)try{prior.removeAttribute('aria-describedby');prior.style.borderColor='transparent';}catch(_error){}if(returnFocus&&prior)try{prior.focus({preventScroll:true});}catch(_error){}return true;};
+    const onKey=event=>{if(event&&event.key==='Escape'&&!tooltip.hidden){try{event.preventDefault();event.stopPropagation();}catch(_error){}hide(true);}};
+    dice.forEach(die=>{const position=die.position,hit=Math.max(44,Number(position.size)||44),button=documentRef.createElement('button'),openDetail=()=>show(button,die);button.type='button';button.setAttribute('data-dice-detail-hit',String(die.id||''));button.setAttribute('aria-label',diceDetailTextFor(die,copy));button.title=diceDetailTextFor(die,copy);button.style.cssText='position:absolute;left:'+String(Number(position.x)-hit/2)+'px;top:'+String(Number(position.y)-hit/2)+'px;width:'+String(hit)+'px;height:'+String(hit)+'px;min-width:44px;min-height:44px;padding:0;border:2px solid transparent;border-radius:50%;background:transparent;color:transparent;pointer-events:auto;touch-action:manipulation;';button.onpointerenter=openDetail;button.onclick=openDetail;button.onfocus=openDetail;button.onpointerleave=()=>{if(documentRef.activeElement!==button)hide(false);};button.onblur=()=>hide(false);button.onkeydown=onKey;buttons.push(button);layer.appendChild(button);});
+    layer.onkeydown=onKey;stage.appendChild(layer);stage.appendChild(tooltip);
+    return {count:buttons.length,buttons:buttons,tooltip:tooltip,hideTooltip:hide,close:()=>{if(closed)return;closed=true;try{layer.remove();}catch(_error){}try{tooltip.remove();}catch(_error){}}};
+  }catch(_error){return null;}
+}
 function diceCanvasDefaultEnvironment(){
   let legacyMuteCount=0;
   function ensureStyle(){
@@ -2976,20 +3004,31 @@ function diceCanvasDefaultEnvironment(){
     reducedMotion:()=>{ try{ return !!window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(_error){ return false; } },
     setTimer:(callback,delay)=>setTimeout(callback,delay), clearTimer:id=>clearTimeout(id),
     visualProof:(phase,detail)=>recordDiceVisualProof(phase,detail),
+    playbackCompletion:(reason,input)=>{try{dicePlaybackLog(reason,{campaignId:String(campaign&&campaign.id||''),roundId:String(curRound&&curRound.id||''),receiptId:String(input&&input.eventId||'')});}catch(_diceResultCompletionLogError){}},
     mount:()=>{
       try{
         if(!document||!document.body) return null;
         ensureStyle();
+        const focusOrigin=document.activeElement&&typeof document.activeElement.focus==='function'?document.activeElement:null;
         const overlay=document.createElement('div'); overlay.setAttribute('data-dice-canvas-wire','1');
         overlay.style.cssText='position:fixed;inset:0;z-index:2147482100;display:grid;place-items:center;pointer-events:none;background:rgba(4,8,14,.16)';
-        const stage=document.createElement('div'); stage.setAttribute('aria-hidden','true');
-        stage.style.cssText='width:min(92vw,520px);min-height:330px';
+        const stage=document.createElement('div');
+        stage.style.cssText='position:relative;width:min(92vw,520px);min-height:330px;pointer-events:none';
         const live=document.createElement('div'); live.setAttribute('role','status'); live.setAttribute('aria-live','polite');
         live.style.cssText='position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0';
         overlay.appendChild(stage); overlay.appendChild(live); document.body.appendChild(overlay);
         let connected=false;try{connected=overlay.isConnected===true||!!(document.documentElement&&typeof document.documentElement.contains==='function'&&document.documentElement.contains(overlay));}catch(_diceOverlayConnectedError){}
         recordDiceVisualProof('overlay_mounted',{connected:connected});
-        return {container:stage,announce:text=>{ live.textContent=String(text||''); },dispose:()=>{ try{ overlay.remove(); }catch(_error){} try{recordDiceVisualProof('overlay_removed');}catch(_diceOverlayRemovedProofError){} }};
+        let ackControl=null,detailControl=null;
+        return {container:stage,announce:text=>{ live.textContent=String(text||''); },showDiceDetails:mirror=>{if(detailControl)return detailControl;detailControl=mountDiceDetailMirror(document,stage,mirror,(th,en)=>uiCopy(th,en));return detailControl;},showResultAck:model=>{
+          if(ackControl)return ackControl;
+          const panel=document.createElement('div');panel.setAttribute('data-dice-result-ack','1');panel.style.cssText='position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:4;display:flex;flex-direction:column;align-items:center;gap:7px;pointer-events:none;text-align:center';
+          const button=document.createElement('button');button.type='button';button.textContent=String(model&&model.buttonLabel||'');button.style.cssText='min-width:190px;min-height:52px;padding:10px 20px;border:3px solid #2f1c0d;border-radius:10px;background:#3b2412;color:#fff2cf;font:700 18px/1.25 Trirong,Georgia,serif;box-shadow:0 5px 0 #170d06;pointer-events:auto;touch-action:manipulation;';
+          const hint=document.createElement('div');hint.textContent=String(model&&model.hint||'');hint.style.cssText='max-width:340px;padding:4px 8px;border-radius:6px;background:rgba(15,9,4,.78);color:#fff2cf;font:600 12px/1.4 Trirong,Georgia,serif;';
+          button.onclick=()=>{try{if(model&&typeof model.onAcknowledge==='function')model.onAcknowledge();}catch(_diceAckClickError){}};
+          panel.appendChild(button);panel.appendChild(hint);stage.appendChild(panel);try{button.focus({preventScroll:true});}catch(_diceAckFocusError){}
+          let closed=false;ackControl={close:()=>{if(closed)return;closed=true;try{panel.remove();}catch(_diceAckRemoveError){}}};return ackControl;
+        },dispose:()=>{try{if(ackControl)ackControl.close();}catch(_diceAckDisposeError){}try{if(detailControl)detailControl.close();}catch(_diceDetailDisposeError){} try{ overlay.remove(); }catch(_error){} try{if(focusOrigin&&focusOrigin.isConnected!==false)focusOrigin.focus({preventScroll:true});}catch(_diceFocusRestoreError){} try{recordDiceVisualProof('overlay_removed');}catch(_diceOverlayRemovedProofError){} }};
       }catch(_error){ return null; }
     },
     mountPlayerRollPrompt:model=>{
@@ -3032,7 +3071,7 @@ function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
   const queue=[]; let activeJob=null, canvasReady=false;
   function safeDone(input){ try{ if(input&&typeof input.onDone==='function') input.onDone(); }catch(_error){} }
   function onceDone(input){ let done=false; return ()=>{if(done)return false;done=true;safeDone(input);return true;}; }
-  function complete(job){
+  function complete(job,reason){
     if(!job||job.done) return; job.done=true;
     if(job.canvasHandle){
       let frameCount=0;
@@ -3042,10 +3081,24 @@ function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
     try{ if(job.announceTimer!==null) environment.clearTimer(job.announceTimer); }catch(_error){}
     try{ if(job.rawTimer!==null) environment.clearTimer(job.rawTimer); }catch(_error){}
     try{ if(job.pressTimer!==null) environment.clearTimer(job.pressTimer); }catch(_error){}
+    try{ if(job.ackTimer!==null) environment.clearTimer(job.ackTimer); }catch(_error){}
+    try{ if(job.detailTimer!==null) environment.clearTimer(job.detailTimer); }catch(_error){}
     try{ if(job.pressPrompt) job.pressPrompt.close(); }catch(_error){}
+    try{ if(job.ackControl) job.ackControl.close(); }catch(_error){}
+    try{ if(job.detailControl) job.detailControl.close(); }catch(_error){}
+    if(job.canvasHandle&&typeof reason==='string')try{if(typeof environment.playbackCompletion==='function')environment.playbackCompletion(reason,job.input);}catch(_dicePlaybackCompletionError){}
     try{ if(job.mount) job.mount.dispose(); }catch(_error){}
     if(activeJob===job) activeJob=null;
     safeDone(job.input); runNext();
+  }
+  function awaitResultAcknowledgement(job){
+    if(!job||job.done||job.ackReady)return false;job.ackReady=true;
+    const copy=(th,en)=>{try{return typeof environment.copy==='function'?String(environment.copy(th,en)||en):en;}catch(_error){return en;}};
+    if(!job.mount||typeof job.mount.showResultAck!=='function'){complete(job,'result_ack_unavailable_auto');return false;}
+    try{job.ackControl=job.mount.showResultAck({buttonLabel:copy('✓ รับทราบผล','✓ Continue'),hint:copy('เกมจะดำเนินต่ออัตโนมัติหากไม่กด','The game will continue automatically if you do not press'),onAcknowledge:()=>complete(job,'result_acknowledged')});}catch(_error){job.ackControl=null;}
+    if(!job.ackControl){complete(job,'result_ack_unavailable_auto');return false;}
+    try{job.ackTimer=environment.setTimer(()=>complete(job,'result_auto_continue'),DICE_RESULT_ACK_AUTO_MS);}catch(_error){complete(job,'result_auto_continue');}
+    return true;
   }
   function legacyFallback(job){
     try{
@@ -3098,7 +3151,7 @@ function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
       handle=diceCanvas.render({
         rollEvent:rollEvent, container:mounted.container,
         settings:{reducedMotion:!!environment.reducedMotion()},
-        onDone:()=>{ if(committed) complete(job); }
+        onDone:()=>{ if(committed) awaitResultAcknowledgement(job); }
       });
     }catch(_error){ try{ mounted.dispose(); }catch(_disposeError){} job.mount=null; legacyFallback(job); return; }
     if(!handle||handle.status!=='rendering'){
@@ -3106,24 +3159,28 @@ function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
     }
     committed=true; job.canvasHandle=handle;
     try{environment.visualProof('canvas_render_accepted');}catch(_diceCanvasProofAcceptedError){}
-    try{ job.rawTimer=environment.setTimer(()=>complete(job),DICE_CANVAS_JOB_TIMEOUT_MS); }catch(_error){ complete(job); return; }
+    try{ job.rawTimer=environment.setTimer(()=>complete(job,'result_watchdog_auto_continue'),diceCanvasJobTimeoutMs(handle)); }catch(_error){ complete(job,'result_watchdog_auto_continue'); return; }
     if(handle.mirror&&handle.mirror.announcement){
       const delay=Math.max(0,Number(handle.mirror.announceAtMs)||0);
       try{ job.announceTimer=environment.setTimer(()=>{ try{ mounted.announce(handle.mirror.announcement); }catch(_error){} },delay); }catch(_error){}
+    }
+    if(handle.mirror&&Array.isArray(handle.mirror.dice)&&typeof mounted.showDiceDetails==='function'){
+      const detailDelay=Math.max(0,Number(handle.timeline&&handle.timeline.revealAtMs)||0);
+      try{job.detailTimer=environment.setTimer(()=>{try{job.detailControl=mounted.showDiceDetails(handle.mirror);}catch(_error){}},detailDelay);}catch(_error){}
     }
     legacySoundOnly(job,handle);
   }
   function roll(input){
     const source=input&&typeof input==='object'?input:{};
     if(!environment.fxEnabled()){ safeDone(source); return Object.freeze({skipped:true,reason:'disabled',cancel:()=>false}); }
-    const job={input:source,done:false,started:false,mount:null,canvasHandle:null,announceTimer:null,rawTimer:null,pressTimer:null,pressPrompt:null};
+    const job={input:source,done:false,started:false,ackReady:false,mount:null,canvasHandle:null,announceTimer:null,rawTimer:null,pressTimer:null,ackTimer:null,detailTimer:null,pressPrompt:null,ackControl:null,detailControl:null};
     if(source.pressToRoll===true&&typeof environment.mountPlayerRollPrompt==='function'){
       const copy=(th,en)=>{try{return typeof environment.copy==='function'?String(environment.copy(th,en)||en):en;}catch(_error){return en;}};
       try{job.pressPrompt=environment.mountPlayerRollPrompt({title:copy('ถึงตาคุณทอย','Your roll'),label:String(source.label||copy('ผลทอยของตัวละครคุณพร้อมแล้ว','Your character\'s roll is ready')),buttonLabel:copy('🎲 ทอยเต๋า','🎲 ROLL'),hint:copy('ถ้าไม่กด ระบบจะทอยให้อัตโนมัติ','Auto-roll starts shortly if you do not press'),onPress:()=>startJob(job,true)});}catch(_error){job.pressPrompt=null;}
       if(job.pressPrompt){try{job.pressTimer=environment.setTimer(()=>startJob(job,false),DICE_PRESS_AUTO_MS);}catch(_error){startJob(job,false);} }
       else startJob(job,false);
     }else startJob(job,false);
-    return Object.freeze({skipped:false,cancel:()=>{ if(job.done)return false; if(job.canvasHandle&&typeof job.canvasHandle.cancel==='function'){ try{ job.canvasHandle.cancel(); }catch(_error){} } complete(job); return true; }});
+    return Object.freeze({skipped:false,callbackTimeoutMs:diceCanvasCallbackBudgetMs(source.pressToRoll===true),cancel:()=>{ if(job.done)return false; if(job.canvasHandle&&typeof job.canvasHandle.cancel==='function'){ try{ job.canvasHandle.cancel(); }catch(_error){} } complete(job,'result_cancelled'); return true; }});
   }
   function pending(input){
     const source=input&&typeof input==='object'?input:{}; let done=false, preview=null;
@@ -4455,7 +4512,12 @@ function endDiceNarrationHold(token){
   try{if(activeTab()==='story')renderStory();}catch(_diceNarrationReleaseRenderError){}
   return true;
 }
-const DICE_PLAYBACK_CALLBACK_TIMEOUT_MS=7000;
+const DICE_PLAYBACK_CALLBACK_PRESS_MS=2200;
+const DICE_PLAYBACK_CALLBACK_TIMELINE_MS=6000;
+const DICE_PLAYBACK_CALLBACK_ACK_MS=25000;
+const DICE_PLAYBACK_CALLBACK_MARGIN_MS=1500;
+const DICE_PLAYBACK_CALLBACK_TIMEOUT_MS=DICE_PLAYBACK_CALLBACK_PRESS_MS+DICE_PLAYBACK_CALLBACK_TIMELINE_MS+DICE_PLAYBACK_CALLBACK_ACK_MS+DICE_PLAYBACK_CALLBACK_MARGIN_MS;
+function dicePlaybackCallbackTimeoutMs(handle){const advertised=Number(handle&&handle.callbackTimeoutMs);return Number.isFinite(advertised)&&advertised>0?Math.max(DICE_PLAYBACK_CALLBACK_TIMEOUT_MS,advertised):DICE_PLAYBACK_CALLBACK_TIMEOUT_MS;}
 function playRoundDiceMeta(round,character,choreography){
   let receipts=[],ownName='',campaignId='',roundId='',stored=[],ledgerState=null;
   let choreographyDone=false;
@@ -4490,7 +4552,7 @@ function playRoundDiceMeta(round,character,choreography){
         inFlight.add(receiptKey);directPending++;
         let receiptDone=false,timer=null;
         const complete=function(reason){if(receiptDone)return false;receiptDone=true;if(timer!==null)try{clearTimeout(timer);}catch(_diceMetaTimerClearError){}inFlight.delete(receiptKey);burn(receiptKey);emit(reason,{receiptIndex:index,receiptWho:receipt.who});directPending--;maybeFinishDirect();return true;};
-        try{const handle=diceFx.roll(Object.assign({},payload,{onDone:()=>complete('played')}));started++;if(handle&&handle.skipped===true)complete('playback_skipped');else if(!receiptDone)timer=setTimeout(()=>complete('playback_timeout'),DICE_PLAYBACK_CALLBACK_TIMEOUT_MS);}
+        try{const handle=diceFx.roll(Object.assign({},payload,{onDone:()=>complete('played')}));started++;if(handle&&handle.skipped===true)complete('playback_skipped');else if(!receiptDone)timer=setTimeout(()=>complete('playback_timeout'),dicePlaybackCallbackTimeoutMs(handle));}
         catch(_diceMetaRollError){complete('roll_threw_fail_open');}
       }catch(_diceMetaReceiptError){emit('receipt_error',{receiptIndex:index});}
     });
@@ -4540,7 +4602,7 @@ function playRoundCombatDiceMeta(round,character,choreography){
         inFlight.add(receiptId);directPending++;
         let receiptDone=false,timer=null;
         const complete=function(reason){if(receiptDone)return false;receiptDone=true;if(timer!==null)try{clearTimeout(timer);}catch(_combatDiceTimerClearError){}inFlight.delete(receiptId);burn(receiptId);emit(reason,detail);directPending--;maybeFinishDirect();return true;};
-        try{const handle=diceFx.roll(Object.assign({},payload,{onDone:()=>complete('combat_union_played')}));started++;if(handle&&handle.skipped===true)complete('combat_union_skipped');else if(!receiptDone)timer=setTimeout(()=>complete('combat_union_timeout'),DICE_PLAYBACK_CALLBACK_TIMEOUT_MS);}
+        try{const handle=diceFx.roll(Object.assign({},payload,{onDone:()=>complete('combat_union_played')}));started++;if(handle&&handle.skipped===true)complete('combat_union_skipped');else if(!receiptDone)timer=setTimeout(()=>complete('combat_union_timeout'),dicePlaybackCallbackTimeoutMs(handle));}
         catch(_combatDiceRollError){complete('combat_union_roll_threw_fail_open');}
       }catch(_combatDiceReceiptError){emit('combat_union_receipt_error',detail);}
     });
@@ -6294,6 +6356,11 @@ function nameFor(a){
   const m=members.find(m=>m.user_id===a.user_id);
   return (m&&m.profiles&&m.profiles.display_name)||'Player';
 }
+function downedTurnControlPlan(isHost,activeCharId,ownCharId,deathSaveActionAvailable){
+  const ownActiveTurn=!!activeCharId&&!!ownCharId&&String(activeCharId)===String(ownCharId);
+  const noAction=ownActiveTurn&&!deathSaveActionAvailable;
+  return {showHostAdvance:!!isHost&&noAction,showWaitingState:noAction};
+}
 // ปุ่ม Skip turn (host): ระบุชื่อเจ้าของเทิร์น + นาฬิการอแบบสด — กดได้เมื่อรอครบ 60 วิ (กัน skip มั่ว/ผิดตัว)
 function makeSkipBtn(){
   const fmt=(ms)=>{ const s=Math.max(0,Math.floor(ms/1000)); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
@@ -6565,7 +6632,7 @@ function npcCombatAidOfferCardState(rows,recipientId){
   if(!recipient) return [];
   (Array.isArray(rows)?rows:[]).forEach(row=>{
     const match=String(row&&row.source_content||'').trim().match(NPC_COMBAT_AID_SURFACE_RE);
-    if(!match||String(match[3]||'').toLowerCase()!==recipient) return;
+    if(!match||String(match[4]||'').toLowerCase()!==recipient) return;
     const status=String(match[1]||'').toLowerCase(), offerKey=String(match[2]||'');
     const prior=byOffer.get(offerKey)||{offerKey:offerKey,content:'',offered:false,terminal:false};
     if(status==='offered'){ prior.offered=true; prior.content=String(row&&row.content||'').trim(); }
@@ -6813,12 +6880,13 @@ async function renderRoundbar(){
   // หมดสติ (HP 0) ระหว่างคอมแบต → ห้ามสั่งการ แสดงสถานะ Death Save แทน (server ทอยให้รอบละครั้ง)
   if(myChar && playerCombatUiState()==='death_save'){
     const ds=(mySheet.death_saves||{});
+    const _rolled = !!(ds.round && window._combatRound && +ds.round >= +window._combatRound);   // ทอยของรอบนี้ไปแล้ว → ล็อกจนกว่าจะขึ้นรอบใหม่
+    const _deathSaveActionAvailable=!ds.dead&&!ds.stable&&!_rolled;
     const w=document.createElement('div'); w.className='note'; w.style.cssText='text-align:left;padding:10px 4px;line-height:1.8;color:#ff8a8a;font-weight:600;border:1px solid #d32f2f;border-radius:8px';
     w.innerHTML = ds.dead ? uiCopy('💀 ตัวละครสิ้นใจแล้ว…','💀 Your character has died…')
       : ds.stable ? uiCopy('🩹 หมดสติ — อาการคงที่ (stable) รอเพื่อนช่วยหรือพักฟื้น','🩹 Unconscious — stable. Wait for an ally or recover in time.')
       : uiCopy('💔 <b>หมดสติ (HP 0)</b> — ทำอะไรไม่ได้ นอกจากลุ้นชะตา<br>☠️ สำเร็จ ','💔 <b>Unconscious (HP 0)</b> — you can do nothing but cling to fate<br>☠️ Successes ')+(ds.s||0)+uiCopy('/3 · ล้มเหลว ','/3 · Failures ')+(ds.f||0)+'/3<br><span class="muted" style="font-weight:400">'+uiCopy('เพื่อนช่วยได้: เวทรักษา (ฟื้นทันที) หรือปฐมพยาบาล Medicine DC10 (stable)','Allies can help: healing magic (instant revive) or first aid — Medicine DC10 (stabilize)')+'</span>';
     if(!ds.dead && !ds.stable){
-      const _rolled = !!(ds.round && window._combatRound && +ds.round >= +window._combatRound);   // ทอยของรอบนี้ไปแล้ว → ล็อกจนกว่าจะขึ้นรอบใหม่
       const rb=document.createElement('button'); rb.className='btn'; rb.style.cssText='margin-top:10px;display:block;width:100%';
       rb.textContent=_rolled?uiCopy('⏳ ทอยรอบนี้แล้ว — รอรอบถัดไป','⏳ Rolled this round — wait for the next round'):uiCopy('🎲 ทอย DEATH SAVE (รอบละครั้ง)','🎲 Roll DEATH SAVE (once per round)');
       rb.disabled=_rolled;
@@ -6839,6 +6907,18 @@ async function renderRoundbar(){
       };
       w.appendChild(rb);
     }
+    // DOWNED-CONTROLS-01 copy surface start
+    const _downedActiveId=(typeof gCombat!=='undefined'&&gCombat&&gCombat.active)?gCombat.activeCharId:null;
+    const _downedControls=downedTurnControlPlan(isHost,_downedActiveId,myChar.id,_deathSaveActionAvailable);
+    if(_downedControls.showWaitingState){
+      const st=document.createElement('div'); st.className='muted'; st.style.cssText='margin-top:8px;font-weight:400;line-height:1.5';
+      st.textContent=isHost?uiCopy('⏳ รอบนี้ไม่มีการกระทำอื่น — กด “ดำเนินเรื่องต่อ” ด้านล่างเพื่อไปยังเทิร์นถัดไป','⏳ No other action is available this round — use “Continue Scene” below to advance the turn.'):uiCopy('⏳ รอบนี้ไม่มีการกระทำอื่น — รอโฮสต์ดำเนินเทิร์นต่อ','⏳ No other action is available this round — waiting for the host to continue the turn.');
+      w.appendChild(st);
+    }
+    if(_downedControls.showHostAdvance){
+      const f=document.createElement('button'); f.className='btn warn sm'; f.style.cssText='margin-top:8px;display:block;width:100%'; f.textContent=resolving?uiCopy('กำลังดำเนินเรื่อง…','Continuing…'):uiCopy('⚡ ดำเนินเรื่องต่อ','⚡ Continue Scene'); f.disabled=resolving; f.onclick=()=>forceResolveConfirm(); w.appendChild(f);
+    }
+    // DOWNED-CONTROLS-01 copy surface end
     // host สลบอยู่ก็ยังต้องคุมเกมได้ — ปุ่ม Skip (ชื่อ + นาฬิกาสด กดได้เมื่อครบ 1 นาที)
     if(isHost && typeof gCombat!=='undefined' && gCombat && gCombat.active && gCombat.activeCharId && gCombat.activeCharId!==myChar.id){
       w.appendChild(makeSkipBtn());
