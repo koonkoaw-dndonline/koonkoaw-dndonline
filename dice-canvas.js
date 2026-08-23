@@ -10,7 +10,7 @@
 (function attachDiceCanvas() {
   "use strict";
 
-  const BUILD = "20260823-dice-feel-01";
+  const BUILD = "20260823-dice-spike-01";
   const SOURCE_CATEGORIES = Object.freeze([
     "weapon",
     "spell",
@@ -44,6 +44,11 @@
   // browser enlarges it by this integer factor. Geometry is also snapped to
   // the same grid, so moving dice keep deliberately hard pixel edges.
   const PIXEL_ART_SCALE = 2;
+  // DICE-SPIKE-01: bevel keeps pixel-art corners hard without miter spikes.
+  // The low limit is a defensive fallback if a browser ever treats the join
+  // as miter while restoring a saved context state.
+  const FACET_STROKE_JOIN = "bevel";
+  const FACET_MITER_LIMIT = 1;
 
   let localizer = null;
   let environment = null;
@@ -1790,7 +1795,8 @@
         context.fillStyle = facetPalette[tone];
         context.strokeStyle = facetPalette[0];
         context.lineWidth = step;
-        context.lineJoin = "miter";
+        context.lineJoin = FACET_STROKE_JOIN;
+        context.miterLimit = FACET_MITER_LIMIT;
         context.setLineDash([]);
       } catch (error) {}
       tracePolygon(context, row.points);
@@ -1872,7 +1878,8 @@
     safeContextCall(context, "save");
     try {
       context.imageSmoothingEnabled = false;
-      context.lineJoin = "miter";
+      context.lineJoin = FACET_STROKE_JOIN;
+      context.miterLimit = FACET_MITER_LIMIT;
       context.lineCap = "butt";
       context.fillStyle = facetPalette[0];
       context.shadowColor = "rgba(0,0,0,.42)";

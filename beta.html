@@ -25,7 +25,7 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./grid-board-replacement-lease.js?v=202608110249"></script>
 <script src="./dice-roll-sound.js?v=0823"></script>
 <script src="./dice-fx.js?v=0823"></script>
-<script src="./dice-canvas.js?v=1209"></script>
+<script src="./dice-canvas.js?v=1436"></script>
 <script src="./music-playback-owner.js?v=847"></script>
 <script src="./music-v2-dark-launch.js?v=1211"></script>
 <style>
@@ -2150,7 +2150,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202608231209;   // DICE-FEEL-01: hold authoritative faces for acknowledgement, expose per-die details, and draw the deterministic physics path
+const FRONTEND_BUILD = 202608231436;   // DICE-SPIKE-01: bevel facet joins remove corner spurs while preserving deterministic server faces
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
