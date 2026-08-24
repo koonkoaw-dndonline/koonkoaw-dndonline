@@ -13,10 +13,6 @@
       th: '(แก้: เพลงใหม่เล่นไม่ได้ชั่วคราว ระบบจึงใช้เพลงบรรยากาศเดิมในอุปกรณ์นี้)',
       en: '(Fixed: new music is temporarily unavailable, so this device is using the legacy ambience.)',
     }),
-    silent: Object.freeze({
-      th: '(แก้: ยังไม่มีเพลงที่ผ่านเงื่อนไขสำหรับฉากนี้ ระบบจะลองใหม่เมื่อสถานะเปลี่ยน)',
-      en: '(Fixed: no eligible track is available for this scene yet; the system will retry after state changes.)',
-    }),
   });
 
   function text(language, key) {
@@ -404,7 +400,12 @@
         const state = result.data;
         if (!state || state.selection_status !== 'selected' || !state.selected_track_key) {
           if (player) player.pause();
-          options.onDegraded(ctx.mood, text(ctx.language, 'silent'));
+          // MUSIC-SILENT-TOAST-BACKSTAGE-01 (owner decision 08-24): no-selection
+          // is a backstage state — start the legacy fallback with a null note so
+          // the page handler skips its toast. Recovery needs no player action
+          // (the selector retries on the next gameplay round; the page already
+          // schedules bounded convergence re-reads), so nothing is announced.
+          options.onDegraded(ctx.mood, null);
           return true;
         }
         if (playingSelectionMatches(state)) return true;
