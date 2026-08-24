@@ -2150,7 +2150,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202608231436;   // DICE-SPIKE-01: bevel facet joins remove corner spurs while preserving deterministic server faces
+const FRONTEND_BUILD = 202608241637;   // DICE-SPIKE-01: bevel facet joins remove corner spurs while preserving deterministic server faces
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2661,18 +2661,25 @@ const PARTY_DECISION_OPEN_UI_COPY=Object.freeze({
   'already-active':Object.freeze(['(แก้: คณะมีมติที่กำลังรอคำเลือกอยู่แล้ว จึงไม่เปิดวงซ้อน)','(Fixed: The party already has an open decision, so another one was not opened.)']),
   'combat-active':Object.freeze(['(แก้: ยังเปิดวงลงมตินี้ไม่ได้ระหว่างการต่อสู้ที่กำลังดำเนินอยู่)','(Fixed: This party decision cannot open while combat is active.)'])
 });
+const PARTY_DECISION_OPEN_NOTE_LEAD=Object.freeze(['เสียงเรียกคณะเงียบลงก่อนวงมติจะก่อตัว','The call to the party falls quiet before a decision circle can form.']);
 const PARTY_DECISION_OPEN_UI_SURFACES=Object.freeze(Object.keys(PARTY_DECISION_OPEN_UI_COPY));
 function partyDecisionOpenUiCopy(surface,lang){
   const pair=PARTY_DECISION_OPEN_UI_COPY[surface]||PARTY_DECISION_OPEN_UI_COPY['open-unavailable'];
-  return partyDecisionPairCopy(pair,lang);
+  const copy=partyDecisionPairCopy(pair,lang), correctionOnly=lang==='en'?copy.trimStart().startsWith('(Fixed:'):copy.trimStart().startsWith('(แก้:');
+  return correctionOnly?partyDecisionPairCopy(PARTY_DECISION_OPEN_NOTE_LEAD,lang)+' '+copy:copy;
 }
 /* typeof guard mirrors the isHost precedent elsewhere in this page: the party-decision
    block is extracted and evaluated in isolation by its goldens, where `me` is out of scope. */
 function partyDecisionIsHost(){ return !!(campaign&&typeof me!=='undefined'&&me&&campaign.host_id===me.id); }
+function partyDecisionOpenCandidateFreshForUi(candidate,groupNo,nowMs){
+  if(!candidate||typeof candidate!=='object'||(groupNo!==1&&groupNo!==2)||candidate.groupNo!==groupNo) return false;
+  const observedMs=Number(nowMs), expiresMs=Date.parse(String(candidate.expiresAt||''));
+  return Number.isFinite(observedMs)&&Number.isFinite(expiresMs)&&expiresMs>observedMs;
+}
 /* The reader publishes open_candidates only to the host. It is a hint, never authority:
    the opener re-reads and revalidates the envelope server-side. Any malformed entry
    drops the whole list so a half-trusted feed can never drive a press. */
-function partyDecisionOpenCandidatesForUi(raw,groupNo){
+function partyDecisionOpenCandidatesForUi(raw,groupNo,nowMs){
   if(!raw||raw.open_candidates===undefined) return Object.freeze([]);
   if(!Array.isArray(raw.open_candidates)) return Object.freeze([]);
   const out=[];
@@ -2680,18 +2687,22 @@ function partyDecisionOpenCandidatesForUi(raw,groupNo){
     if(!item||typeof item!=='object') return Object.freeze([]);
     const id=partyDecisionUiUuid(item.candidate_receipt_id), count=partyDecisionUiInteger(item.option_count), expires=String(item.expires_at||'').trim();
     if(!id||Number(item.group_no)!==groupNo||count===null||count<2||count>3||!expires||!Number.isFinite(Date.parse(expires))) return Object.freeze([]);
-    out.push(Object.freeze({candidateReceiptId:id,groupNo:groupNo,expiresAt:expires,optionCount:count}));
+    const candidate=Object.freeze({candidateReceiptId:id,groupNo:groupNo,expiresAt:expires,optionCount:count});
+    if(!partyDecisionOpenCandidateFreshForUi(candidate,groupNo,nowMs)) return Object.freeze([]);
+    out.push(candidate);
   }
   return Object.freeze(out);
 }
-function partyDecisionOpenPayloadForUi(candidate,campaignId,groupNo,requestId){
+function partyDecisionOpenPayloadForUi(candidate,campaignId,groupNo,requestId,nowMs){
   if(!candidate||!partyDecisionUiUuid(campaignId)||!partyDecisionUiUuid(requestId)||(groupNo!==1&&groupNo!==2)) return null;
+  if(!partyDecisionOpenCandidateFreshForUi(candidate,groupNo,nowMs)) return null;
   const id=partyDecisionUiUuid(candidate.candidateReceiptId); if(!id||candidate.groupNo!==groupNo) return null;
   return {campaign_id:campaignId,group_no:groupNo,candidate_receipt_id:id,client_request_id:requestId};
 }
 let _partyDecisionState={decisions:[],openCandidates:[],openNotice:null,openBusy:false,noticeByDecision:Object.create(null),errorSurface:null,inFlight:new Set(),generation:0};
-let _partyDecisionReaderPromise=null,_partyDecisionReaderQueued=false,_partyDecisionRequestMemory=Object.create(null);
+let _partyDecisionReaderPromise=null,_partyDecisionReaderQueued=false,_partyDecisionRequestMemory=Object.create(null),_partyDecisionExpiryTimer=null;
 function partyDecisionReset(){
+  if(_partyDecisionExpiryTimer!==null){ clearTimeout(_partyDecisionExpiryTimer); _partyDecisionExpiryTimer=null; }
   _partyDecisionState={decisions:[],openCandidates:[],openNotice:null,openBusy:false,noticeByDecision:Object.create(null),errorSurface:null,inFlight:new Set(),generation:_partyDecisionState.generation+1};
   _partyDecisionReaderQueued=false; _partyDecisionRequestMemory=Object.create(null); partyDecisionRender();
 }
@@ -2715,15 +2726,17 @@ function partyDecisionRequestSeed(decision,speakerId,optionId,abstain){
 function partyDecisionRequestClear(slot){ delete _partyDecisionRequestMemory[slot]; try{ sessionStorage.removeItem(slot); }catch(e){} }
 function partyDecisionNode(tag,className,text){ const el=document.createElement(tag); if(className) el.className=className; if(text!==undefined) el.textContent=String(text); return el; }
 function partyDecisionRender(){
+  if(_partyDecisionExpiryTimer!==null){ clearTimeout(_partyDecisionExpiryTimer); _partyDecisionExpiryTimer=null; }
   const mount=document.getElementById('partyDecisionMount'); if(!mount) return; mount.replaceChildren();
   if(!campaign||!myChar) return;
   const lang=partyDecisionCanonicalLanguage(); if(!lang) return; const busyIds=_partyDecisionState.inFlight;
   /* reviewer fix 08-16: no last-good ballot ⇒ nothing to be stale about — a reader hiccup must not conjure a "paths shifted" card for a vote the player never saw (with no ballot producer live yet, that card would be the only thing this surface ever showed) · with last-good cards the stale copy rides on each card below */
   /* PARTYDEC-04A: host opener sits above the ballot cards and only while nothing is open —
      an overlapping open is refused server-side, so a button that could only fail is never drawn. */
-  const openCandidates=_partyDecisionState.openCandidates||[];
+  const openGroupNo=terminalGroupForUi(), openNowMs=Date.now(), openCandidates=(_partyDecisionState.openCandidates||[]).filter(item=>partyDecisionOpenCandidateFreshForUi(item,openGroupNo,openNowMs));
   if(partyDecisionIsHost()&&openCandidates.length&&!_partyDecisionState.decisions.length){
     const openCard=partyDecisionNode('section','party-decision-card'), target=openCandidates[0];
+    const expiryDelay=Math.max(1,Date.parse(target.expiresAt)-openNowMs+1); _partyDecisionExpiryTimer=setTimeout(()=>{ _partyDecisionExpiryTimer=null; partyDecisionRender(); },Math.min(expiryDelay,2147483647));
     const cta=partyDecisionNode('button','btn party-decision-option',partyDecisionOpenUiCopy('host-open-cta',lang));
     cta.type='button'; cta.disabled=!!_partyDecisionState.openBusy; cta.title=partyDecisionOpenUiCopy('host-open-cta',lang);
     cta.addEventListener('click',()=>partyDecisionOpen(target.candidateReceiptId));
@@ -2773,7 +2786,7 @@ async function partyDecisionRefresh(reason){
       if(!response.ok) throw new Error('party_decision_reader_failed');
       const decisions=partyDecisionReaderForUi(response.data,language,groupNo); if(!decisions) throw new Error('party_decision_projection_invalid');
       if(!_partyDecisionState||generation!==_partyDecisionState.generation||!campaign||String(campaign.id)!==campaignId||terminalGroupForUi()!==groupNo) return false;
-      _partyDecisionState.decisions=decisions; _partyDecisionState.openCandidates=partyDecisionOpenCandidatesForUi(response.data,groupNo); _partyDecisionState.errorSurface=null; partyDecisionRender(); return true;
+      _partyDecisionState.decisions=decisions; _partyDecisionState.openCandidates=partyDecisionOpenCandidatesForUi(response.data,groupNo,Date.now()); _partyDecisionState.errorSurface=null; partyDecisionRender(); return true;
     }catch(e){
       if(_partyDecisionState&&generation===_partyDecisionState.generation&&campaign&&String(campaign.id)===campaignId){ _partyDecisionState.errorSurface='stale-ballot'; partyDecisionRender(); }
       return false;
@@ -2803,9 +2816,9 @@ async function partyDecisionCast(decisionId,optionId,abstain){
    candidate envelope the server minted — never a question, an option or a winner. The
    body is the exact 4 keys the opener parser accepts; anything else is rejected there. */
 async function partyDecisionOpen(candidateReceiptId){
-  const candidate=(_partyDecisionState.openCandidates||[]).find(item=>item.candidateReceiptId===candidateReceiptId);
+  const groupNo=terminalGroupForUi(), nowMs=Date.now(), candidate=(_partyDecisionState.openCandidates||[]).find(item=>item.candidateReceiptId===candidateReceiptId&&partyDecisionOpenCandidateFreshForUi(item,groupNo,nowMs));
   if(!candidate||_partyDecisionState.openBusy||!campaign||!myChar||!partyDecisionIsHost()) return false;
-  const groupNo=terminalGroupForUi(), seed=partyDecisionOpenRequestSeed(candidate), payload=partyDecisionOpenPayloadForUi(candidate,String(campaign.id),groupNo,seed.id);
+  const seed=partyDecisionOpenRequestSeed(candidate), payload=partyDecisionOpenPayloadForUi(candidate,String(campaign.id),groupNo,seed.id,nowMs);
   if(!payload) return false;
   const campaignId=String(campaign.id), generation=_partyDecisionState.generation;
   _partyDecisionState.openBusy=true; _partyDecisionState.openNotice=null; partyDecisionRender();
