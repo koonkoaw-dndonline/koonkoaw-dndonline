@@ -2150,7 +2150,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202608241637;   // DICE-SPIKE-01: bevel facet joins remove corner spurs while preserving deterministic server faces
+const FRONTEND_BUILD = 202608241922;   // DICE-SPIKE-01: bevel facet joins remove corner spurs while preserving deterministic server faces
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -6950,6 +6950,7 @@ async function renderRoundbar(){
     const w=document.createElement('div'); w.className='note'; w.style.cssText='text-align:left;padding:6px 2px;color:#FAC775;font-weight:600';
     w.textContent=uiCopy('⚔️ ถึงตาคุณแล้ว — สั่งการได้เลย','⚔️ Your turn — act now'); bar.appendChild(w);
   }
+  let _inventoryEditOnly=false;
   if(!mine){
     const meta=curRound.meta||{};
     const cb=meta.combat||{}, inter=meta.interactables||[]; let rr=meta.roll_request||{};
@@ -7095,6 +7096,7 @@ async function renderRoundbar(){
     }
     const _wedge=(worldState&&worldState.settings&&worldState.settings.enc_action_wedge)||null;
     const _repair=window._actionRepair&&window._actionRepair.round_id===curRound.id?window._actionRepair:(_wedge&&String(_wedge.round_id)===String(curRound.id)?_wedge:null);
+    _inventoryEditOnly=!!_repair&&_repair.reason_code==='player_inventory_mixed_mechanical_action';
     const _stuckAction=_repair?(_repair.action_id?list.find(a=>String(a.id)===String(_repair.action_id)):list.find(a=>String(a.user_id)===String(me&&me.id))):null;
     const _canRepair=!!_stuckAction&&(isHost||String(_stuckAction.user_id)===String(me&&me.id));
     if(_repair&&_canRepair&&curRound.phase==='awaiting_actions'){
@@ -7114,7 +7116,7 @@ async function renderRoundbar(){
       rb.disabled=!!resolving; rb.onclick=()=>resolveRound(false); bar.appendChild(rb);
     }
   }
-  if(isHost){ const f=document.createElement('button'); f.className='btn warn sm'; f.textContent=resolving?uiCopy('กำลังดำเนินเรื่อง…','Continuing…'):uiCopy('⚡ ดำเนินเรื่องต่อ','⚡ Continue Scene'); f.disabled=resolving; f.onclick=()=>forceResolveConfirm(); bar.appendChild(f); }
+  if(isHost){ const f=document.createElement('button'); f.className='btn warn sm'; f.textContent=resolving?uiCopy('กำลังดำเนินเรื่อง…','Continuing…'):uiCopy('⚡ ดำเนินเรื่องต่อ','⚡ Continue Scene'); f.disabled=resolving; f.onclick=()=>forceResolveConfirm(); if(!_inventoryEditOnly)bar.appendChild(f); }
 }
 
 // ── ทอยเต๋า: DM ทอยให้ (server สุ่มจริง) / ทอยเอง (ใส่เลขดิบ) ──
