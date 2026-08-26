@@ -28,6 +28,7 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./dice-canvas.js?v=1436"></script>
 <script src="./music-playback-owner.js?v=847"></script>
 <script src="./music-v2-dark-launch.js?v=0825"></script>
+<script src="./npc-codex-reader.js?v=0826r14"></script>
 <style>
 /* ============================================================
    TTRPG CAMPAIGN — Dragon Quest (NES) monochrome re-skin (เฟส 5)
@@ -913,7 +914,7 @@ body.in-battle .bs-cs-btn{display:block;}
 .bs-init{border:2px solid #fff;border-radius:8px;background:#000;padding:8px 10px;flex:0 0 auto;max-height:34vh;overflow-y:auto;}
 .bs-log{border:2px solid #fff;border-radius:8px;background:#000;padding:8px 10px;flex:1;min-height:120px;overflow-y:auto;}
 .bs-narr{border:2px solid #fff;border-radius:8px;background:#000;padding:8px 12px;overflow-y:auto;flex:1;min-height:140px;}
-.bs-cmd{flex:0 0 auto;}
+.bs-cmd{flex:0 0 auto;position:relative;z-index:1;}
 .bs-chat{border:2px solid #fff;border-radius:8px;background:#000;padding:8px 10px;flex:1;min-height:120px;display:flex;flex-direction:column;}
 .bs-chat-list{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:5px;font-family:'IBM Plex Sans Thai',sans-serif;font-size:13px;line-height:1.45;}
 .bs-chat-msg{color:#dcdcdc;overflow-wrap:anywhere;}
@@ -976,8 +977,8 @@ body.in-battle .bs-cs-btn{display:block;}
 @media (min-width:1024px){
   .bscene-stage{flex-direction:row;align-items:stretch;}
   .bs-left{flex:0 0 322px;}
-  .bs-center{flex:1;min-width:0;}
-  .bs-right{flex:0 0 360px;}   /* v453: ลดความกว้าง ~16% → เพิ่มพื้นที่ column กลาง */
+  .bs-center{flex:1;min-width:0;position:relative;z-index:0;}
+  .bs-right{flex:0 0 360px;position:relative;z-index:2;isolation:isolate;}   /* CC12: command column owns a higher stacking context than overflowing board SVG */
 }
 @media (max-width:1023px){
   /* มือถือ: เรียงทุกส่วนต่อกันตามความสูงจริง แล้วเลื่อนทั้งฉากได้ (กันถูกบีบจนหาย) */
@@ -2150,7 +2151,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202608250650;   // DICE-SPIKE-01: bevel facet joins remove corner spurs while preserving deterministic server faces
+const FRONTEND_BUILD = 202608261915;   // v1000 R13/R14: NPC codex reader wall + cmdbar stacking + recruitment-tail exemption + revive act state
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -3323,6 +3324,7 @@ function playerCombatUiState(){
   if(!myChar||!gCombat.activeCharId||String(gCombat.activeCharId)!==String(myChar.id)) return 'wait';
   const entry=gCombat.activeEntry||{}, conds=(Array.isArray(entry.conditions)?entry.conditions:[]).map(x=>String(x||'').toLowerCase());
   const hp=Number(mySheet&&mySheet.combat&&mySheet.combat.hp);
+  if(Number.isFinite(hp)&&hp>0) return 'act';   // CC4: authoritative revive wins stale initiative conditions/is_active until realtime catches up
   const ko=entry.is_active===false||(Number.isFinite(hp)&&hp<=0)||conds.some(c=>/unconscious|incapacitated|dead|dying|death.?save|หมดสติ|สลบ|เสียชีวิต/.test(c));
   return ko?'death_save':'act';
 }
@@ -4871,13 +4873,20 @@ function stripLanguageRepairMetaText(value){
   const kept=lines.filter(line=>!LANGUAGE_REPAIR_META_LINES.has(line.trim().toLowerCase()));
   return kept.length===lines.length?src:kept.join('\n').replace(/\n{3,}/g,'\n\n').trim();   // v716b: no note removed → verbatim (Thai byte-transparent)
 }
+function narrativeKeepsAuthoritativeCorrectionReceipt(n,value){
+  if(!n||String(n.author||'').toLowerCase()!=='system') return false;
+  const source=String(n.source_content||'').trim();
+  return /^system:companion-recruitment(?:-v\d+)?:[0-9a-z-]{8,}$/i.test(source)&&/^\s*👥/u.test(String(value||''))&&/[（(]\s*(?:แก้|fixed)\s*:/iu.test(String(value||''));
+}
 function narrText(n){
   if(!n) return '';
   if(n.status==='invalidated'||n.projection_status==='invalidated') return '';
   const p=String(n.projection_content||'').trim();
   const legacy=String(n.legacy_content||'').trim();
   const value=narrativeProjectionMode(n)==='enforce'&&p?p:(legacy||String(n.content||''));
-  return /^(dm|system)$/i.test(String(n.author||'dm'))?stripNarrativeEditorialMeta(stripLanguageRepairMetaText(value)):value;
+  if(!/^(dm|system)$/i.test(String(n.author||'dm'))) return value;
+  const languageClean=stripLanguageRepairMetaText(value);
+  return narrativeKeepsAuthoritativeCorrectionReceipt(n,languageClean)?languageClean:stripNarrativeEditorialMeta(languageClean);
 }
 function narrProjectionNote(n){
   return narrativeProjectionMode(n)==='enforce'&&n&&n.projection_status==='corrected'?stripNarrativeEditorialMeta(String(n.projection_note||'')):'';
@@ -9358,7 +9367,7 @@ let _npcQ='', _npcCity=null, _npcSel=null;   // v611: สถานะค้น�
 async function renderNPCs(){
   const p=$('panel-npc'); p.innerHTML='';
   let rows=null;
-  try{ const r=await supa.from('npcs').select('*').eq('campaign_id',campaign.id).order('updated_at',{ascending:false}); if(!r.error) rows=(r.data||[]).filter(n=>n.discovered!==false&&n.archived!==true); }catch(e){}   /* v546: +archived (0084) */
+  try{ const r=await supa.from('npcs').select('*').eq('campaign_id',campaign.id).order('updated_at',{ascending:false}); const _codexWall=(globalThis.TTRPG_NPC_CODEX_READER&&typeof TTRPG_NPC_CODEX_READER.isLoadable==='function')?(n)=>TTRPG_NPC_CODEX_READER.isLoadable(n):(n)=>n.archived!==true; if(!r.error) rows=(r.data||[]).filter(n=>n.discovered!==false&&_codexWall(n)); }catch(e){}   /* DD3: terminal lifecycle + durable v744 residue marker · F3: asset 404 ต้องไม่ทำทั้งแท็บพัง — fallback = กติกา archived เดิม */
   if(rows===null){ p.innerHTML=uiCopy('<div class="muted">ระบบ NPC ยังไม่เปิดใช้<br>รัน migration.sql</div>','<div class="muted">NPC system not enabled yet<br>Run migration.sql</div>'); return; }
   // v628ui (คำสั่ง Koon 07-14): สารานุกรมมอนสเตอร์ต้องครบทุกตัวที่เคยเจอ — ฐานหลัก = ตาราง monsters (ทุกตัวที่เคย spawn ในศึกของแคมเปญ)
   //   เดิมสร้างจากแถว npcs อย่างเดียว → โผล่เฉพาะตัวที่ DM เผลอส่ง npc_update (เคสจริง: มีแค่ Bandit ทั้งที่สู้ Death Dog/Goblin/Spider มาแล้ว)
