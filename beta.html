@@ -2151,7 +2151,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202608261915;   // v1000 R13/R14: NPC codex reader wall + cmdbar stacking + recruitment-tail exemption + revive act state
+const FRONTEND_BUILD = 202608271449;   // v1000 R13/R14: NPC codex reader wall + cmdbar stacking + recruitment-tail exemption + revive act state
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -4290,6 +4290,9 @@ async function updateCombatBadge(){
   const _prev = window._combatActive;   // v638 BUG2: จับค่าเดิม → re-render roundbar เมื่อสถานะเปลี่ยน (แก้ branch ค้างสาขาผิด)
   try{ const r=await uiActiveEncounter('id'); if(!r.error){ active=!!r.data; _ok=true; } }catch(e){}
   if(!_ok && window._combatActive!==undefined) active=window._combatActive;   // คงสถานะเดิมเมื่อ query ล้ม
+  const _badgeDerivedActive=active, _badgeTerminalActive=!!(currentTerminalGate()&&currentTerminalGate().active);
+  active=durableRoundCombatActive(curRound,active,_badgeTerminalActive);   // G2 B-R94-4: explicit latest-round false vetoes stale encounter/client flags after terminal acknowledgement
+  if(durableRoundCombatTruth(curRound)==='inactive') reconcileCombatUiFromRound(curRound,_badgeDerivedActive);
   window._combatActive = active;   // server-truth: มีศัตรู active ไหม (ใช้เปิดเมนูคอมแบตโดยไม่พึ่ง DM flag)
   const t=document.querySelector('.tab[data-tab="mon"]'); if(t) t.classList.toggle('combat',active);
   // v638 BUG2: _combatActive เปลี่ยน → roundbar อาจถูก render ด้วยสาขาผิดไปแล้ว (rounds/actions realtime ไม่ refresh badge ก่อน render)
@@ -4642,8 +4645,23 @@ function diceRoundHasOwnPlayback(round,character){
   if(story.some(receipt=>receipt&&typeof receipt==='object'&&diceMetaOwnerKey(receipt.who)===ownName&&Number.isInteger(receipt.roll)&&receipt.roll>=1&&receipt.roll<=20&&Number.isFinite(receipt.total)))return true;
   try{return combatDiceUnionFromMeta(round&&round.meta).receipts.some(receipt=>receipt.actorKind==='player'&&diceMetaOwnerKey(receipt.who)===ownName);}catch(_diceRoundCombatProbeError){return false;}
 }
+function durableRoundCombatTruth(round){ try{ const cb=round&&round.meta&&round.meta.combat; return cb&&cb.active===false?'inactive':cb&&cb.active===true?'active':'unknown'; }catch(e){ return 'unknown'; } }
+function durableRoundCombatActive(round,derivedActive,terminalGateActive){ return durableRoundCombatTruth(round)==='inactive'&&!terminalGateActive?false:!!derivedActive; }
+function combatUiResetPlan(round,current){ const before=Object.assign({combatActive:false,gCombatActive:false,battleShown:false,commandOpen:false,movePicking:false,aoePicking:false,terminalGateActive:false},current||{}), truth=durableRoundCombatTruth(round), state={combatActive:!!before.combatActive,gCombatActive:!!before.gCombatActive,battleShown:!!before.battleShown,commandOpen:!!before.commandOpen,movePicking:!!before.movePicking,aoePicking:!!before.aoePicking}, hadStaleUi=Object.values(state).some(Boolean); return truth!=='inactive'||!!before.terminalGateActive?Object.assign({truth,reset:false,hadStaleUi:false},state):{truth,reset:true,hadStaleUi,combatActive:false,gCombatActive:false,battleShown:false,commandOpen:false,movePicking:false,aoePicking:false}; }
+function reconcileCombatUiFromRound(round,derivedActive){
+  const _doc=typeof document!=='undefined'?document:null, _root=_doc&&_doc.getElementById?_doc.getElementById('combatCommandPanel'):null, _gate=typeof currentTerminalGate==='function'?currentTerminalGate():null;
+  const plan=combatUiResetPlan(round,{combatActive:!!window._combatActive||!!derivedActive,gCombatActive:!!(typeof gCombat!=='undefined'&&gCombat&&gCombat.active),battleShown:!!(typeof _bsShown!=='undefined'&&_bsShown),commandOpen:!!(_root&&_root.classList.contains('cc-show')),movePicking:!!(typeof moveMode!=='undefined'&&moveMode),aoePicking:!!(typeof aoeMode!=='undefined'&&aoeMode),terminalGateActive:!!(_gate&&_gate.active)});
+  if(!plan.reset) return plan;
+  window._combatActive=false; window.gEncId=null; window._combatRound=null; window._bcOpen=false; window.__ccRound=null; window._pendingMove=null;
+  if(typeof gCombat!=='undefined') gCombat={active:false,activeCharId:null,activeName:null,activeEntry:null}; if(typeof moveMode!=='undefined') moveMode=null; if(typeof moveSel!=='undefined') moveSel=null; if(typeof aoeMode!=='undefined') aoeMode=null; if(typeof aoeCenter!=='undefined') aoeCenter=null; if(typeof pendingAoE!=='undefined') pendingAoE=null; if(typeof aoePickOpen!=='undefined') aoePickOpen=false;
+  try{ if(window.cc&&typeof window.cc.close==='function') window.cc.close(); }catch(e){}
+  try{ const root=_doc&&_doc.getElementById?_doc.getElementById('combatCommandPanel'):null; if(root) root.classList.remove('cc-show'); const frame=_doc&&_doc.getElementById?_doc.getElementById('ccFrame'):null; if(frame) frame.classList.remove('cc-windowed'); }catch(e){}
+  try{ if(typeof _bsShown!=='undefined'&&_bsShown&&typeof exitBattleScene==='function') exitBattleScene(); }catch(e){}
+  if(plan.hadStaleUi) window._combatUiResetReceiptRound=String(round&&round.id||''); return plan;
+}
 function setVisibleRound(nextRound,character,source){
   curRound=nextRound||null;
+  reconcileCombatUiFromRound(curRound);
   const roundId=String(curRound&&curRound.id||''),surfaceVisible=dicePlaybackSurfaceVisible();
   try{const receipts=curRound&&curRound.meta&&Array.isArray(curRound.meta.dice)?curRound.meta.dice:[],campaignId=String(campaign&&campaign.id||''),ledgerState=dicePlaybackLedgerState(campaignId);dicePlaybackLog('visible_round',{roundId:roundId,receiptCount:receipts.length,ownName:diceMetaOwnerKey(character&&character.name),ledgerSize:ledgerState.ledger.length,campaignId:campaignId,ledgerError:ledgerState.error,source:String(source||'unknown')});}
   catch(_diceVisibleRoundLogError){dicePlaybackLog('visible_round_error',{roundId:'',receiptCount:0,ownName:'',ledgerSize:0,campaignId:'',source:String(source||'unknown')});}
@@ -5945,6 +5963,17 @@ function switchTab(t){
   else if(t==='companion') renderCompanion();
 }
 // ───────── Companion v2 roster (C2) ─────────
+// G1 B-R94-1: collapse realtime/tab bursts into one in-flight render plus one
+// latest follow-up. Each follow-up starts in a new task, so a continuous event
+// stream cannot become a synchronous render loop that starves the main thread.
+function createCoalescedUiRender(run){ let requested=0,running=false,latestArgs=[],flight=Promise.resolve(); const drain=async()=>{ let seen=-1; running=true; try{ while(seen!==requested){ seen=requested; await run(...latestArgs); if(seen!==requested) await new Promise(resolve=>setTimeout(resolve,0)); } }finally{ running=false; if(seen!==requested) flight=drain(); } }; return function(...args){ latestArgs=args; requested++; if(!running) flight=drain(); return flight; }; }
+const R94_RENDER_STABILITY_COPY=Object.freeze({companion:Object.freeze({th:'(แก้: ระบบจำกัดงานวาดรายชื่อซ้ำแล้ว ปุ่มยืนยันสมาชิกจึงไม่ถูกการโหลดซ้อนขวาง)',en:'(Fixed: roster redraws are bounded so overlapping loads cannot block membership confirmation.)'}),downed:Object.freeze({th:'(แก้: ระบบจำกัดงานวาดฉากและกล่องคำสั่งซ้ำแล้ว ปุ่มทอยช่วยชีวิตกับการควบคุมเทิร์นจึงตอบสนองต่อเนื่อง)',en:'(Fixed: scene and command redraws are bounded so death-save and turn controls remain responsive.)'}),ghost:Object.freeze({th:'(แก้: รอบล่าสุดยืนยันว่าศึกจบแล้ว ระบบจึงล้างตาและคำสั่งต่อสู้ที่ค้างบนจอ)',en:'(Fixed: the latest round confirms combat has ended, so stale turn and combat-command UI was cleared.)'})});
+function r94RenderStabilityCopy(key){ const row=R94_RENDER_STABILITY_COPY[key]||R94_RENDER_STABILITY_COPY.companion; return row[uiLanguage()==='en'?'en':'th']; }
+// G3 (owner ruling 2026-08-27): renderer mechanics never speak to the player. The
+// notes above stay as the single source of truth for what fired, but their only
+// route is backstage: first hit warns, repeats go to console.debug, and
+// window._r94RenderStabilityDiag keeps per-key counters a dev can read live.
+function r94RenderStabilityLog(key,detail){ try{ const k=String(key||'companion'),diag=window._r94RenderStabilityDiag=window._r94RenderStabilityDiag||{},n=diag[k]=(+diag[k]||0)+1,row={key:k,count:n,note:r94RenderStabilityCopy(k),detail:detail===undefined?null:detail}; if(n===1) console.warn('[r94RenderStability]',row); else if(console&&typeof console.debug==='function') console.debug('[r94RenderStability]',row); }catch(e){} }
 let _companionViewCache=null,_companionViewTs=0,_slowlifePollT=null;
 function companionV2UiEnabled(){ return !!campaign&&String(campaign.companion_mode||'').toLowerCase()==='v2'; }
 function companionLegacyUiMessage(){ return uiCopy('โลกนี้คงใช้ระบบคอมพาเนี่ยนแบบเดิมถาวร จึงไม่มีรายชื่อ/ความสัมพันธ์ส่วนตัวแบบ V2 ข้อมูลสมาชิกปาร์ตี้เดิมยังอยู่ครบ — Companion V2 ใช้ได้กับโลกที่สร้างใหม่เท่านั้น','This world remains on the legacy companion system, so V2 roster and private relationship tools are unavailable. Existing party companions are unchanged; Companion V2 is available only to newly created worlds.'); }
@@ -5992,10 +6021,86 @@ async function slowlifeInviteNpc(npcId,kind){
 async function slowlifeDecision(invitationId,decision){
   await slowlifeMutate({slowlife_decide:{invitation_id:invitationId,decision:decision,request_key:crypto.randomUUID()}},decision==='accepted'?uiCopy('ตอบรับและเปิดเลนแล้ว','Accepted; lane opened'):uiCopy('บันทึกคำตอบแล้ว','Response saved'));
 }
+// CLASSACT-SURFACE-E2 copy surface start
+// CLASSACT-SURFACE E2: all 13 typed catalog activities; free text remains the fallback.
+// language-impact: th+en — every player-facing label, description, and suggested action is paired.
+const SLOWLIFE_CLASS_ACTIVITY_BRIDGE=Object.freeze([
+  Object.freeze({id:'artificer.tinker',classKey:'artificer',release:'bridge_existing',windows:Object.freeze(['city_slowlife','road_rest_slowlife']),requiresItemTarget:true,label:Object.freeze({th:'จูนอุปกรณ์',en:'Tinker with equipment'}),description:Object.freeze({th:'เลือกอุปกรณ์ในกระเป๋ามาปรับแต่งด้วยฝีมือของคุณ',en:'Choose a piece of owned equipment to refine with your craft.'}),suggestion:Object.freeze({th:'ฉันซ่อมและปรับแต่งอุปกรณ์ที่เลือกอย่างตั้งใจในช่วงพัก',en:'I carefully repair and refine the selected equipment during the break.'})}),
+  Object.freeze({id:'barbarian.strength_trial',classKey:'barbarian',release:'expansion_candidate',windows:Object.freeze(['city_slowlife','road_rest_slowlife']),requiresItemTarget:false,label:Object.freeze({th:'ประลองพละกำลังอย่างเป็นมิตร',en:'Friendly feat of strength'}),description:Object.freeze({th:'งัดข้อ ยกของ หรือแสดงพละกำลังร่วมกับผู้คนรอบตัวอย่างปลอดภัย',en:'Arm-wrestle, lift, or show your strength safely with people nearby.'}),suggestion:Object.freeze({th:'ฉันชวนคนแถวนั้นคุยกันก่อน แล้วทดสอบพละกำลังด้วยการออกแรงดันอย่างเป็นมิตร',en:'I invite someone nearby to test my strength in a friendly arm-wrestle.'})}),
+  Object.freeze({id:'bard.perform',classKey:'bard',release:'bridge_existing',windows:Object.freeze(['city_slowlife','road_rest_slowlife']),requiresItemTarget:false,label:Object.freeze({th:'เปิดการแสดง',en:'Give a performance'}),description:Object.freeze({th:'วางหมวก เปิดการแสดง และฟังเสียงตอบรับจากผู้คนรอบตัว',en:'Put down your hat, perform, and listen to the people around you.'}),suggestion:Object.freeze({th:'ฉันวางหมวก เปิดการแสดง แล้วคุยกับผู้คนรอบตัวอย่างเป็นมิตร',en:'I put down my hat, perform, and chat with the people around me.'})}),
+  Object.freeze({id:'cleric.devotion',classKey:'cleric',release:'expansion_candidate',windows:Object.freeze(['city_slowlife','road_rest_slowlife']),requiresItemTarget:false,label:Object.freeze({th:'อุทิศเวลาแก่ศรัทธา',en:'Offer time in devotion'}),description:Object.freeze({th:'สวดภาวนา ช่วยดูแลศาสนสถาน หรือแบ่งเบาภาระของผู้คน',en:'Pray, tend a shrine, or ease the burdens of people nearby.'}),suggestion:Object.freeze({th:'ฉันสวดภาวนาต่อสิ่งศักดิ์สิทธิ์และช่วยดูแลผู้คนที่มาขอที่พึ่ง',en:'I pray to my deity and help care for people seeking comfort.'})}),
+  Object.freeze({id:'druid.camp_care',classKey:'druid',release:'expansion_candidate',windows:Object.freeze(['road_rest_slowlife']),requiresItemTarget:false,label:Object.freeze({th:'ดูแลธรรมชาติรอบค่าย',en:'Tend nature around camp'}),description:Object.freeze({th:'เอาใจใส่สัตว์ พืช และสมดุลของพื้นที่รอบจุดพัก',en:'Care for animals, plants, and the balance of the resting place.'}),suggestion:Object.freeze({th:'ฉันดูแลธรรมชาติรอบจุดพักและสำรวจว่าสัตว์กับพืชต้องการอะไร',en:'I rest at camp while I tend nature and see what the nearby animals and plants need.'})}),
+  Object.freeze({id:'fighter.drill',classKey:'fighter',release:'expansion_candidate',windows:Object.freeze(['city_slowlife','road_rest_slowlife']),requiresItemTarget:false,label:Object.freeze({th:'ฝึกกระบวนท่า',en:'Practice disciplined drills'}),description:Object.freeze({th:'ซ้อมท่าพื้นฐานหรือแบ่งปันเคล็ดลับกับคู่ฝึกในพื้นที่ปลอดภัย',en:'Rehearse fundamentals or share techniques with a partner in a safe place.'}),suggestion:Object.freeze({th:'ฉันฝึกกระบวนท่ากับคู่ซ้อมที่เต็มใจและแลกเปลี่ยนคำแนะนำกัน',en:'I practice combat drills with a willing partner and trade pointers.'})}),
+  Object.freeze({id:'monk.meditation',classKey:'monk',release:'expansion_candidate',windows:Object.freeze(['city_slowlife','road_rest_slowlife']),requiresItemTarget:false,label:Object.freeze({th:'ทำสมาธิและฝึกวินัย',en:'Meditate and practice discipline'}),description:Object.freeze({th:'ฝึกลมหายใจ ทำสมาธิ และทบทวนท่วงท่าในมุมสงบ',en:'Practice breathing, meditate, and revisit your forms in a quiet place.'}),suggestion:Object.freeze({th:'ฉันทำสมาธิ ฝึกลมหายใจ และทบทวนท่วงท่าช้า ๆ ในมุมสงบ',en:'I meditate, steady my breathing, and slowly revisit my forms in a quiet place.'})}),
+  Object.freeze({id:'paladin.service',classKey:'paladin',release:'expansion_candidate',windows:Object.freeze(['city_slowlife','road_rest_slowlife']),requiresItemTarget:false,label:Object.freeze({th:'รับใช้ตามคำสัตย์',en:'Serve in keeping with an oath'}),description:Object.freeze({th:'ช่วยเหลือผู้คนด้วยการกระทำที่สอดคล้องกับหลักยึดของคุณ',en:'Help people through deeds that reflect the tenets you hold dear.'}),suggestion:Object.freeze({th:'ฉันช่วยเหลือตามคำสัตย์ด้วยการแบ่งเบางานของผู้คนรอบตัว',en:'I talk with people nearby and serve my oath by easing their work.'})}),
+  Object.freeze({id:'ranger.campcraft',classKey:'ranger',release:'expansion_candidate',windows:Object.freeze(['road_rest_slowlife']),requiresItemTarget:false,label:Object.freeze({th:'จัดค่ายและเสบียง',en:'Organize camp and supplies'}),description:Object.freeze({th:'จัดเวร ตรวจรอยทาง และเตรียมสัมภาระให้อยู่ในสภาพพร้อมใช้',en:'Arrange watches, review tracks, and keep the camp supplies in order.'}),suggestion:Object.freeze({th:'ฉันจัดเสบียง ตรวจรอยทางใกล้ค่าย และช่วยวางเวรให้ทุกคนพักได้',en:'I organize supplies, review tracks near camp, and arrange a watch so everyone can rest.'})}),
+  Object.freeze({id:'rogue.inquiry',classKey:'rogue',release:'expansion_candidate',windows:Object.freeze(['city_slowlife']),requiresItemTarget:false,label:Object.freeze({th:'ถามข่าวตามช่องทางใต้ดิน',en:'Make discreet underworld inquiries'}),description:Object.freeze({th:'พูดคุยและฟังข่าวเบา ๆ ตามตรอก ร้านเหล้า และวงคนรู้จัก',en:'Trade quiet words and listen for gossip among streets, taverns, and familiar faces.'}),suggestion:Object.freeze({th:'ฉันถามข่าวใต้ดินอย่างแนบเนียนและฟังเรื่องที่คนทั่วไปไม่ค่อยพูดถึง',en:'I discreetly ask around for gossip and make underworld inquiries about stories rarely shared openly.'})}),
+  Object.freeze({id:'sorcerer.control_practice',classKey:'sorcerer',release:'expansion_candidate',windows:Object.freeze(['city_slowlife','road_rest_slowlife']),requiresItemTarget:false,label:Object.freeze({th:'ฝึกควบคุมพลังสายเลือด',en:'Practice controlling innate magic'}),description:Object.freeze({th:'สำรวจอารมณ์และจังหวะของพลังภายในอย่างสงบและระมัดระวัง',en:'Explore the emotions and rhythms of your inner power with calm attention.'}),suggestion:Object.freeze({th:'ฉันฝึกควบคุมพลังภายในด้วยลมหายใจและการเคลื่อนไหวที่ตั้งใจ',en:'I practice controlling my magic through steady breathing and deliberate movement.'})}),
+  Object.freeze({id:'warlock.patron_study',classKey:'warlock',release:'expansion_candidate',windows:Object.freeze(['city_slowlife','road_rest_slowlife']),requiresItemTarget:false,label:Object.freeze({th:'ศึกษาร่องรอยของผู้มอบพลัง',en:'Study signs of a patron'}),description:Object.freeze({th:'ทบทวนสัญญาณ นิมิต และบันทึกที่เชื่อมโยงกับผู้มอบพลัง',en:'Review signs, visions, and notes connected to the source of your pact.'}),suggestion:Object.freeze({th:'ฉันศึกษาผู้มอบพลังผ่านนิมิตและบันทึกเก่าเพื่อทำความเข้าใจความหมายของมัน',en:'I study my patron through old visions and notes to better understand their meaning.'})}),
+  Object.freeze({id:'wizard.research',classKey:'wizard',release:'expansion_candidate',windows:Object.freeze(['city_slowlife','road_rest_slowlife']),requiresItemTarget:false,label:Object.freeze({th:'ค้นคว้าตำราและบันทึก',en:'Research books and notes'}),description:Object.freeze({th:'เปรียบเทียบตำรา บันทึก และแหล่งความรู้ที่หาได้ในบริเวณนั้น',en:'Compare books, notes, and other sources available in the area.'}),suggestion:Object.freeze({th:'ฉันศึกษาค้นคว้าตำราและบันทึกที่หาได้ แล้วจดประเด็นที่น่าสนใจไว้',en:'I research books and notes that are available and record the most interesting points.'})})
+]);
+function slowlifeClassActivityClassKeys(raw){
+  const text=String(raw||'').normalize('NFKC').toLowerCase(),keys=[];
+  if(/artificer|อาร์ติฟิเซอร์|นักประดิษฐ์/i.test(text)) keys.push('artificer');
+  if(/barbarian|บาร์บาเรียน/i.test(text)) keys.push('barbarian');
+  if(/bard|บาร์ด|กวี|นักดนตรี/i.test(text)) keys.push('bard');
+  if(/cleric|เคลริก|นักบวช/i.test(text)) keys.push('cleric');
+  if(/druid|ดรูอิด/i.test(text)) keys.push('druid');
+  if(/fighter|ไฟเตอร์|นักรบ/i.test(text)) keys.push('fighter');
+  if(/monk|มองก์|มงก์/i.test(text)) keys.push('monk');
+  if(/paladin|พาลาดิน/i.test(text)) keys.push('paladin');
+  if(/ranger|เรนเจอร์/i.test(text)) keys.push('ranger');
+  if(/rogue|โร้ก|โรก|จอมโจร/i.test(text)) keys.push('rogue');
+  if(/sorcerer|ซอร์เซอเรอร์/i.test(text)) keys.push('sorcerer');
+  if(/warlock|วอร์ล็อค/i.test(text)) keys.push('warlock');
+  if(/wizard|วิซาร์ด|จอมเวท/i.test(text)) keys.push('wizard');
+  return keys;
+}
+function slowlifeClassActivityRows(owner,windowKind){
+  const keys=slowlifeClassActivityClassKeys(owner&&owner.class);
+  return SLOWLIFE_CLASS_ACTIVITY_BRIDGE.filter(x=>keys.includes(x.classKey)&&x.windows.includes(String(windowKind||'')));
+}
+function slowlifeTinkerTargets(){
+  const inv=Array.isArray(mySheet&&mySheet.inventory)?mySheet.inventory:[],out=[];
+  inv.forEach((raw,rowIndex)=>{
+    const row=raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:null,name=String(row&&(row.name||row.item_name)||'').trim(); if(!row||!name) return;
+    const ids=Array.isArray(row.instance_ids)?row.instance_ids.map(x=>String(x||'').trim()).filter(Boolean):[];
+    const direct=String(row.instance_id||'').trim(); if(direct&&!ids.includes(direct)) ids.unshift(direct);
+    const slot=String(row.slot_id||'').trim();
+    if(ids.length) ids.forEach((id,unitIndex)=>out.push({label:name+(ids.length>1?' #'+(unitIndex+1):''),target:{instance_id:id,name:name}}));
+    else if(slot) out.push({label:name,target:{slot_id:slot,name:name}});
+  });
+  return out;
+}
+function slowlifeClassActivityChanged(laneId){
+  const picker=$('slowlife-classact-'+laneId),activityId=String(picker&&picker.value||''),row=SLOWLIFE_CLASS_ACTIVITY_BRIDGE.find(x=>x.id===activityId)||null;
+  const targetWrap=$('slowlife-classact-target-wrap-'+laneId); if(targetWrap) targetWrap.style.display=row&&row.requiresItemTarget?'block':'none';
+  const ta=$('slowlife-act-'+laneId); if(row&&ta&&!String(ta.value||'').trim()) ta.value=uiCopy(row.suggestion.th,row.suggestion.en);
+}
+function slowlifeClassActivityControls(laneId,owner,windowKind){
+  const rows=slowlifeClassActivityRows(owner,windowKind); if(!rows.length) return '';
+  const E=escapeHtml,targetRows=rows.some(x=>x.requiresItemTarget)?slowlifeTinkerTargets():[];
+  let h='<div class="note" style="text-align:left;margin:7px 0"><label for="slowlife-classact-'+E(laneId)+'"><b>'+uiCopy('กิจกรรมประจำอาชีพ','Class activity')+'</b></label><select id="slowlife-classact-'+E(laneId)+'" onchange="slowlifeClassActivityChanged(\''+E(laneId)+'\')"><option value="">'+uiCopy('เล่าเองอย่างอิสระ','Freeform activity')+'</option>';
+  h+=rows.map(x=>'<option value="'+E(x.id)+'">'+E(uiCopy(x.label.th,x.label.en))+' — '+E(uiCopy(x.description.th,x.description.en))+'</option>').join('')+'</select>';
+  if(rows.some(x=>x.requiresItemTarget)) h+='<div id="slowlife-classact-target-wrap-'+E(laneId)+'" style="display:none;margin-top:6px"><label for="slowlife-classact-target-'+E(laneId)+'"><b>'+uiCopy('อุปกรณ์ที่จะจูน','Equipment to tinker with')+'</b></label>'+(targetRows.length?'<select id="slowlife-classact-target-'+E(laneId)+'"><option value="">'+uiCopy('เลือกอุปกรณ์','Choose equipment')+'</option>'+targetRows.map(x=>'<option value="'+encodeURIComponent(JSON.stringify(x.target))+'">'+E(x.label)+'</option>').join('')+'</select>':'<div class="muted">'+uiCopy('กระเป๋ายังไม่มีอุปกรณ์ที่แยกเลือกเป็นชิ้นได้','Your pack has no equipment that can be selected as an individual piece.')+'</div>')+'</div>';
+  return h+'</div>';
+}
+function slowlifeClassActivitySubmission(laneId){
+  const picker=$('slowlife-classact-'+laneId),activityId=String(picker&&picker.value||'').trim(); if(!activityId) return {};
+  const activity=SLOWLIFE_CLASS_ACTIVITY_BRIDGE.find(x=>x.id===activityId); if(!activity){ toast(uiCopy('กิจกรรมที่เลือกไม่ถูกต้อง กรุณาเลือกใหม่','That activity selection is invalid. Please choose again.'),true); return null; }
+  const hint={activityId:activity.id,itemTarget:null};
+  if(activity.requiresItemTarget){ const target=$('slowlife-classact-target-'+laneId),encoded=String(target&&target.value||''); if(!encoded){ toast(uiCopy('เลือกอุปกรณ์ที่จะจูนก่อน','Choose the equipment to tinker with first.'),true); return null; } try{ hint.itemTarget=JSON.parse(decodeURIComponent(encoded)); }catch(e){ toast(uiCopy('อุปกรณ์ที่เลือกไม่ถูกต้อง กรุณาเลือกใหม่','That equipment selection is invalid. Please choose again.'),true); return null; } }
+  return hint;
+}
+// CLASSACT-SURFACE-E2 copy surface end
 async function slowlifeSubmit(laneId,characterId){
   const ta=$('slowlife-act-'+laneId),text=String(ta&&ta.value||'').trim(); if(!text) return toast(uiCopy('พิมพ์กิจกรรมก่อน','Describe an activity first'),true);
+  const hint=slowlifeClassActivitySubmission(laneId); if(hint===null) return;
   if(ta) ta.disabled=true;
-  await slowlifeMutate({slowlife_action:{lane_id:laneId,character_id:characterId,action_text:text,request_key:crypto.randomUUID()}},uiCopy('เลนดำเนินต่อแล้ว','Lane advanced'));
+  const payload={lane_id:laneId,character_id:characterId,action_text:text,request_key:crypto.randomUUID()};
+  if(hint.activityId) payload.activity_id=hint.activityId;
+  if(hint.itemTarget) payload.item_target=hint.itemTarget;
+  await slowlifeMutate({slowlife_action:payload},uiCopy('เลนดำเนินต่อแล้ว','Lane advanced'));
 }
 async function slowlifeReady(laneId,mode){
   await slowlifeMutate({slowlife_ready:{lane_id:laneId,mode:mode||'park',request_key:crypto.randomUUID()}},uiCopy('พร้อมรวมตัวแล้ว','Ready to regroup'));
@@ -6043,7 +6148,7 @@ function slowlifeSection(s,companionView){
       h+='<div class="item" style="margin:9px 0"><div class="nm">'+E(owner.name||uiCopy('เลนของคุณ','Your lane'))+' <span class="tag">'+E(slowlifeChromeValue(l.status))+'</span></div><div class="sub">'+E(l.local_elapsed_minutes)+'/'+E(sw.horizon_minutes)+' '+uiCopy('นาที','minutes')+' · '+E(l.resolved_beats)+'/4'+uiCopy(' จังหวะ',' beats')+'</div>';
       h+=prose.map(n=>'<div class="note" style="text-align:left;white-space:normal;margin:7px 0">'+E(n.content||'').replace(/\n/g,'<br>')+'</div>').join('');
       h+=deferred.map(x=>'<div class="note" style="text-align:left;color:#FAC775">'+uiCopy('(แก้: ผล '+E(x.effect_kind)+' ยังไม่เปลี่ยนของ เงิน หรือวัสดุ เพราะยังไม่มีหลักฐานยืนยัน)','(Fixed: '+E(x.effect_kind)+' has not changed items, money, or materials because it has not been confirmed.)')+'</div>').join('');
-      if(l.status==='active'&&(!currentTurn||currentTurn.status==='awaiting_action')) h+='<textarea id="slowlife-act-'+l.id+'" placeholder="'+uiCopy('กิจกรรมสงบในเมือง/จุดพัก: คุย เดต ซื้อของ คราฟต์ ศึกษา พัก หรือฟังข่าว','Safe city/road-rest activity: talk, date, shop, craft, study, rest, or gather rumors')+'"></textarea><div class="srow2"><button class="btn sm" onclick="slowlifeSubmit(\''+l.id+'\',\''+l.owner_character_id+'\')">'+uiCopy('ดำเนินเลน','Advance lane')+'</button><button class="btn ghost sm" onclick="slowlifeReady(\''+l.id+'\',\'park\')">'+uiCopy('รอที่จุดนัด','Wait at checkpoint')+'</button></div>';
+      if(l.status==='active'&&(!currentTurn||currentTurn.status==='awaiting_action')) h+=slowlifeClassActivityControls(l.id,owner,sw.kind)+'<textarea id="slowlife-act-'+l.id+'" placeholder="'+uiCopy('กิจกรรมสงบในเมือง/จุดพัก: คุย เดต ซื้อของ คราฟต์ ศึกษา พัก หรือฟังข่าว','Safe city/road-rest activity: talk, date, shop, craft, study, rest, or gather rumors')+'"></textarea><div class="srow2"><button class="btn sm" onclick="slowlifeSubmit(\''+l.id+'\',\''+l.owner_character_id+'\')">'+uiCopy('ดำเนินเลน','Advance lane')+'</button><button class="btn ghost sm" onclick="slowlifeReady(\''+l.id+'\',\'park\')">'+uiCopy('รอที่จุดนัด','Wait at checkpoint')+'</button></div>';
       else if(l.status==='active'&&currentTurn&&['queued','processing'].includes(currentTurn.status)) h+='<div class="note" style="text-align:left">'+uiCopy('คิวของคุณถูกเก็บแล้ว ระบบกำลังประมวลผลทีละเลน คุณไปดูส่วนอื่นได้และหน้านี้จะตรวจผลให้อัตโนมัติ','Your turn is safely queued. The system processes one lane at a time; you may browse elsewhere and this view will check again automatically.')+'</div>';
       else if(l.status==='ready'&&Number(l.local_elapsed_minutes)<Number(sw.horizon_minutes)) h+='<button class="btn ghost sm" onclick="slowlifeReady(\''+l.id+'\',\'park\')">'+uiCopy('เติมเวลารอถึงจุดรวมตัว','Wait until checkpoint')+'</button>';
       else if(l.status==='failed_recoverable') h+='<div class="note" style="text-align:left;color:#FAC775">'+uiCopy('(แก้: คิวลองกู้คืนครบเพดานแล้ว บทที่ไม่เสร็จไม่ถูกบันทึก คุณยังเลือกกลับไปรอที่จุดนัดได้)','(Fixed: queue recovery reached its limit. Incomplete prose was not committed; you may still wait at the checkpoint.)')+'</div><button class="btn ghost sm" onclick="slowlifeReady(\''+l.id+'\',\'park\')">'+uiCopy('กลับไปรอที่จุดนัด','Return to checkpoint')+'</button>';
@@ -6089,6 +6194,8 @@ async function companionRepairHistorical(){
 }
 function companionTierTH(t){ return ({enemy:'ศัตรู',hostile:'เป็นปฏิปักษ์',wary:'ระแวง',neutral:'เป็นกลาง',friendly:'เป็นมิตร',trusted:'ไว้ใจ',close:'สนิท',inner_circle:'คนวงใน'})[String(t||'neutral')]||'เป็นกลาง'; }
 function companionStatusCopy(value){ const raw=String(value||''); return uiCopy(({candidate:'ผู้สมัคร',active:'สมาชิกหลัก',reserve:'สำรอง',dead:'เสียชีวิต',former:'อดีตสมาชิก'})[raw]||raw,raw); }
+function companionRosterRenderState(value){ const all=Array.isArray(value)?value:[]; return {all,candidates:all.filter(c=>c&&c.status==='candidate'),active:all.filter(c=>c&&c.status==='active'),reserve:all.filter(c=>c&&c.status==='reserve'),memorial:all.filter(c=>c&&['dead','former'].includes(c.status))}; }
+function companionRosterCapUiState(view,activeCount,isHost){ const raw=Number(view&&view.active_cap),typed=Number.isInteger(raw)&&raw>=0&&raw<=3,cap=typed?raw:3,overCap=typed&&((view&&view.active_reassignment_required===true)||(view&&view.active_over_cap===true)||Math.max(0,Number(activeCount)||0)>cap); return {cap,overCap,showManualNote:isHost===true&&overCap}; }
 function companionOwnedPc(view){
   const pcs=(view&&view.own_characters)||[]; if(!pcs.length) return null; if(pcs.length===1) return pcs[0];
   const raw=prompt('เลือกตัวละครผู้ทำรายการ:\n'+pcs.map((p,i)=>(i+1)+'. '+p.name).join('\n'),'1'); const i=Math.floor(Number(raw))-1; return pcs[i]||null;
@@ -6106,14 +6213,16 @@ async function renderCompanion(){
   const p=$('panel-companion'); if(!p) return;
   if(!companionV2UiEnabled()){ p.innerHTML=`<div class="item"><div class="nm">Companion</div><div class="note">${escapeHtml(companionLegacyUiMessage())}</div></div>`; return; }
   p.innerHTML=uiCopy('<div class="muted">กำลังโหลดรายชื่อ Companion…</div>','<div class="muted">Loading Companion roster…</div>');
-  try{ const pair=await Promise.all([companionViewLoad(false),loadSlowlifeState(true)]),v=pair[0],sl=pair[1], all=v.companions||[], candidates=all.filter(c=>c.status==='candidate'), active=all.filter(c=>c.status==='active'), reserve=all.filter(c=>c.status==='reserve'), memorial=all.filter(c=>['dead','former'].includes(c.status)); const host=campaign.host_id===me.id;
+  try{ const pair=await Promise.all([companionViewLoad(false),loadSlowlifeState(true)]),v=pair[0],sl=pair[1], roster=companionRosterRenderState(v.companions), candidates=roster.candidates, active=roster.active, reserve=roster.reserve, memorial=roster.memorial; const host=campaign.host_id===me.id,capUi=companionRosterCapUiState(v,active.length,host),capNote=capUi.showManualNote?`<div class="note" data-party-cap-manual style="text-align:left;margin-top:7px">${uiCopy('มีเพื่อนร่วมทางเกินจำนวนหรือตำแหน่งที่ออกเดินทางพร้อมกันได้ เจ้าของโลกโปรดเลือกคนที่จะพักอยู่ในกองสำรอง (แก้: จะไม่มีใครถูกย้ายโดยอัตโนมัติ)','The traveling roster exceeds its current count or position limit. Host, choose who will wait in reserve. (Fixed: nobody will be moved automatically.)')}</div>`:'';
     if(_slowlifePollT){ clearTimeout(_slowlifePollT); _slowlifePollT=null; }
     if((sl.turns||[]).some(t=>['queued','processing'].includes(String(t.status)))) _slowlifePollT=setTimeout(()=>{ if(activeTab()==='companion') renderCompanion(); },3500);
     const fr=await supa.from('private_narrative').select('id,kind,content,created_at,recipient_character_id,companion_character_id').eq('campaign_id',campaign.id).order('created_at',{ascending:false}).limit(30); if(fr.error) throw fr.error;
     const feed=(fr.data||[]).slice().reverse(); const feedHtml=feed.map(x=>`<div class="item" style="margin:7px 0"><div class="sub">${escapeHtml(x.kind||'private')} · ${escapeHtml(new Date(x.created_at).toLocaleString())}</div><div class="note" style="text-align:left;white-space:normal">${escapeHtml(x.content||'').replace(/\n/g,'<br>')}</div></div>`).join('')||('<div class="muted">'+uiCopy('ยังไม่มีฉากส่วนตัว','No private scenes yet')+'</div>');
     const consent=v.consent&&v.consent.adult_confirmed?uiCopy('ยืนยันอายุจริงแล้ว','Age verified'):uiCopy('ยังไม่เปิด Romance','Romance not enabled');
-    p.innerHTML=slowlifeSection(sl,v)+`<div class="item"><div class="nm">Companion Roster</div><div class="sub">${uiCopy(`สมาชิกหลัก ${active.length}/3 · สำรอง ${reserve.length} · อนุสรณ์ ${memorial.length}`,`Active ${active.length}/3 · Reserve ${reserve.length} · Memorial ${memorial.length}`)}</div><button class="btn ghost sm" onclick="companionConsent()">${uiCopy('ตั้งค่า Romance / วันเกิด','Romance / birthday settings')}</button> <span class="muted">${consent}</span></div>`+
-      `<h3>Active ${active.length}/3</h3>${active.map(c=>companionCard(c,host,v)).join('')||('<div class="muted">'+uiCopy('ยังไม่มีคอมพาเนียนในทีม','No companions in the party yet')+'</div>')}`+
+    // G3: the roster-render receipt is backstage only — the roster itself and its live buttons are the player-facing signal.
+    r94RenderStabilityLog('companion',{active:active.length,reserve:reserve.length,memorial:memorial.length,candidates:candidates.length});
+    p.innerHTML=slowlifeSection(sl,v)+`<div class="item"><div class="nm">Companion Roster</div><div class="sub">${uiCopy(`สมาชิกหลัก ${active.length}/${capUi.cap} · สำรอง ${reserve.length} · อนุสรณ์ ${memorial.length}`,`Active ${active.length}/${capUi.cap} · Reserve ${reserve.length} · Memorial ${memorial.length}`)}</div><button class="btn ghost sm" onclick="companionConsent()">${uiCopy('ตั้งค่า Romance / วันเกิด','Romance / birthday settings')}</button> <span class="muted">${consent}</span>${capNote}</div>`+
+      `<h3>Active ${active.length}/${capUi.cap}</h3>${active.map(c=>companionCard(c,host,v)).join('')||('<div class="muted">'+uiCopy('ยังไม่มีคอมพาเนียนในทีม','No companions in the party yet')+'</div>')}`+
       `<h3>Reserve</h3>${reserve.map(c=>companionCard(c,host,v)).join('')||('<div class="muted">'+uiCopy('กองสำรองว่าง','Reserve is empty')+'</div>')}`+
       (memorial.length?`<h3>Memorial / History</h3>${memorial.map(c=>companionCard(c,false,v)).join('')}`:'')+
       `<h3>Private relationship feed</h3><div class="note" style="text-align:left">${uiCopy('เห็นได้เฉพาะบัญชีผู้รับผ่าน RLS','Visible only to the recipient account via RLS')}</div>${feedHtml}`;
@@ -6125,6 +6234,7 @@ async function renderCompanion(){
     }
   }catch(e){ const msg=(e&&e.payload&&e.payload.error==='companion_v2_not_enabled')?companionLegacyUiMessage():uiCopy('โหลดข้อมูลคอมพาเนี่ยนไม่สำเร็จ กรุณาลองใหม่','Could not load companion data. Please try again.'); p.innerHTML='<div class="item"><div class="nm">Companion</div><div class="note">'+escapeHtml(msg)+'</div></div>'; }
 }
+renderCompanion=createCoalescedUiRender(renderCompanion);
 function companionSoon(label){ toast(label+uiCopy(' จะเปิดในเฟส Privacy/Interaction',' will open in the Privacy/Interaction phase')); }
 async function companionInteract(companionId,kind){
   try{ const v=await companionViewLoad(true),pc=companionOwnedPc(v); if(!pc) return toast(uiCopy('ต้องมีตัวละครของคุณก่อน','You need a character first'),true); if(kind==='romance'&&!pc.romance_enabled) return toast(uiCopy('ตัวละครนี้ยังไม่ได้เปิดสิทธิ์ Romance','Romance access is not enabled for this character'),true);
@@ -6165,7 +6275,7 @@ async function companionRequest(companionId){
   }catch(e){ toast(e.message||uiCopy('ส่งคำขอไม่สำเร็จ','Request failed'),true); }
 }
 async function companionRoster(characterId,status){
-  try{ let desired=status==='active'?'reserve':'active',slot=null;if(desired==='active'){ slot=Math.floor(Number(prompt('Active slot (1-3)','1'))||0);if(slot<1||slot>3)return toast(uiCopy('ช่องต้องเป็น 1-3','Slot must be 1-3'),true); } const j=await companionResolve({roster_swap:{character_id:characterId,desired_status:desired,active_slot:slot,swap_key:crypto.randomUUID()}}); toast(j.note||uiCopy('สลับรายชื่อแล้ว','Roster updated')); _companionViewCache=null; await refreshAll(); renderCompanion();
+  try{ let desired=status==='active'?'reserve':'active',slot=null;if(desired==='active'){ const v=await companionViewLoad(true),capUi=companionRosterCapUiState(v,(v.companions||[]).filter(c=>c&&c.status==='active').length,campaign.host_id===me.id);if(capUi.overCap)return toast(uiCopy('โปรดย้ายเพื่อนร่วมทางหนึ่งคนไปกองสำรองก่อน','Move one Companion to reserve before changing an active position.'),true);if(capUi.cap<1)return toast(uiCopy('ตอนนี้ยังไม่มีตำแหน่งว่างสำหรับเพื่อนร่วมทาง','No traveling position is available for a Companion right now.'),true);slot=Math.floor(Number(prompt(uiCopy(`ตำแหน่งร่วมเดินทาง (1-${capUi.cap})`,`Traveling position (1-${capUi.cap})`),'1'))||0);if(slot<1||slot>capUi.cap)return toast(uiCopy(`ตำแหน่งต้องอยู่ระหว่าง 1-${capUi.cap}`,`Position must be between 1 and ${capUi.cap}`),true); } const j=await companionResolve({roster_swap:{character_id:characterId,desired_status:desired,active_slot:slot,swap_key:crypto.randomUUID()}}); toast(j.note||uiCopy('สลับรายชื่อแล้ว','Roster updated')); _companionViewCache=null; await refreshAll(); renderCompanion();
   }catch(e){ toast(e.message||uiCopy('สลับรายชื่อไม่สำเร็จ','Could not update roster'),true); }
 }
 // ───────── OOC chat (คุยวางแผนนอกเรื่อง) ─────────
@@ -6209,6 +6319,7 @@ let _combatRenderT=null;
 function scheduleCombatRender(){ clearTimeout(_combatRenderT); _combatRenderT=setTimeout(()=>{ if(activeTab()==='mon') renderCombat(); }, 200); }   // รวมการ re-render หลายครั้งจาก combat_log/initiative ที่มารัวๆ ให้เหลือครั้งเดียว
 async function refreshCombatTurn(){
   try{
+    if(durableRoundCombatTruth(curRound)==='inactive'){ const _turnReset=reconcileCombatUiFromRound(curRound); if(_turnReset.reset) return; }
     const er=await supa.from('combat_encounters').select('id,active_entry_id,status,combat_round').eq('campaign_id',campaign.id).eq('group_no',terminalGroupForUi()).eq('status','active').maybeSingle();   // v739 FZ-2 group-scoped
     if(!er.data){ gCombat={active:false,activeCharId:null,activeName:null,activeEntry:null}; window._combatRound=null; return; }
     window._combatRound=er.data.combat_round;   // ใช้ล็อกปุ่ม death save ตามรอบ
@@ -6818,6 +6929,7 @@ async function renderRoundbar(){
   let html=uiCopy(`<div class="cstat"><span class="cs">รอบ ${curRound.round_number}</span><span class="cs ${submitted>=total?'done':'wait'}">ส่งแล้ว ${submitted}/${total}</span>${_rng}</div>`,`<div class="cstat"><span class="cs">Round ${curRound.round_number}</span><span class="cs ${submitted>=total?'done':'wait'}">Submitted ${submitted}/${total}</span>${_rng}</div>`);
   list.forEach(a=>{ html+=`<div class="actionlog"><b>${escapeHtml(nameFor(a))}</b> <span data-runtime-origin="user-source">${escapeHtml(a.action_text)}</span></div>`; });
   bar.innerHTML=html;   // สร้างทีเดียว (synchronous ต่อจากนี้ ไม่มี await)
+  if(window._combatUiResetReceiptRound===String(curRound.id||'')) r94RenderStabilityLog('ghost',{round:String(curRound.id||''),round_number:curRound.round_number});   // G3: backstage only — the cleared turn/command UI is what the player actually reads
   // ── v617 SESSION: การ์ดพักระหว่างตอน — ไม่บล็อกการเล่น (slowlife/เควสค้างได้) · ปุ่มเริ่มตอนถัดไปเห็นเฉพาะ host ──
   try{
     const _sa=(worldState&&worldState.settings&&worldState.settings.session_arc)||null;
@@ -6908,6 +7020,7 @@ async function renderRoundbar(){
     w.innerHTML = ds.dead ? uiCopy('💀 ตัวละครสิ้นใจแล้ว…','💀 Your character has died…')
       : ds.stable ? uiCopy('🩹 หมดสติ — อาการคงที่ (stable) รอเพื่อนช่วยหรือพักฟื้น','🩹 Unconscious — stable. Wait for an ally or recover in time.')
       : uiCopy('💔 <b>หมดสติ (HP 0)</b> — ทำอะไรไม่ได้ นอกจากลุ้นชะตา<br>☠️ สำเร็จ ','💔 <b>Unconscious (HP 0)</b> — you can do nothing but cling to fate<br>☠️ Successes ')+(ds.s||0)+uiCopy('/3 · ล้มเหลว ','/3 · Failures ')+(ds.f||0)+'/3<br><span class="muted" style="font-weight:400">'+uiCopy('เพื่อนช่วยได้: เวทรักษา (ฟื้นทันที) หรือปฐมพยาบาล Medicine DC10 (stable)','Allies can help: healing magic (instant revive) or first aid — Medicine DC10 (stabilize)')+'</span>';
+    r94RenderStabilityLog('downed',{dead:!!ds.dead,stable:!!ds.stable,rolled:_rolled});   // G3: backstage only — the Death Save button and its enabled state are the player-facing signal
     if(!ds.dead && !ds.stable){
       const rb=document.createElement('button'); rb.className='btn'; rb.style.cssText='margin-top:10px;display:block;width:100%';
       rb.textContent=_rolled?uiCopy('⏳ ทอยรอบนี้แล้ว — รอรอบถัดไป','⏳ Rolled this round — wait for the next round'):uiCopy('🎲 ทอย DEATH SAVE (รอบละครั้ง)','🎲 Roll DEATH SAVE (once per round)');
@@ -6967,7 +7080,7 @@ async function renderRoundbar(){
     // v252: โหมด UI (คำสั่งคอมแบต vs ช่องเนื้อเรื่อง) ผูกกับ 'encounter active จริง' (_combatActive จาก combat_state) เท่านั้น —
     //   เดิมใช้ cb.active (meta จาก DM) เป็น fallback → ฉาก offer ที่ DM ตั้ง active แต่ encGuard บล็อกเปิดจริง = โชว์คำสั่งคอมแบตในฉาก story (ราก desync Cockatrice)
     //   ราก: combat command ต้องไม่โผล่ในเนื้อเรื่อง + ไม่ถามเนื้อเรื่องในศึก → ความจริงเดียว = มีศัตรู active จริงไหม
-    const inCombat = !!window._combatActive;
+    const inCombat = durableRoundCombatActive(curRound,window._combatActive);
     // v752 B7: safe-forward old rounds (including r135) without a DB rewrite.
     // Initiative/attack/damage requests are invalid when no authoritative encounter
     // is active; ordinary story skill/check/save requests remain untouched.
@@ -7129,6 +7242,7 @@ async function renderRoundbar(){
 }
 
 // ── ทอยเต๋า: DM ทอยให้ (server สุ่มจริง) / ทอยเอง (ใส่เลขดิบ) ──
+renderRoundbar=createCoalescedUiRender(renderRoundbar);
 function appendAct(t){ const ta=$('actInput'); if(!ta) return; ta.value=(ta.value?ta.value.trim()+'\n':'')+t; ta.focus(); markEconomyFromText(); }
 // ── ตีความข้อความการกระทำ → action economy ที่ใช้ (ช่วยมือใหม่; DM ตัดสินผลจริง) ──
 function interpretEconomy(t){
@@ -9986,7 +10100,9 @@ async function syncBattleScene(trigger){
     else { enc=r.data; if(enc){ window.gEncId=enc.id; livingEnemies=((r2&&r2.data)||[]).filter(x=>x.cur_hp==null||x.cur_hp>0).length; } }   // encounter active แต่ไม่มีศัตรูมีชีวิต = คอมแบตจบ/ค้าง → ถือว่าไม่ใช่คอมแบต
   }catch(e){ _queryFailed=true; }
   var _vaActive = !!(currentTerminalGate()&&currentTerminalGate().active);   // v739 FZ-2 group-scoped
-  let active = (!!enc && livingEnemies>0) || !!window._combatActive || !!moveMode || _vaActive;   // อย่าออกจากฉากระหว่างเลือกช่องเดิน · ออกถ้า encounter ไม่มีศัตรูมีชีวิต · v287: ค้างระหว่างบทปิดท้าย (victory_ack) จนกด "ไปต่อ" ครบ → VICTORY
+  const _derivedBattleActive=(!!enc && livingEnemies>0) || !!window._combatActive || !!moveMode || _vaActive;
+  let active = durableRoundCombatActive(curRound,_derivedBattleActive,_vaActive);   // G2: durable latest-round false closes stale battle UI after terminal acknowledgement
+  if(!active&&_derivedBattleActive&&durableRoundCombatTruth(curRound)==='inactive') reconcileCombatUiFromRound(curRound,true);
   // ผู้เล่นใหม่ที่ยังไม่มีตัวละคร: ห้ามดูดเข้าฉากรบ — ให้อยู่หน้าสร้างตัวละครก่อน (ระบบไม่รอเทิร์นเขาอยู่แล้ว)
   if(typeof myChar==='undefined' || !myChar) active=false;
   if(active){
@@ -10606,6 +10722,7 @@ function _todTintSvg(w,h){ try{ const t=String((typeof worldState!=='undefined'&
   return `<rect x="0" y="0" width="${w}" height="${h}" fill="${c}" opacity="${o}" style="pointer-events:none"/>`;
 }catch(e){ return ''; } }
 
+function boundedCanvasSampleSize(width,height,maxSide){ const w=Math.max(1,Math.floor(+width||1)),h=Math.max(1,Math.floor(+height||1)),cap=Math.max(16,Math.floor(+maxSide||96)),scale=Math.min(1,cap/Math.max(w,h)); return {width:Math.max(1,Math.round(w*scale)),height:Math.max(1,Math.round(h*scale))}; }
 async function renderBattleGrid(p){
   // ── (06-10) cache: แตะเลือกช่อง/ยืนยันเดิน = วาดจากข้อมูลล่าสุดทันที (0 query) — full fetch เฉพาะ render ปกติ ──
   const _useCache = _gridUseCache && _gridCache && (Date.now()-_gridCache.ts < 15000);
@@ -10786,7 +10903,7 @@ async function renderBattleGrid(p){
     if(c!==undefined) return c||1;
     _objFill[url]=0;
     try{ const im=new Image(); im.crossOrigin='anonymous';
-      im.onload=()=>{ try{ const cv=document.createElement('canvas'); cv.width=im.naturalWidth; cv.height=im.naturalHeight; const g=cv.getContext('2d'); g.drawImage(im,0,0); const d=g.getImageData(0,0,cv.width,cv.height).data; let x0=1e9,y0=1e9,x1=-1,y1=-1; for(let y=0;y<cv.height;y++)for(let x=0;x<cv.width;x++){ if(d[(y*cv.width+x)*4+3]>10){ if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; } } const f=Math.max((x1-x0+1)/cv.width,(y1-y0+1)/cv.height); _objFill[url]=(x1<0||!isFinite(f)||f<=0)?1:Math.max(0.8,Math.min(1.9,0.8/f)); }catch(e){ _objFill[url]=1; } try{ if(typeof scheduleBattleScene==='function') scheduleBattleScene('fallback'); }catch(e){} };   // v538 H5: repaint ผ่าน debounce (เดิม renderBattleGrid() ไร้ arg → p undefined → TypeError + full-fetch loop)
+      im.onload=()=>{ try{ const cv=document.createElement('canvas'),sample=boundedCanvasSampleSize(im.naturalWidth,im.naturalHeight,96); cv.width=sample.width; cv.height=sample.height; const g=cv.getContext('2d'); g.drawImage(im,0,0,cv.width,cv.height); const d=g.getImageData(0,0,cv.width,cv.height).data; let x0=1e9,y0=1e9,x1=-1,y1=-1; for(let y=0;y<cv.height;y++)for(let x=0;x<cv.width;x++){ if(d[(y*cv.width+x)*4+3]>10){ if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; } } const f=Math.max((x1-x0+1)/cv.width,(y1-y0+1)/cv.height); _objFill[url]=(x1<0||!isFinite(f)||f<=0)?1:Math.max(0.8,Math.min(1.9,0.8/f)); }catch(e){ _objFill[url]=1; } try{ if(typeof scheduleBattleScene==='function') scheduleBattleScene('fallback'); }catch(e){} };   // G1 B-R94-1: alpha work is capped at 96×96; v538 H5: repaint through debounce
       im.onerror=()=>{ _objFill[url]=1; };
       im.src=url;
     }catch(e){ _objFill[url]=1; }
