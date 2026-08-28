@@ -2151,7 +2151,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202608271449;   // v1000 R13/R14: NPC codex reader wall + cmdbar stacking + recruitment-tail exemption + revive act state
+const FRONTEND_BUILD = 202608281456;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2430,6 +2430,7 @@ async function ensureCampaignCreateAccess(){
 // ══ v210 BETA MODE — เปิดเมื่อไฟล์ชื่อมี beta (beta.html) หรือ ?beta=1 · กำแพงจริงอยู่ฝั่ง server (BETA_CODE env + migration 0056) ══
 const BETA=/beta/i.test(location.pathname)||new URLSearchParams(location.search).has('beta');
 function betaCode(){ try{ return localStorage.getItem('betaCode')||''; }catch(e){ return ''; } }
+let _betaCodeReady=Promise.resolve();
 if(BETA){
   document.documentElement.classList.add('beta');
   // ซ่อนความซับซ้อนสำหรับเบต้าเทสเตอร์: แท็บ Files (ingest) · World ID · ช่องขั้นสูงตอนสร้างโลก (กฎ/เพลง/จังหวะ — ใช้ค่าเริ่มต้น)
@@ -2439,11 +2440,12 @@ if(BETA){
   document.head.appendChild(_bcss);
   // v215: รับรหัสจาก URL ?code=XXX — ทับของเก่าเสมอ (ลิงก์ช่วยเหลือ: ส่งลิงก์เดียวแก้รหัสผิดค้างเครื่องได้เลย)
   try{ const _uc=new URLSearchParams(location.search).get('code'); if(_uc&&_uc.trim()) localStorage.setItem('betaCode',_uc.trim()); }catch(e){}
-  if(!betaCode()){ const c=prompt('🔑 ช่วงเบต้าเทส — ใส่รหัสเบต้าที่ได้รับจากผู้ดูแลโดยตรง:'); if(c&&c.trim()){ try{ localStorage.setItem('betaCode',c.trim()); }catch(e){} } }
+  if(!betaCode()) _betaCodeReady=uiPromptText(uiCopy('🔑 ช่วงเบต้าเทส — ใส่รหัสเบต้าที่ได้รับจากผู้ดูแลโดยตรง:','🔑 Beta test — enter the beta code received directly from the administrator:'),'','beta-code-start').then(c=>{ if(c&&c.trim()){ try{ localStorage.setItem('betaCode',c.trim()); }catch(e){} } });
 }
 // แนบ beta_code เข้า resolver ทุก call (จุดเดียวครอบทุก call site) + จัดการ 403 ของระบบเบต้า
 { const _F=window.fetch.bind(window);
   window.fetch=function(u,opt){
+    const invoke=()=>{
     try{
       if(typeof u==='string'&&u.indexOf(RESOLVE_FN)===0&&opt&&typeof opt.body==='string'){
         const b=JSON.parse(opt.body);
@@ -2459,12 +2461,14 @@ if(BETA){
           // v737 P0-A: server 426 wall — โชว์เหตุผลคู่ภาษา + ตรึง write-block (แยกจาก english_i18n_assets_required ซึ่งมี handler ของตัวเอง)
           if(r&&r.status===426){ r.clone().json().then(j=>{ if(j&&j.error==='frontend_update_required'){ window.frontendWriteBlocked=true; try{ frontendRequirementSeen(j.min_frontend_build,j.min_frontend_epoch); }catch(e){} toast(uiCopy(j.note_th||'(แก้: หน้าเกมรุ่นเก่าถูกหยุดก่อนระบบเกมเปลี่ยนสถานะหลักของโลก — รีเฟรชหน้า)', j.note_en||'(Fixed: stale page blocked before the resolver changed canonical world state — reload.)'),true); } }).catch(()=>{}); }
           if(BETA&&r&&r.status===403){ r.clone().json().then(j=>{
-          if(j&&j.error==='beta_code_required'){ try{localStorage.removeItem('betaCode');}catch(e){} alert(uiCopy('รหัสเบต้าไม่ถูกต้อง/หมดอายุ — รีเฟรชหน้าแล้วใส่รหัสใหม่ (ขอจากผู้ดูแล)','The beta code is invalid or expired — reload the page and enter a new code from the administrator.')); }
+          if(j&&j.error==='beta_code_required'){ try{localStorage.removeItem('betaCode');}catch(e){} void uiAlertText(uiCopy('รหัสเบต้าไม่ถูกต้อง/หมดอายุ — รีเฟรชหน้าแล้วใส่รหัสใหม่ (ขอจากผู้ดูแล)','The beta code is invalid or expired — reload the page and enter a new code from the administrator.'),'beta-code-rejected'); }
           else if(j&&j.error==='gemini_key_required'){ betaAskKey(); }
         }).catch(()=>{}); } return r; }).catch(()=>{});
       }
     }catch(e){}
     return p;
+    };
+    return (BETA?_betaCodeReady:Promise.resolve()).then(invoke);
   };
 }
 let _frontendRequirement=null, _frontendBuildCheckBusy=false;
@@ -2498,7 +2502,7 @@ function renderFrontendRefreshBanner(){
   const v=frontendRefreshSafe(), why={draft:uiCopy('มีข้อความที่ยังไม่ได้ส่ง','an unsent draft'),local_write:uiCopy('คำขอในเครื่องกำลังจบ','a local request is finishing'),resolving:uiCopy('DM กำลังประมวลผล','the DM is resolving'),combat:uiCopy('ยังอยู่กลางการต่อสู้','combat is active'),victory_transaction:uiCopy('กำลังปิดธุรกรรมหลังศึก','the victory transaction is active')};
   el.innerHTML='<div>'+uiCopy('⚠️ หน้าเกมรุ่นนี้เก่ากว่ารุ่นที่ระบบเกมรองรับ','⚠️ This game page is older than the game service requires')+(v.safe?uiCopy(' — พร้อมรีเฟรชอย่างปลอดภัย',' — safe to reload'):uiCopy(' — รอคำขอในเครื่องให้จบ',' — waiting for the local request'))+'</div><div style="font-weight:400;opacity:.85">'+(v.safe?(v.stashed?uiCopy('ข้อความร่างจะถูกเก็บในเครื่องและคืนหลังโหลดหน้าใหม่','Your draft will be saved locally and restored after reload'):uiCopy('กดปุ่มเมื่อพร้อม ข้อมูลเกมถูกเก็บไว้อย่างปลอดภัยแล้ว','Reload when ready; your game data is safe')):uiCopy('รอ: ','Waiting for: ')+v.blockers.map(x=>why[x]||x).join(' · '))+'</div>';
   // v737 P0-A: reload พร้อม cache-buster จาก min build (GitHub Pages เสิร์ฟ HTML แคชได้ — reload() เปล่าอาจได้ไฟล์เก่าซ้ำ) · คง query เดิมทั้งหมด (id/code) แก้เฉพาะ v
-  const b=document.createElement('button'); b.type='button'; b.textContent=v.safe?uiCopy('รีเฟรชเพื่อใช้รุ่นล่าสุด','Reload latest version'):uiCopy('ยังรีเฟรชไม่ได้','Reload not safe yet'); b.disabled=!v.safe; b.style.cssText='margin-top:7px;padding:7px 12px'; b.onclick=()=>{ if(!frontendRefreshSafe().safe) return; if(!frontendStashDrafts()&&frontendDraftPending()){ if(!confirm(uiCopy('บันทึกฉบับร่างไม่สำเร็จ (เบราว์เซอร์ไม่ให้เก็บข้อมูล) — รีเฟรชแล้วข้อความที่พิมพ์ไว้จะหาย ยืนยันรีเฟรช?','Draft could not be saved (browser storage unavailable) — reloading will lose the typed text. Reload anyway?'))) return; } try{ const u=new URL(window.location.href); u.searchParams.set('v', String((_frontendRequirement&&_frontendRequirement.minBuild)||FRONTEND_BUILD)); window.location.replace(u.toString()); }catch(e){ window.location.reload(); } }; el.appendChild(b);   // v738b P3-4: stash ล้ม + มี draft = ต้อง confirm ก่อนทิ้ง
+  const b=document.createElement('button'); b.type='button'; b.textContent=v.safe?uiCopy('รีเฟรชเพื่อใช้รุ่นล่าสุด','Reload latest version'):uiCopy('ยังรีเฟรชไม่ได้','Reload not safe yet'); b.disabled=!v.safe; b.style.cssText='margin-top:7px;padding:7px 12px'; b.onclick=async()=>{ if(!frontendRefreshSafe().safe) return; if(!frontendStashDrafts()&&frontendDraftPending()){ if(!await uiConfirmText(uiCopy('บันทึกฉบับร่างไม่สำเร็จ (เบราว์เซอร์ไม่ให้เก็บข้อมูล) — รีเฟรชแล้วข้อความที่พิมพ์ไว้จะหาย ยืนยันรีเฟรช?','Draft could not be saved (browser storage unavailable) — reloading will lose the typed text. Reload anyway?'),'frontend-refresh-lose-draft')) return; } try{ const u=new URL(window.location.href); u.searchParams.set('v', String((_frontendRequirement&&_frontendRequirement.minBuild)||FRONTEND_BUILD)); window.location.replace(u.toString()); }catch(e){ window.location.reload(); } }; el.appendChild(b);   // v738b P3-4: stash ล้ม + มี draft = ต้อง confirm ก่อนทิ้ง
 }
 function frontendRequirementSeen(minBuild,minEpoch){
   const mb=Number(minBuild), mep=Number(minEpoch); if(!(mb>FRONTEND_BUILD||mep>FRONTEND_COMPAT_EPOCH)) return;
@@ -2515,26 +2519,26 @@ async function checkFrontendBuild(){
 // host ใส่/แก้ Gemini key ของโลก (เรียกเองหรือเด้งอัตโนมัติเมื่อ server บอกว่ายังไม่มี key)
 async function betaAskKey(){
   try{
-    if(!campaign||!me||campaign.host_id!==me.id){ alert(uiCopy('โลกนี้ยังไม่มี Gemini key — แจ้งเจ้าของโลกให้ใส่ key (ขอฟรี: aistudio.google.com → Get API key)','This world has no Gemini key yet — ask the world host to set one (free: aistudio.google.com → Get API key).')); return; }
-    const k=(prompt(uiCopy('🔑 ใส่ Gemini API key ของโลกนี้ (วางคีย์ใหม่ = เปลี่ยนทับคีย์เดิม)\nขอฟรีที่ aistudio.google.com → "Get API key" → สร้าง key แล้วก๊อปมาวาง (ขึ้นต้น AIza...)','🔑 Paste this world\'s Gemini API key (pasting a new key replaces the old one)\nFree at aistudio.google.com → "Get API key" → create a key and paste it here (starts with AIza...)'))||'').trim();
+    if(!campaign||!me||campaign.host_id!==me.id){ await uiAlertText(uiCopy('โลกนี้ยังไม่มี Gemini key — แจ้งเจ้าของโลกให้ใส่ key (ขอฟรี: aistudio.google.com → Get API key)','This world has no Gemini key yet — ask the world host to set one (free: aistudio.google.com → Get API key).'),'gemini-key-host-only'); return; }
+    const k=String(await uiPromptText(uiCopy('🔑 ใส่ Gemini API key ของโลกนี้ (วางคีย์ใหม่ = เปลี่ยนทับคีย์เดิม)\nขอฟรีที่ aistudio.google.com → "Get API key" → สร้าง key แล้วก๊อปมาวาง (ขึ้นต้น AIza...)','🔑 Paste this world\'s Gemini API key (pasting a new key replaces the old one)\nFree at aistudio.google.com → "Get API key" → create a key and paste it here (starts with AIza...)'),'','gemini-key-primary')||'').trim();
     if(!k) return;
     const tok=(await supa.auth.getSession()).data.session?.access_token;
     const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,set_gemini_key:k})});
     const j=await r.json();
-    if(j&&j.ok){ toast(uiCopy('ตั้ง Gemini key แล้ว ✓ — เล่นต่อได้เลย','Gemini key saved ✓ — you can keep playing.')); await betaAskBackupKeys(tok); } else { alert((j&&j.message)||uiCopy('key ไม่ถูกต้อง — ลองใหม่','Invalid key — try again.')); }
-  }catch(e){ alert(uiCopy('ตั้ง key ไม่สำเร็จ: ','Failed to save the key: ')+(e.message||e)); }
+    if(j&&j.ok){ toast(uiCopy('ตั้ง Gemini key แล้ว ✓ — เล่นต่อได้เลย','Gemini key saved ✓ — you can keep playing.')); await betaAskBackupKeys(tok); } else { await uiAlertText((j&&j.message)||uiCopy('key ไม่ถูกต้อง — ลองใหม่','Invalid key — try again.'),'gemini-key-invalid'); }
+  }catch(e){ await uiAlertText(uiCopy('ตั้ง key ไม่สำเร็จ: ','Failed to save the key: ')+(e.message||e),'gemini-key-error'); }
 }
 // v499: คีย์สำรอง optional สูงสุด 2 — โควต้าคีย์หลักหมดกลางเกม server สลับให้อัตโนมัติ (ไม่สะดุด)
 // แนะนำเฉพาะคนใช้คีย์ฟรี · ใช้คีย์แบบเสียเงินอยู่แล้วไม่จำเป็น · ต้องสร้างจาก "คนละโปรเจกต์" Google Cloud โควต้าถึงแยกกัน
 async function betaAskBackupKeys(tok){
   try{
     for(const n of [2,3]){
-      const k=(prompt(uiCopy('🔑 (ไม่บังคับ) Gemini key สำรอง #'+n+' — กัน "โควต้าหมด" กลางเซสชัน เกมจะสลับคีย์ให้อัตโนมัติ\n\n• ใช้คีย์ฟรี: แนะนำให้ใส่ — สร้างจาก Google Cloud "โปรเจกต์ใหม่" (คนละโปรเจกต์กับคีย์หลัก ไม่งั้นโควต้าไม่แยกกัน)\n• ใช้คีย์แบบเสียเงินอยู่แล้ว: ไม่จำเป็น — กด Cancel ข้ามได้เลย','🔑 (Optional) Backup Gemini key #'+n+' — covers "quota exhausted" mid-session; the game switches keys automatically.\n\n• Free-tier keys: recommended — create it in a NEW Google Cloud project (quotas are not separate otherwise).\n• Already on a paid key: not needed — press Cancel to skip.'))||'').trim();
+      const k=String(await uiPromptText(uiCopy('🔑 (ไม่บังคับ) Gemini key สำรอง #'+n+' — กัน "โควต้าหมด" กลางเซสชัน เกมจะสลับคีย์ให้อัตโนมัติ\n\n• ใช้คีย์ฟรี: แนะนำให้ใส่ — สร้างจาก Google Cloud "โปรเจกต์ใหม่" (คนละโปรเจกต์กับคีย์หลัก ไม่งั้นโควต้าไม่แยกกัน)\n• ใช้คีย์แบบเสียเงินอยู่แล้ว: ไม่จำเป็น — กด Cancel ข้ามได้เลย','🔑 (Optional) Backup Gemini key #'+n+' — covers "quota exhausted" mid-session; the game switches keys automatically.\n\n• Free-tier keys: recommended — create it in a NEW Google Cloud project (quotas are not separate otherwise).\n• Already on a paid key: not needed — press Cancel to skip.'),'','gemini-key-backup-'+n)||'').trim();
       if(!k) return;
       const body={campaign_id:campaign.id}; body['set_gemini_key'+n]=k;
       const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify(body)});
       const j=await r.json();
-      if(j&&j.ok){ toast(uiCopy('คีย์สำรอง #'+n+' พร้อม ✓','Backup key #'+n+' ready ✓')); } else { alert((j&&j.message)||uiCopy('key ไม่ถูกต้อง — ข้ามคีย์สำรองไปก่อน (ใส่ใหม่ทีหลังได้)','Invalid key — skipping backups for now (you can add them later).')); return; }
+      if(j&&j.ok){ toast(uiCopy('คีย์สำรอง #'+n+' พร้อม ✓','Backup key #'+n+' ready ✓')); } else { await uiAlertText((j&&j.message)||uiCopy('key ไม่ถูกต้อง — ข้ามคีย์สำรองไปก่อน (ใส่ใหม่ทีหลังได้)','Invalid key — skipping backups for now (you can add them later).'),'gemini-key-backup-invalid'); return; }
     }
   }catch(e){}
 }
@@ -3992,14 +3996,14 @@ async function verifyCode(){
 }
 async function doLogout(){ await supa.auth.signOut(); location.reload(); }
 async function endCampaign(){
-  if(!confirm(uiCopy('ลบแคมเปญนี้ถาวร? โลกทั้งหมด (เนื้อเรื่อง/ตัวละคร/ทุกอย่าง) จะหายไปกู้คืนไม่ได้','Permanently delete this campaign? The entire world (story, characters, and everything else) will be lost and cannot be recovered.'))) return;
+  if(!await uiConfirmText(uiCopy('ลบแคมเปญนี้ถาวร? โลกทั้งหมด (เนื้อเรื่อง/ตัวละคร/ทุกอย่าง) จะหายไปกู้คืนไม่ได้','Permanently delete this campaign? The entire world (story, characters, and everything else) will be lost and cannot be recovered.'),'campaign-end')) return;
   try{ const { error } = await supa.rpc('end_campaign',{ p_campaign:campaign.id }); if(error) throw error; toast(uiCopy('ลบแคมเปญแล้ว','Campaign deleted')); setTimeout(()=>location.reload(),500); }
   catch(e){ toast(e.message||uiCopy('ลบไม่สำเร็จ','Delete failed'),true); }
 }
 async function leaveCampaign(){
   // v643 FIX-10 (BUGPLAN_2026-07-17 A7-correction): RPC มี host guard อยู่แล้ว ("host cannot leave own campaign") — กันที่ UI ให้ข้อความไทยชัดก่อนถึง confirm
-  if(campaign && me && campaign.host_id===me.id){ alert(uiCopy('เจ้าของโลกออกจากโลกของตัวเองไม่ได้ — ใช้ ✕ End World (ลบถาวร) หรือชวนเพื่อนมาเล่นต่อ','The host cannot leave their own world — use ✕ End World (permanent deletion) or invite a friend to continue playing.')); return; }
-  if(!confirm(uiCopy('ออกจากแคมเปญนี้?','Leave this campaign?'))) return;
+  if(campaign && me && campaign.host_id===me.id){ await uiAlertText(uiCopy('เจ้าของโลกออกจากโลกของตัวเองไม่ได้ — ใช้ ✕ End World (ลบถาวร) หรือชวนเพื่อนมาเล่นต่อ','The host cannot leave their own world — use ✕ End World (permanent deletion) or invite a friend to continue playing.'),'campaign-host-leave-blocked'); return; }
+  if(!await uiConfirmText(uiCopy('ออกจากแคมเปญนี้?','Leave this campaign?'),'campaign-leave')) return;
   try{ const { error } = await supa.rpc('leave_campaign',{ p_campaign:campaign.id }); if(error) throw error; toast(uiCopy('ออกจากแคมเปญแล้ว','Left the campaign')); setTimeout(()=>location.reload(),500); }
   catch(e){ toast(e.message||uiCopy('ออกไม่สำเร็จ','Could not leave'),true); }
 }
@@ -4155,7 +4159,7 @@ async function createCampaign(){
             const rK=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tokK},body:JSON.stringify({campaign_id:campaign.id,[field]:val})});
             const jK=await rK.json();
             if(jK&&jK.ok) toast(field==='set_gemini_key'?uiCopy('Gemini key พร้อม ✓','Gemini key ready ✓'):uiCopy('คีย์สำรอง #','Backup key #')+field.slice(-1)+uiCopy(' พร้อม ✓',' ready ✓'));
-            else alert((jK&&jK.message)||uiCopy('คีย์ไม่ถูกต้อง ('+field+') — แก้ทีหลังได้ใน DM TOOLS','Invalid key ('+field+') — fix it later in DM TOOLS.',lang));
+            else await uiAlertText((jK&&jK.message)||uiCopy('คีย์ไม่ถูกต้อง ('+field+') — แก้ทีหลังได้ใน DM TOOLS','Invalid key ('+field+') — fix it later in DM TOOLS.',lang),'campaign-create-key-invalid');
           }catch(e){}
         }
       } else {
@@ -4167,7 +4171,7 @@ async function createCampaign(){
     // v215: รหัสเบต้าที่จำไว้ไม่ตรงของจริง (พิมพ์ผิด/ตัวเล็ก — case-sensitive) → ล้างแล้วให้ใส่ใหม่ทันที ไม่ติดตาย
     if(BETA && /host restricted/i.test(String(e.message||''))){
       try{ localStorage.removeItem('betaCode'); }catch(_e){}
-      const c2=prompt('❌ รหัสเบต้าที่เครื่องจำไว้ไม่ถูกต้อง\n\nใส่รหัสใหม่ให้ตรงเป๊ะ (ตัวพิมพ์ใหญ่-เล็กมีผล — ขอจากผู้ดูแลโดยตรง):');
+      const c2=await uiPromptText(uiCopy('❌ รหัสเบต้าที่เครื่องจำไว้ไม่ถูกต้อง\n\nใส่รหัสใหม่ให้ตรงเป๊ะ (ตัวพิมพ์ใหญ่-เล็กมีผล — ขอจากผู้ดูแลโดยตรง):','❌ The saved beta code is invalid.\n\nEnter the exact new code (case-sensitive — request it directly from the administrator):'),'','campaign-create-beta-code');
       if(c2&&c2.trim()){ try{ localStorage.setItem('betaCode',c2.trim()); }catch(_e){} toast(uiCopy('บันทึกรหัสแล้ว — กด Create Campaign อีกครั้งได้เลย','Code saved — select Create Campaign again')); }
       else toast(uiCopy('ยังไม่มีรหัสเบต้า — สร้างโลกไม่ได้จนกว่าจะใส่รหัสถูก','No beta code is set — a world cannot be created until a valid code is entered'),true);
     } else toast(UI18N.errorText(lang,e.message||e.code||'campaign-create-rejected'),true);
@@ -5910,8 +5914,8 @@ async function createCharacter(){
     const { error: _shErr } = await supa.from('character_sheets').insert({ character_id:ch.id, sheet });   // v271 L5: เช็ค error (เดิมไม่เช็ค → ถ้า insert ล้ม ได้ตัวละครไม่มีชีทเงียบๆ)
     if(_shErr && String(_shErr.code)!=='23505') throw _shErr;   // v628 #6: 23505 = ชีทมีอยู่แล้ว (path กู้ตัวละครค้าง) — ใช้ของเดิม ห้ามทับ
     if(sheet.birth_date_game && campaign&&campaign.companion_mode==='v2'){
-      try{ await companionResolve({romance_confirm:{character_id:ch.id,birthday_only:true,birth_date:sheet.birth_date_game,birth_age_years:parseInt(sheet.age,10)||null}}); }
-      catch(e){ toast(e.message||uiText('builder.birthdayFailed'),true); }
+      try{ await companionActionResolve('birthday-only:'+ch.id,{romance_confirm:{character_id:ch.id,birthday_only:true,birth_date:sheet.birth_date_game,birth_age_years:parseInt(sheet.age,10)||null}},{timeoutMessage:uiCopy('สร้างตัวละครแล้ว แต่ยังยืนยันวันเกิดไม่ทันเวลา ผลอาจปรากฏเมื่อเปิดหน้าใหม่','Character created, but birthday sync was not confirmed in time. It may appear after reopening the page.')}); }
+      catch(e){ toast(uiCopy('สร้างตัวละครแล้ว แต่ยังยืนยันวันเกิดไม่ได้: ','Character created, but birthday sync was not confirmed: ')+(e.message||uiText('builder.birthdayFailed')),true); }
     }
     // ความสามารถเริ่มต้นตามคลาส → แท็บ Skills (ไม่พังถ้าตาราง skills ยังไม่ได้ migrate)
     try{
@@ -5967,6 +5971,51 @@ function switchTab(t){
 // latest follow-up. Each follow-up starts in a new task, so a continuous event
 // stream cannot become a synchronous render loop that starves the main thread.
 function createCoalescedUiRender(run){ let requested=0,running=false,latestArgs=[],flight=Promise.resolve(); const drain=async()=>{ let seen=-1; running=true; try{ while(seen!==requested){ seen=requested; await run(...latestArgs); if(seen!==requested) await new Promise(resolve=>setTimeout(resolve,0)); } }finally{ running=false; if(seen!==requested) flight=drain(); } }; return function(...args){ latestArgs=args; requested++; if(!running) flight=drain(); return flight; }; }
+function uiActionError(code,message){ const e=new Error(String(message||code||'ui_action_failed')); e.code=String(code||'ui_action_failed'); return e; }
+function uiBoundedTask(start,options){
+  const o=options||{},ms=Math.max(0,Math.floor(Number(o.timeoutMs)||0)),signal=o.signal;
+  return new Promise((resolve,reject)=>{
+    let settled=false,timer=null;
+    const finish=(ok,value)=>{ if(settled) return; settled=true; if(timer!==null) clearTimeout(timer); if(signal&&typeof signal.removeEventListener==='function') signal.removeEventListener('abort',onAbort); ok?resolve(value):reject(value); };
+    const onAbort=()=>finish(false,uiActionError('ui_action_cancelled',o.cancelMessage||'cancelled'));
+    if(signal&&signal.aborted){ onAbort(); return; }
+    if(signal&&typeof signal.addEventListener==='function') signal.addEventListener('abort',onAbort,{once:true});
+    if(ms>0) timer=setTimeout(()=>{ finish(false,uiActionError('ui_action_timeout',o.timeoutMessage||'timeout')); try{ if(typeof o.onTimeout==='function') o.onTimeout(); }catch(e){} },ms);
+    Promise.resolve().then(start).then(value=>finish(true,value),error=>finish(false,error));
+  });
+}
+function uiDialogInPage(copy){
+  const c=copy||{},kind=String(c.kind||'confirm'),surface=String(c.surfaceId||'generic'),previous=(document&&document.activeElement)||null;
+  const mount=()=>new Promise(resolve=>{
+    const layer=document.createElement('div'),card=document.createElement('div'),title=document.createElement('div'),message=document.createElement('div'),fieldWrap=document.createElement('div'),validation=document.createElement('div'),actions=document.createElement('div'),cancel=document.createElement('button'),accept=document.createElement('button');
+    let field=null,settled=false;
+    layer.setAttribute('data-ui-dialog','1'); layer.setAttribute('data-ui-dialog-surface',surface); if(kind==='confirm') layer.setAttribute('data-ui-confirm','1'); layer.style.cssText='position:fixed;inset:0;z-index:100002;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:18px';
+    card.setAttribute('role','dialog'); card.setAttribute('aria-modal','true'); card.setAttribute('aria-labelledby','ui-dialog-title-'+surface); card.style.cssText='width:min(460px,100%);background:#171717;color:#eee;border:1px solid #FAC775;border-radius:10px;padding:16px;box-shadow:0 12px 38px #000';
+    title.id='ui-dialog-title-'+surface; title.className='nm'; title.textContent=String(c.title||(kind==='alert'?uiCopy('แจ้งเตือน','Notice'):uiCopy('ยืนยัน','Confirm'))); message.className='note'; message.style.cssText='text-align:left;margin:9px 0 12px;white-space:pre-line'; message.textContent=String(c.message||'');
+    card.appendChild(title); card.appendChild(message);
+    if(kind==='prompt'||kind==='select'){
+      field=kind==='select'?document.createElement('select'):document.createElement('input'); field.setAttribute('data-ui-dialog-field','1'); field.style.cssText='box-sizing:border-box;width:100%;margin:0 0 9px;padding:8px;background:#222;color:#eee;border:1px solid #777;border-radius:6px';
+      if(kind==='prompt'){ field.type=String(c.inputType||'text'); field.value=String(c.defaultValue==null?'':c.defaultValue); if(c.placeholder) field.placeholder=String(c.placeholder); }
+      else (Array.isArray(c.options)?c.options:[]).forEach(row=>{ const option=document.createElement('option'); option.value=String(row&&row.value!=null?row.value:''); option.textContent=String(row&&row.label!=null?row.label:option.value); field.appendChild(option); });
+      fieldWrap.appendChild(field); validation.setAttribute('data-ui-dialog-validation','1'); validation.style.cssText='display:none;color:#ff9b9b;text-align:left;margin:0 0 9px'; fieldWrap.appendChild(validation); card.appendChild(fieldWrap);
+    }
+    actions.style.cssText='display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap'; cancel.type='button'; cancel.className='btn ghost'; cancel.setAttribute('data-ui-dialog-cancel','1'); cancel.setAttribute('data-ui-confirm-cancel','1'); cancel.textContent=String(c.cancelText||uiCopy('ยกเลิก','Cancel')); accept.type='button'; accept.className='btn'; accept.setAttribute('data-ui-dialog-accept','1'); accept.setAttribute('data-ui-confirm-accept','1'); accept.textContent=String(c.acceptText||uiCopy('ยืนยัน','Confirm'));
+    if(kind!=='alert') actions.appendChild(cancel); actions.appendChild(accept); card.appendChild(actions); layer.appendChild(card);
+    const done=value=>{ if(settled) return; settled=true; document.removeEventListener('keydown',onKey); layer.remove(); try{ if(previous&&typeof previous.focus==='function') previous.focus(); }catch(e){} resolve(value); };
+    const submit=()=>{ let value=kind==='confirm'||kind==='alert'?true:(field?field.value:null); if(typeof c.validate==='function'){ const issue=c.validate(value); if(issue){ validation.textContent=String(issue); validation.style.display='block'; return; } } done(value); };
+    const onKey=event=>{ if(!event) return; if(event.key==='Escape') done(kind==='confirm'||kind==='alert'?false:null); else if(event.key==='Enter'&&kind!=='alert') submit(); };
+    cancel.onclick=()=>done(kind==='confirm'?false:null); accept.onclick=submit; layer.onclick=event=>{ if(event&&event.target===layer) done(kind==='confirm'||kind==='alert'?false:null); };
+    document.addEventListener('keydown',onKey); document.body.appendChild(layer); try{ (field||accept).focus(); }catch(e){}
+  });
+  const start=()=>{ const active=mount(); uiDialogInPage._active=active; const cleanup=()=>{ if(uiDialogInPage._active===active) uiDialogInPage._active=null; const next=(uiDialogInPage._queue||[]).shift(); if(next) next(); }; active.then(cleanup,cleanup); return active; }; if(!uiDialogInPage._active) return start(); return new Promise((resolve,reject)=>{ (uiDialogInPage._queue=uiDialogInPage._queue||[]).push(()=>start().then(resolve,reject)); });
+}
+function uiConfirmInPage(copy){ return uiDialogInPage(Object.assign({},copy||{},{kind:'confirm'})); }
+function uiPromptInPage(copy){ return uiDialogInPage(Object.assign({},copy||{},{kind:'prompt'})); }
+function uiSelectInPage(copy){ return uiDialogInPage(Object.assign({},copy||{},{kind:'select'})); }
+function uiAlertInPage(copy){ return uiDialogInPage(Object.assign({},copy||{},{kind:'alert',cancelText:''})); }
+function uiConfirmText(message,surfaceId){ return uiConfirmInPage({message:message,surfaceId:surfaceId}); }
+function uiPromptText(message,defaultValue,surfaceId,options){ return uiPromptInPage(Object.assign({message:message,defaultValue:defaultValue,surfaceId:surfaceId},options||{})); }
+function uiAlertText(message,surfaceId){ return uiAlertInPage({message:message,surfaceId:surfaceId,acceptText:uiCopy('รับทราบ','OK')}); }
 const R94_RENDER_STABILITY_COPY=Object.freeze({companion:Object.freeze({th:'(แก้: ระบบจำกัดงานวาดรายชื่อซ้ำแล้ว ปุ่มยืนยันสมาชิกจึงไม่ถูกการโหลดซ้อนขวาง)',en:'(Fixed: roster redraws are bounded so overlapping loads cannot block membership confirmation.)'}),downed:Object.freeze({th:'(แก้: ระบบจำกัดงานวาดฉากและกล่องคำสั่งซ้ำแล้ว ปุ่มทอยช่วยชีวิตกับการควบคุมเทิร์นจึงตอบสนองต่อเนื่อง)',en:'(Fixed: scene and command redraws are bounded so death-save and turn controls remain responsive.)'}),ghost:Object.freeze({th:'(แก้: รอบล่าสุดยืนยันว่าศึกจบแล้ว ระบบจึงล้างตาและคำสั่งต่อสู้ที่ค้างบนจอ)',en:'(Fixed: the latest round confirms combat has ended, so stale turn and combat-command UI was cleared.)'})});
 function r94RenderStabilityCopy(key){ const row=R94_RENDER_STABILITY_COPY[key]||R94_RENDER_STABILITY_COPY.companion; return row[uiLanguage()==='en'?'en':'th']; }
 // G3 (owner ruling 2026-08-27): renderer mechanics never speak to the player. The
@@ -5977,21 +6026,40 @@ function r94RenderStabilityLog(key,detail){ try{ const k=String(key||'companion'
 let _companionViewCache=null,_companionViewTs=0,_slowlifePollT=null;
 function companionV2UiEnabled(){ return !!campaign&&String(campaign.companion_mode||'').toLowerCase()==='v2'; }
 function companionLegacyUiMessage(){ return uiCopy('โลกนี้คงใช้ระบบคอมพาเนี่ยนแบบเดิมถาวร จึงไม่มีรายชื่อ/ความสัมพันธ์ส่วนตัวแบบ V2 ข้อมูลสมาชิกปาร์ตี้เดิมยังอยู่ครบ — Companion V2 ใช้ได้กับโลกที่สร้างใหม่เท่านั้น','This world remains on the legacy companion system, so V2 roster and private relationship tools are unavailable. Existing party companions are unchanged; Companion V2 is available only to newly created worlds.'); }
-async function companionResolve(payload){
+async function companionResolve(payload,options){
   if(!companionV2UiEnabled()) throw new Error(companionLegacyUiMessage());
   const tok=(await supa.auth.getSession()).data.session?.access_token; if(!tok) throw new Error('กรุณาเข้าสู่ระบบใหม่');
-  const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify(Object.assign({campaign_id:campaign.id},payload))});
+  const request={method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify(Object.assign({campaign_id:campaign.id},payload))}; if(options&&options.signal) request.signal=options.signal;
+  const r=await fetch(RESOLVE_FN,request);
   const j=await r.json(); if(!r.ok||j.error){ const e=new Error(j.note||j.message||j.error||'ทำรายการไม่สำเร็จ'); e.payload=j; throw e; } return j;
+}
+// COMPANION-ACCEPT-Y2 copy surface 1 start
+const COMPANION_UI_ENDPOINT_MS=15000,COMPANION_UI_REFRESH_MS=12000;
+function companionAbortController(){ return typeof AbortController==='function'?new AbortController():{signal:null,abort:function(){}}; }
+function companionBoundedResolve(payload,options){ const o=options||{},controller=o.controller||companionAbortController(); return uiBoundedTask(()=>companionResolve(payload,{signal:controller.signal}),{timeoutMs:o.timeoutMs||COMPANION_UI_ENDPOINT_MS,signal:controller.signal,onTimeout:()=>controller.abort(),timeoutMessage:o.timeoutMessage||uiCopy('คำขอใช้เวลานานเกินไป จึงหยุดรอแล้ว ลองอีกครั้งได้','This request took too long, so waiting stopped. You can try again.'),cancelMessage:o.cancelMessage||uiCopy('หยุดรอคำขอแล้ว','Stopped waiting for the request.')}); }
+const _companionActionFlights=new Set();
+function companionActiveButton(){ try{ const el=document.activeElement; return el&&String(el.tagName||'').toLowerCase()==='button'?el:null; }catch(e){ return null; } }
+function companionActionButtonUi(button){
+  if(!button) return {busy:function(){},finish:function(){}};
+  const originalText=button.textContent,originalDisabled=!!button.disabled; let cancel=null;
+  return {busy:function(onCancel){ button.disabled=true; button.setAttribute('data-companion-action-state','busy'); button.textContent=uiCopy('กำลังทำรายการ…','Working…'); cancel=document.createElement('button'); cancel.type='button'; cancel.className='btn ghost sm'; cancel.setAttribute('data-companion-action-cancel','1'); cancel.textContent=uiCopy('หยุดรอ','Stop waiting'); cancel.onclick=()=>{ cancel.disabled=true; cancel.textContent=uiCopy('กำลังหยุด…','Stopping…'); if(typeof onCancel==='function') onCancel(); }; button.insertAdjacentElement('afterend',cancel); },finish:function(committed){ if(cancel) cancel.remove(); button.disabled=originalDisabled; button.textContent=originalText; button.removeAttribute('data-companion-action-state'); button.setAttribute('data-companion-action-result',committed?'committed':'not-committed'); }};
+}
+async function companionActionResolve(actionKey,payload,options){
+  const o=options||{},key=String(actionKey||'companion-action'),button=o.button||companionActiveButton(); if(_companionActionFlights.has(key)) throw uiActionError('ui_action_in_flight',uiCopy('คำขอนี้กำลังทำงานอยู่','This request is already in progress.'));
+  const controller=companionAbortController(),buttonUi=companionActionButtonUi(button); let committed=false; _companionActionFlights.add(key); buttonUi.busy(()=>controller.abort());
+  try{ const value=await companionBoundedResolve(payload,{controller,timeoutMessage:o.timeoutMessage||uiCopy('คำขอใช้เวลานานเกินไป จึงหยุดรอแล้ว ผลอาจปรากฏเมื่อเปิดหน้านี้ใหม่','The request took too long, so waiting stopped. Its result may appear when you reopen this view.'),cancelMessage:o.cancelMessage||uiCopy('หยุดรอแล้ว หากคำขอถูกส่งไปก่อน ผลอาจปรากฏเมื่อเปิดหน้านี้ใหม่','Stopped waiting. If the request was already sent, its result may appear when you reopen this view.')}); committed=true; return value; }
+  finally{ buttonUi.finish(committed); _companionActionFlights.delete(key); }
 }
 async function loadSlowlifeState(force){
   if(!campaign||String(campaign.companion_mode||'').toLowerCase()!=='v2'){ slowlifeState={active:false,mode:'off'}; return slowlifeState; }
   if(!force&&slowlifeState&&slowlifeState._ts&&Date.now()-slowlifeState._ts<5000) return slowlifeState;
   const previous=slowlifeState;
-  try{ const j=await companionResolve({slowlife_view:true}); slowlifeState=Object.assign({},j,{_ts:Date.now()}); return slowlifeState; }
+  try{ const j=await companionBoundedResolve({slowlife_view:true},{timeoutMessage:uiCopy('โหลดช่วงพักไม่ทันเวลา','The downtime window did not load in time.')}); slowlifeState=Object.assign({},j,{_ts:Date.now()}); return slowlifeState; }
   catch(e){ console.warn('slowlife_view unavailable',e); if(previous&&previous.active) return previous; slowlifeState={active:false,mode:'off',error:e.message||'unavailable',_ts:Date.now()}; return slowlifeState; }
 }
+// COMPANION-ACCEPT-Y2 copy surface 1 end
 async function slowlifeMutate(payload,success){
-  try{ const j=await companionResolve(payload); toast(j.note||success||uiCopy('บันทึกแล้ว','Saved')); slowlifeState={active:false,mode:'off'}; await loadSlowlifeState(true); renderRoundbar(); if(activeTab()==='companion') renderCompanion(); return j; }
+  try{ const actionKey='slowlife:'+String(Object.keys(payload||{})[0]||'mutate'); const j=await companionActionResolve(actionKey,payload); toast(j.note||success||uiCopy('บันทึกแล้ว','Saved')); slowlifeState={active:false,mode:'off'}; await loadSlowlifeState(true); renderRoundbar(); if(activeTab()==='companion') renderCompanion(); return j; }
   catch(e){ toast(e.message||uiCopy('ทำรายการไม่สำเร็จ','Request failed'),true); slowlifeState._ts=0; await loadSlowlifeState(true); renderRoundbar(); if(activeTab()==='companion') renderCompanion(); return null; }
 }
 async function slowlifeSetMode(mode){
@@ -6001,7 +6069,7 @@ async function slowlifeSetMode(mode){
 }
 async function slowlifeOpen(kind){
   if(campaign.host_id!==me.id) return;
-  const horizon=Math.floor(Number(prompt(uiCopy('ระยะเวลาหน้าต่าง (นาที · 15-720 · หาร 5 ลงตัว)','Window length in minutes (15-720, divisible by 5)'),'60'))||0);
+  const horizon=Math.floor(Number(await uiPromptText(uiCopy('ระยะเวลาหน้าต่าง (นาที · 15-720 · หาร 5 ลงตัว)','Window length in minutes (15-720, divisible by 5)'),'60','slowlife-window-minutes',{inputType:'number'}))||0);
   if(horizon<15||horizon>720||horizon%5) return toast(uiCopy('เวลาไม่ถูกต้อง','Invalid duration'),true);
   await slowlifeMutate({slowlife_open:{kind:kind,horizon_minutes:horizon,request_key:crypto.randomUUID()}},uiCopy('เปิดช่วง Slowlife แล้ว','Slowlife opened'));
 }
@@ -6010,7 +6078,7 @@ async function slowlifeStartSolo(){
   await slowlifeMutate({slowlife_start:{character_id:myChar.id,request_key:crypto.randomUUID()}},uiCopy('เปิดเลนส่วนตัวแล้ว','Private lane opened'));
 }
 async function slowlifeInvite(companionId,kind,selectedPc){
-  const v=selectedPc?null:await companionViewLoad(true),pc=selectedPc||companionOwnedPc(v); if(!pc) return toast(uiCopy('ต้องมีตัวละครของคุณก่อน','You need a character first'),true);
+  const v=selectedPc?null:await companionViewLoad(true),pc=selectedPc||await companionOwnedPc(v); if(!pc) return toast(uiCopy('ต้องมีตัวละครของคุณก่อน','You need a character first'),true);
   await slowlifeMutate({slowlife_invite:{recipient_character_id:pc.character_id,subject_character_id:companionId,interaction_kind:kind,request_key:crypto.randomUUID()}},uiCopy('ส่งคำเชิญแล้ว — เลือกตอบรับด้านบน','Invitation created — choose a response above'));
 }
 async function slowlifeInviteNpc(npcId,kind){
@@ -6106,13 +6174,13 @@ async function slowlifeReady(laneId,mode){
   await slowlifeMutate({slowlife_ready:{lane_id:laneId,mode:mode||'park',request_key:crypto.randomUUID()}},uiCopy('พร้อมรวมตัวแล้ว','Ready to regroup'));
 }
 async function slowlifeShare(knowledgeId){
-  if(!confirm(uiCopy('เปิดเผยข้อมูลนี้ให้ทั้งปาร์ตี้หรือไม่? หลังยืนยัน เจ้าของโลกและสมาชิกทุกคนจะเห็นเฉพาะข้อความนี้','Share this fact with the whole party? After confirmation, the host and all members can see only this disclosed text.'))) return;
+  if(!await uiConfirmText(uiCopy('เปิดเผยข้อมูลนี้ให้ทั้งปาร์ตี้หรือไม่? หลังยืนยัน เจ้าของโลกและสมาชิกทุกคนจะเห็นเฉพาะข้อความนี้','Share this fact with the whole party? After confirmation, the host and all members can see only this disclosed text.'),'slowlife-share')) return;
   await slowlifeMutate({slowlife_share:{knowledge_id:knowledgeId,mode:'public_observation',request_key:crypto.randomUUID()}},uiCopy('เปิดเผยข้อมูลให้ปาร์ตี้แล้ว','Fact shared with the party'));
 }
 async function slowlifeClose(){
   if(campaign.host_id!==me.id) return;
   const sw=slowlifeState&&slowlifeState.window; if(!sw) return;
-  if(!confirm(uiCopy('รวมปาร์ตี้และยืนยันเวลาโลกตอนนี้? บทส่วนตัวยังคงเห็นเฉพาะผู้รับ · หากยังไม่มีเลน ระบบจะยกเลิกโดยไม่ขยับเวลา','Regroup and commit world time now? Private prose remains recipient-only. If no lane exists, the window is cancelled without advancing time.'))) return;
+  if(!await uiConfirmText(uiCopy('รวมปาร์ตี้และยืนยันเวลาโลกตอนนี้? บทส่วนตัวยังคงเห็นเฉพาะผู้รับ · หากยังไม่มีเลน ระบบจะยกเลิกโดยไม่ขยับเวลา','Regroup and commit world time now? Private prose remains recipient-only. If no lane exists, the window is cancelled without advancing time.'),'slowlife-close')) return;
   const j=await slowlifeMutate({slowlife_close:{window_id:sw.id,request_key:crypto.randomUUID()}},uiCopy('รวมปาร์ตี้แล้ว','Party regrouped'));
   if(j) await refreshAll();
 }
@@ -6160,35 +6228,55 @@ function slowlifeSection(s,companionView){
   if((s.observations||[]).length) h+='<h3>'+uiCopy('สิ่งที่ทุกคนสังเกตได้','Public observations')+'</h3>'+(s.observations||[]).map(o=>'<div class="note" style="text-align:left">'+E(o.content||'')+'</div>').join('');
   return h+'</div>';
 }
+// COMPANION-ACCEPT-Y2 copy surface 2 start
 async function companionViewLoad(force){
   if(!force&&_companionViewCache&&Date.now()-_companionViewTs<10000) return _companionViewCache;
-  const j=await companionResolve({companion_view:true}); _companionViewCache=j; _companionViewTs=Date.now(); return j;
+  const j=await companionBoundedResolve({companion_view:true},{timeoutMessage:uiCopy('โหลดรายชื่อ Companion ไม่ทันเวลา','The Companion roster did not load in time.')}); _companionViewCache=j; _companionViewTs=Date.now(); return j;
 }
 const _companionAcceptFlights=new Set(); let _companionRepairFlight=false;
-async function companionAcceptCandidate(characterId,name,confirmed){
-  name=String(name||(((_companionViewCache&&_companionViewCache.companions)||[]).find(c=>String(c.character_id)===String(characterId))||{}).name||uiCopy('Companion','Companion'));
-  if(_companionAcceptFlights.has(String(characterId))) return toast(uiCopy('กำลังยืนยันสมาชิกคนนี้อยู่','This companion confirmation is already in progress'));
-  if(!confirmed&&!confirm(uiCopy('ยืนยันรับ '+name+' เข้ากลุ่มหรือไม่? หากช่อง Active เต็ม ระบบจะเก็บไว้ใน Reserve','Accept '+name+' into the party? If Active slots are full, the companion will be placed in Reserve.'))) return;
-  _companionAcceptFlights.add(String(characterId));
-  try{
-    const j=await companionResolve({companion_accept:{character_id:characterId,request_key:'accept:'+characterId}});
-    toast(j.note||uiCopy(name+' เข้ารายชื่อปาร์ตี้แล้ว',name+' is now on the party roster'));
-    _companionViewCache=null; _companionViewTs=0; await loadCharacters(); await renderCompanion(); await renderParty();
-  }catch(e){ toast(e.message||uiCopy('รับ Companion ไม่สำเร็จ','Could not accept the Companion'),true); }
-  finally{ _companionAcceptFlights.delete(String(characterId)); }
+function companionAcceptButtonUi(button){
+  if(!button) return {waiting:function(){},busy:function(){},finish:function(){}};
+  const originalText=button.textContent,originalDisabled=!!button.disabled; let cancel=null;
+  const removeCancel=()=>{ if(cancel){ cancel.remove(); cancel=null; } };
+  return {
+    waiting:function(){ button.disabled=true; button.setAttribute('data-companion-accept-state','confirming'); button.textContent=uiCopy('รอคำยืนยัน…','Awaiting confirmation…'); },
+    busy:function(onCancel){ removeCancel(); button.disabled=true; button.setAttribute('data-companion-accept-state','busy'); button.textContent=uiCopy('กำลังรับเข้ากลุ่ม…','Accepting…'); cancel=document.createElement('button'); cancel.type='button'; cancel.className='btn ghost sm'; cancel.setAttribute('data-companion-accept-cancel','1'); cancel.textContent=uiCopy('หยุดรอ','Stop waiting'); cancel.onclick=()=>{ cancel.disabled=true; cancel.textContent=uiCopy('กำลังหยุด…','Stopping…'); if(typeof onCancel==='function') onCancel(); }; button.insertAdjacentElement('afterend',cancel); },
+    finish:function(committed){ removeCancel(); if(committed){ button.disabled=true; button.setAttribute('data-companion-accept-state','committed'); button.textContent=uiCopy('รับแล้ว ✓','Accepted ✓'); }else{ button.disabled=originalDisabled; button.removeAttribute('data-companion-accept-state'); button.textContent=originalText; } }
+  };
 }
+async function companionAcceptCandidate(characterId,name,confirmed){
+  const sourceButton=arguments[3]||null,id=String(characterId||''),buttonUi=companionAcceptButtonUi(sourceButton); let committed=false;
+  name=String(name||(((_companionViewCache&&_companionViewCache.companions)||[]).find(c=>String(c.character_id)===String(characterId))||{}).name||uiCopy('Companion','Companion'));
+  if(!id) return toast(uiCopy('ไม่พบ Companion ที่จะรับเข้ากลุ่ม','No Companion was selected for acceptance.'),true);
+  if(_companionAcceptFlights.has(id)) return toast(uiCopy('กำลังยืนยันสมาชิกคนนี้อยู่','This companion confirmation is already in progress'));
+  _companionAcceptFlights.add(id); buttonUi.waiting();
+  const controller=companionAbortController();
+  try{
+    if(!confirmed){ const ok=await uiConfirmInPage({title:uiCopy('รับ Companion เข้ากลุ่ม','Accept Companion'),message:uiCopy('ยืนยันรับ '+name+' เข้ากลุ่มหรือไม่? หากช่อง Active เต็ม จะพักอยู่ใน Reserve','Accept '+name+' into the party? If Active slots are full, they will wait in Reserve.'),cancelText:uiCopy('ยังไม่รับ','Not now'),acceptText:uiCopy('ยืนยันรับเข้ากลุ่ม','Accept into party')}); if(!ok){ toast(uiCopy('ยกเลิกการรับสมาชิกแล้ว','Companion acceptance cancelled.')); return {status:'cancelled_before_send'}; } }
+    buttonUi.busy(()=>controller.abort());
+    const j=await companionBoundedResolve({companion_accept:{character_id:characterId,request_key:'accept:'+characterId}},{controller,timeoutMessage:uiCopy('การรับ Companion ใช้เวลานานเกินไป จึงหยุดรอแล้ว ลองกดอีกครั้งได้','Accepting the Companion took too long, so waiting stopped. You can try again.'),cancelMessage:uiCopy('หยุดรอการรับ Companion แล้ว หากคำขอถูกส่งไปก่อนหน้านี้ รายชื่ออาจเปลี่ยนเมื่อเปิดแท็บใหม่','Stopped waiting for Companion acceptance. If the request had already been sent, the roster may change when you reopen the tab.')});
+    committed=true;
+    toast(j.note||uiCopy(name+' เข้ารายชื่อปาร์ตี้แล้ว',name+' is now on the party roster'));
+    _companionViewCache=null; _companionViewTs=0;
+    try{ await uiBoundedTask(async()=>{ await loadCharacters(); await renderCompanion(); await renderParty(); },{timeoutMs:COMPANION_UI_REFRESH_MS,signal:controller.signal,timeoutMessage:uiCopy(name+' เข้ารายชื่อแล้ว แต่หน้ารายชื่อยังโหลดไม่ทัน เปิดแท็บ Companion ใหม่ได้','Accepted '+name+', but the roster did not reload in time. You can reopen the Companion tab.'),cancelMessage:uiCopy(name+' เข้ารายชื่อแล้ว และหยุดรอการโหลดหน้าใหม่แล้ว','Accepted '+name+' and stopped waiting for the page to reload.')}); return {status:'accepted',refreshed:true}; }
+    catch(refreshError){ toast(refreshError.message||uiCopy(name+' เข้ารายชื่อแล้ว แต่โหลดหน้าใหม่ไม่สำเร็จ','Accepted '+name+', but the page could not reload.'),true); return {status:'accepted',refreshed:false}; }
+  }catch(e){ toast(e.message||uiCopy('รับ Companion ไม่สำเร็จ','Could not accept the Companion'),true); return {status:e&&e.code==='ui_action_cancelled'?'cancelled':'failed'}; }
+  finally{ buttonUi.finish(committed); _companionAcceptFlights.delete(id); }
+}
+// COMPANION-ACCEPT-Y2 copy surface 2 end
 async function companionRepairHistorical(){
   if(_companionRepairFlight) return toast(uiCopy('กำลังตรวจหลักฐานสมาชิกย้อนหลังอยู่','Historical membership verification is already in progress'));
-  const name=String(prompt(uiCopy('ใส่ชื่อ NPC ให้ตรงกับในเรื่อง ระบบจะกู้ได้เมื่อพบทั้งคำเชิญของผู้เล่นและคำตอบรับของ NPC ที่ยืนยันแล้ว','Enter the NPC name exactly as shown in the story. Recovery requires both a verified player invitation and the NPC acceptance.'),'')||'').trim();
+  const sourceButton=companionActiveButton();
+  const name=String(await uiPromptText(uiCopy('ใส่ชื่อ NPC ให้ตรงกับในเรื่อง ระบบจะกู้ได้เมื่อพบทั้งคำเชิญของผู้เล่นและคำตอบรับของ NPC ที่ยืนยันแล้ว','Enter the NPC name exactly as shown in the story. Recovery requires both a verified player invitation and the NPC acceptance.'),'','companion-repair-name')||'').trim();
   if(!name) return;
-  if(!confirm(uiCopy('ตรวจและกู้สถานะสมาชิกย้อนหลังของ '+name+' หรือไม่? ระบบจะไม่เปลี่ยนปาร์ตี้หากหลักฐานไม่ครบ','Verify and repair '+name+' from history? The party will not change unless the evidence is complete.'))) return;
+  if(!await uiConfirmText(uiCopy('ตรวจและกู้สถานะสมาชิกย้อนหลังของ '+name+' หรือไม่? ระบบจะไม่เปลี่ยนปาร์ตี้หากหลักฐานไม่ครบ','Verify and repair '+name+' from history? The party will not change unless the evidence is complete.'),'companion-repair-confirm')) return;
   _companionRepairFlight=true;
   try{
-    const j=await companionResolve({companion_reconcile:{name},group_no:terminalGroupForUi(),client_build:FRONTEND_BUILD,client_epoch:FRONTEND_COMPAT_EPOCH,i18n_asset_build:englishAssetBuildProof()});
+    const j=await companionActionResolve('repair:'+name,{companion_reconcile:{name},group_no:terminalGroupForUi(),client_build:FRONTEND_BUILD,client_epoch:FRONTEND_COMPAT_EPOCH,i18n_asset_build:englishAssetBuildProof()},{button:sourceButton});
     toast(j.note||uiCopy('กู้หลักฐานสมาชิกแล้ว','Historical membership evidence recovered'));
     _companionViewCache=null; _companionViewTs=0;
     if(j.status==='candidate'&&j.character_id) return await companionAcceptCandidate(j.character_id,j.name||name,true);
-    await loadCharacters(); await renderCompanion(); await renderParty();
+    await uiBoundedTask(async()=>{ await loadCharacters(); await renderCompanion(); await renderParty(); },{timeoutMs:COMPANION_UI_REFRESH_MS,timeoutMessage:uiCopy('กู้หลักฐานแล้ว แต่หน้ารายชื่อยังโหลดไม่ทัน เปิดแท็บ Companion ใหม่ได้','Evidence was repaired, but the roster did not reload in time. You can reopen the Companion tab.')});
   }catch(e){ toast(e.message||uiCopy('กู้สมาชิกจากประวัติไม่สำเร็จ','Could not repair membership from history'),true); }
   finally{ _companionRepairFlight=false; }
 }
@@ -6196,9 +6284,20 @@ function companionTierTH(t){ return ({enemy:'ศัตรู',hostile:'เป็
 function companionStatusCopy(value){ const raw=String(value||''); return uiCopy(({candidate:'ผู้สมัคร',active:'สมาชิกหลัก',reserve:'สำรอง',dead:'เสียชีวิต',former:'อดีตสมาชิก'})[raw]||raw,raw); }
 function companionRosterRenderState(value){ const all=Array.isArray(value)?value:[]; return {all,candidates:all.filter(c=>c&&c.status==='candidate'),active:all.filter(c=>c&&c.status==='active'),reserve:all.filter(c=>c&&c.status==='reserve'),memorial:all.filter(c=>c&&['dead','former'].includes(c.status))}; }
 function companionRosterCapUiState(view,activeCount,isHost){ const raw=Number(view&&view.active_cap),typed=Number.isInteger(raw)&&raw>=0&&raw<=3,cap=typed?raw:3,overCap=typed&&((view&&view.active_reassignment_required===true)||(view&&view.active_over_cap===true)||Math.max(0,Number(activeCount)||0)>cap); return {cap,overCap,showManualNote:isHost===true&&overCap}; }
-function companionOwnedPc(view){
+// COMPANION-ACCEPT-Y2 copy surface 3 start
+function companionCandidateBox(candidates,isHost){
+  const box=document.createElement('div'),heading=document.createElement('h3'); heading.textContent=uiCopy('รอเจ้าของโลกยืนยัน','Awaiting Host confirmation'); box.appendChild(heading);
+  (Array.isArray(candidates)?candidates:[]).forEach(c=>{
+    const item=document.createElement('div'),title=document.createElement('div'),tag=document.createElement('span'),sub=document.createElement('div'),note=document.createElement('div'); item.className='item'; item.setAttribute('data-companion-candidate',String(c.character_id||'')); title.className='nm'; title.textContent=String(c.name||'')+' '; tag.className='tag'; tag.textContent=companionStatusCopy('candidate'); title.appendChild(tag); sub.className='sub'; sub.textContent=[String(c.race||''),String(c.class||'')].filter(Boolean).join(' ')+' · Lv '+(c.level||1); note.className='note'; note.style.textAlign='left'; note.textContent=uiCopy('คำเชิญถูกบันทึกแล้ว แต่ยังไม่ใช่สมาชิกจนกว่าเจ้าของโลกจะยืนยัน','The invitation is recorded, but membership starts only after Host confirmation.'); item.appendChild(title); item.appendChild(sub); item.appendChild(note);
+    if(isHost){ const button=document.createElement('button'); button.type='button'; button.className='btn sm'; button.setAttribute('data-companion-accept',String(c.character_id||'')); button.textContent=uiCopy('รับเข้ากลุ่ม','Accept into party'); button.onclick=()=>companionAcceptCandidate(c.character_id,c.name,false,button); item.appendChild(button); }
+    box.appendChild(item);
+  });
+  return box;
+}
+// COMPANION-ACCEPT-Y2 copy surface 3 end
+async function companionOwnedPc(view,surfaceId){
   const pcs=(view&&view.own_characters)||[]; if(!pcs.length) return null; if(pcs.length===1) return pcs[0];
-  const raw=prompt('เลือกตัวละครผู้ทำรายการ:\n'+pcs.map((p,i)=>(i+1)+'. '+p.name).join('\n'),'1'); const i=Math.floor(Number(raw))-1; return pcs[i]||null;
+  const id=await uiSelectInPage({title:uiCopy('เลือกตัวละคร','Choose a character'),message:uiCopy('เลือกตัวละครผู้ทำรายการ','Choose the character performing this action'),surfaceId:surfaceId||'companion-owned-pc',options:pcs.map(p=>({value:p.character_id,label:p.name})),acceptText:uiCopy('เลือก','Select')}); return pcs.find(p=>String(p.character_id)===String(id))||null;
 }
 function companionCard(c,isHost,view){
   const rel=(c.relationships||[]).map(r=>`<span class="tag">${escapeHtml(companionTierTH(r.tier))}</span>`).join(' ')||'<span class="muted">ยังไม่มีสายสัมพันธ์ที่เปิดเผย</span>';
@@ -6216,7 +6315,7 @@ async function renderCompanion(){
   try{ const pair=await Promise.all([companionViewLoad(false),loadSlowlifeState(true)]),v=pair[0],sl=pair[1], roster=companionRosterRenderState(v.companions), candidates=roster.candidates, active=roster.active, reserve=roster.reserve, memorial=roster.memorial; const host=campaign.host_id===me.id,capUi=companionRosterCapUiState(v,active.length,host),capNote=capUi.showManualNote?`<div class="note" data-party-cap-manual style="text-align:left;margin-top:7px">${uiCopy('มีเพื่อนร่วมทางเกินจำนวนหรือตำแหน่งที่ออกเดินทางพร้อมกันได้ เจ้าของโลกโปรดเลือกคนที่จะพักอยู่ในกองสำรอง (แก้: จะไม่มีใครถูกย้ายโดยอัตโนมัติ)','The traveling roster exceeds its current count or position limit. Host, choose who will wait in reserve. (Fixed: nobody will be moved automatically.)')}</div>`:'';
     if(_slowlifePollT){ clearTimeout(_slowlifePollT); _slowlifePollT=null; }
     if((sl.turns||[]).some(t=>['queued','processing'].includes(String(t.status)))) _slowlifePollT=setTimeout(()=>{ if(activeTab()==='companion') renderCompanion(); },3500);
-    const fr=await supa.from('private_narrative').select('id,kind,content,created_at,recipient_character_id,companion_character_id').eq('campaign_id',campaign.id).order('created_at',{ascending:false}).limit(30); if(fr.error) throw fr.error;
+    const fr=await uiBoundedTask(()=>supa.from('private_narrative').select('id,kind,content,created_at,recipient_character_id,companion_character_id').eq('campaign_id',campaign.id).order('created_at',{ascending:false}).limit(30),{timeoutMs:COMPANION_UI_REFRESH_MS,timeoutMessage:uiCopy('โหลดฉากส่วนตัวไม่ทันเวลา','Private scenes did not load in time.')}); if(fr.error) throw fr.error;
     const feed=(fr.data||[]).slice().reverse(); const feedHtml=feed.map(x=>`<div class="item" style="margin:7px 0"><div class="sub">${escapeHtml(x.kind||'private')} · ${escapeHtml(new Date(x.created_at).toLocaleString())}</div><div class="note" style="text-align:left;white-space:normal">${escapeHtml(x.content||'').replace(/\n/g,'<br>')}</div></div>`).join('')||('<div class="muted">'+uiCopy('ยังไม่มีฉากส่วนตัว','No private scenes yet')+'</div>');
     const consent=v.consent&&v.consent.adult_confirmed?uiCopy('ยืนยันอายุจริงแล้ว','Age verified'):uiCopy('ยังไม่เปิด Romance','Romance not enabled');
     // G3: the roster-render receipt is backstage only — the roster itself and its live buttons are the player-facing signal.
@@ -6229,53 +6328,56 @@ async function renderCompanion(){
     if(host){
       const repair=document.createElement('div'); repair.className='item'; repair.innerHTML='<div class="nm">'+uiCopy('ซ่อมรายชื่อ Companion','Companion roster repair')+'</div><div class="note" style="text-align:left">'+uiCopy('ใช้เมื่อเรื่องยืนยันรับสมาชิกไปแล้วแต่ตัวละครไม่ขึ้น ระบบจะตรวจหลักฐานสองฝ่ายก่อนทุกครั้ง','Use this when the story accepted a member but no character appeared. Both sides of the transaction are verified first.')+'</div><button class="btn ghost sm" onclick="companionRepairHistorical()">'+uiCopy('กู้สมาชิกจากประวัติ','Repair from history')+'</button>'; p.insertBefore(repair,p.firstChild);
     }
-    if(candidates.length){
-      const box=document.createElement('div'); box.innerHTML='<h3>'+uiCopy('รอเจ้าของโลกยืนยัน','Awaiting Host confirmation')+'</h3>'+candidates.map(c=>'<div class="item"><div class="nm">'+escapeHtml(c.name)+' <span class="tag">'+escapeHtml(companionStatusCopy('candidate'))+'</span></div><div class="sub">'+escapeHtml(c.race||'')+' '+escapeHtml(c.class||'')+' · Lv '+(c.level||1)+'</div><div class="note" style="text-align:left">'+uiCopy('คำเชิญถูกบันทึกแล้ว แต่ยังไม่ใช่สมาชิกจนกว่าเจ้าของโลกจะยืนยัน','The invitation is recorded, but membership starts only after Host confirmation.')+'</div>'+(host?'<button class="btn sm" onclick="companionAcceptCandidate(\''+String(c.character_id||'').replace(/[^A-Za-z0-9-]/g,'')+'\')">'+uiCopy('รับเข้ากลุ่ม','Accept into party')+'</button>':'')+'</div>').join(''); p.insertBefore(box,p.firstChild);
-    }
+    if(candidates.length) p.insertBefore(companionCandidateBox(candidates,host),p.firstChild);
   }catch(e){ const msg=(e&&e.payload&&e.payload.error==='companion_v2_not_enabled')?companionLegacyUiMessage():uiCopy('โหลดข้อมูลคอมพาเนี่ยนไม่สำเร็จ กรุณาลองใหม่','Could not load companion data. Please try again.'); p.innerHTML='<div class="item"><div class="nm">Companion</div><div class="note">'+escapeHtml(msg)+'</div></div>'; }
 }
 renderCompanion=createCoalescedUiRender(renderCompanion);
 function companionSoon(label){ toast(label+uiCopy(' จะเปิดในเฟส Privacy/Interaction',' will open in the Privacy/Interaction phase')); }
 async function companionInteract(companionId,kind){
-  try{ const v=await companionViewLoad(true),pc=companionOwnedPc(v); if(!pc) return toast(uiCopy('ต้องมีตัวละครของคุณก่อน','You need a character first'),true); if(kind==='romance'&&!pc.romance_enabled) return toast(uiCopy('ตัวละครนี้ยังไม่ได้เปิดสิทธิ์ Romance','Romance access is not enabled for this character'),true);
+  const sourceButton=companionActiveButton();
+  try{ const v=await companionViewLoad(true),pc=await companionOwnedPc(v,'companion-interact-owner'); if(!pc) return toast(uiCopy('ต้องมีตัวละครของคุณก่อน','You need a character first'),true); if(kind==='romance'&&!pc.romance_enabled) return toast(uiCopy('ตัวละครนี้ยังไม่ได้เปิดสิทธิ์ Romance','Romance access is not enabled for this character'),true);
     const sl=await loadSlowlifeState(true); if(sl&&sl.active){ await slowlifeInvite(companionId,kind,pc); return; }
     if(sl&&sl.mode==='enforce') return toast(uiCopy('(แก้: ฉากส่วนตัวเปิดได้เฉพาะช่วง Slowlife ที่ปลอดภัยในเมืองหรือจุดพักระหว่างทาง)','(Fixed: private scenes open only during a safe city or road-rest Slowlife window.)'),true);
-    const labels={talk:'คุยเรื่องใด (เว้นว่างได้)',spend:'อยากใช้เวลาร่วมกันแบบใด (เว้นว่างได้)',romance:'อยากสื่อเจตนาอย่างไร — การกดส่งไม่การันตีว่า companion จะตอบรับ'};
-    const intent=String(prompt(labels[kind]||'เจตนาของฉาก','')||'').trim(); toast(uiCopy('กำลังเปิดฉากส่วนตัว…','Opening private scene…'));
-    const j=await companionResolve({companion_interact:{character_id:pc.character_id,companion_id:companionId,kind,intent,request_key:crypto.randomUUID()}}); toast(j.note||uiCopy('บันทึกฉากแล้ว','Scene saved')); _companionViewCache=null; renderCompanion();
+    const labels={talk:uiCopy('คุยเรื่องใด (เว้นว่างได้)','What would you like to discuss? (optional)'),spend:uiCopy('อยากใช้เวลาร่วมกันแบบใด (เว้นว่างได้)','How would you like to spend time together? (optional)'),romance:uiCopy('อยากสื่อเจตนาอย่างไร — การกดส่งไม่การันตีว่าเพื่อนร่วมทางจะตอบรับ','How would you like to express your intent? Sending does not guarantee acceptance.')};
+    const intent=String(await uiPromptText(labels[kind]||uiCopy('เจตนาของฉาก','Scene intent'),'','companion-interact-intent')||'').trim(); toast(uiCopy('กำลังเปิดฉากส่วนตัว…','Opening private scene…'));
+    const j=await companionActionResolve('interact:'+companionId+':'+kind,{companion_interact:{character_id:pc.character_id,companion_id:companionId,kind,intent,request_key:crypto.randomUUID()}},{button:sourceButton}); toast(j.note||uiCopy('บันทึกฉากแล้ว','Scene saved')); _companionViewCache=null; renderCompanion();
   }catch(e){ toast(e.message||uiCopy('เปิดฉากส่วนตัวไม่สำเร็จ','Could not open private scene'),true); }
 }
 async function companionConsent(){
-  try{ const v=await companionViewLoad(true),pc=companionOwnedPc(v); if(!pc) return toast(uiCopy('ต้องมีตัวละครของคุณก่อน','You need a character first'),true);
-    const adult=confirm(uiCopy('กด OK เพื่อยืนยันว่าผู้เล่นตัวจริงมีอายุ 18 ปีขึ้นไป\nกด Cancel เพื่อไม่ยืนยันและปิดสิทธิ์ Romance ของบัญชี','Press OK to confirm that the real player is at least 18 years old.\nPress Cancel to decline confirmation and disable Romance access for this account.'));
-    const romance=adult&&confirm(uiCopy('เปิดเส้นทาง Romance ให้ ','Enable the Romance path for ')+pc.name+uiCopy(' หรือไม่?\nการเปิดสิทธิ์ไม่บังคับให้คอมพาเนียนตอบรับ','?\nEnabling access does not require the companion to accept.'));
+  const sourceButton=companionActiveButton();
+  try{ const v=await companionViewLoad(true),pc=await companionOwnedPc(v,'companion-consent-owner'); if(!pc) return toast(uiCopy('ต้องมีตัวละครของคุณก่อน','You need a character first'),true);
+    const adult=await uiConfirmText(uiCopy('กด ยืนยัน เพื่อยืนยันว่าผู้เล่นตัวจริงมีอายุ 18 ปีขึ้นไป\nกด ยกเลิก เพื่อไม่ยืนยันและปิดสิทธิ์ Romance ของบัญชี','Select Confirm to verify that the real player is at least 18 years old.\nSelect Cancel to decline confirmation and disable Romance access for this account.'),'companion-consent-adult');
+    const romance=adult&&await uiConfirmText(uiCopy('เปิดเส้นทาง Romance ให้ ','Enable the Romance path for ')+pc.name+uiCopy(' หรือไม่?\nการเปิดสิทธิ์ไม่บังคับให้คอมพาเนียนตอบรับ','?\nEnabling access does not require the companion to accept.'),'companion-consent-romance');
     // v720: ไม่ใส่ปี — วัน/เดือน ตามปฏิทินโลก 12×30 (server อนุมานปีจากอายุตัวละคร)
     let birth=null;
     if(!pc.birthday_known){
-      const rawB=String(prompt(uiCopy('วันเกิดของ '+pc.name+' ในปฏิทินโลก (จำเป็นเมื่อเปิด Romance)\nรูปแบบ วันที่/เดือน เช่น 15/3 — เดือนละ 30 วัน · ปีละ 12 เดือน · ไม่ใส่ปี','Birthday of '+pc.name+' in the world calendar (required for Romance)\nFormat day/month, e.g. 15/3 — 30-day months · 12 months per year · no year'),'')||'').trim();
+      const rawB=String(await uiPromptText(uiCopy('วันเกิดของ '+pc.name+' ในปฏิทินโลก (จำเป็นเมื่อเปิด Romance)\nรูปแบบ วันที่/เดือน เช่น 15/3 — เดือนละ 30 วัน · ปีละ 12 เดือน · ไม่ใส่ปี','Birthday of '+pc.name+' in the world calendar (required for Romance)\nFormat day/month, e.g. 15/3 — 30-day months · 12 months per year · no year'),'','companion-consent-birthday')||'').trim();
       const mB=rawB.match(/^(\d{1,2})\s*[\/\-]\s*(\d{1,2})$/);
       if(mB) birth={month:+mB[2],day:+mB[1]};
       else if(rawB) toast(uiCopy('รูปแบบวันเกิดไม่ถูกต้อง — ใช้ วันที่/เดือน เช่น 15/3','Invalid birthday format — use day/month, e.g. 15/3'),true);
     }
     const needsAgePolicy=romance&&(pc.age_years==null||Number(pc.age_years)<18);
-    const underageOk=needsAgePolicy&&confirm(uiCopy('หาก ','If ')+pc.name+uiCopy(' มีอายุตัวละคร 13-17 ปี\nยืนยันเปิดเฉพาะเส้นทางความสัมพันธ์แบบ PG-13 ที่ไม่มีเนื้อหาสำหรับผู้ใหญ่หรือไม่?\n(อายุต่ำกว่า 13 จะถูกบล็อกเสมอ; อายุ 18+ ระบบจะไม่ใช้คำยินยอมข้อนี้)',' is a character aged 13–17, confirm enabling only a PG-13 relationship path with no adult content.\n(Characters under 13 are always blocked; this consent does not apply to characters aged 18+.)'));
+    const underageOk=needsAgePolicy&&await uiConfirmText(uiCopy('หาก ','If ')+pc.name+uiCopy(' มีอายุตัวละคร 13-17 ปี\nยืนยันเปิดเฉพาะเส้นทางความสัมพันธ์แบบ PG-13 ที่ไม่มีเนื้อหาสำหรับผู้ใหญ่หรือไม่?\n(อายุต่ำกว่า 13 จะถูกบล็อกเสมอ; อายุ 18+ ระบบจะไม่ใช้คำยินยอมข้อนี้)',' is a character aged 13–17, confirm enabling only a PG-13 relationship path with no adult content.\n(Characters under 13 are always blocked; this consent does not apply to characters aged 18+.)'),'companion-consent-pg13');
     const body={character_id:pc.character_id,adult_confirmed:adult,romance_enabled:romance,underage_romance_confirmed:!!underageOk}; if(birth) body.birth_date=birth;
-    const j=await companionResolve({romance_confirm:body}); toast(j.note||uiCopy('บันทึกแล้ว','Saved')); _companionViewCache=null; renderCompanion();
+    const j=await companionActionResolve('consent:'+pc.character_id,{romance_confirm:body},{button:sourceButton}); toast(j.note||uiCopy('บันทึกแล้ว','Saved')); _companionViewCache=null; renderCompanion();
   }catch(e){ toast(e.message||uiCopy('บันทึกคำยินยอมไม่สำเร็จ','Could not save consent'),true); }
 }
 async function companionGive(companionId){
-  try{ const v=await companionViewLoad(false),pc=companionOwnedPc(v); if(!pc) return toast(uiCopy('ต้องมีตัวละครของคุณก่อน','You need a character first'),true); const kind=String(prompt('พิมพ์ item เพื่อมอบของ หรือ money เพื่อมอบเงิน','item')||'').trim().toLowerCase(); if(!kind) return;
-    let body;if(kind==='money'){ const gp=Math.floor(Number(prompt('จำนวน GP','1'))||0); if(gp<1) return toast(uiCopy('จำนวนเงินไม่ถูกต้อง','Invalid amount'),true); body={transfer_currency:{from_character_id:pc.character_id,to_character_id:companionId,gp,transfer_key:crypto.randomUUID()}}; }
-    else { const item=String(prompt('ชื่อของตามที่อยู่ในกระเป๋า','')||'').trim(); const qty=Math.floor(Number(prompt('จำนวน','1'))||0); if(!item||qty<1) return toast(uiCopy('ชื่อหรือจำนวนไม่ถูกต้อง','Invalid item name or quantity'),true); body={transfer_item:{from_character_id:pc.character_id,to_character_id:companionId,item,qty,transfer_key:crypto.randomUUID()}}; }
-    const j=await companionResolve(body); toast(j.note||uiCopy('มอบเรียบร้อย','Transfer complete')); _companionViewCache=null; await refreshAll(); renderCompanion();
+  const sourceButton=companionActiveButton();
+  try{ const v=await companionViewLoad(false),pc=await companionOwnedPc(v,'companion-give-owner'); if(!pc) return toast(uiCopy('ต้องมีตัวละครของคุณก่อน','You need a character first'),true); const kind=await uiSelectInPage({title:uiCopy('มอบของหรือเงิน','Give an item or money'),message:uiCopy('เลือกสิ่งที่จะมอบ','Choose what to give'),surfaceId:'companion-give-kind',options:[{value:'item',label:uiCopy('สิ่งของ','Item')},{value:'money',label:uiCopy('เหรียญทอง','GP')}],acceptText:uiCopy('เลือก','Select')}); if(!kind) return;
+    let body;if(kind==='money'){ const gp=Math.floor(Number(await uiPromptText(uiCopy('จำนวนเหรียญทอง','GP amount'),'1','companion-give-money',{inputType:'number'}))||0); if(gp<1) return toast(uiCopy('จำนวนเงินไม่ถูกต้อง','Invalid amount'),true); body={transfer_currency:{from_character_id:pc.character_id,to_character_id:companionId,gp,transfer_key:crypto.randomUUID()}}; }
+    else { const item=String(await uiPromptText(uiCopy('ชื่อของตามที่อยู่ในกระเป๋า','Item name exactly as shown in the inventory'),'','companion-give-item')||'').trim(); const qty=Math.floor(Number(await uiPromptText(uiCopy('จำนวน','Quantity'),'1','companion-give-quantity',{inputType:'number'}))||0); if(!item||qty<1) return toast(uiCopy('ชื่อหรือจำนวนไม่ถูกต้อง','Invalid item name or quantity'),true); body={transfer_item:{from_character_id:pc.character_id,to_character_id:companionId,item,qty,transfer_key:crypto.randomUUID()}}; }
+    const j=await companionActionResolve('give:'+companionId,body,{button:sourceButton}); toast(j.note||uiCopy('มอบเรียบร้อย','Transfer complete')); _companionViewCache=null; await uiBoundedTask(()=>refreshAll(),{timeoutMs:COMPANION_UI_REFRESH_MS,timeoutMessage:uiCopy('มอบเรียบร้อยแล้ว แต่หน้าเกมยังรีเฟรชไม่ทัน','Transfer completed, but the page did not refresh in time.')}); renderCompanion();
   }catch(e){ toast(e.message||uiCopy('มอบไม่สำเร็จ','Transfer failed'),true); }
 }
 async function companionRequest(companionId){
-  try{ const v=await companionViewLoad(false),pc=companionOwnedPc(v); if(!pc) return toast(uiCopy('ต้องมีตัวละครของคุณก่อน','You need a character first'),true); const item=String(prompt('อยากขอของชิ้นใด','')||'').trim(); if(!item) return; const qty=Math.max(1,Math.floor(Number(prompt('จำนวน','1'))||1)); const j=await companionResolve({companion_request_give:{companion_id:companionId,to_character_id:pc.character_id,item,qty,transfer_key:crypto.randomUUID()}}); toast(j.note||uiCopy('ส่งคำขอแล้ว','Request sent'));
+  const sourceButton=companionActiveButton();
+  try{ const v=await companionViewLoad(false),pc=await companionOwnedPc(v,'companion-request-owner'); if(!pc) return toast(uiCopy('ต้องมีตัวละครของคุณก่อน','You need a character first'),true); const item=String(await uiPromptText(uiCopy('อยากขอของชิ้นใด','Which item would you like to request?'),'','companion-request-item')||'').trim(); if(!item) return; const qty=Math.max(1,Math.floor(Number(await uiPromptText(uiCopy('จำนวน','Quantity'),'1','companion-request-quantity',{inputType:'number'}))||1)); const j=await companionActionResolve('request:'+companionId,{companion_request_give:{companion_id:companionId,to_character_id:pc.character_id,item,qty,transfer_key:crypto.randomUUID()}},{button:sourceButton}); toast(j.note||uiCopy('ส่งคำขอแล้ว','Request sent'));
   }catch(e){ toast(e.message||uiCopy('ส่งคำขอไม่สำเร็จ','Request failed'),true); }
 }
 async function companionRoster(characterId,status){
-  try{ let desired=status==='active'?'reserve':'active',slot=null;if(desired==='active'){ const v=await companionViewLoad(true),capUi=companionRosterCapUiState(v,(v.companions||[]).filter(c=>c&&c.status==='active').length,campaign.host_id===me.id);if(capUi.overCap)return toast(uiCopy('โปรดย้ายเพื่อนร่วมทางหนึ่งคนไปกองสำรองก่อน','Move one Companion to reserve before changing an active position.'),true);if(capUi.cap<1)return toast(uiCopy('ตอนนี้ยังไม่มีตำแหน่งว่างสำหรับเพื่อนร่วมทาง','No traveling position is available for a Companion right now.'),true);slot=Math.floor(Number(prompt(uiCopy(`ตำแหน่งร่วมเดินทาง (1-${capUi.cap})`,`Traveling position (1-${capUi.cap})`),'1'))||0);if(slot<1||slot>capUi.cap)return toast(uiCopy(`ตำแหน่งต้องอยู่ระหว่าง 1-${capUi.cap}`,`Position must be between 1 and ${capUi.cap}`),true); } const j=await companionResolve({roster_swap:{character_id:characterId,desired_status:desired,active_slot:slot,swap_key:crypto.randomUUID()}}); toast(j.note||uiCopy('สลับรายชื่อแล้ว','Roster updated')); _companionViewCache=null; await refreshAll(); renderCompanion();
+  const sourceButton=companionActiveButton();
+  try{ let desired=status==='active'?'reserve':'active',slot=null;if(desired==='active'){ const v=await companionViewLoad(true),capUi=companionRosterCapUiState(v,(v.companions||[]).filter(c=>c&&c.status==='active').length,campaign.host_id===me.id);if(capUi.overCap)return toast(uiCopy('โปรดย้ายเพื่อนร่วมทางหนึ่งคนไปกองสำรองก่อน','Move one Companion to reserve before changing an active position.'),true);if(capUi.cap<1)return toast(uiCopy('ตอนนี้ยังไม่มีตำแหน่งว่างสำหรับเพื่อนร่วมทาง','No traveling position is available for a Companion right now.'),true);slot=Math.floor(Number(await uiPromptText(uiCopy(`ตำแหน่งร่วมเดินทาง (1-${capUi.cap})`,`Traveling position (1-${capUi.cap})`),'1','companion-roster-slot',{inputType:'number'}))||0);if(slot<1||slot>capUi.cap)return toast(uiCopy(`ตำแหน่งต้องอยู่ระหว่าง 1-${capUi.cap}`,`Position must be between 1 and ${capUi.cap}`),true); } const j=await companionActionResolve('roster:'+characterId,{roster_swap:{character_id:characterId,desired_status:desired,active_slot:slot,swap_key:crypto.randomUUID()}},{button:sourceButton}); toast(j.note||uiCopy('สลับรายชื่อแล้ว','Roster updated')); _companionViewCache=null; await uiBoundedTask(()=>refreshAll(),{timeoutMs:COMPANION_UI_REFRESH_MS,timeoutMessage:uiCopy('สลับรายชื่อแล้ว แต่หน้าเกมยังรีเฟรชไม่ทัน','Roster updated, but the page did not refresh in time.')}); renderCompanion();
   }catch(e){ toast(e.message||uiCopy('สลับรายชื่อไม่สำเร็จ','Could not update roster'),true); }
 }
 // ───────── OOC chat (คุยวางแผนนอกเรื่อง) ─────────
@@ -6286,8 +6388,8 @@ async function loadChat(){
   // ล้างแชทแบบ local (เครื่องนี้): ซ่อนข้อความก่อนจุดที่กดล้าง — ข้อมูลจริงยังอยู่ใน DB ครบ (เพื่อน/บอทยังเห็น)
   try{ const ct=+(localStorage.getItem('ttrpg_chatclear_'+campaign.id)||0); if(ct) chatMsgs=chatMsgs.filter(m=>new Date(m.created_at).getTime()>ct); }catch(e){}
 }
-function clearChatLocal(){
-  if(!confirm(uiCopy('ล้างแชทบนเครื่องนี้? (ประวัติยังอยู่ในระบบ เพื่อน/บอทยังเห็นตามปกติ)','Clear chat on this device? (The history remains in the system, and friends/bots can still see it normally.)'))) return;
+async function clearChatLocal(){
+  if(!await uiConfirmText(uiCopy('ล้างแชทบนเครื่องนี้? (ประวัติยังอยู่ในระบบ เพื่อน/บอทยังเห็นตามปกติ)','Clear chat on this device? (The history remains in the system, and friends/bots can still see it normally.)'),'chat-clear-local')) return;
   try{ localStorage.setItem('ttrpg_chatclear_'+campaign.id, String(Date.now())); }catch(e){}
   loadChat().then(()=>{ try{ renderChatList(); }catch(e){} try{ if(typeof renderBattleChat==='function') renderBattleChat(); }catch(e){} });
   toast(uiCopy('ล้างแชทแล้ว (เครื่องนี้) ✓','Chat cleared on this device ✓'));
@@ -6506,7 +6608,7 @@ function makeSkipBtn(){
   };
   label();
   const iv=setInterval(()=>{ if(!document.body.contains(sk)){ clearInterval(iv); return; } label(); },1000);
-  sk.onclick=()=>{ if(confirm(uiCopy('ข้ามเทิร์นของ ','Skip the turn for ')+(gCombat.activeName||uiCopy('ผู้เล่นนี้','this player'))+uiCopy('?\n(เทิร์นนี้จะถือว่าตั้งรับ/Dodge — ใช้เมื่อผู้เล่น/บอทไม่ตอบสนองเท่านั้น)','?\n(This turn will count as defending/Dodge — use only when the player or bot is unresponsive.)'))) resolveRound(true); };
+  sk.onclick=async()=>{ if(await uiConfirmText(uiCopy('ข้ามเทิร์นของ ','Skip the turn for ')+(gCombat.activeName||uiCopy('ผู้เล่นนี้','this player'))+uiCopy('?\n(เทิร์นนี้จะถือว่าตั้งรับ/Dodge — ใช้เมื่อผู้เล่น/บอทไม่ตอบสนองเท่านั้น)','?\n(This turn will count as defending/Dodge — use only when the player or bot is unresponsive.)'),'combat-skip-turn')) resolveRound(true); };
   return sk;
 }
 // DM Options v704: flat envelope renderer + suggestion-only draft. Canonical block is mirrored in beta.html.
@@ -6692,7 +6794,7 @@ function persOptsWidget(){
 async function forceLevelup(){   // v538 H5: host บังคับปิด level_up gate (คนออฟไลน์ค้าง)
   if(gateBeforePlay()) return;
   if(!campaign||!me||campaign.host_id!==me.id) return;
-  if(!confirm(uiCopy('ข้ามการรอผู้เล่นที่ยังไม่เลือกสกิลเลเวลอัพ แล้วเล่นต่อ?\n(XP/เลเวลของคนที่ยังไม่กดจะไม่หาย — ระบบเลื่อนให้รอบหน้า)','Stop waiting for players who have not chosen their level-up ability and continue?\n(Their XP/level will not be lost — the system will defer it to the next round.)'))) return;
+  if(!await uiConfirmText(uiCopy('ข้ามการรอผู้เล่นที่ยังไม่เลือกสกิลเลเวลอัพ แล้วเล่นต่อ?\n(XP/เลเวลของคนที่ยังไม่กดจะไม่หาย — ระบบเลื่อนให้รอบหน้า)','Stop waiting for players who have not chosen their level-up ability and continue?\n(Their XP/level will not be lost — the system will defer it to the next round.)'),'levelup-force-skip')) return;
   try{
     var sess=(await supa.auth.getSession()).data.session; var tok=sess&&sess.access_token;
     var r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id, force_levelup:true})});
@@ -6783,7 +6885,22 @@ async function respondNpcCombatAidOffer(offerKey,decision){
   }
   if(window._npcAidOfferSubmitting) return; window._npcAidOfferSubmitting=true;
   try{
-    const payload={schema:'npc_offer_response_v1',campaign_id:campaign.id,offer_key:offerKey,recipient_character_id:myChar.id,decision:decision,response_key:offerKey+':'+decision,current_round_id:curRound.id,source_action_id:null};
+    // OFFER-CLICK-TIME-01 (migration 0249): this screen never sends a click time.
+    // The binding instant is stamped by the server inside respond_npc_offer_consent_v1
+    // with now() under SECURITY DEFINER, and the payload key allow-list rejects any
+    // extra key, so no client clock can reach the ordering decision. What the screen
+    // does owe the server is an honest position in the round ledger: curRound can lag
+    // behind the live round while the offer card sits on screen, and a stale round id
+    // would ask the server to judge the deadline against a window the game already
+    // left. Re-read the newest round of this group at click time; fall back to the
+    // cached round only if that read fails. source_action_id stays null on purpose —
+    // it is the discriminator the resolver's direct-answer lane keys on.
+    let liveRoundId=curRound.id;
+    try{
+      const lr=await supa.from('rounds').select('id').eq('campaign_id',campaign.id).eq('group_no',curRound.group_no).order('round_number',{ascending:false}).limit(1).maybeSingle();
+      if(lr&&lr.data&&lr.data.id) liveRoundId=lr.data.id;
+    }catch(e){ try{ console.warn('[npcAidOffer] live round read failed, using cached round',e); }catch(e2){} }
+    const payload={schema:'npc_offer_response_v1',campaign_id:campaign.id,offer_key:offerKey,recipient_character_id:myChar.id,decision:decision,response_key:offerKey+':'+decision,current_round_id:liveRoundId,source_action_id:null};
     const {data,error}=await supa.rpc('respond_npc_offer_consent_v1',{p_response:payload});
     if(error) throw error;
     const status=String(data&&data.status||'');
@@ -7593,8 +7710,8 @@ function insertRollMulti(text,who){
   ta.value=(ta.value?ta.value.trim()+'\n':'')+`[ทอย (${who}): ${text}]`;
   toast(uiCopy('🎲 ทอยแล้ว','🎲 Rolled'));
 }
-function rollSelf(){
-  const v=prompt('ใส่เลขที่ทอยได้จาก d20 (1-20):'); if(v===null) return;
+async function rollSelf(){
+  const v=await uiPromptText(uiCopy('ใส่เลขที่ทอยได้จากลูกเต๋ายี่สิบหน้า (1-20):','Enter the d20 result (1-20):'),'','roll-self',{inputType:'number'}); if(v===null) return;
   const n=parseInt(v); if(isNaN(n)||n<1||n>20){ toast(uiCopy('ใส่เลข 1-20','Enter a number from 1 to 20'),true); return; }
   insertRoll(n,'ทอยเอง');
 }
@@ -9356,7 +9473,7 @@ function renderSubclassCard(p){
     desc.textContent=opt.desc;
     if(!val) return;   // "ยังไม่เลือก" = ไม่บันทึก
     const _nm=opt.label.split('(')[0].trim();
-    if(!confirm(uiCopy('เลือก "','Choose "')+_nm+uiCopy('" เป็นสายอาชีพย่อย?\n\nตามกฎ D&D เลือกได้ครั้งเดียว เปลี่ยนภายหลังไม่ได้','" as your subclass?\n\nUnder D&D rules, this is a one-time choice and cannot be changed later.'))){ sel.value=''; desc.textContent=opts[0].desc; return; }
+    if(!await uiConfirmText(uiCopy('เลือก "','Choose "')+_nm+uiCopy('" เป็นสายอาชีพย่อย?\n\nตามกฎ D&D เลือกได้ครั้งเดียว เปลี่ยนภายหลังไม่ได้','" as your subclass?\n\nUnder D&D rules, this is a one-time choice and cannot be changed later.'),'subclass-lock')){ sel.value=''; desc.textContent=opts[0].desc; return; }
     try{
       const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle(); if(r.error) throw r.error;
       const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at;
@@ -9444,8 +9561,8 @@ async function renderSkills(){
 async function useAbility(name, desc){
   const isHeal=/healing hands|มือ.*รักษา|สัมผัส.*รักษา/i.test(name||'');
   let target='';
-  if(isHeal){ const t=prompt('Healing Hands — รักษาใคร? (พิมพ์ชื่อตัวละคร · เว้นว่าง = ตัวเอง)',''); if(t===null) return; target=String(t).trim(); }
-  else { if(!confirm(uiCopy('พ่นลมหายใจใส่ศัตรูในศึก? (ทอยดาเมจและให้ศัตรูเซฟเพื่อลดครึ่ง)','Use Breath Weapon against enemies in combat? (Roll damage; enemies save for half)'))) return; }
+  if(isHeal){ const t=await uiPromptText(uiCopy('มือแห่งการรักษา — รักษาใคร? (พิมพ์ชื่อตัวละคร · เว้นว่าง = ตัวเอง)','Healing Hands — whom do you heal? (Enter a character name; blank means yourself)'),'','ability-healing-hands-target'); if(t===null) return; target=String(t).trim(); }
+  else { if(!await uiConfirmText(uiCopy('พ่นลมหายใจใส่ศัตรูในศึก? (ทอยดาเมจและให้ศัตรูเซฟเพื่อลดครึ่ง)','Use Breath Weapon against enemies in combat? (Roll damage; enemies save for half)'),'ability-breath-weapon')) return; }
   tick();
   try{
     const tok=(await supa.auth.getSession()).data.session?.access_token;
@@ -9666,7 +9783,7 @@ async function renderNPCs(){
   drawCities(); drawList();
 }
 async function deleteNPC(id){
-  if(!confirm(uiCopy('ลบ NPC นี้?','Delete this NPC?'))) return;
+  if(!await uiConfirmText(uiCopy('ลบ NPC นี้?','Delete this NPC?'),'npc-delete')) return;
   const { error }=await supa.from('npcs').delete().eq('id',id);
   if(error){ toast(error.message||uiCopy('ลบไม่สำเร็จ (เฉพาะเจ้าของโลก)','Delete failed (host only)'),true); return; }
   toast(uiCopy('ลบแล้ว ✓','Deleted ✓')); renderNPCs();
@@ -9780,11 +9897,11 @@ function bsToggleCharSheet(){
   try{ Promise.resolve(typeof renderMe==='function'?renderMe():null).then(fill,fill); }catch(e){ fill(); }
 }
 // ── v44: Force Resolve ใน combat ต้อง confirm — บอกชัดว่ากำลังข้ามเทิร์นใคร (เทิร์นที่ถูกข้าม = auto-Dodge) ──
-function forceResolveConfirm(){
+async function forceResolveConfirm(){
   try{
     const inB=document.body.classList.contains('in-battle')||!!window._combatActive;
     const an=(typeof gCombat!=='undefined'&&gCombat&&gCombat.active)?gCombat.activeName:null;
-    if(inB&&an&&!confirm(uiCopy('ตอนนี้รอเทิร์นของ "'+an+'" อยู่\nหากดำเนินเรื่องต่อ '+an+' จะตั้งรับ (Dodge) ในรอบนี้\n(บอทอาจกำลังคิด — รอสักครู่ก่อนได้)\n\nยืนยันหรือไม่?','The party is waiting for "'+an+'".\nContinuing now makes '+an+' take the Dodge action this round.\n(The bot may still be thinking; you can wait a moment.)\n\nContinue?'))) return;
+    if(inB&&an&&!await uiConfirmText(uiCopy('ตอนนี้รอเทิร์นของ "'+an+'" อยู่\nหากดำเนินเรื่องต่อ '+an+' จะตั้งรับ (Dodge) ในรอบนี้\n(บอทอาจกำลังคิด — รอสักครู่ก่อนได้)\n\nยืนยันหรือไม่?','The party is waiting for "'+an+'".\nContinuing now makes '+an+' take the Dodge action this round.\n(The bot may still be thinking; you can wait a moment.)\n\nContinue?'),'combat-force-resolve')) return;
   }catch(e){}
   resolveRound(true);
 }
@@ -9862,7 +9979,7 @@ function appendGeminiKeyTierControls(tools, styleCtl, DMF){
   };
   const clearCooldowns=async(slot)=>{
     const scope=slot?uiCopy('ช่อง ','slot ')+slot:uiCopy('ทุกช่องที่ตั้งไว้','all configured slots');
-    if(!confirm(uiCopy('ยืนยันปลด cooldown daily/billing ของ ','Clear daily/billing cooldowns for ')+scope+'?\n'+uiCopy('cooldown แบบ minute จะถูกเก็บไว้และยังต้องรอ','Minute cooldowns will be preserved and must still expire normally.'))) return;
+    if(!await uiConfirmText(uiCopy('ยืนยันปลด cooldown daily/billing ของ ','Clear daily/billing cooldowns for ')+scope+'?\n'+uiCopy('cooldown แบบ minute จะถูกเก็บไว้และยังต้องรอ','Minute cooldowns will be preserved and must still expire normally.'),'dm-key-clear-cooldown')) return;
     const data=await post({clear_key_cooldowns:slot?{slot:slot}:true});
     if(data&&data.ok){ toast(uiCopy('ปลด daily/billing แล้ว ✓ · minute ยังอยู่','Daily/billing cooldowns cleared ✓ · minute preserved')); await load(); }
     else toast(errorText(data,uiCopy('ปลด cooldown ไม่สำเร็จ','Failed to clear cooldowns.')),true);
@@ -9871,7 +9988,7 @@ function appendGeminiKeyTierControls(tools, styleCtl, DMF){
     entry.save.onclick=async()=>{
       if(!entry.configured) return;
       const tier=safeTier(entry.select.value);
-      if(tier==='paid'&&!confirm(uiCopy('ประกาศช่องนี้เป็น paid? ระบบจะใช้หลังคีย์ free หมดสิทธิ์ และอาจมีค่าใช้จ่าย','Declare this slot as paid? It is used only after free keys are exhausted and may incur charges.'))) return;
+      if(tier==='paid'&&!await uiConfirmText(uiCopy('ประกาศช่องนี้เป็น paid? ระบบจะใช้หลังคีย์ free หมดสิทธิ์ และอาจมีค่าใช้จ่าย','Declare this slot as paid? It is used only after free keys are exhausted and may incur charges.'),'dm-key-paid-tier')) return;
       entry.save.disabled=true;
       const data=await post({set_gemini_key_tier:{slot:entry.slot,tier:tier}});
       if(data&&data.ok){ toast(uiCopy('บันทึก tier ช่อง ','Saved tier for slot ')+entry.slot+' ✓'); await load(); }
@@ -9890,7 +10007,7 @@ function buildEndCombatControl(styleCtl){
   const note=document.createElement('div'); note.className='note'; note.style.cssText='width:100%;text-align:left;line-height:1.5'; note.textContent=uiCopy('ทางออกฉุกเฉินของเจ้าของโลก — ศัตรูที่เหลือถอนจากฉาก ศึกจบโดยไม่นับเป็นชัยชนะ และไม่ได้ XP/loot จากชัยชนะ','Host emergency exit — remaining enemies retreat; combat ends without a victory and grants no victory XP or loot.');
   const endB=styleCtl(document.createElement('button')); endB.type='button'; endB.className='btn warn sm'; endB.textContent=uiCopy('ยุติศึกแบบถอนตัว','End Combat as Retreat');
   endB.onclick=async()=>{
-    if(!confirm(uiCopy('ยุติศึกแบบถอนตัวตอนนี้?\n• ศัตรูที่เหลือถอนจากฉาก\n• ไม่นับเป็นชัยชนะ\n• ไม่ได้ XP หรือ loot จากชัยชนะ\n\nยืนยันยุติศึก?','End combat as a retreat now?\n• Remaining enemies leave the scene\n• This does not count as a victory\n• No victory XP or loot is awarded\n\nConfirm ending combat?'))) return;
+    if(!await uiConfirmText(uiCopy('ยุติศึกแบบถอนตัวตอนนี้?\n• ศัตรูที่เหลือถอนจากฉาก\n• ไม่นับเป็นชัยชนะ\n• ไม่ได้ XP หรือ loot จากชัยชนะ\n\nยืนยันยุติศึก?','End combat as a retreat now?\n• Remaining enemies leave the scene\n• This does not count as a victory\n• No victory XP or loot is awarded\n\nConfirm ending combat?'),'dm-end-combat-retreat')) return;
     endB.disabled=true;
     try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
       const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,end_combat:true})});
@@ -9923,7 +10040,7 @@ function buildDmToolsCard(withFrame){
   const setBtn=styleCtl(document.createElement('button')); setBtn.className='btn sm'; setBtn.textContent=uiCopy('ตั้ง HP','Set HP');
   setBtn.onclick=async()=>{
     const hp=parseInt(hpIn.value,10); if(!Number.isFinite(hp)){ toast(uiCopy('ใส่ตัวเลข HP','Enter an HP value'),true); return; }
-    if(!confirm(uiCopy('ตั้ง HP ของ ','Set HP for ')+sel.value+uiCopy(' เป็น ',' to ')+hp+'?')) return;
+    if(!await uiConfirmText(uiCopy('ตั้ง HP ของ ','Set HP for ')+sel.value+uiCopy(' เป็น ',' to ')+hp+'?','dm-set-pc-hp')) return;
     setBtn.disabled=true;
     try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
       const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,set_hp:{name:sel.value,hp}})});
@@ -9935,7 +10052,7 @@ function buildDmToolsCard(withFrame){
   const r2=document.createElement('div'); r2.style.cssText='display:flex;gap:6px;flex-wrap:wrap';
   const clB=styleCtl(document.createElement('button')); clB.className='btn warn sm'; clB.textContent=uiCopy('ล้างแชททั้งห้อง (ลบจริง)','Clear Room Chat (permanent)');
   clB.onclick=async()=>{
-    if(!confirm(uiCopy('ลบแชททั้งหมดของห้องนี้ถาวร?\nทุกเครื่องเห็นผล และกู้คืนไม่ได้','Permanently delete all chat in this room?\nEvery device will see the change, and it cannot be undone.'))) return;
+    if(!await uiConfirmText(uiCopy('ลบแชททั้งหมดของห้องนี้ถาวร?\nทุกเครื่องเห็นผล และกู้คืนไม่ได้','Permanently delete all chat in this room?\nEvery device will see the change, and it cannot be undone.'),'dm-clear-room-chat')) return;
     try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
       const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,clear_chat:true})});
       const j=await r.json(); if(j.error) toast(j.error,true); else { toast(uiCopy('ลบแล้ว ','Deleted ')+j.deleted+uiCopy(' ข้อความ ✓',' messages ✓')); chatMsgs=[]; renderChatList(); try{ if(typeof renderBattleChat==='function') renderBattleChat(); }catch(e){} }
@@ -10001,7 +10118,7 @@ function buildDmToolsCard(withFrame){
     if(!mSel.value){ toast(uiCopy('เลือกมอนในศึกก่อน','Choose a monster first'),true); return; }
     const hp=parseInt(mHpIn.value,10); if(!Number.isFinite(hp)){ toast(uiCopy('ใส่ตัวเลข HP','Enter an HP value'),true); return; }
     const lbl=(mSel.options[mSel.selectedIndex]&&mSel.options[mSel.selectedIndex].textContent)||uiCopy('มอน','monster');
-    if(!confirm(uiCopy('ตั้ง HP ของ ','Set HP for ')+lbl+uiCopy(' เป็น ',' to ')+hp+'?'+(hp<=0?uiCopy('\n(มอนจะออกจากการต่อสู้)','\n(The monster will leave combat)'):''))) return;
+    if(!await uiConfirmText(uiCopy('ตั้ง HP ของ ','Set HP for ')+lbl+uiCopy(' เป็น ',' to ')+hp+'?'+(hp<=0?uiCopy('\n(มอนจะออกจากการต่อสู้)','\n(The monster will leave combat)'):''),'dm-set-monster-hp')) return;
     mBtn.disabled=true;
     try{ const tok=(await supa.auth.getSession()).data.session?.access_token;
       const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id,set_mon_hp:{cs_id:mSel.value,hp}})});
@@ -11819,7 +11936,7 @@ async function uploadMusic(fi,sel,btn){
   }catch(e){ toast(e.message||uiCopy('อัปเพลงล้มเหลว','Track upload failed'),true); btn.disabled=false; }
 }
 async function deleteMusic(id,path){
-  if(!confirm(uiCopy('ลบเพลงนี้?','Delete this track?'))) return;
+  if(!await uiConfirmText(uiCopy('ลบเพลงนี้?','Delete this track?'),'music-delete')) return;
   if(path){ try{ await supa.storage.from('audio').remove([path]); }catch(e){} }
   const {error}=await supa.from('music_tracks').delete().eq('id',id); if(error){ toast(error.message,true); return; }
   toast(uiCopy('ลบแล้ว','Deleted')); await loadMusicLibrary(); renderFiles();
@@ -11871,7 +11988,7 @@ async function uploadPerformTrack(fi,btn){
   }catch(e){ toast(e.message||uiCopy('อัปเพลงล้มเหลว','Track upload failed'),true); btn.disabled=false; }
 }
 async function deletePerformTrack(id,path){
-  if(!confirm(uiCopy('ลบเพลงการแสดงนี้?','Delete this performance track?'))) return;
+  if(!await uiConfirmText(uiCopy('ลบเพลงการแสดงนี้?','Delete this performance track?'),'performance-track-delete')) return;
   if(path){ try{ await supa.storage.from('audio').remove([path]); }catch(e){} }
   try{ const {error}=await supa.from('music_tracks').delete().eq('id',id); if(error) throw error; }catch(e){ toast(uiCopy('ลบไม่สำเร็จ','Delete failed'),true); return; }
   toast(uiCopy('ลบแล้ว','Deleted')); renderSkills();
@@ -11929,7 +12046,7 @@ async function addDungeon(nm,th,fi,btn){
   }catch(e){ toast(e.message||uiCopy('เพิ่มไม่สำเร็จ','Add failed'),true); btn.disabled=false; btn.textContent=orig; }
 }
 async function deleteDungeon(id,mapPath){
-  if(!confirm(uiCopy('ลบดันเจียนนี้?','Delete this dungeon?'))) return;
+  if(!await uiConfirmText(uiCopy('ลบดันเจียนนี้?','Delete this dungeon?'),'dungeon-delete')) return;
   if(mapPath){ try{ await supa.storage.from('maps').remove([mapPath]); }catch(e){} }
   const {error}=await supa.from('dungeons').delete().eq('id',id); if(error){ toast(error.message,true); return; }
   // bugfix: ถ้าแผนที่ที่ลบถูกตั้งเป็นฉากปัจจุบัน → เคลียร์ current_map (กันแท็บ Map ชี้ไฟล์ที่หายไปแล้ว)
@@ -12008,7 +12125,7 @@ async function addPuzzleFile(fnm,fi,btn){
   }catch(e){ toast(e.message||uiCopy('อัปไฟล์ล้มเหลว','File upload failed'),true); btn.disabled=false; btn.textContent=orig; }
 }
 async function deletePuzzle(id){
-  if(!confirm(uiCopy('ลบปริศนานี้?','Delete this puzzle?'))) return;
+  if(!await uiConfirmText(uiCopy('ลบปริศนานี้?','Delete this puzzle?'),'puzzle-delete')) return;
   const {error}=await supa.from('puzzles').delete().eq('id',id); if(error){ toast(error.message,true); return; }
   toast(uiCopy('ลบแล้ว','Deleted')); renderFiles();
 }
@@ -12032,7 +12149,7 @@ async function uploadRefFile(fi,sel,btn){
   }catch(e){ setS(uiCopy('ผิดพลาด: ','Error: ')+(e.message||e)); toast(uiCopy('อัปโหลดล้มเหลว','Upload failed'),true); btn.disabled=false; }
 }
 async function deleteRefFile(id,name){
-  if(!confirm(uiCopy('ลบไฟล์ "','Delete file "')+name+uiCopy('" และ index ทั้งหมด?','" and its full index?'))) return;
+  if(!await uiConfirmText(uiCopy('ลบไฟล์ "','Delete file "')+name+uiCopy('" และ index ทั้งหมด?','" and its full index?'),'reference-delete')) return;
   const { error }=await supa.from('references_files').delete().eq('id',id);
   if(error){ toast(error.message||uiCopy('ลบไม่สำเร็จ','Delete failed'),true); return; }
   toast(uiCopy('ลบแล้ว ✓','Deleted ✓')); renderFiles();
@@ -12145,7 +12262,7 @@ async function uploadCapture(fi,cap,btn){
   }catch(e){ toast(e.message||uiCopy('อัปรูปล้มเหลว','Image upload failed'),true); btn.disabled=false; }
 }
 async function deleteCapture(id,path){
-  if(!confirm(uiCopy('ลบรูปนี้?','Delete this image?'))) return;
+  if(!await uiConfirmText(uiCopy('ลบรูปนี้?','Delete this image?'),'capture-delete')) return;
   if(path){ try{ await supa.storage.from('captures').remove([path]); }catch(e){} }
   const {error}=await supa.from('scene_captures').delete().eq('id',id); if(error){ toast(error.message,true); return; }
   toast(uiCopy('ลบแล้ว','Deleted')); renderChronicle();
@@ -12668,21 +12785,6 @@ window.cc = (function(){
   }
   function _ccSpellBlocked(s){ return !!(s&&s.menuDecision&&s.menuDecision.availability==='blocked'); }
 
-  function fakeMapPick(targetType){
-    // TODO Phase 2: integrate with the real battle grid (replace prompt() placeholders).
-    if(targetType==='self') return 'Self';
-    if(targetType==='point') return prompt('[MAP] destination (x,y):', '12,8') || null;
-    if(targetType==='creature') return prompt('[MAP] target:', (enemies[0]&&enemies[0].name)||'enemy') || null;
-    if(targetType==='creatures_3') return prompt('[MAP] up to 3 targets (comma sep):', enemies.slice(0,3).map(function(e){return e.name;}).join(', ')) || null;
-    if(targetType && targetType.indexOf('sphere_')===0){
-      var r = targetType.split('_')[1];
-      return prompt('[MAP] sphere center (x,y) radius '+r+'ft:', '12,8') || null;
-    }
-    if(targetType && targetType.indexOf('cone_')===0) return prompt('[MAP] cone direction (x,y):', '15,5') || null;
-    if(targetType && targetType.indexOf('line_')===0) return prompt('[MAP] line endpoint (x,y):', '15,11') || null;
-    return prompt('[MAP] target:', '12,8') || null;
-  }
-
   var slotEditMenu = {
     action: 'action', bonus: 'bonus', reaction: 'reaction',
     movement: 'move', free: 'free', narrate: 'narrate'
@@ -13089,7 +13191,7 @@ window.cc = (function(){
   async function onSubmit(){
     // v215: เลือกแต่ Move โดยไม่มี Action ในคอมแบต → ถามยืนยันก่อนส่ง (เคสเบรฟ: กดตามคำแนะนำ 'วิ่งเข้าโจมตี' แต่ส่งจริงแค่เดิน เลยทั้งไม่ถึงทั้งไม่ได้ตี)
     if(turn && turn.movement && !turn.action){
-      if(!confirm(uiCopy('ยังไม่ได้เลือก Action (เช่น โจมตี / Dash) — จะเดินอย่างเดียวแล้วจบเทิร์นเลยใช่ไหม?\n\nเป้าอยู่ไกล: เลือก Action ▸ Dash จะวิ่งได้ไกลขึ้นสองเท่า','No Action is selected (such as Attack / Dash) — move only and end the turn?\n\nThe target is far away: choose Action ▸ Dash to move twice as far.'))) return;
+      if(!await uiConfirmText(uiCopy('ยังไม่ได้เลือก Action (เช่น โจมตี / Dash) — จะเดินอย่างเดียวแล้วจบเทิร์นเลยใช่ไหม?\n\nเป้าอยู่ไกล: เลือก Action ▸ Dash จะวิ่งได้ไกลขึ้นสองเท่า','No Action is selected (such as Attack / Dash) — move only and end the turn?\n\nThe target is far away: choose Action ▸ Dash to move twice as far.'),'command-move-only')) return;
     }
     // ── v623 B (DG-6 Option 2 · run 5): ตัดการทอยฝั่ง client ทั้งหมด — เดิม ROLL ALL ทอยเลขที่ server ไม่เคยใช้ (c5 ทอยเองเสมอ · structured_turn.rolls = dead data)
     //   = ผู้เล่นเห็นเลขหนึ่งแต่ระบบใช้อีกเลข · ตอนนี้ส่งเทิร์นตรง → server ทอย → เลขจริงแอนิเมตใน Battle Log (bs-droll) — เลขบนจอ = เลขจริงเสมอ
