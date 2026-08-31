@@ -2162,7 +2162,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202608311144;
+const FRONTEND_BUILD = 202608312051;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -6293,7 +6293,7 @@ async function companionRepairHistorical(){
 }
 function companionTierTH(t){ return ({enemy:'ศัตรู',hostile:'เป็นปฏิปักษ์',wary:'ระแวง',neutral:'เป็นกลาง',friendly:'เป็นมิตร',trusted:'ไว้ใจ',close:'สนิท',inner_circle:'คนวงใน'})[String(t||'neutral')]||'เป็นกลาง'; }
 function companionStatusCopy(value){ const raw=String(value||''); return uiCopy(({candidate:'ผู้สมัคร',active:'สมาชิกหลัก',reserve:'สำรอง',dead:'เสียชีวิต',former:'อดีตสมาชิก'})[raw]||raw,raw); }
-function companionRosterRenderState(value){ const all=Array.isArray(value)?value:[],dead=all.filter(c=>c&&c.status==='dead'),former=all.filter(c=>c&&c.status!=='dead'&&(c.status==='former'||c.controller==='left')); return {all,candidates:all.filter(c=>c&&c.status==='candidate'&&c.controller!=='left'),active:all.filter(c=>c&&c.status==='active'&&c.controller!=='left'),reserve:all.filter(c=>c&&c.status==='reserve'&&c.controller!=='left'),dead,former,memorial:[...dead,...former]}; }
+function companionRosterRenderState(value){ const all=Array.isArray(value)?value:[],dead=all.filter(c=>c&&c.status==='dead'),former=all.filter(c=>c&&c.status!=='dead'&&c.status!=='candidate'&&c.status!=='reserve'&&(c.status==='former'||c.controller==='left')); return {all,candidates:all.filter(c=>c&&c.status==='candidate'),active:all.filter(c=>c&&c.status==='active'&&c.controller!=='left'),reserve:all.filter(c=>c&&c.status==='reserve'),dead,former,memorial:[...dead,...former]}; }
 function companionRosterCapUiState(view,activeCount,isHost){ const raw=Number(view&&view.active_cap),typed=Number.isInteger(raw)&&raw>=0&&raw<=3,cap=typed?raw:3,overCap=typed&&((view&&view.active_reassignment_required===true)||(view&&view.active_over_cap===true)||Math.max(0,Number(activeCount)||0)>cap); return {cap,overCap,showManualNote:isHost===true&&overCap}; }
 // COMPANION-ACCEPT-Y2 copy surface 3 start
 function companionCandidateBox(candidates,isHost){
@@ -6314,7 +6314,7 @@ function companionCard(c,isHost,view){
   const rel=(c.relationships||[]).map(r=>`<span class="tag">${escapeHtml(uiCopy(companionTierTH(r.tier),String(r.tier||'neutral').replace(/_/g,' ')))}</span>`).join(' ')||'<span class="muted">'+uiCopy('ยังไม่มีสายสัมพันธ์ที่เปิดเผย','No public relationship yet')+'</span>';
   const bag=(c.public_bag||[]).map(x=>`<span class="tag">${escapeHtml(x.name||x)}${x.qty>1?' ×'+x.qty:''}</span>`).join(' ')||'<span class="muted">'+uiCopy('กระเป๋าสาธารณะยังว่าง','Shared inventory is empty')+'</span>';
   const w=c.public_wallet||{gp:0,sp:0,cp:0};
-  const state=c.status==='dead'?'dead':(c.status==='former'||c.controller==='left'?'former':c.status),cap=c.action_capability&&typeof c.action_capability==='object'?c.action_capability:{allowed:false,reason_code:'capability_missing',reason_th:'ระบบยังยืนยันสิทธิ์ปฏิสัมพันธ์ไม่ได้',reason_en:'The server has not verified interaction access yet.'},reason=uiCopy(cap.reason_th||'ระบบยังยืนยันสิทธิ์ปฏิสัมพันธ์ไม่ได้',cap.reason_en||'The server has not verified interaction access yet.'),disabled=cap.allowed===true?'':` disabled aria-disabled="true" title="${escapeHtml(reason)}"`;
+  const state=c.status==='dead'?'dead':((c.status!=='candidate'&&c.status!=='reserve'&&(c.status==='former'||c.controller==='left'))?'former':c.status),cap=c.action_capability&&typeof c.action_capability==='object'?c.action_capability:{allowed:false,reason_code:'capability_missing',reason_th:'ระบบยังยืนยันสิทธิ์ปฏิสัมพันธ์ไม่ได้',reason_en:'The server has not verified interaction access yet.'},reason=uiCopy(cap.reason_th||'ระบบยังยืนยันสิทธิ์ปฏิสัมพันธ์ไม่ได้',cap.reason_en||'The server has not verified interaction access yet.'),disabled=cap.allowed===true?'':` disabled aria-disabled="true" title="${escapeHtml(reason)}"`;
   const action=(th,en,handler)=>`<button class="btn ghost sm"${disabled}${cap.allowed===true?` onclick="${handler}"`:''}>${uiCopy(th,en)}</button>`;
   const swap=isHost&&['active','reserve'].includes(state)?`<button class="btn ghost sm" onclick="companionRoster('${c.character_id}','${state}')">${state==='active'?uiCopy('ย้ายไป Reserve','Move to Reserve'):uiCopy('ย้ายเข้า Active','Move to Active')}</button>`:'';
   const romanceReady=((view&&view.own_characters)||[]).some(p=>p.romance_enabled),romanceReason=uiCopy('ต้องเปิดสิทธิ์ความสัมพันธ์ให้ตัวละครของคุณก่อน','Enable Romance access for one of your characters first.'),romanceDisabled=cap.allowed===true&&romanceReady?'':` disabled aria-disabled="true" title="${escapeHtml(cap.allowed===true?romanceReason:reason)}"`,romance=`<button class="btn ghost sm"${romanceDisabled}${cap.allowed===true&&romanceReady?` onclick="companionInteract('${c.character_id}','romance')"`:''}>${uiCopy('ชวนคุยเรื่องความสัมพันธ์','Discuss relationship')}</button>`;
