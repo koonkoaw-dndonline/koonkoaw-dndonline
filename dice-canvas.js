@@ -1703,6 +1703,34 @@
     return String(item.displayFace);
   }
 
+  function faceLabelPlanFor(die, label, sizeRaw, scaleRaw, liveFace) {
+    const key = String(die || "").toLowerCase();
+    const size = Math.max(36, finiteNumber(sizeRaw) || 36);
+    const scale = clamp(finiteNumber(scaleRaw) || 1, .75, 1.2);
+    const isLive = liveFace === true;
+    const floor = isLive ? (key === "d6" ? 14 : 11) : 14;
+    const multiplier = isLive ? (key === "d6" ? .29 : .19) : .30;
+    const widthRatio = isLive
+      ? (key === "d6" ? .62 : .58)
+      : ({ d4: .48, d6: .62, d8: .55, d10: .58, d12: .55, d20: .52 }[key] || .52);
+    const fontSize = Math.max(
+      floor,
+      Math.round(size * multiplier * Math.min(1.2, scale)),
+    );
+    const glyphCount = Math.max(1, String(label ?? "").length);
+    const estimatedWidth = fontSize * glyphCount * .62;
+    // The fallback silhouette is not scaled by body-motion; live meshes are.
+    const maxWidth = size * (isLive ? scale : 1) * widthRatio;
+    return deepFreeze({
+      fontSize: fontSize,
+      floor: floor,
+      multiplier: multiplier,
+      estimatedWidth: Number(estimatedWidth.toFixed(3)),
+      maxWidth: Number(maxWidth.toFixed(3)),
+      fits: estimatedWidth <= maxWidth,
+    });
+  }
+
   function tracePolygon(context, points) {
     safeContextCall(context, "beginPath");
     points.forEach(function (point, index) {
@@ -1823,11 +1851,14 @@
     faces.filter(function (row) {
       return row.normal.z > (item.die === "d6" ? .12 : .34);
     }).forEach(function (row) {
-      const fontSize = Math.max(
-        item.die === "d6" ? 12 : 9,
-        Math.round(item.size * (item.die === "d6" ? .24 : .145) *
-          Math.min(1.2, finiteNumber(item.scale) || 1)),
-      );
+      const label = String(row.face.value);
+      const fontSize = faceLabelPlanFor(
+        item.die,
+        label,
+        item.size,
+        item.scale,
+        true,
+      ).fontSize;
       try {
         context.font = "800 " + String(fontSize) +
           "px ui-monospace,monospace";
@@ -1838,12 +1869,12 @@
         context.fillStyle = colors.ink;
       } catch (error) {}
       safeContextCall(context, "strokeText", [
-        String(row.face.value),
+        label,
         row.center.x,
         row.center.y,
       ]);
       safeContextCall(context, "fillText", [
-        String(row.face.value),
+        label,
         row.center.x,
         row.center.y,
       ]);
@@ -1922,16 +1953,22 @@
       strokePolygon(context, points, natOneBorder, natOneBorder.color, 1);
     }
     if (item.displayFace !== null) {
+      const faceText = displayFaceText(item);
+      const fontSize = faceLabelPlanFor(
+        item.die,
+        faceText,
+        item.size,
+        item.scale,
+        false,
+      ).fontSize;
       try {
         context.fillStyle = colors.ink;
-        context.font = "800 " +
-          String(Math.max(12, Math.round(item.size * .28))) +
-          "px ui-monospace,monospace";
+        context.font = "800 " + String(fontSize) + "px ui-monospace,monospace";
         context.textAlign = "center";
         context.textBaseline = "middle";
       } catch (error) {}
       const y = item.die === "d4" ? item.y - item.size * .13 : item.y;
-      safeContextCall(context, "fillText", [displayFaceText(item), item.x, y]);
+      safeContextCall(context, "fillText", [faceText, item.x, y]);
     }
     safeContextCall(context, "restore");
   }
@@ -2533,6 +2570,7 @@
       landingImpactTimes: landingImpactTimes,
       pixelArtPlanFor: pixelArtPlanFor,
       pixelFacetPalette: pixelFacetPalette,
+      faceLabelPlanFor: faceLabelPlanFor,
       layoutGroups: layoutGroups,
       visualDiceFor: visualDiceFor,
       finalFacesFor: finalFacesFor,
