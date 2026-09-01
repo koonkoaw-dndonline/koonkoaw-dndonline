@@ -2162,7 +2162,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202608312051;
+const FRONTEND_BUILD = 202609011941;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -8793,7 +8793,9 @@ async function renderQuest(){
     det.appendChild(sum);
     const body=document.createElement('div'); body.style.cssText=FONT+';text-align:left;padding:2px 0 4px';
     let html=q.description?('<div style="font-size:var(--fs-base);color:#bbb;line-height:1.6">'+escapeHtml(q.description)+'</div>'):'';
-    if(q.blueprint&&q.blueprint.hint) html+='<div style="font-size:var(--fs-sm);color:#9a9a9a;margin-top:4px">🔎 '+escapeHtml(String(q.blueprint.hint))+'</div>';   // v194: คำใบ้สาธารณะ
+    // W24 (09-01 · คำตัดสินเจ้าของ): เลิกแปะ blueprint.hint บนใบเควส — มันคือ internals ของระบบ
+    // (สายศัตรู/บอส/ความลึก/รายการอุปสรรค-กับดักพร้อมตัวเลือก) = สปอยล์ทุกจุดหักมุมล่วงหน้า
+    // ชั้นข้อมูล (blueprint ทั้งก้อนถึง client) ปิดแยกในใบ W24 ฝั่ง server   // v194: คำใบ้สาธารณะ
     body.innerHTML=html||('<div class="muted" style="font-size:var(--fs-base)">'+escapeHtml(uiCopy('ยังไม่มีรายละเอียด','No details yet'))+'</div>');
     const turnIn=turnInAffordances.find(aff=>String(aff.id)===String(q.id)||String(aff.source_id)===String(q.id));
     if(turnIn){ mountedTurnInIds.add(turnIn.id); const button=document.createElement('button'); button.type='button'; button.className='btn sm'; button.style.marginTop='8px'; button.textContent=questAffordanceLabel(turnIn); button.disabled=!!window._questAffordanceSubmitting||!!resolving; button.onclick=()=>submitQuestAffordance(turnIn); body.appendChild(button); }
