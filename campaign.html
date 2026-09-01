@@ -2162,7 +2162,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202609011941;
+const FRONTEND_BUILD = 202609020417;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -9857,7 +9857,7 @@ async function renderInitiativeTracker(p){
     const _cpc=(Array.isArray(e.conditions)?e.conditions:[]).map(prettyCond).filter(Boolean); const conds=_cpc.length?' ['+_cpc.map(escapeHtml).join(',')+']':'';
     const mine=isParty&&myChar&&e.character_id===myChar.id;
     const row=document.createElement('div');
-    row.style.cssText='display:flex;align-items:center;gap:8px;padding:5px 8px;border:2px solid '+(isParty?'#5cc8ff':'#ff6b6b')+';border-radius:6px;'+(mine?'box-shadow:0 0 0 2px #000,0 0 0 4px #5cc8ff;':'');
+    row.style.cssText='display:flex;align-items:center;gap:8px;padding:5px 8px;border:2px solid '+(isParty?'#5cc8ff':(e.side==='ally'?'#7ee2a0':'#ff6b6b'))+';border-radius:6px;'+(mine?'box-shadow:0 0 0 2px #000,0 0 0 4px #5cc8ff;':'');
     row.innerHTML=`<span class="num" style="min-width:26px;color:#fff">${e.initiative??'?'}</span><span style="flex:1;color:#fff">${escapeHtml(e.display_name)}${mine?' <b>'+uiCopy('(คุณ)','(you)')+'</b>':''}<span class="muted" style="font-size:var(--fs-xs)">${hpTxt}${conds}</span></span><span style="font-size:var(--fs-xs);color:${isParty?'#5cc8ff':'#ff6b6b'}">${isParty?uiCopy('พันธมิตร','Ally'):uiCopy('ศัตรู','Enemy')}</span>`;
     list.appendChild(row);
   });
@@ -10419,7 +10419,7 @@ async function renderBattleInitLog(initEl, logEl){
       const isParty=e.side==='party'; let hpTxt='', pct=null;
       if(isParty){ const c=characters.find(x=>x.id===e.character_id); const hp=(c&&c.public_status&&c.public_status.hp)||''; hpTxt=hp; if(/^\d+\/\d+/.test(String(hp))){ const m=String(hp).split('/'); pct=Math.max(0,Math.min(1,(+m[0])/(+m[1]||1))); } }
       else { const cs=csMap[e.combat_state_id]; if(cs){ const mx=cs.monsters&&cs.monsters.max_hp; hpTxt=cs.cur_hp+(mx?('/'+mx):''); if(mx) pct=Math.max(0,Math.min(1,cs.cur_hp/mx)); } }
-      const mine=isParty&&myChar&&e.character_id===myChar.id; const col=isParty?'#5cc8ff':'#ff6b6b';
+      const mine=isParty&&myChar&&e.character_id===myChar.id; const col=isParty?'#5cc8ff':(e.side==='ally'?'#7ee2a0':'#ff6b6b');   // W29a (09-02): เลนพันธมิตร npcCombatAid — เดิมทุกฝั่งที่ไม่ใช่ party ถูกทาสีแดงแบบศัตรู (เคสจริง Garwick)
       const _cpc=[...new Set((Array.isArray(e.conditions)?e.conditions:[]).map(prettyCond).filter(Boolean))]; const conds=_cpc.length?(' ['+_cpc.map(escapeHtml).join(',')+']'):'';   // v756: TH/EN aliases may map to one visible label; never render duplicates
       const row=document.createElement('div'); row.className='bs-initrow'+(mine?' me':'');
       row.innerHTML='<span class="bs-ini">'+(e.initiative==null?'?':e.initiative)+'</span><span class="bs-iname" style="color:'+col+'">'+escapeHtml(e.display_name)+(mine?uiCopy(' (คุณ)',' (You)'):'')+(conds?('<span class="muted" style="font-size:var(--fs-xs)">'+escapeHtml(conds)+'</span>'):'')+'</span><span class="bs-ihp">'+escapeHtml(hpTxt||'')+'</span>';
