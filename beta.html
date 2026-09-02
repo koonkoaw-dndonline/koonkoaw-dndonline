@@ -2162,7 +2162,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202609020650;
+const FRONTEND_BUILD = 202609021153;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -6311,6 +6311,9 @@ async function companionOwnedPc(view,surfaceId){
   const id=await uiSelectInPage({title:uiCopy('เลือกตัวละคร','Choose a character'),message:uiCopy('เลือกตัวละครผู้ทำรายการ','Choose the character performing this action'),surfaceId:surfaceId||'companion-owned-pc',options:pcs.map(p=>({value:p.character_id,label:p.name})),acceptText:uiCopy('เลือก','Select')}); return pcs.find(p=>String(p.character_id)===String(id))||null;
 }
 function companionCard(c,isHost,view){
+  // W35 (09-02): memories ส่งถึง client ใน payload อยู่แล้ว (companion-view relationships[].memories — เหตุ organic ที่ server ยืนยัน) แต่ไม่มีจุดแสดงผล → ผู้เล่นไม่เคยเห็นความทรงจำร่วม · เติมบรรทัดความทรงจำล่าสุดใต้ป้ายสัมพันธ์ (โชว์รายการท้ายสุด + จำนวนสะสม)
+  const _mems=(c.relationships||[]).flatMap(r=>Array.isArray(r.memories)?r.memories:[]).map(m=>String(m||'').trim()).filter(Boolean);
+  const memLine=_mems.length?`<div class="muted" style="font-size:var(--fs-sm);margin-top:3px;text-align:left">💭 ${escapeHtml(_mems[_mems.length-1])}${_mems.length>1?` <span class="tag">×${_mems.length}</span>`:''}</div>`:'';
   const rel=(c.relationships||[]).map(r=>`<span class="tag">${escapeHtml(uiCopy(companionTierTH(r.tier),String(r.tier||'neutral').replace(/_/g,' ')))}</span>`).join(' ')||'<span class="muted">'+uiCopy('ยังไม่มีสายสัมพันธ์ที่เปิดเผย','No public relationship yet')+'</span>';
   const bag=(c.public_bag||[]).map(x=>`<span class="tag">${escapeHtml(x.name||x)}${x.qty>1?' ×'+x.qty:''}</span>`).join(' ')||'<span class="muted">'+uiCopy('กระเป๋าสาธารณะยังว่าง','Shared inventory is empty')+'</span>';
   const w=c.public_wallet||{gp:0,sp:0,cp:0};
@@ -6321,7 +6324,7 @@ function companionCard(c,isHost,view){
   const age=c.age_years==null?'':uiCopy(' · อายุ ',' · Age ')+c.age_years;
   const history=state==='dead'?uiCopy('เก็บการ์ดนี้ไว้เป็นบันทึกความทรงจำ ไม่มีการปฏิสัมพันธ์เพิ่มเติม','This card remains as a memorial; no further interaction is available.'):state==='former'?uiCopy('จากปาร์ตี้ไปแล้ว การ์ดนี้เก็บไว้เป็นประวัติอ่านอย่างเดียว','This companion has left; the card remains as read-only history.'):'';
   const actions=history?`<div class="note" data-companion-readonly="${state}" style="text-align:left;margin-top:9px">${escapeHtml(history)}</div>`:`<div data-companion-actions="1"><div class="srow2" style="flex-wrap:wrap">${action('คุยส่วนตัว','Talk privately',`companionInteract('${c.character_id}','talk')`)}<details style="flex:1;min-width:180px"><summary class="btn ghost sm">${uiCopy('การกระทำเพิ่มเติม','More actions')}</summary><div class="srow2" style="flex-wrap:wrap;margin-top:7px">${action('ใช้เวลาด้วยกัน','Spend time together',`companionInteract('${c.character_id}','spend')`)}${romance}${action('มอบของ/เงิน','Give item / money',`companionGive('${c.character_id}')`)}${action('ขอของ','Request an item',`companionRequest('${c.character_id}')`)}${swap}</div></details></div>${cap.allowed===true?'':`<div class="sub" data-companion-disabled-reason="${escapeHtml(cap.reason_code||'unavailable')}" style="margin-top:7px">${escapeHtml(reason)}</div>`}</div>`;
-  return `<div class="item" data-companion-state="${escapeHtml(state)}" style="margin:8px 0"><div class="nm">${escapeHtml(c.name)} <span class="tag">${escapeHtml(companionStatusCopy(state))}</span></div><div class="sub">${escapeHtml(c.race||'')} ${escapeHtml(c.class||'')} · Lv ${c.level||1}${age}${c.active_slot?' · Slot '+c.active_slot:''}</div><div class="note" style="text-align:left;margin:7px 0">${rel}</div><div class="note" style="text-align:left;margin:7px 0">🎒 ${bag}<br>💰 ${w.gp||0} gp · ${w.sp||0} sp · ${w.cp||0} cp</div>${actions}</div>`;
+  return `<div class="item" data-companion-state="${escapeHtml(state)}" style="margin:8px 0"><div class="nm">${escapeHtml(c.name)} <span class="tag">${escapeHtml(companionStatusCopy(state))}</span></div><div class="sub">${escapeHtml(c.race||'')} ${escapeHtml(c.class||'')} · Lv ${c.level||1}${age}${c.active_slot?' · Slot '+c.active_slot:''}</div><div class="note" style="text-align:left;margin:7px 0">${rel}${memLine}</div><div class="note" style="text-align:left;margin:7px 0">🎒 ${bag}<br>💰 ${w.gp||0} gp · ${w.sp||0} sp · ${w.cp||0} cp</div>${actions}</div>`;
 }
 function companionEstateSection(view){
   const estates=Array.isArray(view&&view.estates)?view.estates:[]; if(!estates.length) return '';
