@@ -10,7 +10,7 @@
 (function attachDiceCanvas() {
   "use strict";
 
-  const BUILD = "20260823-dice-spike-01";
+  const BUILD = "20260902-dice-crisp-w39";
   const SOURCE_CATEGORIES = Object.freeze([
     "weapon",
     "spell",
@@ -40,15 +40,11 @@
   });
   const THEME_NAMES = Object.freeze(["light", "dark"]);
   const TAU = Math.PI * 2;
-  // The whole scene is painted into a half-resolution backing buffer and the
-  // browser enlarges it by this integer factor. Geometry is also snapped to
-  // the same grid, so moving dice keep deliberately hard pixel edges.
-  const PIXEL_ART_SCALE = 2;
-  // DICE-SPIKE-01: bevel keeps pixel-art corners hard without miter spikes.
-  // The low limit is a defensive fallback if a browser ever treats the join
-  // as miter while restoring a saved context state.
-  const FACET_STROKE_JOIN = "bevel";
-  const FACET_MITER_LIMIT = 1;
+  // W39: vector geometry stays in CSS coordinates and the backing store tracks
+  // the actual device-pixel ratio. Smooth joins avoid the old stair-step/miter
+  // artifacts while keeping every face procedurally rendered and asset-free.
+  const FACET_STROKE_JOIN = "round";
+  const FACET_MITER_LIMIT = 4;
 
   let localizer = null;
   let environment = null;
@@ -1391,8 +1387,8 @@
 
   // Normalized orthographic silhouettes and visible face meshes. Facet counts
   // in faceGeometryFor still describe the physical dice; this table contains
-  // only the faces visible from the fixed pixel-art camera.
-  const PIXEL_DIE_MODELS = deepFreeze({
+  // the flat-shaded faces visible from the fixed 2.5D camera.
+  const VECTOR_DIE_MODELS = deepFreeze({
     d4: {
       vertices: [[0, -1], [.9, .72], [-.9, .72], [0, .12]],
       outline: [0, 1, 2],
@@ -1483,16 +1479,16 @@
     },
   });
 
-  function pixelStepFor(size) {
-    return clamp(Math.round((finiteNumber(size) || 48) / 32), 2, 3);
+  function vectorStrokeWidthFor(size) {
+    return clamp((finiteNumber(size) || 48) / 48, 1.1, 2.25);
   }
 
-  function pixelArtPlanFor(item) {
+  function vectorArtPlanFor(item) {
     const geometry = faceGeometryFor(item && item.die);
-    const model = PIXEL_DIE_MODELS[geometry.die] || PIXEL_DIE_MODELS.d6;
+    const model = VECTOR_DIE_MODELS[geometry.die] || VECTOR_DIE_MODELS.d6;
     const size = Math.max(24, finiteNumber(item && item.size) || 48);
     const radius = size * .48;
-    const step = pixelStepFor(size);
+    const strokeWidth = vectorStrokeWidthFor(size);
     const centerX = finiteNumber(item && item.x) || 0;
     const centerY = finiteNumber(item && item.y) || 0;
     const rotation = geometry.read === "apex"
@@ -1504,14 +1500,14 @@
       const x = vertex[0] * cosine - vertex[1] * sine;
       const y = vertex[0] * sine + vertex[1] * cosine;
       return {
-        x: Math.round((centerX + x * radius) / step) * step,
-        y: Math.round((centerY + y * radius) / step) * step,
+        x: centerX + x * radius,
+        y: centerY + y * radius,
       };
     });
     return deepFreeze({
       die: geometry.die,
-      pixelScale: PIXEL_ART_SCALE,
-      pixelStep: step,
+      renderScale: 1,
+      strokeWidth: strokeWidth,
       outline: model.outline.map(function (index) {
         return vertices[index];
       }),
@@ -1527,7 +1523,7 @@
   }
 
   function polygonPoints(item) {
-    return pixelArtPlanFor(item).outline;
+    return vectorArtPlanFor(item).outline;
   }
 
   function mixHexColor(source, target, ratio) {
@@ -1543,7 +1539,7 @@
     return "#" + channels.join("").toUpperCase();
   }
 
-  function pixelFacetPalette(fill) {
+  function facetPaletteFor(fill) {
     return deepFreeze([
       mixHexColor(fill, "black", .44),
       mixHexColor(fill, "black", .24),
@@ -1708,8 +1704,8 @@
     const size = Math.max(36, finiteNumber(sizeRaw) || 36);
     const scale = clamp(finiteNumber(scaleRaw) || 1, .75, 1.2);
     const isLive = liveFace === true;
-    const floor = isLive ? (key === "d6" ? 14 : 11) : 14;
-    const multiplier = isLive ? (key === "d6" ? .29 : .19) : .30;
+    const floor = 22;
+    const multiplier = isLive ? (key === "d6" ? .36 : .31) : .36;
     const widthRatio = isLive
       ? (key === "d6" ? .62 : .58)
       : ({ d4: .48, d6: .62, d8: .55, d10: .58, d12: .55, d20: .52 }[key] || .52);
@@ -1746,8 +1742,8 @@
     const model = liveFaceModelFor(item.die);
     if (!model || !item.orientation) return false;
     const colors = paletteForItem(item, settings.theme, settings.colorBlind);
-    const facetPalette = pixelFacetPalette(colors.fill);
-    const step = pixelStepFor(item.size);
+    const facetPalette = facetPaletteFor(colors.fill);
+    const strokeWidth = vectorStrokeWidthFor(item.size);
     const radius = item.size * .54 * (finiteNumber(item.scale) || 1);
     const shadowRadius = item.size * .43 *
       (finiteNumber(item.shadowScale) || 1);
@@ -1788,8 +1784,8 @@
     const projected = transformed.map(function (vertex) {
       const perspective = 1 + vertex.z * .12;
       return {
-        x: Math.round((item.x + vertex.x * radius * perspective) / step) * step,
-        y: Math.round((item.y + vertex.y * radius * perspective) / step) * step,
+        x: item.x + vertex.x * radius * perspective,
+        y: item.y + vertex.y * radius * perspective,
         z: vertex.z,
       };
     });
@@ -1822,7 +1818,7 @@
       try {
         context.fillStyle = facetPalette[tone];
         context.strokeStyle = facetPalette[0];
-        context.lineWidth = step;
+        context.lineWidth = strokeWidth;
         context.lineJoin = FACET_STROKE_JOIN;
         context.miterLimit = FACET_MITER_LIMIT;
         context.setLineDash([]);
@@ -1841,7 +1837,7 @@
       faces.forEach(function (row) {
         try {
           context.strokeStyle = "rgba(244,225,184,.42)";
-          context.lineWidth = Math.max(1, step * .55);
+          context.lineWidth = Math.max(1, strokeWidth * .72);
         } catch (error) {}
         tracePolygon(context, row.points);
         safeContextCall(context, "stroke");
@@ -1864,7 +1860,7 @@
           "px ui-monospace,monospace";
         context.textAlign = "center";
         context.textBaseline = "middle";
-        context.lineWidth = Math.max(2, step);
+        context.lineWidth = Math.max(2, strokeWidth * 1.5);
         context.strokeStyle = "rgba(31,18,9,.82)";
         context.fillStyle = colors.ink;
       } catch (error) {}
@@ -1903,19 +1899,19 @@
       return drawPolyhedronDie(context, item, settings, quality);
     }
     const colors = paletteForItem(item, settings.theme, settings.colorBlind);
-    const art = pixelArtPlanFor(item);
+    const art = vectorArtPlanFor(item);
     const points = art.outline;
-    const facetPalette = pixelFacetPalette(colors.fill);
+    const facetPalette = facetPaletteFor(colors.fill);
     safeContextCall(context, "save");
     try {
-      context.imageSmoothingEnabled = false;
+      context.imageSmoothingEnabled = true;
       context.lineJoin = FACET_STROKE_JOIN;
       context.miterLimit = FACET_MITER_LIMIT;
-      context.lineCap = "butt";
+      context.lineCap = "round";
       context.fillStyle = facetPalette[0];
       context.shadowColor = "rgba(0,0,0,.42)";
       context.shadowBlur = quality.shadowBlur;
-      context.shadowOffsetY = quality.shadowBlur ? art.pixelStep : 0;
+      context.shadowOffsetY = quality.shadowBlur ? art.strokeWidth * 1.5 : 0;
     } catch (error) {}
     tracePolygon(context, points);
     safeContextCall(context, "fill");
@@ -1932,7 +1928,7 @@
       safeContextCall(context, "fill");
       try {
         context.strokeStyle = facetPalette[0];
-        context.lineWidth = art.pixelStep;
+        context.lineWidth = art.strokeWidth;
         context.setLineDash([]);
       } catch (error) {}
       safeContextCall(context, "stroke");
@@ -1966,8 +1962,11 @@
         context.font = "800 " + String(fontSize) + "px ui-monospace,monospace";
         context.textAlign = "center";
         context.textBaseline = "middle";
+        context.lineWidth = Math.max(2, art.strokeWidth * 1.5);
+        context.strokeStyle = "rgba(31,18,9,.82)";
       } catch (error) {}
       const y = item.die === "d4" ? item.y - item.size * .13 : item.y;
+      safeContextCall(context, "strokeText", [faceText, item.x, y]);
       safeContextCall(context, "fillText", [faceText, item.x, y]);
     }
     safeContextCall(context, "restore");
@@ -2038,24 +2037,6 @@
       );
     });
     drawActiveEffects(context, motion, frame);
-    if (frame.revealed) {
-      try {
-        context.fillStyle = settings.theme === "light" ? "#17130F" : "#F4E7CE";
-        context.font = "600 13px sans-serif";
-        context.textAlign = "center";
-        context.textBaseline = "middle";
-      } catch (error) {}
-      motion.layout.groups.forEach(function (group) {
-        const label = [group.label, group.formula].filter(Boolean).join(" · ");
-        if (label) {
-          safeContextCall(context, "fillText", [
-            label,
-            motion.width / 2,
-            group.labelY + 8,
-          ]);
-        }
-      });
-    }
   }
 
   function localize(t, th, en) {
@@ -2109,8 +2090,12 @@
       };
     });
     const title = cleanText(event.title, 180);
+    const actor = cleanText(event.actor || event.who, 120);
     const formula = cleanText(event.formula, 120);
     const total = integer(event.total);
+    const dc = integer(event.dc);
+    const pass = typeof event.pass === "boolean" ? event.pass : null;
+    const tier = cleanText(event.tier, 40);
     const raw = groups.map(function (group) {
       return group.rolls.join(", ");
     }).filter(Boolean).join(" | ");
@@ -2118,6 +2103,7 @@
     const en = localize(t, "ค่าดิบ", "Raw values");
     const pieces = [
       th,
+      actor,
       title,
       formula,
       en,
@@ -2129,8 +2115,12 @@
       live: "polite",
       announceAtMs: timelineFor(event).revealAtMs,
       title: title,
+      actor: actor,
       formula: formula,
       total: total,
+      dc: dc,
+      pass: pass,
+      tier: tier,
       groups: groups,
       dice: dice,
       announcement: pieces.join(" · "),
@@ -2288,6 +2278,19 @@
     });
   }
 
+  function backingStorePlan(widthRaw, heightRaw, pixelRatioRaw) {
+    const cssWidth = Math.max(1, integer(widthRaw) || 1);
+    const cssHeight = Math.max(1, integer(heightRaw) || 1);
+    const pixelRatio = clamp(finiteNumber(pixelRatioRaw) || 1, 1, 4);
+    return deepFreeze({
+      cssWidth: cssWidth,
+      cssHeight: cssHeight,
+      pixelRatio: pixelRatio,
+      bufferWidth: Math.ceil(cssWidth * pixelRatio),
+      bufferHeight: Math.ceil(cssHeight * pixelRatio),
+    });
+  }
+
   function render(options) {
     const source = options && typeof options === "object" ? options : {};
     const event = source.rollEvent && typeof source.rollEvent === "object"
@@ -2340,30 +2343,21 @@
     const reduced = settings.reducedMotion === true ||
       (settings.reducedMotion !== false &&
         environment.reducedMotion() === true);
-    const ratio = Math.min(
-      motion.quality.pixelRatioCap,
-      Math.max(1, finiteNumber(environment.pixelRatio()) || 1),
-    );
-    const backingRatio = clamp(Math.floor(ratio), 1, 2);
-    const bufferWidth = Math.max(1, Math.floor(width / PIXEL_ART_SCALE));
-    const bufferHeight = Math.max(1, Math.floor(height / PIXEL_ART_SCALE));
+    const backing = backingStorePlan(width, height, environment.pixelRatio());
     try {
-      canvas.width = bufferWidth * backingRatio;
-      canvas.height = bufferHeight * backingRatio;
+      canvas.width = backing.bufferWidth;
+      canvas.height = backing.bufferHeight;
       if (typeof canvas.setAttribute === "function") {
         canvas.setAttribute("aria-hidden", "true");
       }
       if (canvas.style) {
-        canvas.style.width = String(bufferWidth * PIXEL_ART_SCALE) + "px";
-        canvas.style.height = String(bufferHeight * PIXEL_ART_SCALE) + "px";
-        canvas.style.imageRendering = "pixelated";
+        canvas.style.width = String(backing.cssWidth) + "px";
+        canvas.style.height = String(backing.cssHeight) + "px";
+        canvas.style.imageRendering = "auto";
       }
-      context.imageSmoothingEnabled = false;
+      context.imageSmoothingEnabled = true;
       if (typeof context.scale === "function") {
-        context.scale(
-          backingRatio / PIXEL_ART_SCALE,
-          backingRatio / PIXEL_ART_SCALE,
-        );
+        context.scale(backing.pixelRatio, backing.pixelRatio);
       }
       if (environment.appendCanvas(source.container, canvas) !== true) {
         return fallbackRender(event, onDone, "container-unavailable");
@@ -2568,14 +2562,16 @@
       tumbleOrientationFor: tumbleOrientationFor,
       landingMotionAt: landingMotionAt,
       landingImpactTimes: landingImpactTimes,
-      pixelArtPlanFor: pixelArtPlanFor,
-      pixelFacetPalette: pixelFacetPalette,
+      backingStorePlan: backingStorePlan,
+      vectorArtPlanFor: vectorArtPlanFor,
+      facetPaletteFor: facetPaletteFor,
       faceLabelPlanFor: faceLabelPlanFor,
       layoutGroups: layoutGroups,
       visualDiceFor: visualDiceFor,
       finalFacesFor: finalFacesFor,
       motionFramesFor: motionFramesFor,
       framePlanAt: framePlanAt,
+      drawFrame: drawFrame,
       physicsMotionForBody: physicsMotionForBody,
       physicsOrientationFor: physicsOrientationFor,
       accessibleMirrorModel: accessibleMirrorModel,

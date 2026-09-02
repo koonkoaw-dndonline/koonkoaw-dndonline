@@ -25,7 +25,7 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./grid-board-replacement-lease.js?v=202608110249"></script>
 <script src="./dice-roll-sound.js?v=0823"></script>
 <script src="./dice-fx.js?v=0823"></script>
-<script src="./dice-canvas.js?v=0831"></script>
+<script src="./dice-canvas.js?v=0902"></script>
 <script src="./ui-draft-guard.js?v=0831"></script>
 <script src="./music-playback-owner.js?v=847"></script>
 <script src="./music-v2-dark-launch.js?v=0825"></script>
@@ -48,7 +48,29 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
   --fs-lg:20px;
   --fs-xl:24px;
   --fs-display:30px;
+  --dice-summary-bg:#07111f;
+  --dice-summary-ink:#f8fbff;
+  --dice-summary-border:#f2c96d;
+  --dice-success-bg:#0b4d2f;
+  --dice-success-ink:#ffffff;
+  --dice-failure-bg:#701922;
+  --dice-failure-ink:#ffffff;
+  --dice-critical-bg:#594100;
+  --dice-critical-ink:#fff5cc;
+  --dice-neutral-bg:#16283c;
+  --dice-neutral-ink:#ffffff;
 }
+.dice-result-summary{width:min(94vw,500px);padding:10px 14px;border:2px solid var(--dice-summary-border);border-radius:10px;background:var(--dice-summary-bg);color:var(--dice-summary-ink);font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:var(--fs-md);font-weight:650;line-height:1.5;text-align:center;box-shadow:0 10px 28px rgba(0,0,0,.5);}
+.dice-result-summary [data-dice-result-total],.dice-result-line .dice-result-total{font-weight:850;font-variant-numeric:tabular-nums;}
+.dice-result-summary[data-dice-result-outcome="success"],.dice-result-line[data-dice-result-outcome="success"]{background:var(--dice-success-bg);color:var(--dice-success-ink);border-color:var(--dice-success-ink);}
+.dice-result-summary[data-dice-result-outcome="failure"],.dice-result-line[data-dice-result-outcome="failure"]{background:var(--dice-failure-bg);color:var(--dice-failure-ink);border-color:var(--dice-failure-ink);}
+.dice-result-summary[data-dice-result-outcome="critical"],.dice-result-line[data-dice-result-outcome="critical"]{background:var(--dice-critical-bg);color:var(--dice-critical-ink);border-color:var(--dice-critical-ink);}
+.dice-result-line{padding:10px 12px!important;border:2px solid var(--dice-summary-border)!important;border-radius:9px;background:var(--dice-neutral-bg);color:var(--dice-neutral-ink)!important;font-family:system-ui,-apple-system,'Segoe UI',sans-serif!important;font-size:var(--fs-md)!important;line-height:1.6!important;}
+.dice-result-badge{display:inline-flex;align-items:center;gap:5px;min-width:64px;margin:0 8px 3px 0;padding:4px 8px;border:2px solid currentColor;border-radius:999px;background:rgba(0,0,0,.18);font-size:var(--fs-md);font-weight:750;font-variant-numeric:tabular-nums;vertical-align:middle;}
+.dice-result-badge b{font-size:var(--fs-lg);font-weight:900;line-height:1;}
+.dice-result-outcome{display:inline-block;margin-left:5px;font-weight:850;}
+html.skin-paper{--dice-summary-bg:#fffaf0;--dice-summary-ink:#281b0c;--dice-summary-border:#7a531d;--dice-success-bg:#d6eadb;--dice-success-ink:#123a24;--dice-failure-bg:#f2d7d9;--dice-failure-ink:#521015;--dice-critical-bg:#f0dda2;--dice-critical-ink:#3d2b00;--dice-neutral-bg:#e4dccb;--dice-neutral-ink:#2d2417;}
+html.skin-paper .dice-result-summary{background:var(--dice-summary-bg);color:var(--dice-summary-ink);border-color:var(--dice-summary-border);text-shadow:none;}
 html{background:#000;}
 :root{color-scheme:dark;}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -2162,7 +2184,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202609022206;
+const FRONTEND_BUILD = 202609022247;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2941,7 +2963,7 @@ function diceCanvasEventFromLegacy(input){
   const role=String(source.role||(dc!==null?'save':'check'));
   const formula=settled.map(die=>die.die).join(' + ')+(flat?(flat>0?' + '+flat:' - '+Math.abs(flat)):'');
   return {
-    id:id, kind:String(source.kind||(dc!==null?'save':'check')), title:label, label:label,
+    id:id, kind:String(source.kind||(dc!==null?'save':'check')), title:label, label:label, actor:String(source.who||source.actor||''),
     formula:formula, roll:Number.isFinite(source.roll)?Number(source.roll):settled[0].value,
     flat:flat, total:total, dc:dc, pass:typeof source.pass==='boolean'?source.pass:null,
     tier:typeof source.tier==='string'?source.tier:'',
@@ -3009,13 +3031,16 @@ function mountDiceDetailMirror(documentRef,stage,mirror,copy){
     const dice=mirror&&Array.isArray(mirror.dice)?mirror.dice.filter(die=>die&&die.position&&Number.isFinite(Number(die.position.x))&&Number.isFinite(Number(die.position.y))):[];
     if(!documentRef||!stage||!dice.length)return null;
     const layer=documentRef.createElement('div');layer.setAttribute('data-dice-detail-mirror','1');layer.setAttribute('aria-label',typeof copy==='function'?copy('รายละเอียดเต๋า','Dice details'):'Dice details');layer.style.cssText='position:absolute;inset:0;z-index:3;pointer-events:none';
-    const tooltip=documentRef.createElement('div'),tooltipId='diceDetailTooltip'+String(++_diceDetailMirrorSeq);tooltip.id=tooltipId;tooltip.setAttribute('role','tooltip');tooltip.setAttribute('aria-hidden','true');tooltip.hidden=true;tooltip.style.cssText='position:absolute;left:50%;bottom:84px;transform:translateX(-50%);z-index:5;width:min(88%,430px);padding:10px 12px;border:2px solid #d9b978;border-radius:8px;background:rgba(22,14,8,.96);color:#fff4d6;font:600 13px/1.5 Trirong,Georgia,serif;text-align:left;pointer-events:none;box-shadow:0 8px 22px rgba(0,0,0,.45)';
-    const summary=documentRef.createElement('div'),totalLabel=typeof copy==='function'?copy('รวม','Total'):'Total';summary.setAttribute('data-dice-crisp-summary','1');summary.style.cssText='position:absolute;left:50%;top:-62px;transform:translateX(-50%);z-index:4;width:min(94vw,500px);padding:8px 12px;border:2px solid rgba(217,185,120,.78);border-radius:9px;background:rgba(22,14,8,.94);color:#fff4d6;font:700 16px/1.45 Trirong,Georgia,serif;text-align:center;text-shadow:0 2px 2px #000;pointer-events:none;';summary.textContent=[String(mirror&&mirror.title||''),String(mirror&&mirror.formula||''),Number.isFinite(Number(mirror&&mirror.total))?totalLabel+' '+String(mirror.total):''].filter(Boolean).join(' · ');
+    const tooltip=documentRef.createElement('div'),tooltipId='diceDetailTooltip'+String(++_diceDetailMirrorSeq);tooltip.id=tooltipId;tooltip.setAttribute('role','tooltip');tooltip.setAttribute('aria-hidden','true');tooltip.hidden=true;tooltip.style.cssText='position:absolute;left:50%;bottom:84px;transform:translateX(-50%);z-index:5;width:min(88%,430px);padding:10px 12px;border:2px solid #d9b978;border-radius:8px;background:rgba(22,14,8,.96);color:#fff4d6;font:650 var(--fs-md)/1.5 system-ui,-apple-system,\'Segoe UI\',sans-serif;text-align:left;pointer-events:none;box-shadow:0 8px 22px rgba(0,0,0,.45)';
+    const summary=documentRef.createElement('div'),totalLabel=typeof copy==='function'?copy('รวม','Total'):'Total';summary.className='dice-result-summary';summary.setAttribute('data-dice-crisp-summary','1');const tier=String(mirror&&mirror.tier||'').toLowerCase(),tone=/crit/.test(tier)?'critical':mirror&&mirror.pass===true?'success':mirror&&mirror.pass===false?'failure':'neutral';summary.setAttribute('data-dice-result-outcome',tone);summary.style.cssText='position:absolute;left:50%;top:-72px;transform:translateX(-50%);z-index:4;pointer-events:none;';
+    const summaryTitle=documentRef.createElement('div');summaryTitle.textContent=[String(mirror&&mirror.actor||''),String(mirror&&mirror.title||'')].filter(Boolean).join(' — ');summary.appendChild(summaryTitle);
+    const summaryDetail=documentRef.createElement('div');summaryDetail.textContent=String(mirror&&mirror.formula||'');if(Number.isFinite(Number(mirror&&mirror.total))){const total=documentRef.createElement('strong');total.setAttribute('data-dice-result-total','1');total.textContent=(summaryDetail.textContent?' · ':'')+totalLabel+' '+String(mirror.total);summaryDetail.appendChild(total);}if(Number.isFinite(Number(mirror&&mirror.dc)))summaryDetail.appendChild(documentRef.createTextNode(' · DC '+String(mirror.dc)));summary.appendChild(summaryDetail);
+    const outcomeText=tone==='critical'?(typeof copy==='function'?copy('คริติคอล','Critical'):'Critical'):tone==='success'?(typeof copy==='function'?copy('สำเร็จ','Success'):'Success'):tone==='failure'?(typeof copy==='function'?copy('ล้มเหลว','Failed'):'Failed'):'';if(outcomeText){const outcome=documentRef.createElement('div');outcome.className='dice-result-outcome';outcome.textContent=outcomeText;summary.appendChild(outcome);}
     let activeButton=null,closed=false;const buttons=[];
     const show=(button,die)=>{if(closed)return false;if(activeButton&&activeButton!==button)try{activeButton.removeAttribute('aria-describedby');activeButton.style.borderColor='rgba(245,212,134,.55)';}catch(_error){}activeButton=button;tooltip.textContent=diceDetailTextFor(die,copy);tooltip.hidden=false;tooltip.setAttribute('aria-hidden','false');button.setAttribute('aria-describedby',tooltipId);button.style.borderColor='#fff0a8';return true;};
     const hide=returnFocus=>{if(tooltip.hidden)return false;tooltip.hidden=true;tooltip.setAttribute('aria-hidden','true');const prior=activeButton;if(prior)try{prior.removeAttribute('aria-describedby');prior.style.borderColor='rgba(245,212,134,.55)';}catch(_error){}if(returnFocus&&prior)try{prior.focus({preventScroll:true});}catch(_error){}return true;};
     const onKey=event=>{if(event&&event.key==='Escape'&&!tooltip.hidden){try{event.preventDefault();event.stopPropagation();}catch(_error){}hide(true);}};
-    dice.forEach(die=>{const position=die.position,hit=Math.max(44,Number(position.size)||44),button=documentRef.createElement('button'),openDetail=()=>show(button,die);button.type='button';button.setAttribute('data-dice-detail-hit',String(die.id||''));button.setAttribute('aria-label',diceDetailTextFor(die,copy));button.title=diceDetailTextFor(die,copy);button.textContent=String(die.displayValue??die.value??'');button.style.cssText='position:absolute;left:'+String(Number(position.x)-hit/2)+'px;top:'+String(Number(position.y)-hit/2)+'px;width:'+String(hit)+'px;height:'+String(hit)+'px;min-width:44px;min-height:44px;padding:0;border:2px solid rgba(245,212,134,.55);border-radius:50%;background:rgba(16,10,6,.18);color:#fff8dc;font:800 '+String(Math.max(18,Math.floor(hit*.36)))+'px/1 Georgia,serif;text-shadow:0 2px 1px #000,0 0 4px #000;pointer-events:auto;touch-action:manipulation;';button.onpointerenter=openDetail;button.onclick=openDetail;button.onfocus=openDetail;button.onpointerleave=()=>{if(documentRef.activeElement!==button)hide(false);};button.onblur=()=>hide(false);button.onkeydown=onKey;buttons.push(button);layer.appendChild(button);});
+    dice.forEach(die=>{const position=die.position,hit=Math.max(44,Number(position.size)||44),button=documentRef.createElement('button'),openDetail=()=>show(button,die);button.type='button';button.setAttribute('data-dice-detail-hit',String(die.id||''));button.setAttribute('aria-label',diceDetailTextFor(die,copy));button.title=diceDetailTextFor(die,copy);button.textContent=String(die.displayValue??die.value??'');button.style.cssText='position:absolute;left:'+String(Number(position.x)-hit/2)+'px;top:'+String(Number(position.y)-hit/2)+'px;width:'+String(hit)+'px;height:'+String(hit)+'px;min-width:44px;min-height:44px;padding:0;border:2px solid rgba(245,212,134,.55);border-radius:50%;background:rgba(16,10,6,.18);color:#fff8dc;font:850 '+String(Math.max(22,Math.floor(hit*.36)))+'px/1 system-ui,-apple-system,\'Segoe UI\',sans-serif;text-shadow:0 2px 1px #000,0 0 4px #000;pointer-events:auto;touch-action:manipulation;';button.onpointerenter=openDetail;button.onclick=openDetail;button.onfocus=openDetail;button.onpointerleave=()=>{if(documentRef.activeElement!==button)hide(false);};button.onblur=()=>hide(false);button.onkeydown=onKey;buttons.push(button);layer.appendChild(button);});
     layer.onkeydown=onKey;stage.appendChild(summary);stage.appendChild(layer);stage.appendChild(tooltip);
     return {count:buttons.length,buttons:buttons,tooltip:tooltip,summary:summary,hideTooltip:hide,close:()=>{if(closed)return;closed=true;try{summary.remove();}catch(_error){}try{layer.remove();}catch(_error){}try{tooltip.remove();}catch(_error){}}};
   }catch(_error){return null;}
@@ -3053,8 +3078,8 @@ function diceCanvasDefaultEnvironment(){
         return {container:stage,announce:text=>{ live.textContent=String(text||''); },showDiceDetails:mirror=>{if(detailControl)return detailControl;detailControl=mountDiceDetailMirror(document,stage,mirror,(th,en)=>uiCopy(th,en));return detailControl;},showResultAck:model=>{
           if(ackControl)return ackControl;
           const panel=document.createElement('div');panel.setAttribute('data-dice-result-ack','1');panel.style.cssText='position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:4;display:flex;flex-direction:column;align-items:center;gap:7px;pointer-events:none;text-align:center';
-          const button=document.createElement('button');button.type='button';button.textContent=String(model&&model.buttonLabel||'');button.style.cssText='min-width:190px;min-height:52px;padding:10px 20px;border:3px solid #2f1c0d;border-radius:10px;background:#3b2412;color:#fff2cf;font:700 18px/1.25 Trirong,Georgia,serif;box-shadow:0 5px 0 #170d06;pointer-events:auto;touch-action:manipulation;';
-          const hint=document.createElement('div');hint.textContent=String(model&&model.hint||'');hint.style.cssText='max-width:340px;padding:4px 8px;border-radius:6px;background:rgba(15,9,4,.78);color:#fff2cf;font:600 12px/1.4 Trirong,Georgia,serif;';
+          const button=document.createElement('button');button.type='button';button.textContent=String(model&&model.buttonLabel||'');button.style.cssText='min-width:190px;min-height:52px;padding:10px 20px;border:3px solid #2f1c0d;border-radius:10px;background:#3b2412;color:#fff2cf;font:750 var(--fs-lg)/1.25 system-ui,-apple-system,\'Segoe UI\',sans-serif;box-shadow:0 5px 0 #170d06;pointer-events:auto;touch-action:manipulation;';
+          const hint=document.createElement('div');hint.textContent=String(model&&model.hint||'');hint.style.cssText='max-width:340px;padding:4px 8px;border-radius:6px;background:rgba(15,9,4,.78);color:#fff2cf;font:650 var(--fs-md)/1.4 system-ui,-apple-system,\'Segoe UI\',sans-serif;';
           button.onclick=()=>{try{if(model&&typeof model.onAcknowledge==='function')model.onAcknowledge();}catch(_diceAckClickError){}};
           panel.appendChild(button);panel.appendChild(hint);stage.appendChild(panel);try{button.focus({preventScroll:true});}catch(_diceAckFocusError){}
           let closed=false;ackControl={close:()=>{if(closed)return;closed=true;try{panel.remove();}catch(_diceAckRemoveError){}}};return ackControl;
@@ -3066,10 +3091,10 @@ function diceCanvasDefaultEnvironment(){
         if(!document||!document.body)return null;
         const overlay=document.createElement('div');overlay.setAttribute('data-dice-press-roll','1');overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-label',String(model&&model.title||''));
         overlay.style.cssText='position:fixed;inset:0;z-index:2147482050;display:grid;place-items:center;padding:18px;pointer-events:auto;background:rgba(17,10,5,.24);';
-        const card=document.createElement('div');card.style.cssText='width:min(92vw,390px);padding:20px 18px 18px;border:3px double #8b602f;border-radius:12px;background:linear-gradient(145deg,#f4e4bd,#d9bd82);color:#2a1a0d;text-align:center;box-shadow:0 14px 34px rgba(20,10,2,.45),inset 0 0 0 2px rgba(255,250,226,.55);font-family:Trirong,Georgia,serif;';
+        const card=document.createElement('div');card.style.cssText='width:min(92vw,390px);padding:20px 18px 18px;border:3px double #8b602f;border-radius:12px;background:linear-gradient(145deg,#f4e4bd,#d9bd82);color:#2a1a0d;text-align:center;box-shadow:0 14px 34px rgba(20,10,2,.45),inset 0 0 0 2px rgba(255,250,226,.55);font-family:system-ui,-apple-system,\'Segoe UI\',sans-serif;';
         const title=document.createElement('div');title.style.cssText='font-size:var(--fs-lg);font-weight:700;line-height:1.45;margin-bottom:8px;';
         const label=document.createElement('div');label.style.cssText='font-size:var(--fs-base);line-height:1.45;opacity:.8;margin-bottom:14px;overflow-wrap:anywhere;';
-        const button=document.createElement('button');button.type='button';button.style.cssText='min-width:190px;min-height:58px;padding:12px 22px;border:3px solid #2f1c0d;border-radius:10px;background:#3b2412;color:#fff2cf;font:700 20px/1.2 Trirong,Georgia,serif;box-shadow:0 5px 0 #170d06;touch-action:manipulation;';
+        const button=document.createElement('button');button.type='button';button.style.cssText='min-width:190px;min-height:58px;padding:12px 22px;border:3px solid #2f1c0d;border-radius:10px;background:#3b2412;color:#fff2cf;font:800 var(--fs-lg)/1.2 system-ui,-apple-system,\'Segoe UI\',sans-serif;box-shadow:0 5px 0 #170d06;touch-action:manipulation;';
         const hint=document.createElement('div');hint.style.cssText='font-size:var(--fs-sm);line-height:1.45;margin-top:14px;opacity:.72;';
         const update=next=>{model=next||model||{};overlay.setAttribute('aria-label',String(model.title||''));title.textContent=String(model.title||'');label.textContent=String(model.label||'');button.textContent=String(model.buttonLabel||'');button.disabled=model.disabled===true;hint.textContent=String(model.hint||'');button.onclick=()=>{try{if(model&&typeof model.onPress==='function')model.onPress();}catch(_dicePressClickError){}};};update(model);
         card.appendChild(title);card.appendChild(label);card.appendChild(button);card.appendChild(hint);overlay.appendChild(card);document.body.appendChild(overlay);try{button.focus({preventScroll:true});}catch(_dicePressFocusError){}
@@ -3081,10 +3106,10 @@ function diceCanvasDefaultEnvironment(){
         if(!container||!payload||!Array.isArray(payload.values)) return false;
         const panel=document.createElement('div'); panel.setAttribute('data-combat-dice-raw-chips','1');
         panel.style.cssText='min-height:330px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;color:#f5e7c6;text-align:center';
-        const label=document.createElement('div'); label.style.cssText='max-width:480px;font:600 16px/1.4 Georgia,serif;color:#f5e7c6'; label.textContent=payload.label; panel.appendChild(label);
+        const label=document.createElement('div'); label.style.cssText='max-width:480px;font:650 var(--fs-md)/1.4 system-ui,-apple-system,\'Segoe UI\',sans-serif;color:#f5e7c6'; label.textContent=payload.label; panel.appendChild(label);
         const chips=document.createElement('div'); chips.style.cssText='display:flex;flex-wrap:wrap;justify-content:center;gap:9px;max-width:480px';
-        payload.visibleValues.forEach(value=>{ const chip=document.createElement('span'); chip.setAttribute('data-combat-dice-raw-value',String(value)); chip.style.cssText='min-width:42px;padding:9px 12px;border:2px solid #d9b978;border-radius:999px;background:rgba(43,29,17,.96);color:#fff4d6;font:700 20px Georgia,serif;box-shadow:0 5px 13px rgba(10,6,2,.32)'; chip.textContent=String(value); chips.appendChild(chip); });
-        if(payload.collapsedCount>0){ const collapsed=document.createElement('span'); collapsed.setAttribute('data-combat-dice-raw-collapsed',String(payload.collapsedCount)); collapsed.style.cssText='min-width:42px;padding:9px 12px;border:2px solid #d9b978;border-radius:999px;background:rgba(43,29,17,.96);color:#fff4d6;font:700 20px Georgia,serif;box-shadow:0 5px 13px rgba(10,6,2,.32)'; collapsed.textContent='+'+String(payload.collapsedCount); chips.appendChild(collapsed); }
+        payload.visibleValues.forEach(value=>{ const chip=document.createElement('span'); chip.setAttribute('data-combat-dice-raw-value',String(value)); chip.style.cssText='min-width:42px;padding:9px 12px;border:2px solid #d9b978;border-radius:999px;background:rgba(43,29,17,.96);color:#fff4d6;font:850 var(--fs-lg)/1 system-ui,-apple-system,\'Segoe UI\',sans-serif;box-shadow:0 5px 13px rgba(10,6,2,.32)'; chip.textContent=String(value); chips.appendChild(chip); });
+        if(payload.collapsedCount>0){ const collapsed=document.createElement('span'); collapsed.setAttribute('data-combat-dice-raw-collapsed',String(payload.collapsedCount)); collapsed.style.cssText='min-width:42px;padding:9px 12px;border:2px solid #d9b978;border-radius:999px;background:rgba(43,29,17,.96);color:#fff4d6;font:850 var(--fs-lg)/1 system-ui,-apple-system,\'Segoe UI\',sans-serif;box-shadow:0 5px 13px rgba(10,6,2,.32)'; collapsed.textContent='+'+String(payload.collapsedCount); chips.appendChild(collapsed); }
         panel.appendChild(chips); container.appendChild(panel); return true;
       }catch(_error){ return false; }
     },
@@ -4928,6 +4953,35 @@ function narrText(n){
 function narrProjectionNote(n){
   return narrativeProjectionMode(n)==='enforce'&&n&&n.projection_status==='corrected'?stripNarrativeEditorialMeta(String(n.projection_note||'')):'';
 }
+// W39-DICE-RESULT-SURFACE pure start
+function diceResultPresentation(text,pass,tier){
+  const raw=String(text||''),faceMatch=raw.match(/(?:^|[^A-Za-z0-9_])d20\s*(?:\(\s*)?(\d{1,2})(?!\d)/i);
+  if(!faceMatch)return null;
+  const face=Number(faceMatch[1]);if(!Number.isInteger(face)||face<1||face>20)return null;
+  const totalMatch=raw.match(/=\s*(-?\d+)\s*(?:vs\s*DC|เทียบ(?:กับ)?\s*(?:DC)?)/i),total=totalMatch?Number(totalMatch[1]):null;
+  const tierKey=String(tier||'').toLowerCase();let tone='neutral';
+  if(/crit|critical/.test(tierKey)||/(?:คริติคอล|critical|\bcrit\b)/i.test(raw))tone='critical';
+  else if(pass===false||/(?:ล้มเหลว|ไม่ผ่าน|failed?|failure)/i.test(raw))tone='failure';
+  else if(pass===true||/(?:สำเร็จ|ผ่าน|passed?|success)/i.test(raw))tone='success';
+  return {face:face,total:Number.isFinite(total)?total:null,tone:tone};
+}
+function diceOutcomeCopy(tone){
+  if(tone==='critical')return uiCopy('คริติคอล','Critical');
+  if(tone==='success')return uiCopy('สำเร็จ','Success');
+  if(tone==='failure')return uiCopy('ล้มเหลว','Failed');
+  return '';
+}
+function decorateDiceResultElement(element,text,pass,tier){
+  const model=diceResultPresentation(text,pass,tier);if(!element||!model)return false;
+  element.classList.add('dice-result-line');element.setAttribute('data-dice-result-outcome',model.tone);
+  const badge=document.createElement('span');badge.className='dice-result-badge';badge.setAttribute('aria-label','d20 '+String(model.face));
+  const kind=document.createElement('span');kind.textContent='d20';const face=document.createElement('b');face.textContent=String(model.face);badge.appendChild(kind);badge.appendChild(face);
+  if(Number.isFinite(model.total)){const total=document.createElement('span');total.className='dice-result-total';total.textContent='= '+String(model.total);badge.appendChild(total);}
+  element.insertBefore(badge,element.firstChild);
+  const outcomeText=diceOutcomeCopy(model.tone);if(outcomeText){const outcome=document.createElement('span');outcome.className='dice-result-outcome';outcome.textContent=outcomeText;element.appendChild(outcome);}
+  return true;
+}
+// W39-DICE-RESULT-SURFACE pure end
 function englishReleasedAttackNoteHtml(n,text){
   if(!n||String(n.author||'dm').toLowerCase()!=='system') return null;
   const split=globalThis.TTRPG_I18N&&globalThis.TTRPG_I18N.splitEnglishReleasedAttackPlayerTarget;
@@ -6538,7 +6592,7 @@ function renderProgressiveReceipts(rows){
   const title=document.createElement('div'); title.className='sectitle'; title.textContent=uiCopy('สิ่งที่เกิดขึ้นแล้ว','What has happened'); box.appendChild(title);
   rows.forEach(n=>{
     const item=document.createElement('div'); item.className='note'; item.dataset.nid=String(n.id||'');
-    item.innerHTML=narrDraw(n); box.appendChild(item);
+    const text=narrText(n);item.innerHTML=narrDraw(n);decorateDiceResultElement(item,text,n&&n.pass,n&&n.tier);box.appendChild(item);
   });
 }
 function pendingRecruitmentNames(rows){
@@ -8367,6 +8421,33 @@ async function submitSpellPrepare(slugs, btn){
 // v320 fix: กัน render ซ้อน (re-entrancy) — realtime ยิงรัว (เคสจริง: เลเวลอัพยกปาร์ตี้ → campaign_state/characters อัปเดตหลายครั้งติด)
 //   ฟังก์ชัน async ที่ทำ innerHTML='' แล้ว await (renderLevelUpPanel→loadCatalogs/fetchRulesInfo / loadChat) รันพร้อมกัน → append แทรกกันหลัง await = การ์ด/สถานะซ้ำ 4 ชุดเวลา scroll
 //   mutex: รันทีละตัว · ถ้ามี event ระหว่างรัน → rerun รอบเดียวหลังจบ (เคลียร์+สร้างใหม่ชุดเดียวเสมอ)
+// W41-SHEET-CAPABILITY-SUMMARY pure start
+function sheetCapabilitySummaryModel(sheet,rows,character){
+  const safeSheet=sheet&&typeof sheet==='object'?sheet:{},safeRows=Array.isArray(rows)?rows:[],seen=value=>String(value||'').trim().toLowerCase();
+  const uniqueItems=items=>{const keys=new Set();return items.filter(item=>{const key=seen(item&&item.name);if(!key||keys.has(key))return false;keys.add(key);return true;});};
+  const slotState=safeSheet.slots&&typeof safeSheet.slots==='object'?safeSheet.slots:{},slotMax=Array.isArray(slotState.lv_max)?slotState.lv_max:[],slotUsed=slotState.lv_used&&typeof slotState.lv_used==='object'?slotState.lv_used:{};
+  const slotAvailable=level=>{for(let l=Math.max(1,Math.floor(+level||1));l<slotMax.length;l++){if((+slotMax[l]||0)-(+slotUsed[String(l)]||0)>0)return true;}return false;};
+  const spellRows=uniqueItems(safeRows.filter(row=>skillCat(row)==='spell'&&row.level!=null&&Number.isFinite(+row.level)).map(row=>({name:String(row.name||'').trim(),level:Math.max(0,Math.floor(+row.level||0)),castableNow:(+row.level||0)<=0||slotAvailable(+row.level)})));
+  const book=uniqueItems((Array.isArray(safeSheet.spellbook)?safeSheet.spellbook:[]).map(value=>({name:String(value||'').trim(),level:null,castableNow:false})));
+  const classFeatures=uniqueItems(safeRows.filter(row=>skillCat(row)==='class').map(row=>({name:String(row.name||'').trim(),remaining:+row.max_uses>0?Math.max(0,(+row.max_uses||0)-(+row.used||0)):null,max:+row.max_uses>0?+row.max_uses:null})));
+  const feats=uniqueItems((Array.isArray(safeSheet.feats)?safeSheet.feats:[]).map(value=>{const raw=typeof value==='string'?value:(value&&value.name)||(value&&value.slug)||(value&&value.id)||'';return {name:String(raw).replace(/[-_]+/g,' ').trim()};})).map(item=>item.name);
+  return {ready:Array.isArray(rows),cantrips:spellRows.filter(item=>item.level===0),activeSpells:spellRows.filter(item=>item.level>=1),spellbook:book,classFeatures:classFeatures,feats:feats,subclass:String(safeSheet.subclass||'').trim(),preparedCaster:needsDailyPrepareFE(character&&character.class),hasSlots:slotMax.some(value=>+value>0)};
+}
+// W41-SHEET-CAPABILITY-SUMMARY pure end
+function renderSheetCapabilitySummary(container,sheet,rows,character){
+  const model=sheetCapabilitySummaryModel(sheet,rows,character),card=document.createElement('div');card.className='item mecard-abilities';card.setAttribute('data-w41-sheet-capabilities','1');
+  const chipList=(items,showCastable)=>items.length?'<div class="chips">'+items.map(item=>'<span class="chip">'+escapeHtml(item.name)+(showCastable?('<span style="display:block;opacity:.78">'+(item.castableNow?uiCopy('✓ ร่ายได้ตอนนี้','✓ CASTABLE NOW'):uiCopy('ไม่มีสล็อตที่ใช้ได้','NO SLOT AVAILABLE'))+'</span>'):'')+'</span>').join('')+'</div>':'<div class="note">'+uiCopy('— ไม่มีรายการ —','— None —')+'</div>';
+  let h=uiCopy('<div class="sectitle">✨ เวท & ความสามารถ</div><div class="note">รายการจริงจากแท็บทักษะ · เปิดดูได้เสมอ รวมกลางศึก</div>','<div class="sectitle">✨ Spells & abilities</div><div class="note">Verified Skills-tab list · always available, including during combat</div>');
+  if(!model.ready)h+=uiCopy('<div class="note" style="color:#FAC775">โหลดรายการทักษะไม่สำเร็จ — เปิดแท็บทักษะเพื่อลองใหม่</div>','<div class="note" style="color:#FAC775">Could not load the Skills list — open the Skills tab to retry</div>');
+  h+=uiCopy('<div class="sectitle" style="margin-top:10px">เวทระดับ 0 · ร่ายไม่จำกัด</div>','<div class="sectitle" style="margin-top:10px">CANTRIPS · LEVEL 0</div>')+chipList(model.cantrips,true);
+  if(model.spellbook.length||/wizard|วิซาร์ด|จอมเวท/i.test(String(character&&character.class||'')))h+=uiCopy('<div class="sectitle" style="margin-top:10px">ตำราเวท · เวทที่เรียนรู้</div>','<div class="sectitle" style="margin-top:10px">SPELLBOOK · LEARNED SPELLS</div>')+chipList(model.spellbook,false);
+  h+=uiCopy('<div class="sectitle" style="margin-top:10px">'+(model.preparedCaster?'เวทที่เตรียมวันนี้':'เวทที่รู้จัก')+'</div>','<div class="sectitle" style="margin-top:10px">'+(model.preparedCaster?'PREPARED TODAY':'KNOWN SPELLS')+'</div>')+chipList(model.activeSpells,true);
+  if(model.hasSlots)h+=slotPillsHtml(sheet);
+  h+=uiCopy('<div class="sectitle" style="margin-top:10px">ความสามารถคลาส & ความถนัดพิเศษ</div>','<div class="sectitle" style="margin-top:10px">CLASS FEATURES & FEATS</div>')+chipList(model.classFeatures.concat(model.feats.map(name=>({name:name}))),false);
+  if(model.subclass)h+=uiCopy('<div class="note" style="margin-top:6px">สายอาชีพย่อย: ','<div class="note" style="margin-top:6px">Subclass: ')+escapeHtml(model.subclass)+'</div>';
+  card.innerHTML=h;const open=document.createElement('button');open.type='button';open.className='btn sm';open.style.cssText='margin-top:10px';open.textContent=uiCopy('เปิดแท็บทักษะ — ดูรายละเอียดทั้งหมด','Open Skills — view all details');open.onclick=()=>switchTab('skills');card.appendChild(open);container.appendChild(card);
+}
+// W41-SHEET-CAPABILITY-SUMMARY render end
 function reentrantGuard(fn){ let running=false, rerun=false, gen=0, startedAt=0; return async function(...a){
   // v415: กันล็อกค้างถาวร — ถ้ารอบก่อนค้างเกิน 12s (await ใน fn ไม่ settle เช่น fetch แขวนบนเน็ตมือถือ) ถือว่าตาย → ปล่อยรอบใหม่รันแทน (กันแท็บ Me/Party ว่างถาวรจนต้องรีโหลด) · generation token กันรอบเก่าที่ค้างมารีเซ็ต flag ของรอบใหม่
   if(running && (Date.now()-startedAt < 12000)){ rerun=true; return; }
@@ -8399,6 +8480,7 @@ async function _renderMeInner(){
   // โหลดแผ่นล่าสุด เผื่อ HP/สถานะถูก DM อัปเดตหลังต่อสู้
   /* ใช้ mySheet ที่ refreshAll/realtime โหลดไว้แล้ว — ไม่ refetch ทุกครั้งที่ render (ลด round-trip) */
   const sheet=mySheet||{};
+  let _meCapabilityRows=null;try{const _skr=await supa.from('skills').select('name,description,recharge,level,max_uses,used').eq('character_id',myChar.id).order('sort');if(!_skr.error)_meCapabilityRows=_skr.data||[];}catch(e){}
   const ab=sheet.abilities||{}, cb=sheet.combat||{}, w=sheet.wallet||{}, ex=sheet.exp||{};
   const _luMe=levelUpUiState();
   if(_luMe.pending&&!_luMe.mineDone){ try{ await renderLevelUpPanel(p); }catch(e){ console.error('renderLevelUpPanel:',e); try{ const _luErr=document.createElement('div'); _luErr.className='item'; _luErr.style.cssText='border:2px solid #f5c542'; _luErr.innerHTML='<div class="sectitle" style="color:#f5c542">⭐ LEVEL UP</div><div class="note">'+uiCopy('แผงเลือกโหลดไม่สำเร็จ — รีเฟรชหน้า หรือให้เจ้าของโลกกด \"ข้ามรอทุกคน\"','The level-up picker failed to load — reload, or ask the host to skip waiting.')+'</div>'; p.appendChild(_luErr); }catch(e2){} } }
@@ -8468,6 +8550,7 @@ async function _renderMeInner(){
     (bsum.length?`<div class="note" style="margin:2px 0">โบนัสไอเทม: ${esc(bsum.join(' · '))}</div>`:'')+
     (bon.effects.length?`<div class="note" style="margin:2px 0;color:#9ad">ของเวท: ${esc(bon.effects.map(e=>e.name).join(', '))}</div>`:'');
   p.appendChild(it);
+  renderSheetCapabilitySummary(p,sheet,_meCapabilityRows,myChar);
 
   // window 2: level + exp + wallet
   const w2=document.createElement('div'); w2.className='item mecard-level';
@@ -10534,7 +10617,7 @@ async function renderBattleInitLog(initEl, logEl){
     const _lfrag=document.createDocumentFragment();
     // v623 B (DG-6 Option 2): แถวใหม่ที่ server ทอยจริง → ครอบเลข d20 ด้วย .bs-droll แล้วแอนิเมตหลัง render (client ไม่ทอยเองแล้ว — เลขบนจอ = เลขจริงเสมอ)
     var _prevLastN=parseFloat(logEl.getAttribute('data-last'))||0;
-    logs.forEach(l=>{ if(!battleLogPublicVisible(l)) return; const d=document.createElement('div'); d.className='bs-logrow'; if(l.entry_type==='round_advance') d.style.color='#9a9a9a'; let _h=escapeHtml(playerCombatSummary(l)); if(!_h) return; if(_prevLastN&&(+l.seq>_prevLastN)&&combatLogServerRolled(l)){ _h=_h.replace(/(d20\s*[=(]\s*)(\d+)/, function(_m,pre,n){ return pre+'<span class="bs-droll" data-n="'+n+'">'+n+'</span>'; }); } d.innerHTML=(ICON[l.entry_type]||'•')+' '+_h; _lfrag.appendChild(d); });
+    logs.forEach(l=>{ if(!battleLogPublicVisible(l)) return; const d=document.createElement('div'); d.className='bs-logrow'; if(l.entry_type==='round_advance') d.style.color='#9a9a9a'; const _rawSummary=playerCombatSummary(l);let _h=escapeHtml(_rawSummary); if(!_h) return; if(_prevLastN&&(+l.seq>_prevLastN)&&combatLogServerRolled(l)){ _h=_h.replace(/(d20\s*[=(]\s*)(\d+)/, function(_m,pre,n){ return pre+'<span class="bs-droll" data-n="'+n+'">'+n+'</span>'; }); } d.innerHTML=(ICON[l.entry_type]||'•')+' '+_h;const _detail=l&&l.detail&&typeof l.detail==='object'?l.detail:{};decorateDiceResultElement(d,_rawSummary,typeof _detail.pass==='boolean'?_detail.pass:null,String(_detail.tier||'')); _lfrag.appendChild(d); });
     if(!_lfrag.childNodes.length){ const d=document.createElement('div'); d.className='note'; d.style.color='#9a9a9a'; d.textContent=uiCopy('— ยังไม่มีบันทึกการรบ —','— No battle log yet —'); _lfrag.appendChild(d); }
     var _lg=document.createElement('div'); _lg.appendChild(_lfrag.cloneNode(true));
     if(logEl.getAttribute('data-sig')!==_lg.innerHTML){
