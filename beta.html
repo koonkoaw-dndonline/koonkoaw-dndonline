@@ -2162,7 +2162,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202609020417;
+const FRONTEND_BUILD = 202609020650;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -10305,8 +10305,10 @@ function enterBattleScene(){
   // (06-08) safety re-sync: มือถือ realtime หลุดบ่อย → event 'จบศึก/หมากขยับ' อาจไม่ถึง ทำให้ฉากรบค้าง/กระดานไม่อัปเดต
   //   ตั้ง interval เบาๆ ทุก 8 วิ เช็คสถานะสดจาก DB → ออกฉากเมื่อศึกจบ + วาดกระดานใหม่ แม้พลาด event
   try{ if(_bsSafetyTimer) clearInterval(_bsSafetyTimer); _bsSafetyTimer=setInterval(function(){ try{ syncBattleScene('safety_poll'); }catch(e){} }, 8000); }catch(e){}
-  // เข้าฉากรบ = เพลง battle เสมอ (ไม่พึ่ง scene_mood ที่ DM มักลืมเปลี่ยนระหว่างศึก)
-  try{ if(musicOn) playMood('battle','battle_scene'); }catch(e){}
+  // W29b-music (09-02 · วัดจริงจาก musicPlaybackOwnerGuard): แฮ็คยุค 06-08 "เข้าฉากรบ = playMood('battle') เสมอ"
+  // ข้าม gate v2 → owner 'legacy' แย่งเล่น builtin battle.ogg ทับเพลงรบที่ music_v2 commit แล้ว (ปิงปอง legacy↔v2 ทั้งศึก)
+  // แก้: โลก v2 enforce ให้ _moodNow() คุม (v2 เลือกเพลงรบเองเมื่อ combat_scope active) · โลก legacy คงพฤติกรรมเดิมว่างศึก)
+  try{ if(musicOn){ if(typeof _musicV2Enabled==='function'&&_musicV2Enabled()&&!musicOverride){ _moodNow(); } else { playMood('battle','battle_scene'); } } }catch(e){}
   var el=ensureBattleScene();
   relocateForBattle(true);
   el.classList.add('on');
