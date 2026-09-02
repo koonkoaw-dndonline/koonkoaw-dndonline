@@ -2162,7 +2162,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202609021153;
+const FRONTEND_BUILD = 202609021241;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -3010,13 +3010,14 @@ function mountDiceDetailMirror(documentRef,stage,mirror,copy){
     if(!documentRef||!stage||!dice.length)return null;
     const layer=documentRef.createElement('div');layer.setAttribute('data-dice-detail-mirror','1');layer.setAttribute('aria-label',typeof copy==='function'?copy('รายละเอียดเต๋า','Dice details'):'Dice details');layer.style.cssText='position:absolute;inset:0;z-index:3;pointer-events:none';
     const tooltip=documentRef.createElement('div'),tooltipId='diceDetailTooltip'+String(++_diceDetailMirrorSeq);tooltip.id=tooltipId;tooltip.setAttribute('role','tooltip');tooltip.setAttribute('aria-hidden','true');tooltip.hidden=true;tooltip.style.cssText='position:absolute;left:50%;bottom:84px;transform:translateX(-50%);z-index:5;width:min(88%,430px);padding:10px 12px;border:2px solid #d9b978;border-radius:8px;background:rgba(22,14,8,.96);color:#fff4d6;font:600 13px/1.5 Trirong,Georgia,serif;text-align:left;pointer-events:none;box-shadow:0 8px 22px rgba(0,0,0,.45)';
+    const summary=documentRef.createElement('div'),totalLabel=typeof copy==='function'?copy('รวม','Total'):'Total';summary.setAttribute('data-dice-crisp-summary','1');summary.style.cssText='position:absolute;left:50%;top:-62px;transform:translateX(-50%);z-index:4;width:min(94vw,500px);padding:8px 12px;border:2px solid rgba(217,185,120,.78);border-radius:9px;background:rgba(22,14,8,.94);color:#fff4d6;font:700 16px/1.45 Trirong,Georgia,serif;text-align:center;text-shadow:0 2px 2px #000;pointer-events:none;';summary.textContent=[String(mirror&&mirror.title||''),String(mirror&&mirror.formula||''),Number.isFinite(Number(mirror&&mirror.total))?totalLabel+' '+String(mirror.total):''].filter(Boolean).join(' · ');
     let activeButton=null,closed=false;const buttons=[];
-    const show=(button,die)=>{if(closed)return false;if(activeButton&&activeButton!==button)try{activeButton.removeAttribute('aria-describedby');activeButton.style.borderColor='transparent';}catch(_error){}activeButton=button;tooltip.textContent=diceDetailTextFor(die,copy);tooltip.hidden=false;tooltip.setAttribute('aria-hidden','false');button.setAttribute('aria-describedby',tooltipId);button.style.borderColor='#f5d486';return true;};
-    const hide=returnFocus=>{if(tooltip.hidden)return false;tooltip.hidden=true;tooltip.setAttribute('aria-hidden','true');const prior=activeButton;if(prior)try{prior.removeAttribute('aria-describedby');prior.style.borderColor='transparent';}catch(_error){}if(returnFocus&&prior)try{prior.focus({preventScroll:true});}catch(_error){}return true;};
+    const show=(button,die)=>{if(closed)return false;if(activeButton&&activeButton!==button)try{activeButton.removeAttribute('aria-describedby');activeButton.style.borderColor='rgba(245,212,134,.55)';}catch(_error){}activeButton=button;tooltip.textContent=diceDetailTextFor(die,copy);tooltip.hidden=false;tooltip.setAttribute('aria-hidden','false');button.setAttribute('aria-describedby',tooltipId);button.style.borderColor='#fff0a8';return true;};
+    const hide=returnFocus=>{if(tooltip.hidden)return false;tooltip.hidden=true;tooltip.setAttribute('aria-hidden','true');const prior=activeButton;if(prior)try{prior.removeAttribute('aria-describedby');prior.style.borderColor='rgba(245,212,134,.55)';}catch(_error){}if(returnFocus&&prior)try{prior.focus({preventScroll:true});}catch(_error){}return true;};
     const onKey=event=>{if(event&&event.key==='Escape'&&!tooltip.hidden){try{event.preventDefault();event.stopPropagation();}catch(_error){}hide(true);}};
-    dice.forEach(die=>{const position=die.position,hit=Math.max(44,Number(position.size)||44),button=documentRef.createElement('button'),openDetail=()=>show(button,die);button.type='button';button.setAttribute('data-dice-detail-hit',String(die.id||''));button.setAttribute('aria-label',diceDetailTextFor(die,copy));button.title=diceDetailTextFor(die,copy);button.style.cssText='position:absolute;left:'+String(Number(position.x)-hit/2)+'px;top:'+String(Number(position.y)-hit/2)+'px;width:'+String(hit)+'px;height:'+String(hit)+'px;min-width:44px;min-height:44px;padding:0;border:2px solid transparent;border-radius:50%;background:transparent;color:transparent;pointer-events:auto;touch-action:manipulation;';button.onpointerenter=openDetail;button.onclick=openDetail;button.onfocus=openDetail;button.onpointerleave=()=>{if(documentRef.activeElement!==button)hide(false);};button.onblur=()=>hide(false);button.onkeydown=onKey;buttons.push(button);layer.appendChild(button);});
-    layer.onkeydown=onKey;stage.appendChild(layer);stage.appendChild(tooltip);
-    return {count:buttons.length,buttons:buttons,tooltip:tooltip,hideTooltip:hide,close:()=>{if(closed)return;closed=true;try{layer.remove();}catch(_error){}try{tooltip.remove();}catch(_error){}}};
+    dice.forEach(die=>{const position=die.position,hit=Math.max(44,Number(position.size)||44),button=documentRef.createElement('button'),openDetail=()=>show(button,die);button.type='button';button.setAttribute('data-dice-detail-hit',String(die.id||''));button.setAttribute('aria-label',diceDetailTextFor(die,copy));button.title=diceDetailTextFor(die,copy);button.textContent=String(die.displayValue??die.value??'');button.style.cssText='position:absolute;left:'+String(Number(position.x)-hit/2)+'px;top:'+String(Number(position.y)-hit/2)+'px;width:'+String(hit)+'px;height:'+String(hit)+'px;min-width:44px;min-height:44px;padding:0;border:2px solid rgba(245,212,134,.55);border-radius:50%;background:rgba(16,10,6,.18);color:#fff8dc;font:800 '+String(Math.max(18,Math.floor(hit*.36)))+'px/1 Georgia,serif;text-shadow:0 2px 1px #000,0 0 4px #000;pointer-events:auto;touch-action:manipulation;';button.onpointerenter=openDetail;button.onclick=openDetail;button.onfocus=openDetail;button.onpointerleave=()=>{if(documentRef.activeElement!==button)hide(false);};button.onblur=()=>hide(false);button.onkeydown=onKey;buttons.push(button);layer.appendChild(button);});
+    layer.onkeydown=onKey;stage.appendChild(summary);stage.appendChild(layer);stage.appendChild(tooltip);
+    return {count:buttons.length,buttons:buttons,tooltip:tooltip,summary:summary,hideTooltip:hide,close:()=>{if(closed)return;closed=true;try{summary.remove();}catch(_error){}try{layer.remove();}catch(_error){}try{tooltip.remove();}catch(_error){}}};
   }catch(_error){return null;}
 }
 function diceCanvasDefaultEnvironment(){
@@ -10400,10 +10401,32 @@ async function renderBattleScene(trigger){
     try{ var _cb=document.querySelector('#bsMobBar button[data-sheet="cmd"]'); if(_cb){ var _canAct=playerCombatUiState()==='act'; _cb.classList.toggle('bs-myturn',_canAct); _cb.disabled=!!(gCombat&&gCombat.active&&!_canAct); } }catch(e){}
   } finally { _bsRendering=false; }
 }
+// INITIATIVE-PRESS-W31 copy surface 1 start
+let _initiativePressPrompt=null,_initiativePressEntryId='',_initiativePressBusy=false;
+function closeInitiativePressPrompt(){ try{if(_initiativePressPrompt)_initiativePressPrompt.close();}catch(e){} _initiativePressPrompt=null;_initiativePressEntryId='';_initiativePressBusy=false; }
+async function pressInitiativeEntry(entry){
+  if(_initiativePressBusy||!entry||!entry.id)return;_initiativePressBusy=true;
+  try{
+    const session=await supa.auth.getSession(),token=session&&session.data&&session.data.session&&session.data.session.access_token;if(!token)throw new Error('auth_required');
+    const body={campaign_id:campaign.id,group_no:terminalGroupForUi(),client_build:FRONTEND_BUILD,client_epoch:FRONTEND_COMPAT_EPOCH,i18n_asset_build:englishAssetBuildProof(),initiative_roll:{entry_id:entry.id}};if(BETA&&betaCode())body.beta_code=betaCode();
+    const response=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)}),result=await response.json();
+    if(!response.ok||!result||result.ok!==true||!result.roll)throw new Error(String(result&&result.reason_code||result&&result.error||'initiative_roll_failed'));
+    closeInitiativePressPrompt();
+    try{if(window.DiceFx&&typeof window.DiceFx.roll==='function')window.DiceFx.roll(Object.assign({},result.roll,{onDone:function(){try{renderBattleInitLog(document.getElementById('bsInit'),document.getElementById('bsLog'));}catch(e){}}}));}catch(e){}
+    await renderBattleInitLog(document.getElementById('bsInit'),document.getElementById('bsLog'));
+  }catch(e){_initiativePressBusy=false;toast(uiCopy('ทอยลำดับไม่สำเร็จ — ลองอีกครั้ง','Initiative roll failed — try again'),true);}
+}
+function syncInitiativePressPrompt(enc,entries){
+  const own=(entries||[]).find(e=>e&&e.side==='party'&&e.is_active!==false&&e.initiative_pending===true&&myChar&&String(e.character_id)===String(myChar.id));
+  if(!enc||!own){closeInitiativePressPrompt();return;}if(_initiativePressPrompt&&_initiativePressEntryId===String(own.id))return;closeInitiativePressPrompt();_initiativePressEntryId=String(own.id);
+  try{_initiativePressPrompt=diceCanvasDefaultEnvironment().mountPlayerRollPrompt({title:uiCopy('⚔ เริ่มการต่อสู้','⚔ Combat begins'),label:uiCopy(String(own.display_name||'')+' — ทอยลำดับการรบ',String(own.display_name||'')+' — Roll for Initiative'),buttonLabel:uiCopy('🎲 ทอยลำดับ','🎲 ROLL INITIATIVE'),hint:uiCopy('กดเพื่อให้ระบบทอยเต๋ายี่สิบหน้าจริง','Press to roll the server-authoritative d20'),onPress:function(){pressInitiativeEntry(own);}});}catch(e){_initiativePressPrompt=null;_initiativePressEntryId='';}
+}
+function initiativeWaitingLabel(){return uiCopy('· รอกดทอย','· WAITING FOR ROLL');}
+// INITIATIVE-PRESS-W31 copy surface 1 end
 async function renderBattleInitLog(initEl, logEl){
   let enc=null;
   try{ const r=await supa.from('combat_encounters').select('*').eq('campaign_id',campaign.id).eq('group_no',terminalGroupForUi()).neq('status','ended').maybeSingle(); if(!r.error) enc=r.data; }catch(e){}
-  if(!enc){ if(initEl) initEl.replaceChildren(); if(logEl) logEl.replaceChildren(); try{ window.gEncStartedAt=null; }catch(e){} return; }
+  if(!enc){ closeInitiativePressPrompt(); if(initEl) initEl.replaceChildren(); if(logEl) logEl.replaceChildren(); try{ window.gEncStartedAt=null; }catch(e){} return; }
   try{ window.gEncId=enc.id; window.gEncStartedAt=enc.created_at||enc.started_at||window.gEncStartedAt||null; }catch(e){}   // v739: exact encounter keeps outro/log scoped to this group
   // (06-11) ยิง 3 query พร้อมกัน (เดิม serial 3 รอบ + log อีก 1) — ลดเวลารอ render ฉากรบ
   let ents=[], csMap={}, _logsPre=null;
@@ -10417,6 +10440,7 @@ async function renderBattleInitLog(initEl, logEl){
     ((rC&&rC.data)||[]).forEach(x=>csMap[x.id]=x);
     _logsPre=(rL&&rL.data)||null;
   }catch(e){}
+  syncInitiativePressPrompt(enc,ents);
   if(initEl){
     const _frag=document.createDocumentFragment();
     const _locHud2=combatLocationLabel(enc); if(_locHud2){ const ld=document.createElement('div'); ld.className='note'; ld.style.cssText='text-align:left;padding:2px 5px;color:#FAC775;font-size:var(--fs-sm)'; ld.textContent='📍 '+_locHud2; ld.title='location snapshot '+String(enc.location_snapshot_id||''); _frag.appendChild(ld); }
@@ -10427,7 +10451,7 @@ async function renderBattleInitLog(initEl, logEl){
       const mine=isParty&&myChar&&e.character_id===myChar.id; const col=isParty?'#5cc8ff':(e.side==='ally'?'#7ee2a0':'#ff6b6b');   // W29a (09-02): เลนพันธมิตร npcCombatAid — เดิมทุกฝั่งที่ไม่ใช่ party ถูกทาสีแดงแบบศัตรู (เคสจริง Garwick)
       const _cpc=[...new Set((Array.isArray(e.conditions)?e.conditions:[]).map(prettyCond).filter(Boolean))]; const conds=_cpc.length?(' ['+_cpc.map(escapeHtml).join(',')+']'):'';   // v756: TH/EN aliases may map to one visible label; never render duplicates
       const row=document.createElement('div'); row.className='bs-initrow'+(mine?' me':'');
-      row.innerHTML='<span class="bs-ini">'+(e.initiative==null?'?':e.initiative)+'</span><span class="bs-iname" style="color:'+col+'">'+escapeHtml(e.display_name)+(mine?uiCopy(' (คุณ)',' (You)'):'')+(conds?('<span class="muted" style="font-size:var(--fs-xs)">'+escapeHtml(conds)+'</span>'):'')+'</span><span class="bs-ihp">'+escapeHtml(hpTxt||'')+'</span>';
+      const waiting=e.initiative_pending===true;row.innerHTML='<span class="bs-ini">'+(e.initiative==null?(waiting?'…':'?'):e.initiative)+'</span><span class="bs-iname" style="color:'+col+'">'+escapeHtml(e.display_name)+(mine?uiCopy(' (คุณ)',' (You)'):'')+(waiting?'<span class="muted" style="font-size:var(--fs-xs)"> '+initiativeWaitingLabel()+'</span>':'')+(conds?('<span class="muted" style="font-size:var(--fs-xs)">'+escapeHtml(conds)+'</span>'):'')+'</span><span class="bs-ihp">'+escapeHtml(hpTxt||'')+'</span>';
       _frag.appendChild(row);
     });
     if(!_frag.childNodes.length){ const d=document.createElement('div'); d.className='note'; d.style.color='#9a9a9a'; d.textContent=uiCopy('— รอลำดับการรบ —','— Waiting for initiative —'); _frag.appendChild(d); }
