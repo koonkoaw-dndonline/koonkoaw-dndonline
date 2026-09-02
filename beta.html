@@ -2162,7 +2162,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202609022004;
+const FRONTEND_BUILD = 202609022206;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -3067,12 +3067,13 @@ function diceCanvasDefaultEnvironment(){
         const overlay=document.createElement('div');overlay.setAttribute('data-dice-press-roll','1');overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-label',String(model&&model.title||''));
         overlay.style.cssText='position:fixed;inset:0;z-index:2147482050;display:grid;place-items:center;padding:18px;pointer-events:auto;background:rgba(17,10,5,.24);';
         const card=document.createElement('div');card.style.cssText='width:min(92vw,390px);padding:20px 18px 18px;border:3px double #8b602f;border-radius:12px;background:linear-gradient(145deg,#f4e4bd,#d9bd82);color:#2a1a0d;text-align:center;box-shadow:0 14px 34px rgba(20,10,2,.45),inset 0 0 0 2px rgba(255,250,226,.55);font-family:Trirong,Georgia,serif;';
-        const title=document.createElement('div');title.textContent=String(model&&model.title||'');title.style.cssText='font-size:var(--fs-lg);font-weight:700;line-height:1.45;margin-bottom:8px;';
-        const label=document.createElement('div');label.textContent=String(model&&model.label||'');label.style.cssText='font-size:var(--fs-base);line-height:1.45;opacity:.8;margin-bottom:14px;overflow-wrap:anywhere;';
-        const button=document.createElement('button');button.type='button';button.textContent=String(model&&model.buttonLabel||'');button.style.cssText='min-width:190px;min-height:58px;padding:12px 22px;border:3px solid #2f1c0d;border-radius:10px;background:#3b2412;color:#fff2cf;font:700 20px/1.2 Trirong,Georgia,serif;box-shadow:0 5px 0 #170d06;touch-action:manipulation;';button.onclick=()=>{try{if(model&&typeof model.onPress==='function')model.onPress();}catch(_dicePressClickError){}};
-        const hint=document.createElement('div');hint.textContent=String(model&&model.hint||'');hint.style.cssText='font-size:var(--fs-sm);line-height:1.45;margin-top:14px;opacity:.72;';
+        const title=document.createElement('div');title.style.cssText='font-size:var(--fs-lg);font-weight:700;line-height:1.45;margin-bottom:8px;';
+        const label=document.createElement('div');label.style.cssText='font-size:var(--fs-base);line-height:1.45;opacity:.8;margin-bottom:14px;overflow-wrap:anywhere;';
+        const button=document.createElement('button');button.type='button';button.style.cssText='min-width:190px;min-height:58px;padding:12px 22px;border:3px solid #2f1c0d;border-radius:10px;background:#3b2412;color:#fff2cf;font:700 20px/1.2 Trirong,Georgia,serif;box-shadow:0 5px 0 #170d06;touch-action:manipulation;';
+        const hint=document.createElement('div');hint.style.cssText='font-size:var(--fs-sm);line-height:1.45;margin-top:14px;opacity:.72;';
+        const update=next=>{model=next||model||{};overlay.setAttribute('aria-label',String(model.title||''));title.textContent=String(model.title||'');label.textContent=String(model.label||'');button.textContent=String(model.buttonLabel||'');button.disabled=model.disabled===true;hint.textContent=String(model.hint||'');button.onclick=()=>{try{if(model&&typeof model.onPress==='function')model.onPress();}catch(_dicePressClickError){}};};update(model);
         card.appendChild(title);card.appendChild(label);card.appendChild(button);card.appendChild(hint);overlay.appendChild(card);document.body.appendChild(overlay);try{button.focus({preventScroll:true});}catch(_dicePressFocusError){}
-        let closed=false;return {close:()=>{if(closed)return;closed=true;try{overlay.remove();}catch(_dicePressRemoveError){}}};
+        let closed=false;return {update:update,close:()=>{if(closed)return;closed=true;try{overlay.remove();}catch(_dicePressRemoveError){}}};
       }catch(_dicePressMountError){return null;}
     },
     renderRawChips:(container,payload)=>{
@@ -4280,7 +4281,7 @@ async function _refreshAllInner(){
   await Promise.all([loadRound(), loadNarrative()]);   // v739 FZ-2: group is known before scoped round/story reads
   await loadSlowlifeState();   // v710: hydrate before renderRoundbar so the main action box never flashes during a live window
   if(myChar){ try{ const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle(); if(r.error) throw r.error; mySheet=r.data?.sheet||{}; mySheetUpdatedAt=r.data?.updated_at||null; cacheSave('sheet_'+myChar.id, mySheet); }catch(e){ const c=cacheLoad('sheet_'+myChar.id); mySheet=c||mySheet||{}; } }
-  await Promise.all([updateCombatBadge(), refreshCombatTurn()]);   // v638 BUG2: await combat-state hydration ก่อน render ถัดไป — กัน branch race (roundbar เลือกสาขา non-combat ผิดตอนเปิดศึก → combat options หลุดทุกจอ)
+  await Promise.all([updateCombatBadge(), refreshCombatTurn(), refreshInitiativePressPrompt()]);   // W31-S1b: pending initiative prompt is pre-combat UI and must hydrate before battle.active
   partyDecisionHintRefresh('refresh-all');
   scheduleBattleScene();
 }
@@ -4304,10 +4305,12 @@ async function updateCombatBadge(){
   // v538 M20: query ล้ม = "ไม่รู้สถานะ" คงค่าเดิม (มิเรอร์ v467 B6 syncBattleScene) — เดิม error→false → textarea story โผล่กลางคอมแบตตอนเน็ตกระตุก
   let active=false, _ok=false;
   const _prev = window._combatActive;   // v638 BUG2: จับค่าเดิม → re-render roundbar เมื่อสถานะเปลี่ยน (แก้ branch ค้างสาขาผิด)
-  try{ const r=await uiActiveEncounter('id'); if(!r.error){ active=!!r.data; _ok=true; } }catch(e){}
+  let _badgeEncounter=null;
+  try{ const r=await uiActiveEncounter('id,status'); if(!r.error){ _badgeEncounter=r.data; active=!!r.data; _ok=true; } }catch(e){}
   if(!_ok && window._combatActive!==undefined) active=window._combatActive;   // คงสถานะเดิมเมื่อ query ล้ม
   const _badgeDerivedActive=active, _badgeTerminalActive=!!(currentTerminalGate()&&currentTerminalGate().active);
   active=durableRoundCombatActive(curRound,active,_badgeTerminalActive);   // G2 B-R94-4: explicit latest-round false vetoes stale encounter/client flags after terminal acknowledgement
+  if(!active&&initiativePressTransitionObserved(_badgeEncounter,window._initiativePressRollingEncounterId))active=true;   // W31-S1b: only this tab's observed rolling→active transition can bridge stale pre-combat round meta
   if(durableRoundCombatTruth(curRound)==='inactive') reconcileCombatUiFromRound(curRound,_badgeDerivedActive);
   window._combatActive = active;   // server-truth: มีศัตรู active ไหม (ใช้เปิดเมนูคอมแบตโดยไม่พึ่ง DM flag)
   const t=document.querySelector('.tab[data-tab="mon"]'); if(t) t.classList.toggle('combat',active);
@@ -10283,8 +10286,10 @@ async function syncBattleScene(trigger){
     else { enc=r.data; if(enc){ window.gEncId=enc.id; livingEnemies=((r2&&r2.data)||[]).filter(x=>x.cur_hp==null||x.cur_hp>0).length; } }   // encounter active แต่ไม่มีศัตรูมีชีวิต = คอมแบตจบ/ค้าง → ถือว่าไม่ใช่คอมแบต
   }catch(e){ _queryFailed=true; }
   var _vaActive = !!(currentTerminalGate()&&currentTerminalGate().active);   // v739 FZ-2 group-scoped
+  const _initiativeTransitionActive=!!(livingEnemies>0&&initiativePressTransitionObserved(enc,window._initiativePressRollingEncounterId));
   const _derivedBattleActive=(!!enc && livingEnemies>0) || !!window._combatActive || !!moveMode || _vaActive;
   let active = durableRoundCombatActive(curRound,_derivedBattleActive,_vaActive);   // G2: durable latest-round false closes stale battle UI after terminal acknowledgement
+  if(!active&&_initiativeTransitionActive)active=true;   // W31-S1b: bridge only the exact rolling encounter this tab displayed to the player
   if(!active&&_derivedBattleActive&&durableRoundCombatTruth(curRound)==='inactive') reconcileCombatUiFromRound(curRound,true);
   // ผู้เล่นใหม่ที่ยังไม่มีตัวละคร: ห้ามดูดเข้าฉากรบ — ให้อยู่หน้าสร้างตัวละครก่อน (ระบบไม่รอเทิร์นเขาอยู่แล้ว)
   if(typeof myChar==='undefined' || !myChar) active=false;
@@ -10425,24 +10430,66 @@ async function renderBattleScene(trigger){
   } finally { _bsRendering=false; }
 }
 // INITIATIVE-PRESS-W31 copy surface 1 start
-let _initiativePressPrompt=null,_initiativePressEntryId='',_initiativePressBusy=false;
-function closeInitiativePressPrompt(){ try{if(_initiativePressPrompt)_initiativePressPrompt.close();}catch(e){} _initiativePressPrompt=null;_initiativePressEntryId='';_initiativePressBusy=false; }
+const INITIATIVE_PRESS_TTL_FALLBACK_MS=2*60*1000;   // server currently omits TTL from the row; metadata wins as soon as it is supplied
+let _initiativePressPrompt=null,_initiativePressEntryId='',_initiativePressBusy=false,_initiativePressClockT=null,_initiativePressPollT=null,_initiativePressPollBusy=false,_initiativePressEncounter=null,_initiativePressEntries=[];
+function initiativePressTtlMs(enc,entry){
+  const em=entry&&typeof entry.metadata==='object'?entry.metadata:{},m=enc&&typeof enc.metadata==='object'?enc.metadata:(enc&&typeof enc.meta==='object'?enc.meta:{});
+  const values=[entry&&entry.initiative_press_ttl_ms,em.initiative_press_ttl_ms,enc&&enc.initiative_press_ttl_ms,m.initiative_press_ttl_ms,m.initiative&&m.initiative.ttl_ms];
+  for(const value of values){const n=Number(value);if(Number.isFinite(n)&&n>0)return Math.round(n);}
+  return INITIATIVE_PRESS_TTL_FALLBACK_MS;
+}
+function initiativePressTransitionObserved(enc,rollingEncounterId){return !!(enc&&enc.status==='active'&&rollingEncounterId&&String(enc.id)===String(rollingEncounterId));}
+function initiativePressUiState(enc,entries,character,nowMs){
+  const own=(entries||[]).find(e=>e&&e.side==='party'&&e.is_active!==false&&e.initiative_pending===true&&character&&String(e.character_id)===String(character.id));
+  if(!enc||!own)return {mode:'closed',entry:null,remainingSeconds:0,ttlMs:0};
+  const ttlMs=initiativePressTtlMs(enc,own),sinceMs=Date.parse(String(own.initiative_pending_since||'')),now=Number.isFinite(Number(nowMs))?Number(nowMs):Date.now();
+  const remainingMs=Number.isFinite(sinceMs)?Math.max(0,sinceMs+ttlMs-now):ttlMs;
+  return {mode:remainingMs>0?'pending':'expired',entry:own,remainingSeconds:Math.max(0,Math.ceil(remainingMs/1000)),ttlMs:ttlMs};
+}
+function closeInitiativePressPrompt(){
+  try{if(_initiativePressPrompt)_initiativePressPrompt.close();}catch(e){}
+  try{if(_initiativePressClockT)clearInterval(_initiativePressClockT);if(_initiativePressPollT)clearInterval(_initiativePressPollT);}catch(e){}
+  _initiativePressPrompt=null;_initiativePressEntryId='';_initiativePressBusy=false;_initiativePressClockT=null;_initiativePressPollT=null;_initiativePressPollBusy=false;_initiativePressEncounter=null;_initiativePressEntries=[];
+}
+function initiativePressPromptModel(state){
+  const own=state.entry,expired=state.mode==='expired';
+  return {title:uiCopy('⚔ เริ่มการต่อสู้','⚔ Combat begins'),label:uiCopy(String(own.display_name||'')+' — ทอยลำดับการรบ',String(own.display_name||'')+' — Roll for Initiative'),buttonLabel:expired?uiCopy('⏱ ระบบทอยให้แล้ว','⏱ SYSTEM ROLLED'):uiCopy('🎲 ทอยลำดับ','🎲 ROLL INITIATIVE'),hint:expired?uiCopy('หมดเวลาแล้ว — กดเพื่อซิงก์ผลที่ระบบยืนยัน','Time expired — press to sync the committed result'):uiCopy('เหลือ '+state.remainingSeconds+' วินาที · กดเพื่อให้ระบบทอยเต๋ายี่สิบหน้าจริง',state.remainingSeconds+'s remaining · Press to roll the server-authoritative d20'),disabled:_initiativePressBusy,onPress:function(){pressInitiativeEntry(own);}};
+}
+function initiativePressTick(){if(_initiativePressEncounter)syncInitiativePressPrompt(_initiativePressEncounter,_initiativePressEntries,Date.now());}
+function ensureInitiativePressTimers(){
+  if(!_initiativePressClockT)_initiativePressClockT=setInterval(initiativePressTick,1000);
+  if(!_initiativePressPollT)_initiativePressPollT=setInterval(async function(){if(_initiativePressPollBusy)return;_initiativePressPollBusy=true;try{await refreshInitiativePressPrompt('initiative_poll');}finally{_initiativePressPollBusy=false;}},5000);
+}
 async function pressInitiativeEntry(entry){
   if(_initiativePressBusy||!entry||!entry.id)return;_initiativePressBusy=true;
   try{
     const session=await supa.auth.getSession(),token=session&&session.data&&session.data.session&&session.data.session.access_token;if(!token)throw new Error('auth_required');
     const body={campaign_id:campaign.id,group_no:terminalGroupForUi(),client_build:FRONTEND_BUILD,client_epoch:FRONTEND_COMPAT_EPOCH,i18n_asset_build:englishAssetBuildProof(),initiative_roll:{entry_id:entry.id}};if(BETA&&betaCode())body.beta_code=betaCode();
     const response=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)}),result=await response.json();
-    if(!response.ok||!result||result.ok!==true||!result.roll)throw new Error(String(result&&result.reason_code||result&&result.error||'initiative_roll_failed'));
+    const replayed=!!(result&&result.reason_code==='initiative_roll_replayed');if(!response.ok||!result||(!replayed&&result.ok!==true)||!result.roll)throw new Error(String(result&&result.reason_code||result&&result.error||'initiative_roll_failed'));
     closeInitiativePressPrompt();
+    if(replayed)toast(uiCopy('(แก้: ระบบทอยให้แล้ว — แสดงผลที่ยืนยันจากเซิร์ฟเวอร์)','(Fixed: the system already rolled — showing the committed server result)'));
     try{if(window.DiceFx&&typeof window.DiceFx.roll==='function')window.DiceFx.roll(Object.assign({},result.roll,{onDone:function(){try{renderBattleInitLog(document.getElementById('bsInit'),document.getElementById('bsLog'));}catch(e){}}}));}catch(e){}
     await renderBattleInitLog(document.getElementById('bsInit'),document.getElementById('bsLog'));
-  }catch(e){_initiativePressBusy=false;toast(uiCopy('ทอยลำดับไม่สำเร็จ — ลองอีกครั้ง','Initiative roll failed — try again'),true);}
+    try{await updateCombatBadge();scheduleBattleScene('initiative_roll');}catch(e){}
+  }catch(e){_initiativePressBusy=false;initiativePressTick();toast(uiCopy('ทอยลำดับไม่สำเร็จ — ลองอีกครั้ง','Initiative roll failed — try again'),true);}
 }
-function syncInitiativePressPrompt(enc,entries){
-  const own=(entries||[]).find(e=>e&&e.side==='party'&&e.is_active!==false&&e.initiative_pending===true&&myChar&&String(e.character_id)===String(myChar.id));
-  if(!enc||!own){closeInitiativePressPrompt();return;}if(_initiativePressPrompt&&_initiativePressEntryId===String(own.id))return;closeInitiativePressPrompt();_initiativePressEntryId=String(own.id);
-  try{_initiativePressPrompt=diceCanvasDefaultEnvironment().mountPlayerRollPrompt({title:uiCopy('⚔ เริ่มการต่อสู้','⚔ Combat begins'),label:uiCopy(String(own.display_name||'')+' — ทอยลำดับการรบ',String(own.display_name||'')+' — Roll for Initiative'),buttonLabel:uiCopy('🎲 ทอยลำดับ','🎲 ROLL INITIATIVE'),hint:uiCopy('กดเพื่อให้ระบบทอยเต๋ายี่สิบหน้าจริง','Press to roll the server-authoritative d20'),onPress:function(){pressInitiativeEntry(own);}});}catch(e){_initiativePressPrompt=null;_initiativePressEntryId='';}
+function syncInitiativePressPrompt(enc,entries,nowMs){
+  const state=initiativePressUiState(enc,entries,myChar,nowMs);if(state.mode==='closed'){closeInitiativePressPrompt();return;}
+  if(enc&&enc.status==='rolling')window._initiativePressRollingEncounterId=String(enc.id||'');
+  _initiativePressEncounter=enc;_initiativePressEntries=entries||[];const model=initiativePressPromptModel(state);
+  if(_initiativePressPrompt&&_initiativePressEntryId===String(state.entry.id)){try{if(typeof _initiativePressPrompt.update==='function')_initiativePressPrompt.update(model);}catch(e){}ensureInitiativePressTimers();return;}
+  closeInitiativePressPrompt();_initiativePressEntryId=String(state.entry.id);_initiativePressEncounter=enc;_initiativePressEntries=entries||[];
+  try{_initiativePressPrompt=diceCanvasDefaultEnvironment().mountPlayerRollPrompt(model);if(_initiativePressPrompt)ensureInitiativePressTimers();}catch(e){_initiativePressPrompt=null;_initiativePressEntryId='';}
+}
+async function refreshInitiativePressPrompt(trigger){
+  if(typeof campaign==='undefined'||!campaign||!campaign.id||!myChar){closeInitiativePressPrompt();return;}
+  try{
+    const encounterResult=await uiActiveEncounter('*');if(encounterResult.error)return;if(!encounterResult.data){window._initiativePressRollingEncounterId='';closeInitiativePressPrompt();return;}
+    const entryResult=await supa.from('initiative_entries').select('*').eq('encounter_id',encounterResult.data.id).eq('campaign_id',campaign.id).eq('side','party').eq('character_id',myChar.id).maybeSingle();if(entryResult.error)return;
+    syncInitiativePressPrompt(encounterResult.data,entryResult.data?[entryResult.data]:[],Date.now());
+    if(trigger==='initiative_poll'){try{await updateCombatBadge();scheduleBattleScene('initiative_poll');}catch(e){}}
+  }catch(e){}
 }
 function initiativeWaitingLabel(){return uiCopy('· รอกดทอย','· WAITING FOR ROLL');}
 // INITIATIVE-PRESS-W31 copy surface 1 end
@@ -12429,8 +12476,8 @@ function subscribeRealtime(){
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'chronicles',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='chron'){ renderChronicle(); } else { const t=document.querySelector('.tab[data-tab="chron"]'); if(t) t.classList.add('blink'); } })
     .on('postgres_changes',{event:'*',schema:'public',table:'music_tracks',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadMusicLibrary(); if(activeTab()==='files') renderFiles(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'music_scene_state_v2',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ const row=(payload&&payload.new)||{}; if(_musicV2Enabled()&&Number(row.group_no||1)===terminalGroupForUi()) _musicV2SelectionChanged(); })
-    .on('postgres_changes',{event:'*',schema:'public',table:'combat_encounters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await updateCombatBadge(); await refreshCombatTurn(); scheduleBattleScene(); if(activeTab()==='story') renderRoundbar(); })   /* v271 H4: refresh _combatActive จาก realtime (กันโหมด input คอมแบต/เรื่อง desync ตอนคนอื่นเปิด/ปิดศึก) */
-    .on('postgres_changes',{event:'*',schema:'public',table:'initiative_entries',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await refreshCombatTurn(); scheduleBattleScene(); if(activeTab()==='story') renderRoundbar(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'combat_encounters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await updateCombatBadge(); await refreshCombatTurn(); await refreshInitiativePressPrompt(); scheduleBattleScene(); if(activeTab()==='story') renderRoundbar(); })   /* W31-S1b: rolling encounter prompt precedes battle scene; active encounter enters it */
+    .on('postgres_changes',{event:'*',schema:'public',table:'initiative_entries',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await refreshCombatTurn(); await refreshInitiativePressPrompt(); scheduleBattleScene(); if(activeTab()==='story') renderRoundbar(); })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'combat_log',filter:'campaign_id=eq.'+campaign.id}, async()=>{ scheduleBattleScene(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'battle_grids',filter:'campaign_id=eq.'+campaign.id}, async()=>{
       gridCommandInvalidate('battle-grids-realtime');
@@ -12478,6 +12525,7 @@ async function resyncAll(force,narrativeTailOnly){
     else await Promise.all([loadRound(), loadNarrative()]);
     if(typeof updateCombatBadge==='function'){ try{ await updateCombatBadge(); }catch(e){} }   /* v271 H4: poll/visibility/online ดึง _combatActive ใหม่ (กัน input-mode ค้างหลังศึกจบ) */
     if(typeof refreshCombatTurn==='function'){ try{ await refreshCombatTurn(); }catch(e){} }
+    if(typeof refreshInitiativePressPrompt==='function'){ try{ await refreshInitiativePressPrompt(); }catch(e){} }
     if(typeof scheduleBattleScene==='function'){ try{ scheduleBattleScene('resync'); }catch(e){} }
     rtLastSyncTs=Date.now();
     const narrSig=narrative.length+'|'+((narrative[narrative.length-1]||{}).id||'');
