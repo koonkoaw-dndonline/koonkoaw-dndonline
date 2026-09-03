@@ -45,6 +45,7 @@
   // artifacts while keeping every face procedurally rendered and asset-free.
   const FACET_STROKE_JOIN = "round";
   const FACET_MITER_LIMIT = 4;
+  const FACE_LABEL_SCALE = .9;
 
   let localizer = null;
   let environment = null;
@@ -912,10 +913,10 @@
     const width = clamp(integer(viewportWidth) || 720, 240, 2400);
     const mobile = width < 640;
     const visual = visualDiceFor({ groups: groups });
-    // 60/72 keeps a single roll compact on phones while giving the facet grid
-    // at least 30/36 logical pixels. Under crowd pressure, 36 is the smallest
-    // useful size: 18 low-resolution pixels instead of the previous 12.
-    const baseSize = mobile ? 60 : 72;
+    // W61 follow-up: grow only the die body another 9/7 so the existing face
+    // label has more breathing room. Crowd pressure and the 36px safety floor
+    // still keep every server die visible.
+    const baseSize = mobile ? 108 : 130;
     const scalePressure = Math.max(
       1,
       Math.sqrt(Math.max(1, visual.length) / (mobile ? 12 : 20)),
@@ -1699,6 +1700,11 @@
     return String(item.displayFace);
   }
 
+  function faceLabelSizeForBodySize(sizeRaw) {
+    const size = Math.max(36, finiteNumber(sizeRaw) || 36);
+    return Math.max(36, size / (9 / 7));
+  }
+
   function faceLabelPlanFor(die, label, sizeRaw, scaleRaw, liveFace) {
     const key = String(die || "").toLowerCase();
     const size = Math.max(36, finiteNumber(sizeRaw) || 36);
@@ -1725,6 +1731,163 @@
       maxWidth: Number(maxWidth.toFixed(3)),
       fits: estimatedWidth <= maxWidth,
     });
+  }
+
+  function faceLabelRenderPlanFor(die, label, bodySizeRaw, scaleRaw, liveFace) {
+    const bodySize = Math.max(36, finiteNumber(bodySizeRaw) || 36);
+    const previous = faceLabelPlanFor(
+      die,
+      label,
+      faceLabelSizeForBodySize(bodySize),
+      scaleRaw,
+      liveFace,
+    );
+    const body = faceLabelPlanFor(
+      die,
+      label,
+      bodySize,
+      scaleRaw,
+      liveFace,
+    );
+    const fontSize = Math.max(
+      previous.floor,
+      Math.round(previous.fontSize * FACE_LABEL_SCALE),
+    );
+    const glyphCount = Math.max(1, String(label ?? "").length);
+    const estimatedWidth = fontSize * glyphCount * .62;
+    return deepFreeze({
+      fontSize: fontSize,
+      previousFontSize: previous.fontSize,
+      reduction: 1 - FACE_LABEL_SCALE,
+      floor: previous.floor,
+      estimatedWidth: Number(estimatedWidth.toFixed(3)),
+      maxWidth: body.maxWidth,
+      fits: estimatedWidth <= body.maxWidth,
+    });
+  }
+
+  function projectedFaceLabelTransformFor(pointsRaw, centerRaw, bodySizeRaw) {
+    const points = (Array.isArray(pointsRaw) ? pointsRaw : []).map(
+      function (point) {
+        return {
+          x: finiteNumber(point && point.x),
+          y: finiteNumber(point && point.y),
+        };
+      },
+    ).filter(function (point) {
+      return point.x !== null && point.y !== null;
+    });
+    if (points.length < 3) return null;
+    const fallbackCenter = points.reduce(function (sum, point) {
+      return {
+        x: sum.x + point.x / points.length,
+        y: sum.y + point.y / points.length,
+      };
+    }, { x: 0, y: 0 });
+    const center = {
+      x: finiteNumber(centerRaw && centerRaw.x) ?? fallbackCenter.x,
+      y: finiteNumber(centerRaw && centerRaw.y) ?? fallbackCenter.y,
+    };
+    const edge = {
+      x: points[1].x - points[0].x,
+      y: points[1].y - points[0].y,
+    };
+    const edgeMid = {
+      x: (points[0].x + points[1].x) / 2,
+      y: (points[0].y + points[1].y) / 2,
+    };
+    const opposite = points.slice(2).reduce(
+      function (sum, point, _index, rest) {
+        return {
+          x: sum.x + point.x / rest.length,
+          y: sum.y + point.y / rest.length,
+        };
+      },
+      { x: 0, y: 0 },
+    );
+    let across = {
+      x: opposite.x - edgeMid.x,
+      y: opposite.y - edgeMid.y,
+    };
+    const edgeLength = Math.hypot(edge.x, edge.y);
+    const acrossLength = Math.hypot(across.x, across.y);
+    let determinant = edge.x * across.y - edge.y * across.x;
+    if (
+      edgeLength < .001 || acrossLength < .001 ||
+      Math.abs(determinant) < .001
+    ) {
+      return null;
+    }
+    if (determinant < 0) {
+      across = { x: -across.x, y: -across.y };
+      determinant = -determinant;
+    }
+    const nominal = Math.max(1, (finiteNumber(bodySizeRaw) || 36) * .6);
+    const divisor = Math.max(nominal, edgeLength, acrossLength);
+    const matrix = {
+      a: edge.x / divisor,
+      b: edge.y / divisor,
+      c: across.x / divisor,
+      d: across.y / divisor,
+      e: center.x,
+      f: center.y,
+    };
+    return deepFreeze({
+      attached: true,
+      matrix: matrix,
+      determinant: (matrix.a * matrix.d) - (matrix.b * matrix.c),
+      scaleX: edgeLength / divisor,
+      scaleY: acrossLength / divisor,
+      rotationRad: Math.atan2(matrix.b, matrix.a),
+      clip: points,
+    });
+  }
+
+  function drawProjectedFaceLabel(
+    context,
+    points,
+    center,
+    bodySize,
+    label,
+    fontSize,
+    ink,
+    strokeWidth,
+  ) {
+    const surface = projectedFaceLabelTransformFor(points, center, bodySize);
+    if (!surface || !context || typeof context.transform !== "function") {
+      return false;
+    }
+    safeContextCall(context, "save");
+    try {
+      tracePolygon(context, surface.clip);
+      const matrix = surface.matrix;
+      try {
+        context.clip();
+        context.transform(
+          matrix.a,
+          matrix.b,
+          matrix.c,
+          matrix.d,
+          matrix.e,
+          matrix.f,
+        );
+      } catch (error) {
+        return false;
+      }
+      try {
+        context.font = "800 " + String(fontSize) + "px ui-monospace,monospace";
+        context.textAlign = "center";
+        context.textBaseline = "middle";
+        context.lineWidth = strokeWidth;
+        context.strokeStyle = "rgba(31,18,9,.82)";
+        context.fillStyle = ink;
+      } catch (error) {}
+      safeContextCall(context, "strokeText", [label, 0, 0]);
+      safeContextCall(context, "fillText", [label, 0, 0]);
+    } finally {
+      safeContextCall(context, "restore");
+    }
+    return true;
   }
 
   function tracePolygon(context, points) {
@@ -1848,32 +2011,43 @@
       return row.normal.z > (item.die === "d6" ? .12 : .34);
     }).forEach(function (row) {
       const label = String(row.face.value);
-      const fontSize = faceLabelPlanFor(
+      const fontSize = faceLabelRenderPlanFor(
         item.die,
         label,
         item.size,
         item.scale,
         true,
       ).fontSize;
-      try {
-        context.font = "800 " + String(fontSize) +
-          "px ui-monospace,monospace";
-        context.textAlign = "center";
-        context.textBaseline = "middle";
-        context.lineWidth = Math.max(2, strokeWidth * 1.5);
-        context.strokeStyle = "rgba(31,18,9,.82)";
-        context.fillStyle = colors.ink;
-      } catch (error) {}
-      safeContextCall(context, "strokeText", [
+      if (!drawProjectedFaceLabel(
+        context,
+        row.points,
+        row.center,
+        item.size,
         label,
-        row.center.x,
-        row.center.y,
-      ]);
-      safeContextCall(context, "fillText", [
-        label,
-        row.center.x,
-        row.center.y,
-      ]);
+        fontSize,
+        colors.ink,
+        Math.max(2, strokeWidth * 1.5),
+      )) {
+        try {
+          context.font = "800 " + String(fontSize) +
+            "px ui-monospace,monospace";
+          context.textAlign = "center";
+          context.textBaseline = "middle";
+          context.lineWidth = Math.max(2, strokeWidth * 1.5);
+          context.strokeStyle = "rgba(31,18,9,.82)";
+          context.fillStyle = colors.ink;
+        } catch (error) {}
+        safeContextCall(context, "strokeText", [
+          label,
+          row.center.x,
+          row.center.y,
+        ]);
+        safeContextCall(context, "fillText", [
+          label,
+          row.center.x,
+          row.center.y,
+        ]);
+      }
     });
     if (item.critical || item.natOne) {
       const border = item.critical ? criticalBorder : natOneBorder;
@@ -1950,24 +2124,36 @@
     }
     if (item.displayFace !== null) {
       const faceText = displayFaceText(item);
-      const fontSize = faceLabelPlanFor(
+      const fontSize = faceLabelRenderPlanFor(
         item.die,
         faceText,
         item.size,
         item.scale,
         false,
       ).fontSize;
-      try {
-        context.fillStyle = colors.ink;
-        context.font = "800 " + String(fontSize) + "px ui-monospace,monospace";
-        context.textAlign = "center";
-        context.textBaseline = "middle";
-        context.lineWidth = Math.max(2, art.strokeWidth * 1.5);
-        context.strokeStyle = "rgba(31,18,9,.82)";
-      } catch (error) {}
       const y = item.die === "d4" ? item.y - item.size * .13 : item.y;
-      safeContextCall(context, "strokeText", [faceText, item.x, y]);
-      safeContextCall(context, "fillText", [faceText, item.x, y]);
+      if (!drawProjectedFaceLabel(
+        context,
+        points,
+        { x: item.x, y: y },
+        item.size,
+        faceText,
+        fontSize,
+        colors.ink,
+        Math.max(2, art.strokeWidth * 1.5),
+      )) {
+        try {
+          context.fillStyle = colors.ink;
+          context.font = "800 " + String(fontSize) +
+            "px ui-monospace,monospace";
+          context.textAlign = "center";
+          context.textBaseline = "middle";
+          context.lineWidth = Math.max(2, art.strokeWidth * 1.5);
+          context.strokeStyle = "rgba(31,18,9,.82)";
+        } catch (error) {}
+        safeContextCall(context, "strokeText", [faceText, item.x, y]);
+        safeContextCall(context, "fillText", [faceText, item.x, y]);
+      }
     }
     safeContextCall(context, "restore");
   }
@@ -2565,7 +2751,10 @@
       backingStorePlan: backingStorePlan,
       vectorArtPlanFor: vectorArtPlanFor,
       facetPaletteFor: facetPaletteFor,
+      faceLabelSizeForBodySize: faceLabelSizeForBodySize,
       faceLabelPlanFor: faceLabelPlanFor,
+      faceLabelRenderPlanFor: faceLabelRenderPlanFor,
+      projectedFaceLabelTransformFor: projectedFaceLabelTransformFor,
       layoutGroups: layoutGroups,
       visualDiceFor: visualDiceFor,
       finalFacesFor: finalFacesFor,

@@ -24,8 +24,8 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./grid-command-adapter.js?v=822"></script>
 <script src="./grid-board-replacement-lease.js?v=202608110249"></script>
 <script src="./dice-roll-sound.js?v=0823"></script>
-<script src="./dice-fx.js?v=0823"></script>
-<script src="./dice-canvas.js?v=0902"></script>
+<script src="./dice-fx.js?v=0903"></script>
+<script src="./dice-canvas.js?v=0903"></script>
 <script src="./ui-draft-guard.js?v=0831"></script>
 <script src="./music-playback-owner.js?v=847"></script>
 <script src="./music-v2-dark-launch.js?v=0825"></script>
@@ -2184,7 +2184,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202609022247;
+const FRONTEND_BUILD = 202609031634;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -3037,10 +3037,10 @@ function mountDiceDetailMirror(documentRef,stage,mirror,copy){
     const summaryDetail=documentRef.createElement('div');summaryDetail.textContent=String(mirror&&mirror.formula||'');if(Number.isFinite(Number(mirror&&mirror.total))){const total=documentRef.createElement('strong');total.setAttribute('data-dice-result-total','1');total.textContent=(summaryDetail.textContent?' · ':'')+totalLabel+' '+String(mirror.total);summaryDetail.appendChild(total);}if(Number.isFinite(Number(mirror&&mirror.dc)))summaryDetail.appendChild(documentRef.createTextNode(' · DC '+String(mirror.dc)));summary.appendChild(summaryDetail);
     const outcomeText=tone==='critical'?(typeof copy==='function'?copy('คริติคอล','Critical'):'Critical'):tone==='success'?(typeof copy==='function'?copy('สำเร็จ','Success'):'Success'):tone==='failure'?(typeof copy==='function'?copy('ล้มเหลว','Failed'):'Failed'):'';if(outcomeText){const outcome=documentRef.createElement('div');outcome.className='dice-result-outcome';outcome.textContent=outcomeText;summary.appendChild(outcome);}
     let activeButton=null,closed=false;const buttons=[];
-    const show=(button,die)=>{if(closed)return false;if(activeButton&&activeButton!==button)try{activeButton.removeAttribute('aria-describedby');activeButton.style.borderColor='rgba(245,212,134,.55)';}catch(_error){}activeButton=button;tooltip.textContent=diceDetailTextFor(die,copy);tooltip.hidden=false;tooltip.setAttribute('aria-hidden','false');button.setAttribute('aria-describedby',tooltipId);button.style.borderColor='#fff0a8';return true;};
-    const hide=returnFocus=>{if(tooltip.hidden)return false;tooltip.hidden=true;tooltip.setAttribute('aria-hidden','true');const prior=activeButton;if(prior)try{prior.removeAttribute('aria-describedby');prior.style.borderColor='rgba(245,212,134,.55)';}catch(_error){}if(returnFocus&&prior)try{prior.focus({preventScroll:true});}catch(_error){}return true;};
+    const show=(button,die)=>{if(closed)return false;if(activeButton&&activeButton!==button)try{activeButton.removeAttribute('aria-describedby');}catch(_error){}activeButton=button;tooltip.textContent=diceDetailTextFor(die,copy);tooltip.hidden=false;tooltip.setAttribute('aria-hidden','false');button.setAttribute('aria-describedby',tooltipId);return true;};
+    const hide=returnFocus=>{if(tooltip.hidden)return false;tooltip.hidden=true;tooltip.setAttribute('aria-hidden','true');const prior=activeButton;if(prior)try{prior.removeAttribute('aria-describedby');}catch(_error){}if(returnFocus&&prior)try{prior.focus({preventScroll:true});}catch(_error){}return true;};
     const onKey=event=>{if(event&&event.key==='Escape'&&!tooltip.hidden){try{event.preventDefault();event.stopPropagation();}catch(_error){}hide(true);}};
-    dice.forEach(die=>{const position=die.position,hit=Math.max(44,Number(position.size)||44),button=documentRef.createElement('button'),openDetail=()=>show(button,die);button.type='button';button.setAttribute('data-dice-detail-hit',String(die.id||''));button.setAttribute('aria-label',diceDetailTextFor(die,copy));button.title=diceDetailTextFor(die,copy);button.textContent=String(die.displayValue??die.value??'');button.style.cssText='position:absolute;left:'+String(Number(position.x)-hit/2)+'px;top:'+String(Number(position.y)-hit/2)+'px;width:'+String(hit)+'px;height:'+String(hit)+'px;min-width:44px;min-height:44px;padding:0;border:2px solid rgba(245,212,134,.55);border-radius:50%;background:rgba(16,10,6,.18);color:#fff8dc;font:850 '+String(Math.max(22,Math.floor(hit*.36)))+'px/1 system-ui,-apple-system,\'Segoe UI\',sans-serif;text-shadow:0 2px 1px #000,0 0 4px #000;pointer-events:auto;touch-action:manipulation;';button.onpointerenter=openDetail;button.onclick=openDetail;button.onfocus=openDetail;button.onpointerleave=()=>{if(documentRef.activeElement!==button)hide(false);};button.onblur=()=>hide(false);button.onkeydown=onKey;buttons.push(button);layer.appendChild(button);});
+    dice.forEach(die=>{const position=die.position,hit=Math.max(44,Number(position.size)||44),button=documentRef.createElement('button'),openDetail=()=>show(button,die);button.type='button';button.setAttribute('data-dice-detail-hit',String(die.id||''));button.setAttribute('aria-label',diceDetailTextFor(die,copy));button.title=diceDetailTextFor(die,copy);button.style.cssText='position:absolute;left:'+String(Number(position.x)-hit/2)+'px;top:'+String(Number(position.y)-hit/2)+'px;width:'+String(hit)+'px;height:'+String(hit)+'px;min-width:44px;min-height:44px;padding:0;border:0;background:transparent;color:transparent;font:inherit;text-shadow:none;outline:none;box-shadow:none;pointer-events:auto;touch-action:manipulation;';button.onpointerenter=openDetail;button.onclick=openDetail;button.onfocus=openDetail;button.onpointerleave=()=>{if(documentRef.activeElement!==button)hide(false);};button.onblur=()=>hide(false);button.onkeydown=onKey;buttons.push(button);layer.appendChild(button);});
     layer.onkeydown=onKey;stage.appendChild(summary);stage.appendChild(layer);stage.appendChild(tooltip);
     return {count:buttons.length,buttons:buttons,tooltip:tooltip,summary:summary,hideTooltip:hide,close:()=>{if(closed)return;closed=true;try{summary.remove();}catch(_error){}try{layer.remove();}catch(_error){}try{tooltip.remove();}catch(_error){}}};
   }catch(_error){return null;}
@@ -3050,7 +3050,7 @@ function diceCanvasDefaultEnvironment(){
   function ensureStyle(){
     if(!document||!document.head||document.getElementById('diceCanvasWireStyle')) return;
     const style=document.createElement('style'); style.id='diceCanvasWireStyle';
-    style.textContent='html[data-dice-canvas-legacy-muted="1"] .dfx-overlay{visibility:hidden!important}';
+    style.textContent='html[data-dice-canvas-legacy-muted="1"] .dfx-overlay{visibility:hidden!important}[data-dice-detail-hit]:focus-visible{outline:3px solid #fff0a8!important;outline-offset:3px;border-radius:12px}';
     document.head.appendChild(style);
   }
   return {
