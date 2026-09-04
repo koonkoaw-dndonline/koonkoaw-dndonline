@@ -60,7 +60,11 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
   --dice-neutral-bg:#16283c;
   --dice-neutral-ink:#ffffff;
 }
-.dice-result-summary{width:min(94vw,500px);padding:10px 14px;border:2px solid var(--dice-summary-border);border-radius:10px;background:var(--dice-summary-bg);color:var(--dice-summary-ink);font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:var(--fs-md);font-weight:650;line-height:1.5;text-align:center;box-shadow:0 10px 28px rgba(0,0,0,.5);}
+.dice-result-rail{display:flex;flex:0 0 auto;width:100%;min-width:0;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:8px;position:relative;z-index:3;pointer-events:none;}
+.dice-result-rail:empty{display:none;}
+.dice-result-rail>*{pointer-events:auto;}
+.dice-result-summary{width:min(100%,500px);padding:10px 14px;border:2px solid var(--dice-summary-border);border-radius:10px;background:var(--dice-summary-bg);color:var(--dice-summary-ink);font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:var(--fs-md);font-weight:650;line-height:1.5;text-align:center;box-shadow:0 10px 28px rgba(0,0,0,.5);}
+.dice-result-count{display:inline-flex;align-items:center;justify-content:center;min-width:48px;margin-bottom:5px;padding:2px 8px;border:1px solid currentColor;border-radius:999px;font:850 var(--fs-sm)/1.2 system-ui,-apple-system,'Segoe UI',sans-serif;font-variant-numeric:tabular-nums;}
 .dice-result-summary [data-dice-result-total],.dice-result-line .dice-result-total{font-weight:850;font-variant-numeric:tabular-nums;}
 .dice-result-summary[data-dice-result-outcome="success"],.dice-result-line[data-dice-result-outcome="success"]{background:var(--dice-success-bg);color:var(--dice-success-ink);border-color:var(--dice-success-ink);}
 .dice-result-summary[data-dice-result-outcome="failure"],.dice-result-line[data-dice-result-outcome="failure"]{background:var(--dice-failure-bg);color:var(--dice-failure-ink);border-color:var(--dice-failure-ink);}
@@ -455,14 +459,15 @@ body.ui-min #worldClock{display:none!important;}
   .panel[data-tab="story"].active{
     display:grid;
     grid-template-columns:minmax(0,1fr) 380px;
-    grid-template-rows:auto auto minmax(0,1fr);
+    grid-template-rows:auto auto auto minmax(0,1fr);
     gap:0 24px;
     max-width:none;width:100%;
     overflow:hidden;            /* ไม่ให้ทั้ง panel เลื่อน */
   }
   .panel[data-tab="story"].active #worldClock{grid-column:1 / -1;grid-row:1;}
+  .panel[data-tab="story"].active #diceStoryResultRail{grid-column:1 / -1;grid-row:2;}
   .panel[data-tab="story"].active #narrFeed{
-    grid-column:1;grid-row:2 / 4;min-width:0;
+    grid-column:1;grid-row:3 / 5;min-width:0;
     overflow-y:auto;max-height:100%;padding-right:8px;   /* แถบ scroll ติดเนื้อเรื่อง */
     scrollbar-width:thin;scrollbar-color:#2a2a2a transparent;
   }
@@ -472,13 +477,13 @@ body.ui-min #worldClock{display:none!important;}
   .panel[data-tab="story"].active #narrFeed::-webkit-scrollbar-thumb{background:#2a2a2a;border:0;border-radius:4px;}
   .panel[data-tab="story"].active #narrFeed::-webkit-scrollbar-thumb:hover{background:#444;}
   .panel[data-tab="story"].active .roundbar{
-    grid-column:2;grid-row:3;align-self:stretch;
+    grid-column:2;grid-row:4;align-self:stretch;
     overflow-y:auto;max-height:100%;                       /* ปกติไม่เลื่อน เผื่อยาวมากค่อยเลื่อนเฉพาะกล่องนี้ */
     border-top:none;border-left:var(--px) solid var(--white);
     padding:2px 0 80px 18px;margin:0;max-width:none;width:100%;
   }
   .panel[data-tab="story"].active #partyDecisionMount{
-    grid-column:2;grid-row:2;padding:0 0 12px 18px;
+    grid-column:2;grid-row:3;padding:0 0 12px 18px;
   }
 }
 /* ≥1300: World HUD ลอยซ้าย (ตำแหน่งเดิม) → เว้นที่ให้เนื้อเรื่องไม่ทับ */
@@ -2165,6 +2170,7 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
 <!-- CAMPAIGN -->
 <div class="panel" id="panel-story" data-tab="story">
   <div id="worldClock" class="worldhud hidden"></div>
+  <div id="diceStoryResultRail" class="dice-result-rail" data-dice-result-rail="story" role="status" aria-live="polite"></div>
   <div id="inventoryReceiptFirst" role="status" aria-live="polite" style="display:none;"></div><!-- v782: S4 receipt-first mount above narration -->
   <div id="narrFeed" style="display:flex;flex-direction:column;gap:12px;"></div>
   <div id="partyDecisionMount" class="party-decision-mount" role="status" aria-live="polite"></div>
@@ -2211,7 +2217,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202609042020;
+const FRONTEND_BUILD = 202609050005;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -3010,7 +3016,8 @@ function diceRawChipPayload(input){
   const truncated=Number.isInteger(source.rawValuesTruncated)&&source.rawValuesTruncated>=0?source.rawValuesTruncated:0;
   const total=source.total;
   if(!Number.isInteger(total)||total<0||total>1000000000) return null;
-  return {values:values,visibleValues:values.slice(0,6),collapsedCount:Math.max(0,values.length-6)+truncated,rollTotal:values.reduce((sum,value)=>sum+value,0),label:String(source.label||'').slice(0,320),announcement:String(source.announcement||source.label||'').slice(0,500),total:total};
+  const payload={values:values,visibleValues:values.slice(0,6),collapsedCount:Math.max(0,values.length-6)+truncated,rollTotal:values.reduce((sum,value)=>sum+value,0),label:String(source.label||'').slice(0,320),announcement:String(source.announcement||source.label||'').slice(0,500),total:total};
+  if(Number.isInteger(source.queuePosition)&&Number.isInteger(source.queueTotal))Object.assign(payload,{queuePosition:source.queuePosition,queueTotal:source.queueTotal});return payload;
 }
 // DICE-05 machine-only visual proof; never stores faces, totals, DCs, or labels.
 function diceVisualProofState(){
@@ -3048,27 +3055,38 @@ function diceCanvasTimelineTotalMs(handle){const value=Number(handle&&handle.tim
 function diceCanvasJobTimeoutMs(handle){const total=diceCanvasTimelineTotalMs(handle);return total===null?DICE_CANVAS_JOB_TIMEOUT_MS:Math.max(DICE_CANVAS_JOB_TIMEOUT_MS,total+DICE_RESULT_ACK_AUTO_MS+DICE_CANVAS_JOB_MARGIN_MS);}
 function diceCanvasCallbackBudgetMs(pressToRoll){return (pressToRoll===true?DICE_PRESS_AUTO_MS:0)+DICE_CANVAS_TIMELINE_FALLBACK_MS+DICE_RESULT_ACK_AUTO_MS+DICE_CANVAS_CALLBACK_MARGIN_MS;}
 let _diceDetailMirrorSeq=0;
+function diceTargetLabel(receipt){
+  const source=receipt&&typeof receipt==='object'?receipt:{},kind=String(source.kind||'').trim().toLowerCase().replace(/[\s_]+/g,'-'),role=String(source.role||'').trim().toLowerCase().replace(/[\s_]+/g,'-'),ability=String(source.ability||'').trim().toLowerCase().replace(/[\s_]+/g,'-');
+  if(kind==='initiative'||role==='initiative'||ability==='initiative')return '';
+  if(kind==='attack'||role==='attack'){const ac=source.ac;return ac!==null&&ac!==''&&Number.isFinite(Number(ac))?'vs AC '+String(Number(ac)):'';}
+  if(kind==='save'||kind==='check'||role==='save'||role==='check'||role==='death-save'){const dc=source.dc;return dc!==null&&dc!==''&&Number.isFinite(Number(dc))?'DC '+String(Number(dc)):'';}
+  return '';
+}
+function diceReceiptQueueOrder(receipts){
+  return (Array.isArray(receipts)?receipts:[]).map((receipt,index)=>({receipt:receipt,index:index,seq:Number(receipt&&receipt.combatLogSeq)})).sort((left,right)=>{const leftHas=Number.isFinite(left.seq),rightHas=Number.isFinite(right.seq);if(leftHas&&rightHas&&left.seq!==right.seq)return left.seq-right.seq;if(leftHas!==rightHas)return leftHas?-1:1;return left.index-right.index;}).map(item=>item.receipt);
+}
 function diceDetailTextFor(die,copy){
   const c=(th,en)=>{try{return typeof copy==='function'?String(copy(th,en)||en):en;}catch(_error){return en;}};
   const source=String(die&&die.label||'').trim()||c('ไม่ระบุที่มา','Unclassified source'),formula=String(die&&die.formula||'').trim(),value=Number(die&&die.value),subtotal=Number(die&&die.subtotal),serverIndex=Number(die&&die.serverIndex);
   return [c('ที่มา','Source')+': '+source,formula?c('สูตร','Formula')+': '+formula:'',c('ค่าดิบ','Raw value')+(Number.isInteger(serverIndex)?' '+String(serverIndex+1):'')+': '+(Number.isFinite(value)?String(value):'—'),Number.isFinite(subtotal)?c('ผลรวมย่อย','Subtotal')+': '+String(subtotal):''].filter(Boolean).join(' · ');
 }
-function mountDiceDetailMirror(documentRef,stage,mirror,copy){
+function mountDiceDetailMirror(documentRef,stage,mirror,copy,resultHost){
   try{
     const dice=mirror&&Array.isArray(mirror.dice)?mirror.dice.filter(die=>die&&die.position&&Number.isFinite(Number(die.position.x))&&Number.isFinite(Number(die.position.y))):[];
     if(!documentRef||!stage||!dice.length)return null;
     const layer=documentRef.createElement('div');layer.setAttribute('data-dice-detail-mirror','1');layer.setAttribute('aria-label',typeof copy==='function'?copy('รายละเอียดเต๋า','Dice details'):'Dice details');layer.style.cssText='position:absolute;inset:0;z-index:3;pointer-events:none';
     const tooltip=documentRef.createElement('div'),tooltipId='diceDetailTooltip'+String(++_diceDetailMirrorSeq);tooltip.id=tooltipId;tooltip.setAttribute('role','tooltip');tooltip.setAttribute('aria-hidden','true');tooltip.hidden=true;tooltip.style.cssText='position:absolute;left:50%;bottom:84px;transform:translateX(-50%);z-index:5;width:min(88%,430px);padding:10px 12px;border:2px solid #d9b978;border-radius:8px;background:rgba(22,14,8,.96);color:#fff4d6;font:650 var(--fs-md)/1.5 system-ui,-apple-system,\'Segoe UI\',sans-serif;text-align:left;pointer-events:none;box-shadow:0 8px 22px rgba(0,0,0,.45)';
-    const summary=documentRef.createElement('div'),totalLabel=typeof copy==='function'?copy('รวม','Total'):'Total';summary.className='dice-result-summary';summary.setAttribute('data-dice-crisp-summary','1');const tier=String(mirror&&mirror.tier||'').toLowerCase(),tone=/crit/.test(tier)?'critical':mirror&&mirror.pass===true?'success':mirror&&mirror.pass===false?'failure':'neutral';summary.setAttribute('data-dice-result-outcome',tone);summary.style.cssText='position:absolute;left:50%;top:-72px;transform:translateX(-50%);z-index:4;pointer-events:none;';
+    const summary=documentRef.createElement('div'),totalLabel=typeof copy==='function'?copy('รวม','Total'):'Total';summary.className='dice-result-summary';summary.setAttribute('data-dice-crisp-summary','1');const tier=String(mirror&&mirror.tier||'').toLowerCase(),tone=/crit/.test(tier)?'critical':mirror&&mirror.pass===true?'success':mirror&&mirror.pass===false?'failure':'neutral';summary.setAttribute('data-dice-result-outcome',tone);summary.style.cssText='position:relative;z-index:4;pointer-events:none;';
+    const queuePosition=Number(mirror&&mirror.queuePosition),queueTotal=Number(mirror&&mirror.queueTotal);if(Number.isInteger(queuePosition)&&Number.isInteger(queueTotal)&&queuePosition>0&&queueTotal>=queuePosition){const counter=documentRef.createElement('div');counter.className='dice-result-count';counter.setAttribute('data-dice-result-count',String(queuePosition)+'/'+String(queueTotal));counter.textContent=String(queuePosition)+'/'+String(queueTotal);summary.appendChild(counter);}
     const summaryTitle=documentRef.createElement('div');summaryTitle.textContent=[String(mirror&&mirror.actor||''),String(mirror&&mirror.title||'')].filter(Boolean).join(' — ');summary.appendChild(summaryTitle);
-    const summaryDetail=documentRef.createElement('div');summaryDetail.textContent=String(mirror&&mirror.formula||'');if(Number.isFinite(Number(mirror&&mirror.total))){const total=documentRef.createElement('strong');total.setAttribute('data-dice-result-total','1');total.textContent=(summaryDetail.textContent?' · ':'')+totalLabel+' '+String(mirror.total);summaryDetail.appendChild(total);}if(Number.isFinite(Number(mirror&&mirror.dc)))summaryDetail.appendChild(documentRef.createTextNode(' · DC '+String(mirror.dc)));summary.appendChild(summaryDetail);
+    const summaryDetail=documentRef.createElement('div');summaryDetail.textContent=String(mirror&&mirror.formula||'');if(Number.isFinite(Number(mirror&&mirror.total))){const total=documentRef.createElement('strong');total.setAttribute('data-dice-result-total','1');total.textContent=(summaryDetail.textContent?' · ':'')+totalLabel+' '+String(mirror.total);summaryDetail.appendChild(total);}const targetLabel=String(mirror&&mirror.targetLabel||diceTargetLabel(mirror));if(targetLabel)summaryDetail.appendChild(documentRef.createTextNode(' · '+targetLabel));summary.appendChild(summaryDetail);
     const outcomeText=tone==='critical'?(typeof copy==='function'?copy('คริติคอล','Critical'):'Critical'):tone==='success'?(typeof copy==='function'?copy('สำเร็จ','Success'):'Success'):tone==='failure'?(typeof copy==='function'?copy('ล้มเหลว','Failed'):'Failed'):'';if(outcomeText){const outcome=documentRef.createElement('div');outcome.className='dice-result-outcome';outcome.textContent=outcomeText;summary.appendChild(outcome);}
     let activeButton=null,closed=false;const buttons=[];
     const show=(button,die)=>{if(closed)return false;if(activeButton&&activeButton!==button)try{activeButton.removeAttribute('aria-describedby');}catch(_error){}activeButton=button;tooltip.textContent=diceDetailTextFor(die,copy);tooltip.hidden=false;tooltip.setAttribute('aria-hidden','false');button.setAttribute('aria-describedby',tooltipId);return true;};
     const hide=returnFocus=>{if(tooltip.hidden)return false;tooltip.hidden=true;tooltip.setAttribute('aria-hidden','true');const prior=activeButton;if(prior)try{prior.removeAttribute('aria-describedby');}catch(_error){}if(returnFocus&&prior)try{prior.focus({preventScroll:true});}catch(_error){}return true;};
     const onKey=event=>{if(event&&event.key==='Escape'&&!tooltip.hidden){try{event.preventDefault();event.stopPropagation();}catch(_error){}hide(true);}};
     dice.forEach(die=>{const position=die.position,hit=Math.max(44,Number(position.size)||44),button=documentRef.createElement('button'),openDetail=()=>show(button,die);button.type='button';button.setAttribute('data-dice-detail-hit',String(die.id||''));button.setAttribute('aria-label',diceDetailTextFor(die,copy));button.title=diceDetailTextFor(die,copy);button.style.cssText='position:absolute;left:'+String(Number(position.x)-hit/2)+'px;top:'+String(Number(position.y)-hit/2)+'px;width:'+String(hit)+'px;height:'+String(hit)+'px;min-width:44px;min-height:44px;padding:0;border:0;background:transparent;color:transparent;font:inherit;text-shadow:none;outline:none;box-shadow:none;pointer-events:auto;touch-action:manipulation;';button.onpointerenter=openDetail;button.onclick=openDetail;button.onfocus=openDetail;button.onpointerleave=()=>{if(documentRef.activeElement!==button)hide(false);};button.onblur=()=>hide(false);button.onkeydown=onKey;buttons.push(button);layer.appendChild(button);});
-    layer.onkeydown=onKey;stage.appendChild(summary);stage.appendChild(layer);stage.appendChild(tooltip);
+    layer.onkeydown=onKey;(resultHost||stage).appendChild(summary);stage.appendChild(layer);stage.appendChild(tooltip);
     return {count:buttons.length,buttons:buttons,tooltip:tooltip,summary:summary,hideTooltip:hide,close:()=>{if(closed)return;closed=true;try{summary.remove();}catch(_error){}try{layer.remove();}catch(_error){}try{tooltip.remove();}catch(_error){}}};
   }catch(_error){return null;}
 }
@@ -3093,22 +3111,24 @@ function diceCanvasDefaultEnvironment(){
         ensureStyle();
         const focusOrigin=document.activeElement&&typeof document.activeElement.focus==='function'?document.activeElement:null;
         const overlay=document.createElement('div'); overlay.setAttribute('data-dice-canvas-wire','1');
-        overlay.style.cssText='position:fixed;inset:0;z-index:2147482100;display:grid;place-items:center;pointer-events:none;background:rgba(4,8,14,.16)';
+        overlay.style.cssText='position:fixed;inset:0;z-index:2147482100;display:grid;place-items:center;pointer-events:none;background:transparent';
         const stage=document.createElement('div');
         stage.style.cssText='position:relative;width:min(92vw,520px);min-height:330px;pointer-events:none';
         const live=document.createElement('div'); live.setAttribute('role','status'); live.setAttribute('aria-live','polite');
         live.style.cssText='position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0';
         overlay.appendChild(stage); overlay.appendChild(live); document.body.appendChild(overlay);
+        const battleScene=document.getElementById('battleScene'),battleRail=document.getElementById('diceBattleResultRail'),storyRail=document.getElementById('diceStoryResultRail');
+        const resultHost=battleScene&&battleRail&&battleScene.classList&&battleScene.classList.contains('on')?battleRail:(storyRail||battleRail||stage);
         let connected=false;try{connected=overlay.isConnected===true||!!(document.documentElement&&typeof document.documentElement.contains==='function'&&document.documentElement.contains(overlay));}catch(_diceOverlayConnectedError){}
         recordDiceVisualProof('overlay_mounted',{connected:connected});
         let ackControl=null,detailControl=null;
-        return {container:stage,announce:text=>{ live.textContent=String(text||''); },showDiceDetails:mirror=>{if(detailControl)return detailControl;detailControl=mountDiceDetailMirror(document,stage,mirror,(th,en)=>uiCopy(th,en));return detailControl;},showResultAck:model=>{
+        return {container:stage,resultContainer:resultHost,announce:text=>{ live.textContent=String(text||''); },showDiceDetails:mirror=>{if(detailControl)return detailControl;detailControl=mountDiceDetailMirror(document,stage,mirror,(th,en)=>uiCopy(th,en),resultHost);return detailControl;},showResultAck:model=>{
           if(ackControl)return ackControl;
-          const panel=document.createElement('div');panel.setAttribute('data-dice-result-ack','1');panel.style.cssText='position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:4;display:flex;flex-direction:column;align-items:center;gap:7px;pointer-events:none;text-align:center';
+          const panel=document.createElement('div');panel.setAttribute('data-dice-result-ack','1');panel.style.cssText='position:relative;z-index:4;display:flex;flex-direction:column;align-items:center;gap:7px;pointer-events:none;text-align:center';
           const button=document.createElement('button');button.type='button';button.textContent=String(model&&model.buttonLabel||'');button.style.cssText='min-width:190px;min-height:52px;padding:10px 20px;border:3px solid #2f1c0d;border-radius:10px;background:#3b2412;color:#fff2cf;font:750 var(--fs-lg)/1.25 system-ui,-apple-system,\'Segoe UI\',sans-serif;box-shadow:0 5px 0 #170d06;pointer-events:auto;touch-action:manipulation;';
           const hint=document.createElement('div');hint.textContent=String(model&&model.hint||'');hint.style.cssText='max-width:340px;padding:4px 8px;border-radius:6px;background:rgba(15,9,4,.78);color:#fff2cf;font:650 var(--fs-md)/1.4 system-ui,-apple-system,\'Segoe UI\',sans-serif;';
           button.onclick=()=>{try{if(model&&typeof model.onAcknowledge==='function')model.onAcknowledge();}catch(_diceAckClickError){}};
-          panel.appendChild(button);panel.appendChild(hint);stage.appendChild(panel);try{button.focus({preventScroll:true});}catch(_diceAckFocusError){}
+          panel.appendChild(button);panel.appendChild(hint);resultHost.appendChild(panel);try{button.focus({preventScroll:true});}catch(_diceAckFocusError){}
           let closed=false;ackControl={close:()=>{if(closed)return;closed=true;try{panel.remove();}catch(_diceAckRemoveError){}}};return ackControl;
         },dispose:()=>{try{if(ackControl)ackControl.close();}catch(_diceAckDisposeError){}try{if(detailControl)detailControl.close();}catch(_diceDetailDisposeError){} try{ overlay.remove(); }catch(_error){} try{if(focusOrigin&&focusOrigin.isConnected!==false)focusOrigin.focus({preventScroll:true});}catch(_diceFocusRestoreError){} try{recordDiceVisualProof('overlay_removed');}catch(_diceOverlayRemovedProofError){} }};
       }catch(_error){ return null; }
@@ -3132,7 +3152,8 @@ function diceCanvasDefaultEnvironment(){
       try{
         if(!container||!payload||!Array.isArray(payload.values)) return false;
         const panel=document.createElement('div'); panel.setAttribute('data-combat-dice-raw-chips','1');
-        panel.style.cssText='min-height:330px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;color:#f5e7c6;text-align:center';
+        panel.style.cssText='width:min(100%,500px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:10px 12px;border:2px solid var(--dice-summary-border);border-radius:10px;background:var(--dice-summary-bg);color:var(--dice-summary-ink);text-align:center';
+        const queuePosition=Number(payload.queuePosition),queueTotal=Number(payload.queueTotal);if(Number.isInteger(queuePosition)&&Number.isInteger(queueTotal)&&queuePosition>0&&queueTotal>=queuePosition){const counter=document.createElement('div');counter.className='dice-result-count';counter.setAttribute('data-dice-result-count',String(queuePosition)+'/'+String(queueTotal));counter.textContent=String(queuePosition)+'/'+String(queueTotal);panel.appendChild(counter);}
         const label=document.createElement('div'); label.style.cssText='max-width:480px;font:650 var(--fs-md)/1.4 system-ui,-apple-system,\'Segoe UI\',sans-serif;color:#f5e7c6'; label.textContent=payload.label; panel.appendChild(label);
         const chips=document.createElement('div'); chips.style.cssText='display:flex;flex-wrap:wrap;justify-content:center;gap:9px;max-width:480px';
         payload.visibleValues.forEach(value=>{ const chip=document.createElement('span'); chip.setAttribute('data-combat-dice-raw-value',String(value)); chip.style.cssText='min-width:42px;padding:9px 12px;border:2px solid #d9b978;border-radius:999px;background:rgba(43,29,17,.96);color:#fff4d6;font:850 var(--fs-lg)/1 system-ui,-apple-system,\'Segoe UI\',sans-serif;box-shadow:0 5px 13px rgba(10,6,2,.32)'; chip.textContent=String(value); chips.appendChild(chip); });
@@ -3216,11 +3237,11 @@ function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
     if(rawChips){
       let mounted=null,rendered=false;
       try{ mounted=environment.mount(); }catch(_error){}
-      if(mounted&&mounted.container&&typeof environment.renderRawChips==='function') try{ rendered=environment.renderRawChips(mounted.container,rawChips)===true; }catch(_error){}
+      if(mounted&&mounted.container&&typeof environment.renderRawChips==='function') try{ rendered=environment.renderRawChips(mounted.resultContainer||mounted.container,rawChips)===true; }catch(_error){}
       if(!rendered){ try{ if(mounted) mounted.dispose(); }catch(_error){} legacyFallback(job); return; }
       job.mount=mounted;
       try{ if(rawChips.announcement) mounted.announce(rawChips.announcement); }catch(_error){}
-      try{ job.rawTimer=environment.setTimer(()=>complete(job),2000); }catch(_error){ complete(job); }
+      awaitResultAcknowledgement(job);
       return;
     }
     if(!canvasReady||!diceCanvas||typeof diceCanvas.render!=='function'){ legacyFallback(job); return; }
@@ -3248,8 +3269,9 @@ function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
       try{ job.announceTimer=environment.setTimer(()=>{ try{ mounted.announce(handle.mirror.announcement); }catch(_error){} },delay); }catch(_error){}
     }
     if(handle.mirror&&Array.isArray(handle.mirror.dice)&&typeof mounted.showDiceDetails==='function'){
+      const detailMirror=Object.assign({},handle.mirror,{kind:job.input.kind,role:job.input.role,ability:job.input.ability,ac:job.input.ac,targetLabel:diceTargetLabel(job.input),queuePosition:job.input.queuePosition,queueTotal:job.input.queueTotal});
       const detailDelay=Math.max(0,Number(handle.timeline&&handle.timeline.revealAtMs)||0);
-      try{job.detailTimer=environment.setTimer(()=>{try{job.detailControl=mounted.showDiceDetails(handle.mirror);}catch(_error){}},detailDelay);}catch(_error){}
+      try{job.detailTimer=environment.setTimer(()=>{try{job.detailControl=mounted.showDiceDetails(detailMirror);}catch(_error){}},detailDelay);}catch(_error){}
     }
     legacySoundOnly(job,handle);
   }
@@ -3289,13 +3311,14 @@ function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
   function choreograph(input){
     const runner=legacyDiceFx&&legacyDiceFx._pure&&legacyDiceFx._pure.runChoreography;
     const finish=onceDone(input),source=Object.assign({},input&&typeof input==='object'?input:{},{onDone:finish});
+    const events=Array.isArray(source.events)?source.events:[];source.events=events.map((event,index)=>Object.assign({},event,{queuePosition:Number.isInteger(event&&event.queuePosition)?event.queuePosition:index+1,queueTotal:Number.isInteger(event&&event.queueTotal)?event.queueTotal:events.length}));
     if(typeof runner!=='function'){ finish(); return Object.freeze({started:false,skipped:true,cancel:()=>false}); }
     try{ return runner(source,{roll:roll,setTimer:environment.setTimer,clearTimer:environment.clearTimer}); }
     catch(_error){ finish(); return Object.freeze({started:false,skipped:true,cancel:()=>false}); }
   }
   return Object.freeze({
     build:'20260815-dice04-r1', init:init, roll:roll, choreograph:choreograph, pending:pending,
-    _pure:Object.freeze(Object.assign({},legacyDiceFx&&legacyDiceFx._pure||{},{diceCanvasStableIdentity:diceCanvasStableIdentity,diceCanvasEventFromLegacy:diceCanvasEventFromLegacy,diceRawChipPayload:diceRawChipPayload})),
+    _pure:Object.freeze(Object.assign({},legacyDiceFx&&legacyDiceFx._pure||{},{diceCanvasStableIdentity:diceCanvasStableIdentity,diceCanvasEventFromLegacy:diceCanvasEventFromLegacy,diceRawChipPayload:diceRawChipPayload,diceTargetLabel:diceTargetLabel,diceReceiptQueueOrder:diceReceiptQueueOrder})),
     __diceCanvasAdapter:true
   });
 }
@@ -4574,7 +4597,8 @@ function combatDiceUnionFromMeta(meta){
   if(!Array.isArray(meta.combat_dice))return {present:true,receipts:[],unknown:0,invalid:1,capped:0};
   const input=meta.combat_dice.slice(0,COMBAT_DICE_RECEIPT_CAP),receipts=[]; let unknown=0,invalid=0;
   input.forEach(raw=>{ const projected=combatDiceReceipt(raw); if(projected.status==='accepted')receipts.push(projected.receipt); else if(projected.status==='unknown')unknown++; else invalid++; });
-  return {present:true,receipts:receipts,unknown:unknown,invalid:invalid,capped:Math.max(0,meta.combat_dice.length-input.length)};
+  const ordered=receipts.map((receipt,index)=>({receipt:receipt,index:index,seq:Number(receipt&&receipt.combatLogSeq)})).sort((left,right)=>left.seq!==right.seq?left.seq-right.seq:left.index-right.index).map(item=>item.receipt);
+  return {present:true,receipts:ordered,unknown:unknown,invalid:invalid,capped:Math.max(0,meta.combat_dice.length-input.length)};
 }
 function combatDicePlaybackLedgerState(campaignId){
   const id=String(campaignId||''),key=id?'ttrpg_combat_dice_seen_v1_'+id:'';
@@ -4593,13 +4617,13 @@ function combatDiceDeathSaveCopy(){return uiCopy('เซฟความตาย
 function combatDiceSaveFlavor(receipt){const ability=String(receipt&&receipt.ability||'').trim().toLowerCase().replace(/[\s_]+/g,'-');return ability==='initiative'?'initiative':ability==='death'||ability==='death-save'?'death-save':'save';}
 function combatDiceReceiptLabel(receipt){
   const mode=combatDiceModeLabel(receipt.mode),modePart=mode?' · '+mode:'';
-  if(receipt.kind==='attack'){const outcome=receipt.crit?uiCopy('คริติคอล','Critical hit'):receipt.hit?uiCopy('โจมตีโดน','Hit'):uiCopy('โจมตีพลาด','Miss');return receipt.who+' · '+uiCopy('โจมตี','Attack')+' '+receipt.target+' · '+receipt.weapon+modePart+' · AC '+receipt.ac+' · '+outcome;}
+  if(receipt.kind==='attack'){const outcome=receipt.crit?uiCopy('คริติคอล','Critical hit'):receipt.hit?uiCopy('โจมตีโดน','Hit'):uiCopy('โจมตีพลาด','Miss');return receipt.who+' · '+uiCopy('โจมตี','Attack')+' '+receipt.target+' · '+receipt.weapon+modePart+' · vs AC '+receipt.ac+' · '+outcome;}
   if(receipt.kind==='save'){const flavor=combatDiceSaveFlavor(receipt);if(flavor==='initiative')return receipt.who+' · '+combatDiceInitiativeCopy()+modePart+' · '+combatDiceTotalCopy()+receipt.total;const outcome=receipt.pass?uiCopy('ผ่านเซฟ','Save passed'):uiCopy('ไม่ผ่านเซฟ','Save failed'),ability=flavor==='death-save'?combatDiceDeathSaveCopy():(receipt.ability||uiCopy('การเซฟ','Save'));return receipt.who+' · '+ability+modePart+' · DC '+receipt.dc+' · '+outcome;}
   return receipt.who+' → '+receipt.target+' · '+uiCopy('ดาเมจ','Damage')+' '+receipt.damage+' · '+uiCopy('ค่าดิบ','Raw values');
 }
 function combatDicePlaybackPayload(receipt){
   const label=combatDiceReceiptLabel(receipt);
-  if(receipt.kind==='attack')return {eventId:receipt.receiptId,kind:'attack',role:'attack',dice:[{die:'d20',value:receipt.roll}],flat:receipt.total-receipt.roll,total:receipt.total,pass:receipt.hit,tier:receipt.crit?'crit-success':receipt.hit?'success':'failure',label:label,critical:receipt.crit};
+  if(receipt.kind==='attack')return {eventId:receipt.receiptId,kind:'attack',role:'attack',ac:receipt.ac,dice:[{die:'d20',value:receipt.roll}],flat:receipt.total-receipt.roll,total:receipt.total,pass:receipt.hit,tier:receipt.crit?'crit-success':receipt.hit?'success':'failure',label:label,critical:receipt.crit};
   if(receipt.kind==='save'){const mapper=window.DiceFx&&window.DiceFx._pure&&window.DiceFx._pure.combatSaveReceiptPlaybackPayload;return typeof mapper==='function'?mapper(receipt,label):null;}
   return {eventId:receipt.receiptId,kind:'damage',role:'damage',rawValues:receipt.rolls.slice(),rawValuesTruncated:receipt.rollsTruncated,total:receipt.damage,label:label,announcement:label+' · '+receipt.rolls.join(', ')};
 }
@@ -4647,18 +4671,16 @@ function playRoundDiceMeta(round,character,choreography){
     ledgerState=dicePlaybackLedgerState(campaignId);stored=ledgerState.ledger;
     const emit=function(reason,extra){return dicePlaybackLog(reason,Object.assign({roundId:roundId,receiptCount:receipts.length,ownName:ownName,ledgerSize:stored.length,campaignId:campaignId,ledgerError:ledgerState.error},extra||{}));};
     if(!receipts.length){emit('no_receipts');finishChoreography();return 0;}
-    if(!ownName){emit('no_own_name');finishChoreography();return 0;}
     if(!campaignId){emit('no_campaign');finishChoreography();return 0;}
     if(!roundId){emit('no_round');finishChoreography();return 0;}
     if(!dicePlaybackSurfaceVisible()){emit('surface_hidden');finishChoreography();return 0;}
-    const seen=new Set(stored),memorySeen=window._diceMetaSeenFallback instanceof Set?window._diceMetaSeenFallback:(window._diceMetaSeenFallback=new Set()),inFlight=window._diceMetaInFlight instanceof Set?window._diceMetaInFlight:(window._diceMetaInFlight=new Set());
+    const storyPositions={};let storyCount=0;receipts.forEach((receipt,index)=>{if(receipt&&typeof receipt==='object'&&Number.isInteger(receipt.roll)&&receipt.roll>=1&&receipt.roll<=20&&Number.isFinite(receipt.total))storyPositions[index]=++storyCount;});let combatCount=0;try{if(typeof combatDiceUnionFromMeta==='function')combatCount=combatDiceUnionFromMeta(round&&round.meta).receipts.length;}catch(_diceStoryQueueCombatError){}const queuePlan={storyPositions:storyPositions,total:storyCount+combatCount},seen=new Set(stored),memorySeen=window._diceMetaSeenFallback instanceof Set?window._diceMetaSeenFallback:(window._diceMetaSeenFallback=new Set()),inFlight=window._diceMetaInFlight instanceof Set?window._diceMetaInFlight:(window._diceMetaInFlight=new Set());
     const burn=function(receiptKey){if(seen.has(receiptKey))return;seen.add(receiptKey);memorySeen.add(receiptKey);stored.push(receiptKey);if(stored.length>256)stored=stored.slice(-256);try{if(ledgerState.storage)ledgerState.storage.setItem(ledgerState.key,JSON.stringify(stored));}catch(_diceMetaWriteError){}};
     const queued=[];let started=0,directPending=0,directEnumerated=false;
     const maybeFinishDirect=function(){if(directEnumerated&&directPending===0)finishChoreography();};
     receipts.forEach(function(receipt,index){
       try{
         if(!receipt||typeof receipt!=='object'){emit('invalid_receipt',{receiptIndex:index});return;}
-        if(diceMetaOwnerKey(receipt.who)!==ownName){emit('not_my_receipt',{receiptIndex:index,receiptWho:receipt.who});return;}
         const roll=receipt.roll,total=receipt.total;
         if(!Number.isInteger(roll)||roll<1||roll>20||!Number.isFinite(total)){emit('invalid_receipt',{receiptIndex:index,receiptWho:receipt.who});return;}
         const receiptKey=JSON.stringify([campaignId,roundId,index,String(receipt.who||''),String(receipt.kind||''),String(receipt.skill||''),roll,receipt.bonus,total,receipt.dc,receipt.tier,receipt.pass]);
@@ -4666,7 +4688,7 @@ function playRoundDiceMeta(round,character,choreography){
         if(!dicePreferenceEnabled('dice_fx')){emit('fx_disabled_unseen',{receiptIndex:index,receiptWho:receipt.who});return;}
         const diceFx=window.DiceFx;
         if(!diceFx||typeof diceFx.roll!=='function'){burn(receiptKey);emit('dicefx_missing_fail_open',{receiptIndex:index,receiptWho:receipt.who});return;}
-        const payload={eventId:'dice-meta:'+receiptKey,dice:[{die:'d20',value:roll}],flat:Number.isFinite(receipt.bonus)?receipt.bonus:0,total:total,dc:Number.isFinite(receipt.dc)?receipt.dc:null,pass:typeof receipt.pass==='boolean'?receipt.pass:null,tier:typeof receipt.tier==='string'?receipt.tier:'',label:String(receipt.skill||receipt.kind||''),pressToRoll:true,onRollTrigger:pressed=>emit('roll_triggered',{receiptIndex:index,receiptWho:receipt.who,pressed_by_player:pressed===true})};
+        const isOwn=!!ownName&&diceMetaOwnerKey(receipt.who)===ownName,initiative=/initiative|ลำดับ/i.test(String(receipt.kind||'')+' '+String(receipt.skill||'')),payload={eventId:'dice-meta:'+receiptKey,kind:initiative?'initiative':'check',role:initiative?'initiative':'check',who:String(receipt.who||''),dice:[{die:'d20',value:roll}],flat:Number.isFinite(receipt.bonus)?receipt.bonus:0,total:total,dc:Number.isFinite(receipt.dc)?receipt.dc:null,pass:typeof receipt.pass==='boolean'?receipt.pass:null,tier:typeof receipt.tier==='string'?receipt.tier:'',label:String(receipt.skill||receipt.kind||''),pressToRoll:isOwn,queuePosition:queuePlan.storyPositions[index],queueTotal:queuePlan.total,onRollTrigger:pressed=>emit('roll_triggered',{receiptIndex:index,receiptWho:receipt.who,pressed_by_player:pressed===true})};
         if(choreography){queued.push({payload:payload,receiptKey:receiptKey,index:index,who:receipt.who});return;}
         inFlight.add(receiptKey);directPending++;
         let receiptDone=false,timer=null;
@@ -4701,21 +4723,19 @@ function playRoundCombatDiceMeta(round,character,choreography){
     emit('combat_union_parsed');
     if(!campaignId){emit('combat_union_no_campaign');finish();return 0;}
     if(!roundId){emit('combat_union_no_round');finish();return 0;}
-    if(!ownName){emit('combat_union_no_own_character');finish();return 0;}
     if(!parsed.receipts.length){finish();return 0;}
     if(!dicePlaybackSurfaceVisible()){emit('combat_union_surface_hidden');finish();return 0;}
-    const seen=new Set(stored),memorySeen=window._combatDiceSeenFallback instanceof Set?window._combatDiceSeenFallback:(window._combatDiceSeenFallback=new Set()),inFlight=window._combatDiceInFlight instanceof Set?window._combatDiceInFlight:(window._combatDiceInFlight=new Set());
+    const story=round&&round.meta&&Array.isArray(round.meta.dice)?round.meta.dice:[];let storyCount=0;story.forEach(receipt=>{if(receipt&&typeof receipt==='object'&&Number.isInteger(receipt.roll)&&receipt.roll>=1&&receipt.roll<=20&&Number.isFinite(receipt.total))storyCount++;});const queuePlan={combatOffset:storyCount,total:storyCount+parsed.receipts.length},seen=new Set(stored),memorySeen=window._combatDiceSeenFallback instanceof Set?window._combatDiceSeenFallback:(window._combatDiceSeenFallback=new Set()),inFlight=window._combatDiceInFlight instanceof Set?window._combatDiceInFlight:(window._combatDiceInFlight=new Set());
     const burn=function(receiptId){if(seen.has(receiptId))return;seen.add(receiptId);memorySeen.add(receiptId);stored.push(receiptId);if(stored.length>256)stored=stored.slice(-256);try{if(ledgerState.storage)ledgerState.storage.setItem(ledgerState.key,JSON.stringify(stored));}catch(_combatDiceLedgerWriteError){}};
     const queued=[];let started=0,directPending=0,directEnumerated=false;
     const maybeFinishDirect=function(){if(directEnumerated&&directPending===0)finish();};
     parsed.receipts.forEach(function(receipt,index){
       const receiptId=receipt.receiptId,detail={receiptIndex:index,receiptWho:receipt.who,receiptId:receiptId,receiptKind:receipt.kind};
       try{
-        if(receipt.actorKind!=='player'||diceMetaOwnerKey(receipt.who)!==ownName){emit('combat_union_not_own_character',detail);return;}
         if(seen.has(receiptId)||memorySeen.has(receiptId)||inFlight.has(receiptId)){emit('combat_union_already_seen',detail);return;}
         if(!dicePreferenceEnabled('dice_fx')){emit('combat_union_fx_disabled_unseen',detail);return;}
         const diceFx=window.DiceFx;if(!diceFx||typeof diceFx.roll!=='function'){burn(receiptId);emit('combat_union_dicefx_missing_fail_open',detail);return;}
-        const basePayload=combatDicePlaybackPayload(receipt),payload=basePayload?Object.assign({},basePayload,{pressToRoll:true,onRollTrigger:pressed=>emit('combat_union_roll_triggered',Object.assign({},detail,{pressed_by_player:pressed===true}))}):null;
+        const isOwn=receipt.actorKind==='player'&&!!ownName&&diceMetaOwnerKey(receipt.who)===ownName,basePayload=combatDicePlaybackPayload(receipt),payload=basePayload?Object.assign({},basePayload,{pressToRoll:isOwn,queuePosition:queuePlan.combatOffset+index+1,queueTotal:queuePlan.total,onRollTrigger:pressed=>emit('combat_union_roll_triggered',Object.assign({},detail,{pressed_by_player:pressed===true}))}):null;
         if(!payload){burn(receiptId);emit('combat_union_save_payload_invalid',detail);return;}
         if(choreography){queued.push({payload:payload,receiptId:receiptId,detail:detail});return;}
         inFlight.add(receiptId);directPending++;
@@ -4741,10 +4761,9 @@ function playRoundCombatDiceMeta(round,character,choreography){
 let _diceDeferredNarrationHold=null;
 function diceRoundHasOwnPlayback(round,character){
   if(!dicePreferenceEnabled('dice_fx'))return false;
-  const ownName=diceMetaOwnerKey(character&&character.name);if(!ownName)return false;
   const story=round&&round.meta&&Array.isArray(round.meta.dice)?round.meta.dice:[];
-  if(story.some(receipt=>receipt&&typeof receipt==='object'&&diceMetaOwnerKey(receipt.who)===ownName&&Number.isInteger(receipt.roll)&&receipt.roll>=1&&receipt.roll<=20&&Number.isFinite(receipt.total)))return true;
-  try{return combatDiceUnionFromMeta(round&&round.meta).receipts.some(receipt=>receipt.actorKind==='player'&&diceMetaOwnerKey(receipt.who)===ownName);}catch(_diceRoundCombatProbeError){return false;}
+  if(story.some(receipt=>receipt&&typeof receipt==='object'&&Number.isInteger(receipt.roll)&&receipt.roll>=1&&receipt.roll<=20&&Number.isFinite(receipt.total)))return true;
+  try{return combatDiceUnionFromMeta(round&&round.meta).receipts.length>0;}catch(_diceRoundCombatProbeError){return false;}
 }
 function durableRoundCombatTruth(round){ try{ const cb=round&&round.meta&&round.meta.combat; return cb&&cb.active===false?'inactive':cb&&cb.active===true?'active':'unknown'; }catch(e){ return 'unknown'; } }
 function durableRoundCombatActive(round,derivedActive,terminalGateActive){ return durableRoundCombatTruth(round)==='inactive'&&!terminalGateActive?false:!!derivedActive; }
@@ -10436,6 +10455,7 @@ function ensureBattleScene(){
         '</div>'+
         '<div class="bs-col bs-center">'+
           '<div class="bs-board bs-box" id="bsBoard"></div>'+
+          '<div class="dice-result-rail" id="diceBattleResultRail" data-dice-result-rail="battle" role="status" aria-live="polite"></div>'+
           '<div class="bs-narr bs-box"><div class="bs-panelttl">'+uiCopy('DM \u2014 \u0e09\u0e32\u0e01\u0e15\u0e48\u0e2d\u0e2a\u0e39\u0e49','DM \u2014 COMBAT SCENE')+'</div><div id="bsNarrWrap"></div></div>'+
         '</div>'+
         '<div class="bs-col bs-right">'+
