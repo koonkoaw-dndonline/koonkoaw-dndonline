@@ -335,6 +335,23 @@ html.skin-paper #panel-companion .btn,html.skin-paper #panel-companion .btn.sm{f
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 .toast.err{border-style:dashed;}
 .toast.err::before{content:"✕ ";}
+.terminal-error-card[hidden]{display:none;}
+.terminal-error-card{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:9998;width:min(92vw,560px);padding:18px 20px 16px;background:#080808;color:#fff;border:3px double #fff;border-radius:9px;box-shadow:0 8px 28px rgba(0,0,0,.72);text-align:left;}
+.terminal-error-title{padding-right:34px;font-family:'Press Start 2P',monospace;font-size:var(--fs-sm);line-height:1.65;color:#fff;}
+.terminal-error-detail{margin-top:9px;font-size:var(--fs-base);line-height:1.65;color:#ddd;}
+.terminal-error-reason{margin-top:8px;font:400 var(--fs-xs)/1.4 ui-monospace,'Cascadia Mono',monospace;color:#aaa;overflow-wrap:anywhere;}
+.terminal-error-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:14px;}
+.terminal-error-primary{background:#fff!important;color:#000!important;}
+.terminal-error-close{position:absolute;top:8px;right:9px;width:32px;height:32px;padding:0;border:1px solid #777;border-radius:6px;background:transparent;color:#fff;font:700 22px/1 sans-serif;cursor:pointer;}
+.terminal-error-close:hover,.terminal-error-close:focus-visible{border-color:#fff;outline:2px solid #fff;outline-offset:2px;}
+html.skin-paper .terminal-error-card{background:#fbf2dc;color:#352718;border:1px solid #9c7d49;box-shadow:0 8px 24px rgba(75,54,25,.25);}
+html.skin-paper .terminal-error-title{font-family:'Cinzel','Trirong',serif;color:#7a1f1f;}
+html.skin-paper .terminal-error-detail{color:#493722;}
+html.skin-paper .terminal-error-reason{color:#7b684c;}
+html.skin-paper .terminal-error-primary{background:#7a1f1f!important;color:#fff8e8!important;border-color:#5e1717!important;}
+html.skin-paper .terminal-error-close{color:#493722;border-color:#a78b5d;}
+html.skin-paper .terminal-error-close:hover,html.skin-paper .terminal-error-close:focus-visible{border-color:#7a1f1f;outline-color:#7a1f1f;}
+@media (max-width:600px){.terminal-error-card{bottom:12px;width:calc(100vw - 22px);padding:16px 15px 14px;}.terminal-error-actions{justify-content:stretch;}.terminal-error-actions .btn{flex:1;}}
 
 /* ---------- misc ---------- */
 .muted{color:var(--gray);font-size:var(--fs-base);text-align:center;padding:24px 14px;line-height:1.9;}
@@ -2162,6 +2179,13 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
 <div class="panel" id="panel-chron" data-tab="chron"></div>
 <div class="panel" id="panel-companion" data-tab="companion" style="max-width:1120px"></div>
 
+<section class="terminal-error-card" id="terminalErrorCard" role="status" aria-live="polite" aria-atomic="true" hidden>
+  <button class="terminal-error-close" id="terminalErrorClose" type="button">×</button>
+  <div class="terminal-error-title" id="terminalErrorTitle"></div>
+  <div class="terminal-error-detail" id="terminalErrorDetail"></div>
+  <div class="terminal-error-reason" id="terminalErrorReason"></div>
+  <div class="terminal-error-actions"><button class="btn terminal-error-primary" id="terminalErrorPrimary" type="button"></button></div>
+</section>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -2184,7 +2208,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202609031634;
+const FRONTEND_BUILD = 202609041310;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -3700,6 +3724,35 @@ function gridCommandDelegate(kind,action,arg){
 function $(id){return document.getElementById(id);}
 let _toastWriteSeq=0;
 function toast(msg,isErr){const t=$('toast'),seq=++_toastWriteSeq;t.removeAttribute('data-language-wall');t.textContent=msg;t.className='toast show'+(isErr?' err':'');setTimeout(()=>{if(seq!==_toastWriteSeq)return;t.className='toast';t.textContent='';t.removeAttribute('data-language-wall');},2600);}
+// W63 terminal error card copy surface start
+function terminalCardModel(body){
+  if(!body||typeof body!=='object'||body.action_preserved!==true)return null;
+  const primaryAction=body.retryable===false?'edit':'retry';
+  const fallbackTitle=primaryAction==='edit'?uiCopy('ต้องแก้ข้อความก่อนดำเนินเรื่อง','Edit the action before continuing'):uiCopy('ผู้เล่าเรื่องยังเรียบเรียงไม่สำเร็จ','The storyteller could not finish this turn');
+  const fallbackDetail=primaryAction==='edit'?uiCopy('คำสั่งเดิมยังอยู่ครบ แก้ข้อความแล้วส่งใหม่ได้','Your original action is preserved. Edit it and submit again.'):uiCopy('โลกยังคงอยู่ ณ ขณะเดิมและคำสั่งของคุณยังไม่สูญหาย','The world remains at the same moment and your action is still preserved.');
+  const title=(String(body.error||'').trim()||fallbackTitle).slice(0,240),detail=(String(body.detail||'').trim()||fallbackDetail).slice(0,600),reason=(String(body.reason_code||'').trim()||'terminal_failure').slice(0,80);
+  return Object.freeze({title:title,detail:detail,reason:reason,primaryAction:primaryAction});
+}
+let _terminalErrorCardState=null;
+function dismissTerminalErrorCard(){const card=$('terminalErrorCard');if(card)card.hidden=true;_terminalErrorCardState=null;return true;}
+function showTerminalErrorCard(body){
+  const model=terminalCardModel(body),card=$('terminalErrorCard');if(!model||!card)return false;
+  _terminalErrorCardState={roundId:String(curRound&&curRound.id||''),model:model};
+  $('terminalErrorTitle').textContent=model.title;$('terminalErrorDetail').textContent=model.detail;$('terminalErrorReason').textContent=model.reason;
+  const close=$('terminalErrorClose'),primary=$('terminalErrorPrimary');close.setAttribute('aria-label',uiCopy('ปิด','Dismiss'));close.onclick=dismissTerminalErrorCard;primary.textContent=model.primaryAction==='retry'?uiCopy('ลองอีกครั้ง','Try again'):uiCopy('แก้ข้อความ','Edit action');primary.onclick=runTerminalErrorPrimaryAction;
+  card.hidden=false;return true;
+}
+function runTerminalErrorPrimaryAction(){
+  const state=_terminalErrorCardState,action=state&&state.model&&state.model.primaryAction;dismissTerminalErrorCard();
+  if(action==='retry'){resolveRound(false);return true;}
+  if(action!=='edit')return false;
+  try{if(typeof switchTab==='function')switchTab('story');}catch(e){}
+  const focusInput=function(){const input=$('actInput');if(!input)return false;input.focus();try{input.scrollIntoView({block:'center',behavior:'smooth'});}catch(e){}return true;};
+  if(!focusInput()){try{Promise.resolve(typeof renderRoundbar==='function'?renderRoundbar():null).finally(function(){setTimeout(focusInput,0);});}catch(e){setTimeout(focusInput,0);}}
+  return true;
+}
+function syncTerminalErrorCardRound(roundId){if(!_terminalErrorCardState||_terminalErrorCardState.roundId===String(roundId||''))return false;return dismissTerminalErrorCard();}
+// W63 terminal error card copy surface end
 // GRID-DIAG-HATCH-01 diagnostics panel start
 // ท่าเปิดบันทึกวินิจฉัยกระดานรบสำหรับใบวัดบนมือถือ (R75 ข้อ 8 เก็บ diag ไม่ได้เพราะเรียกได้แต่ผ่าน DevTools)
 //   แตะชื่อเกมบนแถบหัว 5 ครั้งใน 3 วินาที → กล่องอ่านอย่างเดียว + ปุ่มคัดลอก
@@ -4303,7 +4356,8 @@ async function _refreshAllInner(){
   loadCatalogs();
   myChar = characters.find(c=>c.user_id===me.id) || null;
   if(_groupBeforeRefresh!==terminalGroupForUi()){ window._combatActive=undefined; window.gEncId=null; }
-  await Promise.all([loadRound(), loadNarrative()]);   // v739 FZ-2: group is known before scoped round/story reads
+  const _narrRefreshCursor=narrativeLastSeenForScope(narrative,campaign&&campaign.id,terminalGroupForUi());
+  await Promise.all([loadRound(), loadNarrative()]); const _narrRefreshChanged=await reconcileNarrativeAfter(_narrRefreshCursor); if(activeTab()==='story'&&!_narrRefreshChanged) await renderStory();   // W69: close the post-resolve read/render gap with a campaign+group timestamp cursor, never a latest-round filter
   await loadSlowlifeState();   // v710: hydrate before renderRoundbar so the main action box never flashes during a live window
   if(myChar){ try{ const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle(); if(r.error) throw r.error; mySheet=r.data?.sheet||{}; mySheetUpdatedAt=r.data?.updated_at||null; cacheSave('sheet_'+myChar.id, mySheet); }catch(e){ const c=cacheLoad('sheet_'+myChar.id); mySheet=c||mySheet||{}; } }
   await Promise.all([updateCombatBadge(), refreshCombatTurn(), refreshInitiativePressPrompt()]);   // W31-S1b: pending initiative prompt is pre-combat UI and must hydrate before battle.active
@@ -4706,6 +4760,7 @@ function reconcileCombatUiFromRound(round,derivedActive){
 function setVisibleRound(nextRound,character,source){
   curRound=nextRound||null;
   reconcileCombatUiFromRound(curRound);
+  if(typeof syncTerminalErrorCardRound==='function')syncTerminalErrorCardRound(curRound&&curRound.id);
   const roundId=String(curRound&&curRound.id||''),surfaceVisible=dicePlaybackSurfaceVisible();
   try{const receipts=curRound&&curRound.meta&&Array.isArray(curRound.meta.dice)?curRound.meta.dice:[],campaignId=String(campaign&&campaign.id||''),ledgerState=dicePlaybackLedgerState(campaignId);dicePlaybackLog('visible_round',{roundId:roundId,receiptCount:receipts.length,ownName:diceMetaOwnerKey(character&&character.name),ledgerSize:ledgerState.ledger.length,campaignId:campaignId,ledgerError:ledgerState.error,source:String(source||'unknown')});}
   catch(_diceVisibleRoundLogError){dicePlaybackLog('visible_round_error',{roundId:'',receiptCount:0,ownName:'',ledgerSize:0,campaignId:'',source:String(source||'unknown')});}
@@ -4997,8 +5052,8 @@ async function loadNarrative(){
   try{ const { data, error } = await supa.from('narrative').select('*').eq('campaign_id',campaign.id)
     .eq('group_no',terminalGroupForUi())
     .order('created_at',{ascending:false}).limit(NARR_WINDOW);
-    if(error) throw error; const rows=(data||[]); narrMore = rows.length>=NARR_WINDOW; narrative = rows.slice().reverse(); cacheSave('narrative_g'+terminalGroupForUi(),narrative);
-  }catch(e){ const c=cacheLoad('narrative_g'+terminalGroupForUi()); if(c) narrative=c; }
+    if(error) throw error; const rows=(data||[]); narrMore = rows.length>=NARR_WINDOW; narrative = narrativeChronologicalRows(rows); cacheSave('narrative_g'+terminalGroupForUi(),narrative);
+  }catch(e){ const c=cacheLoad('narrative_g'+terminalGroupForUi()); if(c) narrative=narrativeChronologicalRows(c); }
   _cacheSet('ttrpg_chron_'+campaign.id, JSON.stringify(narrative.map(n=>narrText(n))));   // v680: canonical projection ผ่านงบ cache
   try{if(typeof triggerPostFlipRoundRefetchFromRows==='function')triggerPostFlipRoundRefetchFromRows(narrative);}catch(_postFlipLoadNarrativeTriggerError){}
 }
@@ -5008,20 +5063,38 @@ async function loadOlderNarrative(){
     .eq('group_no',terminalGroupForUi())
     .lt('created_at',narrative[0].created_at).order('created_at',{ascending:false}).limit(NARR_WINDOW);
     const older=(data||[]); narrMore = older.length>=NARR_WINDOW;
-    if(older.length){ narrative = older.slice().reverse().concat(narrative); }
+    if(older.length){ narrative = narrativeChronologicalRows(older.concat(narrative)); }
   }catch(e){}
   _skipAutoScroll=true; _lastFeedSig=''; renderStory();
 }
 // รวมข้อความใหม่/อัปเดตจาก realtime โดยไม่ดึงทั้งก้อน (รักษาบทเก่าที่โหลดไว้)
 function mergeNarrative(row){
   if(!row||!row.id) return;
+  if(typeof campaign!=='undefined'&&campaign&&row.campaign_id&&String(row.campaign_id)!==String(campaign.id||'')) return;
   if(Number(row.group_no||1)!==terminalGroupForUi()) return;
   const i=narrative.findIndex(n=>n.id===row.id);
   if(i>=0) narrative[i]=row;
-  else { narrative.push(row); narrative.sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)); }
+  else narrative.push(row);
+  narrative = narrativeChronologicalRows(narrative);
   cacheSave('narrative_g'+terminalGroupForUi(),narrative);
   try{if(typeof triggerPostFlipRoundRefetch==='function')triggerPostFlipRoundRefetch(row);}catch(_postFlipMergeTriggerError){}
   try{if(typeof triggerFreshnessReconcile==='function')triggerFreshnessReconcile({kind:'narrative_receipt',row:row,campaign_id:String(campaign&&campaign.id||''),group_no:terminalGroupForUi()});}catch(_freshnessMergeTriggerError){}
+}
+function narrativeCreatedAtMs(row){const ms=Date.parse(String(row&&row.created_at||''));return Number.isFinite(ms)?ms:0;}
+function narrativeLastSeenAt(rows){
+  let best='',bestMs=-Infinity;
+  for(const row of (Array.isArray(rows)?rows:[])){const value=String(row&&row.created_at||'').trim(),ms=narrativeCreatedAtMs(row);if(value&&ms>bestMs){best=value;bestMs=ms;}}
+  return best;
+}
+function narrativeLastSeenForScope(rows,campaignId,groupNo){
+  const cid=String(campaignId||'').trim(),grp=Number(groupNo||1);if(!cid)return '';
+  return narrativeLastSeenAt((Array.isArray(rows)?rows:[]).filter(row=>String(row&&row.campaign_id||'')===cid&&Number(row&&row.group_no||1)===grp));
+}
+function narrativeChronologicalRows(rows){
+  const metas=(Array.isArray(rows)?rows:[]).map((row,index)=>({row:row,index:index,ms:narrativeCreatedAtMs(row),group:''})),anchors=new Map();
+  metas.forEach(meta=>{const roundId=String(meta.row&&meta.row.round_id||'').trim();meta.group=roundId?'round:'+roundId:'row:'+String(meta.row&&meta.row.id||meta.index);const prior=anchors.get(meta.group);if(prior===undefined||meta.ms<prior)anchors.set(meta.group,meta.ms);});
+  metas.sort((a,b)=>{const groupDelta=Number(anchors.get(a.group))-Number(anchors.get(b.group));if(groupDelta)return groupDelta;if(a.group===b.group){const rowDelta=a.ms-b.ms;if(rowDelta)return rowDelta;}return a.index-b.index;});
+  return metas.map(meta=>meta.row);
 }
 function diceNarrativeIngressRoundId(row){
   try{
@@ -5106,9 +5179,32 @@ function narrativeReconcileWindowStart(cursor){
 // FE-05/08: one bounded tail query repairs missed realtime events, including
 // server notes backdated before the DM row. Newest-first keeps post-tail rows in
 // the 20-row quota; mergeNarrative restores display order and owns id/group dedupe.
+async function applyNarrativeReconcileRows(rows){
+  let changed=false;
+  for(const row of (rows||[])){
+    const before=narrative.find(n=>n.id===row.id), beforeSig=before?JSON.stringify(before):'';
+    mergeNarrative(row);
+    const after=narrative.find(n=>n.id===row.id);
+    if(after&&(!before||JSON.stringify(after)!==beforeSig)) changed=true;
+  }
+  if(changed&&activeTab()==='story') await renderStory();
+  return changed;
+}
+async function reconcileNarrativeAfter(lastSeenAt){
+  const cursor=String(lastSeenAt||'').trim();
+  if(!cursor) return await reconcileNarrativeTail();
+  if(!campaign||!campaign.id) return false;
+  try{
+    const groupNo=terminalGroupForUi();
+    const {data,error}=await supa.from('narrative').select('*').eq('campaign_id',campaign.id)
+      .eq('group_no',groupNo).gt('created_at',cursor).order('created_at',{ascending:false}).limit(NARR_RECONCILE_LIMIT);
+    if(error) throw error;
+    return await applyNarrativeReconcileRows(data);
+  }catch(e){ return false; }
+}
 async function reconcileNarrativeTail(){
   if(!Array.isArray(narrative)||!narrative.length) return false;
-  const tail=narrative[narrative.length-1], cursor=String((tail&&tail.created_at)||'').trim();
+  const cursor=narrativeLastSeenAt(narrative);
   if(!cursor||!campaign||!campaign.id) return false;
   try{
     const groupNo=terminalGroupForUi();
@@ -5116,15 +5212,7 @@ async function reconcileNarrativeTail(){
     const {data,error}=await supa.from('narrative').select('*').eq('campaign_id',campaign.id)
       .eq('group_no',groupNo).gte('created_at',windowStart).order('created_at',{ascending:false}).limit(NARR_RECONCILE_LIMIT);
     if(error) throw error;
-    let changed=false;
-    for(const row of (data||[])){
-      const before=narrative.find(n=>n.id===row.id), beforeSig=before?JSON.stringify(before):'';
-      mergeNarrative(row);
-      const after=narrative.find(n=>n.id===row.id);
-      if(after&&(!before||JSON.stringify(after)!==beforeSig)) changed=true;
-    }
-    if(changed&&activeTab()==='story') await renderStory();
-    return changed;
+    return await applyNarrativeReconcileRows(data);
   }catch(e){ return false; }
 }
 async function loadState(){
@@ -7934,13 +8022,13 @@ async function resolveRound(force, mode){
       const _repairReasons=['atk_narr_damage_blocked','encounter_redo_claim_blocked','attack_claim_without_mechanics'];
       if(_repairReasons.includes(j.reason_code)&&j.action_preserved===true&&j.action_id){
         window._actionRepair={round_id:curRound&&curRound.id,action_id:j.action_id,reason_code:j.reason_code};
-        toast((j.detail||uiCopy('(แก้: คำสั่งเดิมถูกเก็บไว้ — กด “แก้คำสั่งของคุณ” เพื่อปลดและเขียนใหม่)','(Fixed: the original action was preserved — choose “Edit your action” to release and rewrite it.)')),true);
       }else if(j.action_preserved===true&&j.retryable!==false){
         window._actionRepair={round_id:curRound&&curRound.id,action_id:j.action_id||null,reason_code:j.reason_code||'action_preserved_retryable',generic:true,affordances:Array.isArray(j.affordances)?j.affordances:[]};
-        toast((j.detail||uiCopy('(แก้: คำสั่งเดิมยังอยู่ — จะลองใหม่หรือกด “แก้คำสั่งก่อนลองใหม่” ก็ได้)','(Fixed: the original action is preserved — retry it or choose “Edit action before retry.”)')),true);
-      }else if(j.reason_code==='action_auto_voided'){
+      }
+      const _terminalCardShown=showTerminalErrorCard(j);
+      if(!_terminalCardShown&&j.reason_code==='action_auto_voided'){
         window._actionRepair=null; window._actionEditDraft=''; toast(j.note||uiCopy('(แก้: ระบบปลดคำสั่งที่ค้างแล้ว กรุณาส่งคำสั่งใหม่)','(Fixed: the stuck action was released; submit a new action.)'),true);
-      }else toast((j.error||uiCopy('ประมวลผลรอบไม่สำเร็จ','Resolve failed'))+(j.detail?(' — '+String(j.detail).slice(0,220)):''),true);
+      }else if(!_terminalCardShown)toast((j.error||uiCopy('ประมวลผลรอบไม่สำเร็จ','Resolve failed'))+(j.detail?(' — '+String(j.detail).slice(0,220)):''),true);
     }
     else if(j.status==='waiting'){ if(afterSubmit) _waitRetry=true; var _wS=(j.submitted!=null?j.submitted:0), _wT=(j.total!=null?j.total:(members&&members.length)||'?'); toast(j.turn?uiCopy('ถึงตา ','Turn: ')+j.turn:uiCopy(`กำลังรอทุกคน (${_wS}/${_wT})`,`Waiting for everyone (${_wS}/${_wT})`)); }   /* v634ui DYN-20: backend ตอบ waiting ไม่มี counts (เช่นรอเทิร์นในศึก) → เดิมโชว์ undefined/undefined · fallback 0/N หรือชื่อคนที่ถึงตา */
     else if(j.status==='busy'){ /* someone else is resolving */ }
