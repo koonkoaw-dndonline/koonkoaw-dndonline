@@ -253,6 +253,9 @@ a.link:hover{background:var(--white);color:var(--black);}
 .narr.narr-thinking{opacity:.85;animation:popIn .09s steps(2) both, dimpulse 1.4s ease-in-out infinite;}
 .narr.narr-thinking::after{content:"";display:none;}
 .narr-thinking .dots{display:inline-block;animation:dotpulse 1.1s steps(4) infinite;letter-spacing:.15em;color:var(--white);}
+.narrc.narrc-folded{opacity:.58;cursor:pointer;transition:opacity .12s ease;}
+.narrc.narrc-folded:not(.narrc-fold-open){white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-height:2em;}
+.narrc.narrc-folded.narrc-fold-open{white-space:pre-wrap;opacity:.82;}
 @keyframes dimpulse{0%,100%{opacity:.65;}50%{opacity:1;}}
 @keyframes dotpulse{0%{opacity:.2;}50%{opacity:1;}100%{opacity:.2;}}
 
@@ -2208,7 +2211,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202609041310;
+const FRONTEND_BUILD = 202609041730;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -5054,6 +5057,7 @@ async function loadNarrative(){
     .order('created_at',{ascending:false}).limit(NARR_WINDOW);
     if(error) throw error; const rows=(data||[]); narrMore = rows.length>=NARR_WINDOW; narrative = narrativeChronologicalRows(rows); cacheSave('narrative_g'+terminalGroupForUi(),narrative);
   }catch(e){ const c=cacheLoad('narrative_g'+terminalGroupForUi()); if(c) narrative=narrativeChronologicalRows(c); }
+  await loadNarrativeActionStates(narrative);
   _cacheSet('ttrpg_chron_'+campaign.id, JSON.stringify(narrative.map(n=>narrText(n))));   // v680: canonical projection ผ่านงบ cache
   try{if(typeof triggerPostFlipRoundRefetchFromRows==='function')triggerPostFlipRoundRefetchFromRows(narrative);}catch(_postFlipLoadNarrativeTriggerError){}
 }
@@ -5065,6 +5069,7 @@ async function loadOlderNarrative(){
     const older=(data||[]); narrMore = older.length>=NARR_WINDOW;
     if(older.length){ narrative = narrativeChronologicalRows(older.concat(narrative)); }
   }catch(e){}
+  await loadNarrativeActionStates(narrative);
   _skipAutoScroll=true; _lastFeedSig=''; renderStory();
 }
 // รวมข้อความใหม่/อัปเดตจาก realtime โดยไม่ดึงทั้งก้อน (รักษาบทเก่าที่โหลดไว้)
@@ -5105,7 +5110,7 @@ function diceNarrativeIngressRoundId(row){
 }
 async function mergeNarrativeOrdered(row){
   const roundId=diceNarrativeIngressRoundId(row),ingressHold=roundId?beginDiceNarrationHold(roundId):null;
-  try{mergeNarrative(row);if(ingressHold)await loadRound('narrative');return true;}
+  try{mergeNarrative(row);if(typeof loadNarrativeActionStates==='function')await loadNarrativeActionStates(narrative);if(ingressHold)await loadRound('narrative');return true;}
   catch(_diceNarrativeIngressError){return false;}
   finally{if(ingressHold)endDiceNarrationHold(ingressHold);}
 }
@@ -5187,7 +5192,7 @@ async function applyNarrativeReconcileRows(rows){
     const after=narrative.find(n=>n.id===row.id);
     if(after&&(!before||JSON.stringify(after)!==beforeSig)) changed=true;
   }
-  if(changed&&activeTab()==='story') await renderStory();
+  if(changed){if(typeof loadNarrativeActionStates==='function')await loadNarrativeActionStates(narrative);if(activeTab()==='story') await renderStory();}
   return changed;
 }
 async function reconcileNarrativeAfter(lastSeenAt){
@@ -6672,6 +6677,31 @@ function isProgressiveReceiptNarrative(n){
   const source=String((n&&n.source_content)||'');
   return source.startsWith('system:inventory-action:')||source.startsWith('system:story-check:');
 }
+function narrativeNoteActionRef(n){
+  const valid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,direct=String((n&&n.action_ref)||'').trim();
+  if(valid.test(direct))return direct.toLowerCase();
+  const source=String((n&&n.source_content)||'').trim(),prefixes=['system:purchase01:preserve:','system:stall01:inventory-preserve:'];
+  for(const prefix of prefixes){if(source.startsWith(prefix)){const candidate=source.slice(prefix.length);return valid.test(candidate)?candidate.toLowerCase():'';}}
+  if(!source.startsWith('system:magicpurchase03:'))return '';
+  const candidate=source.slice(source.lastIndexOf(':')+1);return valid.test(candidate)?candidate.toLowerCase():'';
+}
+const NARRATIVE_ACTION_TERMINAL_STATES=new Set(['retracted','consumed','superseded']);
+function narrativeActionFoldDecision(n,states){
+  const actionRef=narrativeNoteActionRef(n),lifecycleState=String((states&&actionRef&&states.get(actionRef))||'').toLowerCase();
+  return {actionRef:actionRef,lifecycleState:lifecycleState,folded:!!actionRef&&NARRATIVE_ACTION_TERMINAL_STATES.has(lifecycleState)};
+}
+let _narrativeActionStates=new Map();
+async function loadNarrativeActionStates(rows){
+  const refs=[...new Set((Array.isArray(rows)?rows:[]).map(narrativeNoteActionRef).filter(Boolean))];
+  if(!refs.length){_narrativeActionStates=new Map();return true;}
+  try{const {data,error}=await supa.from('actions').select('id,lifecycle_state').in('id',refs);if(error)throw error;_narrativeActionStates=new Map((data||[]).map(row=>[String(row.id||'').toLowerCase(),String(row.lifecycle_state||'').toLowerCase()]));return true;}catch(e){return false;}
+}
+function applyNarrativeFoldElement(element,n){
+  if(!element)return;const model=narrativeActionFoldDecision(n,_narrativeActionStates),folded=model.folded;
+  element.classList.toggle('narrc-folded',folded);if(!folded){element.classList.remove('narrc-fold-open');element.removeAttribute('role');element.removeAttribute('tabindex');element.removeAttribute('aria-expanded');element.onclick=null;element.onkeydown=null;return;}
+  element.setAttribute('role','button');element.setAttribute('tabindex','0');element.setAttribute('aria-expanded',element.classList.contains('narrc-fold-open')?'true':'false');
+  const toggle=()=>{const open=element.classList.toggle('narrc-fold-open');element.setAttribute('aria-expanded',open?'true':'false');};element.onclick=toggle;element.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();toggle();}};
+}
 function renderProgressiveReceipts(rows){
   const box=$('inventoryReceiptFirst'); if(!box) return;
   box.innerHTML='';
@@ -6679,8 +6709,8 @@ function renderProgressiveReceipts(rows){
   box.style.cssText='display:grid;gap:7px;margin:0 0 10px;padding:10px;border:1px solid rgba(250,199,117,.55);border-radius:10px;background:rgba(250,199,117,.08)';
   const title=document.createElement('div'); title.className='sectitle'; title.textContent=uiCopy('สิ่งที่เกิดขึ้นแล้ว','What has happened'); box.appendChild(title);
   rows.forEach(n=>{
-    const item=document.createElement('div'); item.className='note'; item.dataset.nid=String(n.id||'');
-    const text=narrText(n);item.innerHTML=narrDraw(n);decorateDiceResultElement(item,text,n&&n.pass,n&&n.tier);box.appendChild(item);
+    const item=document.createElement('div'); item.className='note narrc'; item.dataset.nid=String(n.id||'');
+    const text=narrText(n);item.innerHTML=narrDraw(n);decorateDiceResultElement(item,text,n&&n.pass,n&&n.tier);applyNarrativeFoldElement(item,n);box.appendChild(item);
   });
 }
 function pendingRecruitmentNames(rows){
@@ -6738,14 +6768,14 @@ async function renderStory(){
   const receiptIds=new Set(receiptRows.map(n=>String(n.id)));
   const shown = narrative.filter(n => (n.status !== 'placeholder' || isStreaming(n))&&!receiptIds.has(String(n.id))&&(isStreaming(n)||!!narrText(n))).filter(n=>!diceNarrationRowHeld(n));
   const feed=$('narrFeed');
-  const isig = n => (n.status||'')+':'+(n.author||'')+':'+narrText(n).length+':'+(n.projection_status||'')+':'+(n.projection_note||'');
+  const isig = n => (n.status||'')+':'+(n.author||'')+':'+narrText(n).length+':'+(n.projection_status||'')+':'+(n.projection_note||'')+':'+narrativeActionFoldDecision(n,_narrativeActionStates).lifecycleState;
   const cdraw = n => isStreaming(n) ? (colorizeNarr(n.content)+'<span class="dots">▌</span>') : narrDraw(n);
   const existing=[...feed.querySelectorAll('.narr')];
   const sameStruct = shown.length>0 && existing.length===shown.length && shown.every((n,i)=> existing[i] && existing[i].dataset.nid===String(n.id));
   if(sameStruct){
     // อัปเดตเฉพาะกล่องที่เนื้อหาเปลี่ยน (เช่นสตรีม) → ไม่ rebuild ทั้ง feed = ไม่กระพริบ ไม่เด้ง scroll
     let changed=false;
-    shown.forEach((n,i)=>{ if(existing[i].dataset.sig!==isig(n)){ const cd=existing[i].querySelector('.narrc'); if(cd){ cd.innerHTML=cdraw(n); existing[i].dataset.sig=isig(n); changed=true; } } });
+    shown.forEach((n,i)=>{ if(existing[i].dataset.sig!==isig(n)){ const cd=existing[i].querySelector('.narrc'); if(cd){ cd.innerHTML=cdraw(n); applyNarrativeFoldElement(cd,n); existing[i].dataset.sig=isig(n); changed=true; } } });
     if(changed && !_skipAutoScroll){ const sp=$('panel-story'); if(sp && (sp.scrollHeight-sp.scrollTop-sp.clientHeight)<160) sp.scrollTop=sp.scrollHeight; }
     renderRecruitmentAffordance(feed,shown); renderQuestAffordanceStorySignal(feed); _skipAutoScroll=false; renderRoundbar(); return;
   }
@@ -6758,7 +6788,7 @@ async function renderStory(){
   shown.forEach((n,i)=>{
     const d=document.createElement('div'); d.className='narr'; d.dataset.nid=String(n.id); d.dataset.sig=isig(n);
     d.innerHTML='<div class="meta">'+narrAuthorLabel(n)+'</div>';
-    const c=document.createElement('div'); c.className='narrc'; c.innerHTML=cdraw(n);
+    const c=document.createElement('div'); c.className='narrc'; c.innerHTML=cdraw(n); applyNarrativeFoldElement(c,n);
     d.appendChild(c); feed.appendChild(d);
   });
   renderRecruitmentAffordance(feed,shown);
@@ -12639,7 +12669,7 @@ function subscribeRealtime(){
     .on('postgres_changes',{event:'*',schema:'public',table:'quests',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='quest') renderQuest(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'quest_reward_jobs',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='quest') renderQuest(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'rounds',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ rtLastSyncTs=Date.now(); try{const row=payload&&payload.new,receipts=row&&row.meta&&Array.isArray(row.meta.dice)?row.meta.dice:[];dicePlaybackLog('rounds_realtime_event',{roundId:String(row&&row.id||''),receiptCount:receipts.length,campaignId:String(campaign&&campaign.id||''),source:String(payload&&payload.eventType||'unknown').toLowerCase()});}catch(_roundsRealtimeLogError){} await loadRound('realtime'); const _narrTailChanged=await reconcileNarrativeTail(); if(activeTab()==='story'&&!_narrTailChanged) renderStory(); })
-    .on('postgres_changes',{event:'*',schema:'public',table:'actions',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); if(activeTab()==='story') renderRoundbar(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'actions',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); await loadNarrativeActionStates(narrative); if(activeTab()==='story'){ renderRoundbar(); renderStory(); } })
     .on('postgres_changes',{event:'*',schema:'public',table:'character_sheets',filter:'character_id=eq.'+((myChar&&myChar.id)||'00000000-0000-0000-0000-000000000000')}, async()=>{ rtLastSyncTs=Date.now(); await reloadMySheet(); await refreshCombatTurn(); if(activeTab()==='story') renderRoundbar(); if(activeTab()==='me') renderMe(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'characters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ var _oldGroup=terminalGroupForUi(); await loadCharacters(); myChar=characters.find(c=>c.user_id===me.id)||null; if(_oldGroup!==terminalGroupForUi()){ window._combatActive=undefined; window.gEncId=null; await Promise.all([loadRound(),loadNarrative(),updateCombatBadge(),refreshCombatTurn()]); } partyDecisionHintRefresh('characters-realtime'); if(activeTab()==='party') renderParty(); if(typeof scheduleBattleScene==='function') scheduleBattleScene(); })   // v739 FZ-2: group move rebinds scoped round/story/combat before render
     .on('postgres_changes',{event:'*',schema:'public',table:'campaign_state',filter:'campaign_id=eq.'+campaign.id}, async()=>{ var _vaWasFin=!!(currentTerminalGate()&&currentTerminalGate().active); await loadState(); /* v739 FZ-2: reload sheet only when this character's group gate clears */ if(_vaWasFin && !(currentTerminalGate()&&currentTerminalGate().active) && myChar){ try{ var _sr=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle(); if(!_sr.error){ mySheet=_sr.data?.sheet||{}; mySheetUpdatedAt=_sr.data?.updated_at||null; cacheSave('sheet_'+myChar.id, mySheet); } }catch(e){} } partyDecisionHintRefresh('campaign-state-hint'); applyMood(); refreshSelectionGate(); if(activeTab()==='story'){ renderClock(); renderRoundbar(); } if(activeTab()==='map') renderMap(); const _lu=worldState&&worldState.level_up; if(activeTab()==='me'){ const md=_lu&&_lu.active&&(_lu.done||[]).includes(myChar&&myChar.id); if(!_lu||!_lu.active||md) renderMe(); } else if(worldState&&worldState.settings&&worldState.settings.prepare_due&&Array.isArray(worldState.settings.prepare_due.ids)&&worldState.settings.prepare_due.ids.includes(myChar&&myChar.id)){ /* เตรียมเวทค้าง: ปล่อยให้ blink เตือน */ } })
