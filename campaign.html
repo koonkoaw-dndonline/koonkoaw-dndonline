@@ -2217,7 +2217,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202609050005;
+const FRONTEND_BUILD = 202609050610;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -3051,6 +3051,32 @@ const DICE_CANVAS_TIMELINE_FALLBACK_MS=6000;
 const DICE_RESULT_ACK_AUTO_MS=25000;
 const DICE_CANVAS_JOB_MARGIN_MS=1500;
 const DICE_CANVAS_CALLBACK_MARGIN_MS=1500;
+const DICE_RESULT_GAP_PX=12;
+const DICE_STAGE_EDGE_PX=8;
+function diceRectIntersects(left,right,gap){
+  const pad=Math.max(0,Number(gap)||0);
+  return !!(left&&right&&left.left<right.right+pad&&left.right>right.left-pad&&left.top<right.bottom+pad&&left.bottom>right.top-pad);
+}
+function diceStagePlacement(viewWidth,viewHeight,resultRect,stageWidth,stageHeight){
+  const width=Math.max(1,Number(viewWidth)||1),height=Math.max(1,Number(viewHeight)||1),sw=Math.max(1,Number(stageWidth)||1),sh=Math.max(1,Number(stageHeight)||1),edge=DICE_STAGE_EDGE_PX,gap=DICE_RESULT_GAP_PX;
+  const preferredTop=Math.max(edge,Math.min(height-edge-sh,(height-sh)/2));
+  const rr=resultRect&&Number.isFinite(Number(resultRect.top))&&Number.isFinite(Number(resultRect.bottom))?resultRect:null;
+  if(!rr||Number(rr.right)<=0||Number(rr.left)>=width||Number(rr.bottom)<=0||Number(rr.top)>=height)return {top:preferredTop,hidden:false,reason:'center'};
+  const above=Number(rr.top)-gap-sh,below=Number(rr.bottom)+gap,candidates=[];
+  if(above>=edge)candidates.push({top:above,hidden:false,reason:'above'});
+  if(below+sh<=height-edge)candidates.push({top:below,hidden:false,reason:'below'});
+  if(candidates.length)return candidates.sort((a,b)=>Math.abs(a.top-preferredTop)-Math.abs(b.top-preferredTop))[0];
+  return {top:-sh-gap,hidden:true,reason:'docked'};
+}
+function separateDiceStageFromResultRail(stage,resultHost){
+  try{
+    if(!stage||!resultHost||stage===resultHost||typeof stage.getBoundingClientRect!=='function'||typeof resultHost.getBoundingClientRect!=='function')return null;
+    const doc=document&&document.documentElement,viewWidth=Number(doc&&doc.clientWidth)||Number(window&&window.innerWidth)||1,viewHeight=Number(doc&&doc.clientHeight)||Number(window&&window.innerHeight)||1,stageRect=stage.getBoundingClientRect(),resultRect=resultHost.getBoundingClientRect();
+    const placement=diceStagePlacement(viewWidth,viewHeight,resultRect,Number(stageRect.width)||Number(stage.clientWidth),Number(stageRect.height)||Number(stage.clientHeight));
+    stage.style.left='50%';stage.style.top=String(placement.top)+'px';stage.style.transform='translateX(-50%)';stage.style.visibility=placement.hidden?'hidden':'visible';stage.style.opacity=placement.hidden?'0':'1';stage.setAttribute('data-dice-stage-placement',placement.reason);
+    return placement;
+  }catch(_diceStagePlacementError){return null;}
+}
 function diceCanvasTimelineTotalMs(handle){const value=Number(handle&&handle.timeline&&handle.timeline.totalMs);return Number.isFinite(value)&&value>=0?value:null;}
 function diceCanvasJobTimeoutMs(handle){const total=diceCanvasTimelineTotalMs(handle);return total===null?DICE_CANVAS_JOB_TIMEOUT_MS:Math.max(DICE_CANVAS_JOB_TIMEOUT_MS,total+DICE_RESULT_ACK_AUTO_MS+DICE_CANVAS_JOB_MARGIN_MS);}
 function diceCanvasCallbackBudgetMs(pressToRoll){return (pressToRoll===true?DICE_PRESS_AUTO_MS:0)+DICE_CANVAS_TIMELINE_FALLBACK_MS+DICE_RESULT_ACK_AUTO_MS+DICE_CANVAS_CALLBACK_MARGIN_MS;}
@@ -3086,7 +3112,7 @@ function mountDiceDetailMirror(documentRef,stage,mirror,copy,resultHost){
     const hide=returnFocus=>{if(tooltip.hidden)return false;tooltip.hidden=true;tooltip.setAttribute('aria-hidden','true');const prior=activeButton;if(prior)try{prior.removeAttribute('aria-describedby');}catch(_error){}if(returnFocus&&prior)try{prior.focus({preventScroll:true});}catch(_error){}return true;};
     const onKey=event=>{if(event&&event.key==='Escape'&&!tooltip.hidden){try{event.preventDefault();event.stopPropagation();}catch(_error){}hide(true);}};
     dice.forEach(die=>{const position=die.position,hit=Math.max(44,Number(position.size)||44),button=documentRef.createElement('button'),openDetail=()=>show(button,die);button.type='button';button.setAttribute('data-dice-detail-hit',String(die.id||''));button.setAttribute('aria-label',diceDetailTextFor(die,copy));button.title=diceDetailTextFor(die,copy);button.style.cssText='position:absolute;left:'+String(Number(position.x)-hit/2)+'px;top:'+String(Number(position.y)-hit/2)+'px;width:'+String(hit)+'px;height:'+String(hit)+'px;min-width:44px;min-height:44px;padding:0;border:0;background:transparent;color:transparent;font:inherit;text-shadow:none;outline:none;box-shadow:none;pointer-events:auto;touch-action:manipulation;';button.onpointerenter=openDetail;button.onclick=openDetail;button.onfocus=openDetail;button.onpointerleave=()=>{if(documentRef.activeElement!==button)hide(false);};button.onblur=()=>hide(false);button.onkeydown=onKey;buttons.push(button);layer.appendChild(button);});
-    layer.onkeydown=onKey;(resultHost||stage).appendChild(summary);stage.appendChild(layer);stage.appendChild(tooltip);
+    layer.onkeydown=onKey;(resultHost||stage).appendChild(summary);stage.appendChild(layer);stage.appendChild(tooltip);separateDiceStageFromResultRail(stage,resultHost||stage);
     return {count:buttons.length,buttons:buttons,tooltip:tooltip,summary:summary,hideTooltip:hide,close:()=>{if(closed)return;closed=true;try{summary.remove();}catch(_error){}try{layer.remove();}catch(_error){}try{tooltip.remove();}catch(_error){}}};
   }catch(_error){return null;}
 }
@@ -3111,14 +3137,15 @@ function diceCanvasDefaultEnvironment(){
         ensureStyle();
         const focusOrigin=document.activeElement&&typeof document.activeElement.focus==='function'?document.activeElement:null;
         const overlay=document.createElement('div'); overlay.setAttribute('data-dice-canvas-wire','1');
-        overlay.style.cssText='position:fixed;inset:0;z-index:2147482100;display:grid;place-items:center;pointer-events:none;background:transparent';
+        overlay.style.cssText='position:fixed;inset:0;z-index:2147482100;pointer-events:none;background:transparent';
         const stage=document.createElement('div');
-        stage.style.cssText='position:relative;width:min(92vw,520px);min-height:330px;pointer-events:none';
+        stage.setAttribute('data-dice-canvas-stage','1');stage.style.cssText='position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(92vw,520px);min-height:330px;pointer-events:none;transition:opacity .16s ease';
         const live=document.createElement('div'); live.setAttribute('role','status'); live.setAttribute('aria-live','polite');
         live.style.cssText='position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0';
         overlay.appendChild(stage); overlay.appendChild(live); document.body.appendChild(overlay);
         const battleScene=document.getElementById('battleScene'),battleRail=document.getElementById('diceBattleResultRail'),storyRail=document.getElementById('diceStoryResultRail');
         const resultHost=battleScene&&battleRail&&battleScene.classList&&battleScene.classList.contains('on')?battleRail:(storyRail||battleRail||stage);
+        const relayout=()=>separateDiceStageFromResultRail(stage,resultHost);try{window.addEventListener('resize',relayout);document.addEventListener('scroll',relayout,true);}catch(_diceStageListenerError){}
         let connected=false;try{connected=overlay.isConnected===true||!!(document.documentElement&&typeof document.documentElement.contains==='function'&&document.documentElement.contains(overlay));}catch(_diceOverlayConnectedError){}
         recordDiceVisualProof('overlay_mounted',{connected:connected});
         let ackControl=null,detailControl=null;
@@ -3128,9 +3155,9 @@ function diceCanvasDefaultEnvironment(){
           const button=document.createElement('button');button.type='button';button.textContent=String(model&&model.buttonLabel||'');button.style.cssText='min-width:190px;min-height:52px;padding:10px 20px;border:3px solid #2f1c0d;border-radius:10px;background:#3b2412;color:#fff2cf;font:750 var(--fs-lg)/1.25 system-ui,-apple-system,\'Segoe UI\',sans-serif;box-shadow:0 5px 0 #170d06;pointer-events:auto;touch-action:manipulation;';
           const hint=document.createElement('div');hint.textContent=String(model&&model.hint||'');hint.style.cssText='max-width:340px;padding:4px 8px;border-radius:6px;background:rgba(15,9,4,.78);color:#fff2cf;font:650 var(--fs-md)/1.4 system-ui,-apple-system,\'Segoe UI\',sans-serif;';
           button.onclick=()=>{try{if(model&&typeof model.onAcknowledge==='function')model.onAcknowledge();}catch(_diceAckClickError){}};
-          panel.appendChild(button);panel.appendChild(hint);resultHost.appendChild(panel);try{button.focus({preventScroll:true});}catch(_diceAckFocusError){}
+          panel.appendChild(button);panel.appendChild(hint);resultHost.appendChild(panel);separateDiceStageFromResultRail(stage,resultHost);try{button.focus({preventScroll:true});}catch(_diceAckFocusError){}
           let closed=false;ackControl={close:()=>{if(closed)return;closed=true;try{panel.remove();}catch(_diceAckRemoveError){}}};return ackControl;
-        },dispose:()=>{try{if(ackControl)ackControl.close();}catch(_diceAckDisposeError){}try{if(detailControl)detailControl.close();}catch(_diceDetailDisposeError){} try{ overlay.remove(); }catch(_error){} try{if(focusOrigin&&focusOrigin.isConnected!==false)focusOrigin.focus({preventScroll:true});}catch(_diceFocusRestoreError){} try{recordDiceVisualProof('overlay_removed');}catch(_diceOverlayRemovedProofError){} }};
+        },dispose:()=>{try{window.removeEventListener('resize',relayout);document.removeEventListener('scroll',relayout,true);}catch(_diceStageListenerDisposeError){}try{if(ackControl)ackControl.close();}catch(_diceAckDisposeError){}try{if(detailControl)detailControl.close();}catch(_diceDetailDisposeError){} try{ overlay.remove(); }catch(_error){} try{if(focusOrigin&&focusOrigin.isConnected!==false)focusOrigin.focus({preventScroll:true});}catch(_diceFocusRestoreError){} try{recordDiceVisualProof('overlay_removed');}catch(_diceOverlayRemovedProofError){} }};
       }catch(_error){ return null; }
     },
     mountPlayerRollPrompt:model=>{
