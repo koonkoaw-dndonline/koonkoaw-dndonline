@@ -26,6 +26,7 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./dice-roll-sound.js?v=0823"></script>
 <script src="./dice-fx.js?v=0903"></script>
 <script src="./dice-canvas.js?v=0903"></script>
+<script src="./dice-stage.js?v=0903"></script>
 <script src="./ui-draft-guard.js?v=0831"></script>
 <script src="./music-playback-owner.js?v=847"></script>
 <script src="./music-v2-dark-launch.js?v=0825"></script>
@@ -2217,7 +2218,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202609051055;
+const FRONTEND_BUILD = 202609051613;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -3071,6 +3072,7 @@ function diceStagePlacement(viewWidth,viewHeight,resultRect,stageWidth,stageHeig
 }
 function separateDiceStageFromResultRail(stage,resultHost){
   try{
+    if(stage&&typeof stage.getAttribute==='function'&&stage.getAttribute('data-dice-center-stage')==='1')return null;   // W102: the center stage is a flow column, not rail geometry
     if(!stage||!resultHost||stage===resultHost||typeof stage.getBoundingClientRect!=='function'||typeof resultHost.getBoundingClientRect!=='function')return null;
     const doc=document&&document.documentElement,viewWidth=Number(doc&&doc.clientWidth)||Number(window&&window.innerWidth)||1,viewHeight=Number(doc&&doc.clientHeight)||Number(window&&window.innerHeight)||1,stageRect=stage.getBoundingClientRect(),resultRect=resultHost.getBoundingClientRect();
     const placement=diceStagePlacement(viewWidth,viewHeight,resultRect,Number(stageRect.width)||Number(stage.clientWidth),Number(stageRect.height)||Number(stage.clientHeight));
@@ -3144,10 +3146,16 @@ function diceCanvasDefaultEnvironment(){
     setTimer:(callback,delay)=>setTimeout(callback,delay), clearTimer:id=>clearTimeout(id),
     visualProof:(phase,detail)=>recordDiceVisualProof(phase,detail),
     playbackCompletion:(reason,input)=>{try{dicePlaybackLog(reason,{campaignId:String(campaign&&campaign.id||''),roundId:String(curRound&&curRound.id||''),receiptId:String(input&&input.eventId||'')});}catch(_diceResultCompletionLogError){}},
+    // W102 center stage hooks — every one fails open to null (= existing press prompt / rails / 25 s auto-continue).
+    stageArm:input=>{try{return window.DiceStage&&typeof window.DiceStage.arm==='function'?window.DiceStage.arm(input):null;}catch(_diceStageArmError){return null;}},
+    stagePressed:input=>{try{return window.DiceStage&&typeof window.DiceStage.pressed==='function'?window.DiceStage.pressed(input):null;}catch(_diceStagePressedError){return null;}},
+    resultAckAutoMs:input=>{try{const value=window.DiceStage&&typeof window.DiceStage.resultAckAutoMs==='function'?window.DiceStage.resultAckAutoMs(input):null;return value===null||value===undefined||!Number.isFinite(Number(value))?null:Number(value);}catch(_diceStageAckBudgetError){return null;}},
     mount:()=>{
       try{
         if(!document||!document.body) return null;
         ensureStyle();
+        let stageHosts=null;try{stageHosts=window.DiceStage&&typeof window.DiceStage.hosts==='function'?window.DiceStage.hosts():null;}catch(_diceStageHostsError){stageHosts=null;}
+        if(stageHosts&&stageHosts.dice&&stageHosts.result&&typeof stageHosts.dice.appendChild==='function')return mountDiceJobOnCenterStage(stageHosts);   // W102: an open center stage owns the overlay; the job only borrows its dice/result hosts
         const focusOrigin=document.activeElement&&typeof document.activeElement.focus==='function'?document.activeElement:null;
         const overlay=document.createElement('div'); overlay.setAttribute('data-dice-canvas-wire','1');
         overlay.style.cssText='position:fixed;inset:0;z-index:2147482100;pointer-events:none;background:transparent';
@@ -3221,6 +3229,29 @@ function diceCanvasDefaultEnvironment(){
     }
   };
 }
+// W102: result acknowledgement panel for a job that plays on the center stage (same copy/geometry as the rail panel).
+function createDiceResultAckPanel(documentRef,model){
+  const panel=documentRef.createElement('div');panel.setAttribute('data-dice-result-ack','1');panel.style.cssText='position:relative;z-index:4;display:flex;flex-direction:column;align-items:center;gap:7px;pointer-events:none;text-align:center';
+  const button=documentRef.createElement('button');button.type='button';button.textContent=String(model&&model.buttonLabel||'');button.style.cssText='min-width:190px;min-height:52px;padding:10px 20px;border:3px solid #2f1c0d;border-radius:10px;background:#3b2412;color:#fff2cf;font:750 var(--fs-lg)/1.25 system-ui,-apple-system,\'Segoe UI\',sans-serif;box-shadow:0 5px 0 #170d06;pointer-events:auto;touch-action:manipulation;';
+  const hint=documentRef.createElement('div');hint.textContent=String(model&&model.hint||'');hint.style.cssText='max-width:340px;padding:4px 8px;border-radius:6px;background:rgba(15,9,4,.78);color:#fff2cf;font:650 var(--fs-md)/1.4 system-ui,-apple-system,\'Segoe UI\',sans-serif;';
+  button.onclick=()=>{try{if(model&&typeof model.onAcknowledge==='function')model.onAcknowledge();}catch(_diceStageAckClickError){}};
+  panel.appendChild(button);panel.appendChild(hint);
+  let closed=false;return {panel:panel,button:button,close:()=>{if(closed)return;closed=true;try{panel.remove();}catch(_diceStageAckRemoveError){}}};
+}
+// W102: one canvas job mounted inside the center stage. The stage overlay (dice-stage.js) stays until the round's last result is acknowledged;
+// this mount only adds/removes the per-job canvas host, result summary and acknowledgement panel, and reports job lifecycle to the stage.
+function mountDiceJobOnCenterStage(hosts){
+  const stage=document.createElement('div');stage.setAttribute('data-dice-canvas-stage','1');stage.setAttribute('data-dice-center-stage','1');stage.setAttribute('data-dice-stage-placement','stage');stage.style.cssText='position:relative;width:100%;min-height:330px;pointer-events:none';
+  const live=document.createElement('div');live.setAttribute('role','status');live.setAttribute('aria-live','polite');live.style.cssText='position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0';
+  stage.appendChild(live);hosts.dice.appendChild(stage);
+  const resultHost=hosts.result;let ackControl=null,detailControl=null;
+  let connected=false;try{connected=stage.isConnected===true||!!(document.documentElement&&typeof document.documentElement.contains==='function'&&document.documentElement.contains(stage));}catch(_diceStageConnectedError){}
+  recordDiceVisualProof('overlay_mounted',{connected:connected});
+  return {container:stage,resultContainer:resultHost,announce:text=>{ live.textContent=String(text||''); },
+    showDiceDetails:mirror=>{if(detailControl)return detailControl;detailControl=mountDiceDetailMirror(document,stage,mirror,uiCopy,resultHost);return detailControl;},
+    showResultAck:model=>{if(ackControl)return ackControl;ackControl=createDiceResultAckPanel(document,model);resultHost.appendChild(ackControl.panel);try{if(window.DiceStage&&typeof window.DiceStage.jobResult==='function')window.DiceStage.jobResult();}catch(_diceStageResultError){}try{ackControl.button.focus({preventScroll:true});}catch(_diceStageAckFocusError){}return ackControl;},
+    dispose:()=>{try{if(ackControl)ackControl.close();}catch(_diceStageAckDisposeError){}try{if(detailControl)detailControl.close();}catch(_diceStageDetailDisposeError){}try{stage.remove();}catch(_diceStageRemoveError){}try{if(window.DiceStage&&typeof window.DiceStage.jobDisposed==='function')window.DiceStage.jobDisposed();}catch(_diceStageDisposeError){}try{recordDiceVisualProof('overlay_removed');}catch(_diceStageRemovedProofError){}}};
+}
 function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
   const environment=Object.assign({},diceCanvasDefaultEnvironment(),overrides||{});
   const queue=[]; let activeJob=null, canvasReady=false;
@@ -3252,7 +3283,8 @@ function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
     if(!job.mount||typeof job.mount.showResultAck!=='function'){complete(job,'result_ack_unavailable_auto');return false;}
     try{job.ackControl=job.mount.showResultAck({buttonLabel:copy('✓ รับทราบผล','✓ Continue'),hint:copy('เกมจะดำเนินต่ออัตโนมัติหากไม่กด','The game will continue automatically if you do not press'),onAcknowledge:()=>complete(job,'result_acknowledged')});}catch(_error){job.ackControl=null;}
     if(!job.ackControl){complete(job,'result_ack_unavailable_auto');return false;}
-    try{job.ackTimer=environment.setTimer(()=>complete(job,'result_auto_continue'),DICE_RESULT_ACK_AUTO_MS);}catch(_error){complete(job,'result_auto_continue');}
+    let ackMs=DICE_RESULT_ACK_AUTO_MS;try{const raw=typeof environment.resultAckAutoMs==='function'?environment.resultAckAutoMs(job.input):null;const budget=raw===null||raw===undefined?NaN:Number(raw);if(Number.isFinite(budget)&&budget>=0)ackMs=Math.min(DICE_RESULT_ACK_AUTO_MS,Math.round(budget));}catch(_diceAckBudgetError){ackMs=DICE_RESULT_ACK_AUTO_MS;}   // W102: an open center stage caps auto-continue so the whole freeze stays inside its budget (null = no stage → 25 s)
+    try{job.ackTimer=environment.setTimer(()=>complete(job,'result_auto_continue'),ackMs);}catch(_error){complete(job,'result_auto_continue');}
     return true;
   }
   function legacyFallback(job){
@@ -3330,7 +3362,9 @@ function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
     const source=input&&typeof input==='object'?input:{};
     if(!environment.fxEnabled()){ safeDone(source); return Object.freeze({skipped:true,reason:'disabled',cancel:()=>false}); }
     const job={input:source,done:false,started:false,ackReady:false,mount:null,canvasHandle:null,announceTimer:null,rawTimer:null,pressTimer:null,ackTimer:null,detailTimer:null,pressPrompt:null,ackControl:null,detailControl:null};
-    if(source.pressToRoll===true&&typeof environment.mountPlayerRollPrompt==='function'){
+    let stagePress=null;try{stagePress=typeof environment.stagePressed==='function'?environment.stagePressed(source):null;}catch(_diceStagePressError){stagePress=null;}   // W102: the center stage already collected this round's single press
+    if(source.pressToRoll===true&&stagePress)startJob(job,stagePress==='player');
+    else if(source.pressToRoll===true&&typeof environment.mountPlayerRollPrompt==='function'){
       const copy=(th,en)=>{try{return typeof environment.copy==='function'?String(environment.copy(th,en)||en):en;}catch(_error){return en;}};
       try{job.pressPrompt=environment.mountPlayerRollPrompt({title:copy('ถึงตาคุณทอย','Your roll'),label:String(source.label||copy('ผลทอยของตัวละครคุณพร้อมแล้ว','Your character\'s roll is ready')),buttonLabel:copy('🎲 ทอยเต๋า','🎲 ROLL'),hint:copy('ถ้าไม่กด ระบบจะทอยให้อัตโนมัติ','Auto-roll starts shortly if you do not press'),onPress:()=>startJob(job,true)});}catch(_error){job.pressPrompt=null;}
       if(job.pressPrompt){try{job.pressTimer=environment.setTimer(()=>startJob(job,false),DICE_PRESS_AUTO_MS);}catch(_error){startJob(job,false);} }
@@ -3364,8 +3398,21 @@ function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
     const finish=onceDone(input),source=Object.assign({},input&&typeof input==='object'?input:{},{onDone:finish});
     const events=Array.isArray(source.events)?source.events:[];source.events=events.map((event,index)=>Object.assign({},event,{queuePosition:Number.isInteger(event&&event.queuePosition)?event.queuePosition:index+1,queueTotal:Number.isInteger(event&&event.queueTotal)?event.queueTotal:events.length}));
     if(typeof runner!=='function'){ finish(); return Object.freeze({started:false,skipped:true,cancel:()=>false}); }
-    try{ return runner(source,{roll:roll,setTimer:environment.setTimer,clearTimer:environment.clearTimer}); }
-    catch(_error){ finish(); return Object.freeze({started:false,skipped:true,cancel:()=>false}); }
+    const runNow=()=>{ try{ return runner(source,{roll:roll,setTimer:environment.setTimer,clearTimer:environment.clearTimer}); } catch(_error){ finish(); return Object.freeze({started:false,skipped:true,cancel:()=>false}); } };
+    // W102: the center stage freezes the whole batch until the player's single press; null / not armed = existing flow (no own dice, stage off, hidden tab, already pressed this round).
+    let stage=null;try{ if(typeof environment.stageArm==='function') stage=environment.stageArm({events:source.events,onStart:()=>{try{if(typeof source.onStart==='function')source.onStart();}catch(_diceStageStartError){}}}); }catch(_diceStageArmError){ stage=null; }
+    if(!stage||stage.armed!==true) return runNow();
+    let handle=null,started=false,aborted=false;
+    const start=()=>{ if(started||aborted)return; started=true; handle=runNow(); };
+    const abort=reason=>{
+      if(aborted)return; aborted=true; const why=String(reason||'stage_released');
+      if(handle&&typeof handle.cancel==='function'){ try{ handle.cancel(); }catch(_diceStageCancelError){} }   // stop the runner first so completed jobs cannot enqueue the next event
+      const pending=queue.splice(0,queue.length); pending.forEach(job=>complete(job,why));
+      if(activeJob)complete(activeJob,why);
+      if(!started){ started=true; finish(); }
+    };
+    try{ stage.onPress(start); stage.onSkip(abort); }catch(_diceStageHookError){ start(); }
+    return Object.freeze({started:true,skipped:false,cancel:()=>{ abort('result_cancelled'); return true; }});
   }
   return Object.freeze({
     build:'20260815-dice04-r1', init:init, roll:roll, choreograph:choreograph, pending:pending,
@@ -3382,6 +3429,22 @@ function installDiceCanvasAdapter(){
 }
 // ── /DICE-FE1 Phase B ──
 try{ installDiceCanvasAdapter(); window.DiceFx && window.DiceFx.init({t:uiCopy}); }catch(_diceFxInitError){}   // DICE-FE1B: missing Canvas/localizer fails open to legacy
+// W102: center stage (frontend/dice-stage.js). Optional asset — a missing/failed module leaves the existing press prompt, rails and holds untouched.
+try{ if(window.DiceStage&&typeof window.DiceStage.init==='function') window.DiceStage.init({
+  copy:uiCopy,
+  log:row=>{try{console.warn('[diceStage]',row);}catch(_diceStageConsoleError){}},
+  ledger:(reason,detail)=>{try{dicePlaybackLog(reason,detail);}catch(_diceStageLedgerError){}},
+  stageOff:()=>{try{return localStorage.getItem('dice_stage')==='off';}catch(_diceStageOffError){return false;}},
+  fxOff:()=>!dicePreferenceEnabled('dice_fx'),
+  reducedMotion:()=>{try{return !!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);}catch(_diceStageMotionError){return false;}},
+  hidden:()=>{try{return document.hidden===true;}catch(_diceStageHiddenError){return false;}},
+  beginHold:roundId=>beginDiceNarrationHold(roundId),
+  endHold:token=>endDiceNarrationHold(token),
+  releaseNarration:roundId=>releaseDiceNarrationHoldsForRound(roundId),
+  ownerKey:value=>diceMetaOwnerKey(value),
+  campaignId:()=>String(campaign&&campaign.id||''),
+  onHoldChange:()=>{try{if(typeof renderRoundbar==='function'){const _p=renderRoundbar();if(_p&&typeof _p.catch==='function')_p.catch(()=>{});}}catch(_diceStageRoundbarError){}try{if(typeof scheduleBattleScene==='function')scheduleBattleScene('dice_stage');}catch(_diceStageBattleError){}}
+}); }catch(_diceStageInitError){}
 // v755: legacy rounds may still contain an LLM-authored combat.range. Render
 // only the server vocabulary and localize units; unknown labels fail closed to
 // a non-numeric combat badge.
@@ -4706,6 +4769,14 @@ function endDiceNarrationHold(token){
   try{if(activeTab()==='story')renderStory();}catch(_diceNarrationReleaseRenderError){}
   return true;
 }
+function releaseDiceNarrationHoldsForRound(roundId){   // W102 fail-open: drop every hold token of one round at once (hidden tab / escape / error)
+  const id=String(roundId||''); if(!id||!_diceNarrationHolds.has(id))return false;
+  _diceNarrationHolds.delete(id);
+  try{if(activeTab()==='story')renderStory();}catch(_diceNarrationForceReleaseRenderError){}
+  return true;
+}
+function diceStageHoldsRound(roundId){try{return !!(window.DiceStage&&typeof window.DiceStage.holdsRound==='function'&&window.DiceStage.holdsRound(roundId));}catch(_diceStageHoldsRoundError){return false;}}   // W102: options of a held round stay off the DOM
+function diceStageHoldsBattleLog(){try{return !!(window.DiceStage&&typeof window.DiceStage.holdsBattleLog==='function'&&window.DiceStage.holdsBattleLog());}catch(_diceStageHoldsLogError){return false;}}   // W102: battle-log rows stay off the DOM while the stage holds
 const DICE_PLAYBACK_CALLBACK_PRESS_MS=2200;
 const DICE_PLAYBACK_CALLBACK_TIMELINE_MS=6000;
 const DICE_PLAYBACK_CALLBACK_ACK_MS=25000;
@@ -4846,7 +4917,9 @@ function setVisibleRound(nextRound,character,source){
   if(surfaceVisible&&_diceDeferredNarrationHold&&_diceDeferredNarrationHold.roundId===roundId){holdToken=_diceDeferredNarrationHold.token;_diceDeferredNarrationHold=null;}
   let sequenceDone=false;
   const startHold=function(){if(!holdToken)holdToken=beginDiceNarrationHold(roundId);};
-  const finishSequence=function(){if(sequenceDone)return false;sequenceDone=true;if(surfaceVisible&&holdToken){endDiceNarrationHold(holdToken);holdToken=null;}return true;};
+  // W102: an open center stage adopts the narration hold so the round is revealed only after its last result is acknowledged (the choreography runner may finish earlier).
+  const finishSequence=function(){if(sequenceDone)return false;sequenceDone=true;if(surfaceVisible&&holdToken){let adopted=false;try{adopted=!!(window.DiceStage&&typeof window.DiceStage.sequenceDone==='function'&&window.DiceStage.sequenceDone(roundId,holdToken));}catch(_diceStageSequenceError){adopted=false;}if(!adopted)endDiceNarrationHold(holdToken);holdToken=null;}return true;};
+  try{if(window.DiceStage&&typeof window.DiceStage.beginRound==='function')window.DiceStage.beginRound(roundId);}catch(_diceStageBeginRoundError){}
   playRoundDiceMeta(curRound,character,{onStart:startHold,onDone:()=>playRoundCombatDiceMeta(curRound,character,{onStart:startHold,onDone:finishSequence})});
   return curRound;
 }
@@ -4916,7 +4989,7 @@ function postFlipRoundRefetchController(){
       try{if(activeTab()==='story')renderRoundbar();}catch(_postFlipRenderError){}
       return data;
     },
-    log:(reason,detail)=>dicePlaybackLog(reason,Object.assign({campaignId:String(campaign&&campaign.id||'')},detail||{}))
+    log:(reason,detail)=>{try{if(window.DiceStage&&typeof window.DiceStage.postFlipSignal==='function')window.DiceStage.postFlipSignal(reason,detail&&detail.roundId);}catch(_diceStagePostFlipError){} return dicePlaybackLog(reason,Object.assign({campaignId:String(campaign&&campaign.id||'')},detail||{}));}   // W102: narration that lands before its dice batch waits ≤ DICE_HOLD_MAX_MS
   });
   return _postFlipRoundRefetch;
 }
@@ -7295,6 +7368,7 @@ async function renderRoundbar(){
   }
   if(curRound.phase==='resolving'){ bar.innerHTML=uiCopy('<div class="statusline"><span class="pill wait">DM กำลังประมวลผล…</span></div>','<div class="statusline"><span class="pill wait">DM is resolving…</span></div>'); return; }
   if(curRound.phase!=='awaiting_actions'){ bar.innerHTML=''; return; }
+  if(typeof diceStageHoldsRound==='function'&&diceStageHoldsRound(curRound.id)){ bar.innerHTML=''; return; }   // W102: the round's options stay off the DOM until the dice stage is acknowledged
   refreshSelectionGate();
   // v177: เตรียมเวทรายวันค้าง → ล็อกการสั่งการ + กระพริบแท็บ Me จนกว่าจะเตรียมเสร็จ
   if(myChar && worldState&&worldState.settings&&worldState.settings.prepare_due&&Array.isArray(worldState.settings.prepare_due.ids)&&worldState.settings.prepare_due.ids.includes(myChar.id)){
@@ -10800,7 +10874,7 @@ async function renderBattleInitLog(initEl, logEl){
     var _ig=document.createElement('div'); _ig.appendChild(_frag.cloneNode(true));
     if(initEl.getAttribute('data-sig')!==_ig.innerHTML){ initEl.setAttribute('data-sig',_ig.innerHTML); initEl.replaceChildren(_frag); }
   }
-  if(logEl){
+  if(logEl&&!(typeof diceStageHoldsBattleLog==='function'&&diceStageHoldsBattleLog())){   // W102: new battle-log rows stay off the DOM while the dice stage holds
     let logs=_logsPre||[];   // (06-11) ใช้ผลที่ fetch รวมไว้ข้างบน
     const ICON={initiative:'🎲',attack:'🎲',damage:'💥',heal:'💚',save:'🛡',check:'🎯',move:'👣',condition:'⭐',death:'☠',flee:'🏃',round_advance:'🔄',note:'📝'};
     const _lfrag=document.createDocumentFragment();
@@ -12750,7 +12824,7 @@ function subscribeRealtime(){
     .on('postgres_changes',{event:'*',schema:'public',table:'music_scene_state_v2',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ const row=(payload&&payload.new)||{}; if(_musicV2Enabled()&&Number(row.group_no||1)===terminalGroupForUi()) _musicV2SelectionChanged(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'combat_encounters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await updateCombatBadge(); await refreshCombatTurn(); await refreshInitiativePressPrompt(); scheduleBattleScene(); if(activeTab()==='story') renderRoundbar(); })   /* W31-S1b: rolling encounter prompt precedes battle scene; active encounter enters it */
     .on('postgres_changes',{event:'*',schema:'public',table:'initiative_entries',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await refreshCombatTurn(); await refreshInitiativePressPrompt(); scheduleBattleScene(); if(activeTab()==='story') renderRoundbar(); })
-    .on('postgres_changes',{event:'INSERT',schema:'public',table:'combat_log',filter:'campaign_id=eq.'+campaign.id}, async()=>{ scheduleBattleScene(); })
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'combat_log',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ try{if(window.DiceStage&&typeof window.DiceStage.noteBattleLogRow==='function')window.DiceStage.noteBattleLogRow(payload&&payload.new,myChar);}catch(_diceStageBattleLogError){} scheduleBattleScene(); })   // W102: own attack rows that land before the dice batch wait ≤ DICE_HOLD_MAX_MS
     .on('postgres_changes',{event:'*',schema:'public',table:'battle_grids',filter:'campaign_id=eq.'+campaign.id}, async()=>{
       gridCommandInvalidate('battle-grids-realtime');
       scheduleBattleScene('realtime_grid');
