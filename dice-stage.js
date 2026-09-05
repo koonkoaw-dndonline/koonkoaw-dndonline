@@ -1,6 +1,18 @@
 /*
  * W102 "Dice center stage" — pure stage state machine + thin DOM adapter.
  *
+ * W110 (owner feedback 2026-09-05): the stage shows ONLY the logged-in
+ * player's own dice. Companions, DM-run monsters and other players never get a
+ * die, a result card, a "ที่มา:" detail mirror or an acknowledgement here —
+ * the battle log already carries their rolls. A batch without own dice never
+ * opens the stage and never holds narration. The overlay is pinned to the
+ * viewport center (position:fixed + flex centering, repeated inline so page
+ * CSS cannot move it). A player-triggered roll outside a round batch
+ * (initiative press / saving throw / DM dice) opens the stage already pressed —
+ * the button the player just pressed WAS the roll — and an own initiative die
+ * the player rolled through the initiative button is not replayed by the round
+ * batch. This module draws nothing around the die — no frame, no circle.
+ *
  * The server has already committed every die face before this module sees a
  * batch. The stage only sequences WHEN the player sees them: freeze with idle
  * dice → the player presses → the existing DiceFx/Canvas animation lands on
@@ -14,20 +26,24 @@
 (function attachDiceStage(){
   'use strict';
 
-  const BUILD='20260905-w102-center-stage-r1';
+  const BUILD='20260905-w110-own-rolls-r2';
   const DICE_PREROLL_AUTO_MS=20000;   // no press → the stage rolls on its own
   const DICE_HOLD_MAX_MS=8000;        // content that arrives before the dice batch waits at most this long
   const DICE_STAGE_TOTAL_MS=35000;    // whole freeze budget with zero input (preroll + roll + result)
   const DICE_STAGE_ACK_MIN_MS=1200;   // a result is always visible at least this long
   const DICE_STAGE_ACK_MAX_MS=25000;  // mirrors DICE_RESULT_ACK_AUTO_MS in campaign.html
   const DICE_STAGE_TICK_MS=1000;
+  const DICE_STAGE_INITIATIVE_NOTE_TTL_MS=1800000;   // W110: an initiative die rolled through the initiative button is remembered this long so the round batch does not replay it
   const MAX_GLYPHS=6;
+  const STAGE_Z_INDEX='2147482040';
   const OWN_LOG_ENTRY_TYPES=Object.freeze(['attack','damage','save','check','initiative','heal']);
   const REASONS=Object.freeze({
     armed:'stage_armed',pressed:'stage_pressed',prerollAuto:'stage_preroll_auto',hiddenRelease:'stage_hidden_release',
     holdStarted:'stage_hold_started',holdTimeout:'stage_hold_timeout',holdAdopted:'stage_hold_adopted',holdSettled:'stage_hold_settled',
     sequenceDone:'stage_sequence_done',released:'stage_released',toggleOff:'stage_toggle_off',errorFailOpen:'stage_error_fail_open',
-    playerEscape:'stage_player_escape',superseded:'stage_superseded',spectator:'stage_spectator_skip',viewUnavailable:'stage_view_unavailable'
+    playerEscape:'stage_player_escape',superseded:'stage_superseded',spectator:'stage_spectator_skip',viewUnavailable:'stage_view_unavailable',
+    othersOmitted:'stage_others_omitted',initiativeNoted:'stage_initiative_noted',initiativeSkipped:'stage_initiative_already_rolled',
+    directOpened:'stage_direct_opened',directAdopted:'stage_direct_adopted',pressedByRoll:'stage_pressed_by_roll',splitError:'stage_split_error'
   });
 
   function finiteNumber(value){ const number=Number(value); return Number.isFinite(number)?number:null; }
@@ -37,6 +53,10 @@
     const key=String(value||'').toLowerCase();
     return /^d(?:4|6|8|10|12|20)$/.test(key)?key:'raw';
   }
+  function isEventObject(event){ return !!event&&typeof event==='object'&&!Array.isArray(event); }
+  function normalizedKey(value){ return String(value||'').trim().toLowerCase().replace(/[\s_]+/g,'-'); }
+  function initiativeLike(event){ return isEventObject(event)&&(normalizedKey(event.kind)==='initiative'||normalizedKey(event.role)==='initiative'||normalizedKey(event.ability)==='initiative'); }
+  function isDirectKey(key){ return /^direct:/.test(String(key||'')); }
 
   // ── pure planning ──────────────────────────────────────────────────────
   function stageGlyphs(event){
@@ -46,16 +66,33 @@
     else kinds=['d20'];
     return Object.freeze({kinds:Object.freeze(kinds.slice(0,MAX_GLYPHS)),collapsed:Math.max(0,kinds.length-MAX_GLYPHS),count:kinds.length});
   }
+  // W110: own = the page marked the receipt pressToRoll (its actor key equals the logged-in player's character key —
+  // diceMetaOwnerKey in campaign.html). Anything else, including a batch that cannot name its owner, is somebody else's
+  // die and never reaches the runner or the stage. Own initiative dice the player already rolled through the initiative
+  // button (options.initiativeSeen) are skipped too. The counter is renumbered over own dice only; a single own die
+  // carries no counter at all.
+  function splitStageBatch(events,options){
+    const opts=options&&typeof options==='object'?options:{};
+    const list=Array.isArray(events)?events.filter(isEventObject):[];
+    const own=[]; let others=0,initiativeSkipped=0;
+    list.forEach(function(event){
+      if(event.pressToRoll!==true){ others++; return; }
+      if(initiativeLike(event)&&typeof opts.initiativeSeen==='function'&&opts.initiativeSeen(event)===true){ initiativeSkipped++; return; }
+      own.push(event);
+    });
+    const total=own.length;
+    const renumbered=own.map(function(event,index){ return Object.assign({},event,total>1?{queuePosition:index+1,queueTotal:total}:{queuePosition:null,queueTotal:null}); });
+    return Object.freeze({events:Object.freeze(renumbered),ownCount:total,othersCount:others,initiativeSkipped:initiativeSkipped,total:list.length});
+  }
   function planStageBatch(events){
-    const list=Array.isArray(events)?events.filter(function(event){ return event&&typeof event==='object'&&!Array.isArray(event); }):[];
+    const list=Array.isArray(events)?events.filter(isEventObject):[];
     const own=list.filter(function(event){ return event.pressToRoll===true; });
-    const first=list[0]||null;
-    const queueTotal=first&&Number.isInteger(first.queueTotal)&&first.queueTotal>0?first.queueTotal:list.length;
+    const first=own[0]||list[0]||null;                              // W110: the stage describes the player's own die, never somebody else's
     return Object.freeze({
       arm:own.length>0,
       ownCount:own.length,
       total:list.length,
-      queueTotal:queueTotal,
+      queueTotal:own.length,
       label:String(first&&first.label||'').slice(0,320),
       glyphs:stageGlyphs(first)
     });
@@ -101,6 +138,15 @@
       if(state.phase!=='armed')return false;
       clearStageTimers(); state.phase='rolling'; state.pressedAt=now(); state.pressedBy=source==='player'?'player':'auto';
       log(reason||REASONS.pressed,{pressed_by_player:state.pressedBy==='player'}); emit('onPress',state.pressedBy); return true;
+    }
+    // W110: a pressed direct stage (initiative / save / DM dice) takes over the round batch that arrives while it is open:
+    // the key becomes the round so holds and sequenceDone address it, and the pending close of the direct stage is dropped.
+    function adopt(key){
+      if(!open()||state.phase==='armed')return false;
+      const id=String(key||''); if(!id||id===state.key)return false;
+      clearTimer(closeTimer); closeTimer=null;
+      const previous=state.key; state.key=id; state.sequenceDone=false; state.holdActive=true;
+      log(REASONS.directAdopted,{direct_key:previous}); emit('onHoldsChanged'); return true;
     }
     function jobStarted(){ if(!open())return false; if(state.phase==='armed')clearStageTimers(); state.jobsActive++; state.phase='rolling'; return true; }
     function jobResult(){ if(state.phase!=='rolling')return false; state.phase='result'; return true; }
@@ -155,7 +201,7 @@
     }
     function reset(){ clearStageTimers(); preHolds.forEach(function(entry){ clearTimer(entry.timer); }); preHolds.clear(); state.phase='idle'; state.key=''; state.armedAt=null; state.pressedAt=null; state.pressedBy=''; state.jobsActive=0; state.sequenceDone=false; state.holdActive=false; state.skipping=false; state.lastReason=''; }
     return Object.freeze({
-      arm:arm,press:press,jobStarted:jobStarted,jobResult:jobResult,jobDisposed:jobDisposed,sequenceDone:sequenceDone,releaseHolds:releaseHolds,close:close,skip:skip,hidden:hidden,
+      arm:arm,press:press,adopt:adopt,jobStarted:jobStarted,jobResult:jobResult,jobDisposed:jobDisposed,sequenceDone:sequenceDone,releaseHolds:releaseHolds,close:close,skip:skip,hidden:hidden,
       preHold:preHold,endPreHold:endPreHold,endPreHoldsOfKind:endPreHoldsOfKind,preHoldActive:preHoldActive,holdsRound:holdsRound,holdsBattleLog:holdsBattleLog,
       isOpen:open,pressed:function(){ return open()&&state.phase!=='armed'?state.pressedBy||'auto':null; },
       ackBudget:function(){ return open()&&state.armedAt!==null?ackBudgetMs(state.armedAt,now()):null; },
@@ -173,28 +219,37 @@
     if(kind==='d20') return '50,2 88,20 98,58 72,96 28,96 2,58 12,20';
     return '';
   }
+  // W110: the overlay's viewport geometry is also written inline so no page stylesheet can move the stage out of the center.
+  const OVERLAY_INLINE_STYLE=Object.freeze({position:'fixed',top:'0',right:'0',bottom:'0',left:'0',width:'100%',height:'100%',margin:'0',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',boxSizing:'border-box',zIndex:STAGE_Z_INDEX});
+  const PANEL_INLINE_STYLE=Object.freeze({margin:'auto',maxHeight:'100%',minHeight:'0',boxSizing:'border-box'});
+  function applyStyle(node,map){
+    if(!node||!node.style||!map)return false;
+    Object.keys(map).forEach(function(key){ try{ node.style[key]=map[key]; }catch(error){} });
+    return true;
+  }
   function injectStyles(documentRef){
     if(!documentRef||!documentRef.createElement)return false;
     if(documentRef.getElementById&&documentRef.getElementById('dice-stage-style'))return true;
     const style=documentRef.createElement('style'); style.id='dice-stage-style';
     style.textContent='\n'+
-      '[data-dice-stage]{position:fixed;inset:0;z-index:2147482040;display:flex;align-items:center;justify-content:center;box-sizing:border-box;padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));background:rgba(6,10,16,.6);pointer-events:auto}\n'+
-      '.dstage-panel{position:relative;width:min(94vw,560px);max-height:calc(100vh - 24px);overflow:auto;display:flex;flex-direction:column;align-items:center;gap:10px;box-sizing:border-box;padding:16px 12px 18px;border:3px double #8b602f;border-radius:14px;background:linear-gradient(145deg,#f4e4bd,#d9bd82);color:#2a1a0d;text-align:center;box-shadow:0 18px 44px rgba(10,6,2,.5),inset 0 0 0 2px rgba(255,250,226,.55);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}\n'+
+      '[data-dice-stage]{position:fixed;top:0;right:0;bottom:0;left:0;inset:0;width:100%;height:100%;margin:0;z-index:'+STAGE_Z_INDEX+';display:flex;flex-direction:column;align-items:center;justify-content:center;box-sizing:border-box;padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));background:rgba(6,10,16,.6);pointer-events:auto;overflow:hidden;overscroll-behavior:contain}\n'+
+      '.dstage-panel{position:relative;flex:0 1 auto;width:min(94vw,560px);max-width:100%;max-height:100%;min-height:0;margin:auto;overflow:auto;display:flex;flex-direction:column;align-items:center;gap:10px;box-sizing:border-box;padding:16px 12px 18px;border:3px double #8b602f;border-radius:14px;background:linear-gradient(145deg,#f4e4bd,#d9bd82);color:#2a1a0d;text-align:center;box-shadow:0 18px 44px rgba(10,6,2,.5),inset 0 0 0 2px rgba(255,250,226,.55);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}\n'+
       '.dstage-title{margin-top:18px;font-size:var(--fs-lg,18px);font-weight:800;line-height:1.4}\n'+
       '.dstage-label{max-width:100%;font-size:var(--fs-base,14px);line-height:1.45;opacity:.85;overflow-wrap:anywhere}\n'+
-      '.dstage-dice{position:relative;width:min(92vw,520px);max-width:100%;min-height:330px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;border-radius:12px;background:rgba(28,16,7,.32)}\n'+
+      '.dstage-dice{position:relative;width:min(92vw,520px);max-width:100%;min-height:330px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;background:transparent;border:0;outline:0;box-shadow:none}\n'+
       '.dstage-glyphs{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:10px 14px;padding:12px}\n'+
       '.dstage-glyph{width:clamp(56px,16vw,88px);height:clamp(56px,16vw,88px);color:#f8edce;animation:dstage-idle 1.6s ease-in-out infinite}\n'+
       '.dstage-glyph:nth-child(2n){animation-delay:-.5s}.dstage-glyph:nth-child(3n){animation-delay:-1s}\n'+
       '.dstage-glyph svg{display:block;width:100%;height:100%;overflow:visible}\n'+
       '.dstage-glyph .dstage-shell{fill:#322316;stroke:#d9b978;stroke-width:4;stroke-linejoin:round}\n'+
       '.dstage-glyph text{fill:currentColor;font:700 30px Georgia,serif;text-anchor:middle;dominant-baseline:middle}\n'+
-      '.dstage-collapse{padding:6px 10px;border:1px solid rgba(90,60,25,.7);border-radius:999px;color:#2a1a0d;font-weight:800}\n'+
+      '.dstage-collapse{padding:6px 10px;border:1px solid rgba(90,60,25,.7);border-radius:8px;color:#2a1a0d;font-weight:800}\n'+
       '.dstage-result{width:min(92vw,520px);max-width:100%;display:flex;flex-direction:column;align-items:center;gap:8px}\n'+
       '.dstage-result:empty{display:none}\n'+
       '.dstage-roll{min-width:220px;min-height:62px;padding:12px 26px;border:3px solid #2f1c0d;border-radius:12px;background:#3b2412;color:#fff2cf;font:800 var(--fs-lg,18px)/1.2 system-ui,-apple-system,"Segoe UI",sans-serif;box-shadow:0 6px 0 #170d06;touch-action:manipulation;cursor:pointer}\n'+
       '.dstage-roll:active{transform:translateY(3px);box-shadow:0 3px 0 #170d06}.dstage-roll:focus-visible{outline:3px solid #fff0a8;outline-offset:3px}\n'+
       '.dstage-hint{font-size:var(--fs-sm,12px);line-height:1.45;opacity:.78}\n'+
+      '.dstage-hint:empty{display:none}\n'+
       '.dstage-escape{position:absolute;top:8px;right:8px;padding:5px 10px;border:1px solid rgba(80,50,20,.6);border-radius:8px;background:rgba(255,250,236,.6);color:#3a2612;font:600 var(--fs-sm,12px)/1.2 system-ui,-apple-system,"Segoe UI",sans-serif;cursor:pointer}\n'+
       '.dstage-status{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}\n'+
       '[data-dice-stage]:not([data-dice-stage-phase="armed"]) .dstage-roll,[data-dice-stage]:not([data-dice-stage-phase="armed"]) .dstage-hint,[data-dice-stage]:not([data-dice-stage-phase="armed"]) .dstage-glyphs{display:none}\n'+
@@ -223,7 +278,9 @@
     const source=model&&typeof model==='object'?model:{};
     const focusOrigin=documentRef.activeElement&&typeof documentRef.activeElement.focus==='function'?documentRef.activeElement:null;
     const overlay=documentRef.createElement('div'); overlay.setAttribute('data-dice-stage','1'); overlay.setAttribute('data-dice-stage-phase','armed'); overlay.setAttribute('role','dialog'); overlay.setAttribute('aria-modal','true'); overlay.setAttribute('aria-label',String(source.title||''));
-    const panel=documentRef.createElement('div'); panel.className='dstage-panel';
+    applyStyle(overlay,OVERLAY_INLINE_STYLE);
+    const panel=documentRef.createElement('div'); panel.className='dstage-panel'; panel.setAttribute('data-dice-stage-panel','1');
+    applyStyle(panel,PANEL_INLINE_STYLE);
     const escape=documentRef.createElement('button'); escape.type='button'; escape.className='dstage-escape'; escape.setAttribute('data-dice-stage-escape','1'); escape.textContent=String(source.escapeLabel||''); escape.onclick=function(){ safeCall(source.onEscape); };
     const title=documentRef.createElement('div'); title.className='dstage-title'; title.textContent=String(source.title||'');
     const label=documentRef.createElement('div'); label.className='dstage-label'; label.setAttribute('data-dice-stage-label','1'); label.textContent=String(source.label||'');
@@ -242,7 +299,7 @@
     try{ roll.focus({preventScroll:true}); }catch(error){}
     let closed=false;
     return Object.freeze({
-      overlay:overlay,diceHost:dice,resultHost:result,rollButton:roll,
+      overlay:overlay,panel:panel,diceHost:dice,resultHost:result,rollButton:roll,
       setHint:function(text){ hint.textContent=String(text||''); },
       setPhase:function(phase,statusText){ overlay.setAttribute('data-dice-stage-phase',String(phase||'')); if(statusText!==undefined)status.textContent=String(statusText||''); },
       close:function(){ if(closed)return false; closed=true; try{ overlay.remove(); }catch(error){ try{ if(overlay.parentNode)overlay.parentNode.removeChild(overlay); }catch(removeError){} } try{ if(focusOrigin&&focusOrigin.isConnected!==false)focusOrigin.focus({preventScroll:true}); }catch(error){} return true; }
@@ -250,13 +307,19 @@
   }
 
   // ── runtime (campaign.html adapter surface) ────────────────────────────
-  let deps=null, machine=null, view=null, initialized=false, currentKey='', batchSeq=0, armedCallbacks=null, adoptedToken=null, releasing=false, visibilityBound=false, lastToggleLogKey='';
+  let deps=null, machine=null, view=null, initialized=false, currentKey='', batchSeq=0, adoptedToken=null, releasing=false, visibilityBound=false, lastToggleLogKey='', initiativeNote=null;
+  let pressListeners=[], skipListeners=[];
   const preHoldTokens=new Map();
 
+  function resetListeners(){ pressListeners=[]; skipListeners=[]; }
+  function addPressListener(callback){ if(typeof callback!=='function')return; if(machine&&machine.pressed())safeCall(callback,machine.pressed()); else pressListeners.push(callback); }
+  function addSkipListener(callback){ if(typeof callback==='function')skipListeners.push(callback); }
   function documentRef(){ try{ return deps&&deps.document?deps.document:(typeof document!=='undefined'?document:null); }catch(error){ return null; } }
   function copy(th,en){ try{ const text=deps&&typeof deps.copy==='function'?deps.copy(th,en):null; return typeof text==='string'?text:String(en||th||''); }catch(error){ return String(en||th||''); } }
   function dep(name){ return deps&&typeof deps[name]==='function'?deps[name]:null; }
   function callDep(name,argument,fallback){ const fn=dep(name); if(!fn)return fallback; try{ return fn(argument); }catch(error){ return fallback; } }
+  function nowMs(){ try{ const value=Number(dep('now')?deps.now():Date.now()); return Number.isFinite(value)?value:0; }catch(error){ return 0; } }
+  function ownerKeyOf(value){ const keyOf=dep('ownerKey'); try{ return keyOf?String(keyOf(value)||''):String(value||'').trim().toLowerCase(); }catch(error){ return String(value||'').trim().toLowerCase(); } }
   function campaignId(){ return String(callDep('campaignId',undefined,'')||''); }
   function logRow(row){
     try{ const log=dep('log'); if(log)log(row); }catch(error){}
@@ -282,6 +345,17 @@
     try{ logRow({source:'diceStage',reason_code:REASONS.errorFailOpen,error:String(error&&error.message||error||'').slice(0,160),key:machine?machine.snapshot().key:''}); }catch(logError){}
     try{ if(machine&&machine.isOpen())machine.skip(REASONS.errorFailOpen); else closeView(); }catch(skipError){ closeView(); }
   }
+  // W110: the round batch replays an initiative die the player has just rolled through the initiative button — same
+  // committed total, same character, inside the note's lifetime — so the stage skips that receipt instead of asking twice.
+  function initiativeAlreadyRolled(event){
+    const note=initiativeNote; if(!note||!isEventObject(event))return false;
+    if(nowMs()-note.at>DICE_STAGE_INITIATIVE_NOTE_TTL_MS)return false;
+    const total=finiteNumber(event.total); if(total===null||total!==note.total)return false;
+    const who=ownerKeyOf(event.who||event.actor||event.actor_name);
+    return !who||!note.who||who===note.who;
+  }
+  function riderHandle(){ return Object.freeze({armed:false,pressed:true,onPress:function(callback){ safeCall(callback,machine?machine.pressed():'auto'); },onSkip:addSkipListener}); }
+  function armedHandle(){ return Object.freeze({armed:true,pressed:false,onPress:addPressListener,onSkip:addSkipListener}); }
   function machineHooks(){
     return {
       now:dep('now')||function(){ return Date.now(); },
@@ -289,11 +363,11 @@
       clearTimer:dep('clearTimer')||function(id){ clearTimeout(id); },
       onLog:logRow,
       onTick:function(seconds){ if(view)view.setHint(hintText(seconds)); },
-      onPress:function(source){ if(view)view.setPhase('rolling',copy('กำลังทอยเต๋า','Rolling dice')); const callbacks=armedCallbacks; safeCall(callbacks&&callbacks.onPress,source); },
-      onSkip:function(payload){ const callbacks=armedCallbacks; armedCallbacks=null; safeCall(callbacks&&callbacks.onSkip,payload&&payload.reason); },
+      onPress:function(source){ if(view)view.setPhase('rolling',copy('กำลังทอยเต๋า','Rolling dice')); const listeners=pressListeners.slice(); pressListeners=[]; listeners.forEach(function(callback){ safeCall(callback,source); }); },
+      onSkip:function(payload){ const listeners=skipListeners.slice(); resetListeners(); listeners.forEach(function(callback){ safeCall(callback,payload&&payload.reason); }); },
       onHiddenRelease:function(payload){ callDep('releaseNarration',payload&&payload.key,null); },
       onClose:function(payload){
-        closeView(); armedCallbacks=null;
+        closeView(); resetListeners();
         if(adoptedToken!==null){ const token=adoptedToken; adoptedToken=null; callDep('endHold',token,null); }
         if(payload&&payload.reason!==REASONS.sequenceDone)callDep('releaseNarration',payload&&payload.key,null);
       },
@@ -305,7 +379,7 @@
   function init(options){
     try{
       deps=options&&typeof options==='object'?options:{};
-      if(machine)machine.reset(); closeView(); preHoldTokens.clear(); adoptedToken=null; armedCallbacks=null; currentKey=''; lastToggleLogKey='';
+      if(machine)machine.reset(); closeView(); preHoldTokens.clear(); adoptedToken=null; resetListeners(); currentKey=''; lastToggleLogKey=''; initiativeNote=null;
       machine=createStageMachine(machineHooks()); initialized=true;
       if(!visibilityBound){
         const doc=documentRef();
@@ -315,19 +389,39 @@
     }catch(error){ initialized=false; return false; }
   }
   function beginRound(roundId){ currentKey=String(roundId||''); return currentKey; }
+  // W110: the adapter hands every round batch through here before the runner sees it. null = kill switch / not
+  // initialized → the previous behaviour (everybody's dice on the rails). Otherwise only the player's own dice come
+  // back, renumbered over own dice; others (and an own initiative die already rolled through the initiative button) are
+  // dropped from the display entirely and logged.
+  function splitBatch(events){
+    try{
+      if(!initialized||!machine)return null;
+      if(callDep('stageOff',undefined,false)===true)return null;
+      const split=splitStageBatch(events,{initiativeSeen:initiativeAlreadyRolled});
+      if(split.othersCount>0||split.initiativeSkipped>0)logRow({source:'diceStage',reason_code:split.othersCount>0?REASONS.othersOmitted:REASONS.initiativeSkipped,key:currentKey,own:split.ownCount,others_omitted:split.othersCount,initiative_skipped:split.initiativeSkipped,total:split.total});
+      return split;
+    }catch(error){ try{ logRow({source:'diceStage',reason_code:REASONS.splitError,error:String(error&&error.message||error||'').slice(0,160),key:currentKey}); }catch(logError){} return null; }
+  }
   function arm(input){
     try{
       if(!machine)return null;
       const source=input&&typeof input==='object'?input:{};
       const plan=planStageBatch(source.events);
-      if(!plan.arm)return null;                                   // spectator batch: existing rails + auto-play
+      if(!plan.arm)return null;                                   // no own die in the batch: nothing to freeze for (others never reach the stage)
       const key=currentKey||('batch:'+String(++batchSeq));
       if(releasing){ const why=machine.snapshot().lastReason||REASONS.released; return Object.freeze({armed:true,pressed:false,onPress:function(){},onSkip:function(callback){ safeCall(callback,why); }}); }
       const cause=disabledCause();
       if(cause){ if(lastToggleLogKey!==key){ lastToggleLogKey=key; logRow({source:'diceStage',reason_code:REASONS.toggleOff,cause:cause,key:key}); } return null; }
       if(hiddenNow())return null;
       if(machine.isOpen()){
-        if(machine.snapshot().key===key&&machine.pressed()){ safeCall(source.onStart); return Object.freeze({armed:false,pressed:true,onPress:function(callback){ safeCall(callback,machine.pressed()); },onSkip:function(){}}); }
+        const snap=machine.snapshot();
+        if(snap.key===key&&machine.pressed()){ safeCall(source.onStart); return riderHandle(); }
+        if(isDirectKey(snap.key)&&machine.pressed()&&machine.adopt(key)){   // W110: the player's own direct roll is already on the stage — the round batch rides that press
+          safeCall(source.onStart);
+          endNarrationPreHold(key,REASONS.holdAdopted);
+          machine.endPreHoldsOfKind('battleLog',REASONS.holdAdopted);
+          return riderHandle();
+        }
         releasing=true; try{ machine.skip(REASONS.superseded); }finally{ releasing=false; }
       }
       const doc=documentRef();
@@ -343,18 +437,54 @@
       };
       view=mountStageView(doc,model);
       if(!view){ logRow({source:'diceStage',reason_code:REASONS.viewUnavailable,key:key}); return null; }
-      armedCallbacks={onPress:null,onSkip:null};
-      if(!machine.arm(key)){ closeView(); armedCallbacks=null; return null; }
+      resetListeners();
+      if(!machine.arm(key)){ closeView(); return null; }
       safeCall(source.onStart);                                    // the choreography's own narration hold starts now
       endNarrationPreHold(key,REASONS.holdAdopted);
       machine.endPreHoldsOfKind('battleLog',REASONS.holdAdopted);
-      return Object.freeze({armed:true,pressed:false,onPress:function(callback){ if(armedCallbacks)armedCallbacks.onPress=callback; },onSkip:function(callback){ if(armedCallbacks)armedCallbacks.onSkip=callback; }});
+      return armedHandle();
+    }catch(error){ failOpen(error); return null; }
+  }
+  // W110: a player-triggered roll outside a round batch — the initiative button, a saving throw, the DM's own dice.
+  // The button the player just pressed was the roll, so the stage opens already in the rolling phase (no second
+  // press); an open armed stage takes that press as its own. null = toggles / hidden tab / a stage that cannot mount →
+  // the existing rails. An initiative roll is remembered so the round batch does not replay it.
+  function direct(input){
+    try{
+      if(!machine)return null;
+      const source=isEventObject(input)?input:{};
+      if(initiativeLike(source)){
+        const total=finiteNumber(source.total);
+        if(total!==null){ initiativeNote={total:total,who:ownerKeyOf(source.actor_name||source.who||source.actor),at:nowMs()}; logRow({source:'diceStage',reason_code:REASONS.initiativeNoted,key:currentKey}); }
+      }
+      if(releasing)return null;
+      if(disabledCause()||hiddenNow())return null;
+      if(machine.isOpen())return Object.freeze({opened:false,joined:true,onSkip:addSkipListener});   // the roll joins the open stage on mount; hosts() turns an armed stage's wait into this press, so the direct die plays first
+      const key='direct:'+String(++batchSeq);
+      const model={
+        title:copy('ทอยเต๋าของคุณ','Your dice'),
+        label:String(source.label||'').slice(0,320),
+        glyphs:stageGlyphs(source),
+        buttonLabel:copy('🎲 ทอยเต๋า','🎲 Roll the dice'),
+        hint:'',
+        escapeLabel:copy('เล่นต่อ','Play on'),
+        onPress:function(){},
+        onEscape:function(){ try{ release(REASONS.playerEscape); }catch(error){ failOpen(error); } }
+      };
+      view=mountStageView(documentRef(),model);
+      if(!view){ logRow({source:'diceStage',reason_code:REASONS.viewUnavailable,key:key}); return null; }
+      resetListeners();
+      if(!machine.arm(key)){ closeView(); return null; }
+      machine.press('player',REASONS.directOpened);                 // the player already pressed the surface that produced this roll
+      machine.sequenceDone(key);                                    // a direct stage closes as soon as its own jobs are acknowledged
+      return Object.freeze({opened:true,joined:false,onSkip:addSkipListener});
     }catch(error){ failOpen(error); return null; }
   }
   function pressed(){ try{ return machine?machine.pressed():null; }catch(error){ return null; } }
   function hosts(){
     try{
       if(!machine||!view||!machine.isOpen())return null;
+      if(machine.snapshot().phase==='armed')machine.press('player',REASONS.pressedByRoll);   // W110: a player-triggered roll landing on an armed stage is the press
       machine.jobStarted(); view.setPhase('rolling',copy('กำลังทอยเต๋า','Rolling dice'));
       return Object.freeze({dice:view.diceHost,result:view.resultHost});
     }catch(error){ failOpen(error); return null; }
@@ -405,17 +535,18 @@
     catch(error){ failOpen(error); return false; }
   }
   function state(){
-    return Object.freeze({build:BUILD,initialized:initialized,enabled:enabled(),cause:disabledCause(),currentKey:currentKey,viewOpen:!!view,machine:machine?machine.snapshot():null,preHoldTokens:Array.from(preHoldTokens.keys())});
+    return Object.freeze({build:BUILD,initialized:initialized,enabled:enabled(),cause:disabledCause(),currentKey:currentKey,viewOpen:!!view,machine:machine?machine.snapshot():null,preHoldTokens:Array.from(preHoldTokens.keys()),initiativeNote:initiativeNote?Object.freeze(Object.assign({},initiativeNote)):null,pressListeners:pressListeners.length,skipListeners:skipListeners.length});
   }
-  function resetForTests(){ if(machine)machine.reset(); closeView(); preHoldTokens.clear(); adoptedToken=null; armedCallbacks=null; currentKey=''; batchSeq=0; releasing=false; lastToggleLogKey=''; }
+  function resetForTests(){ if(machine)machine.reset(); closeView(); preHoldTokens.clear(); adoptedToken=null; resetListeners(); currentKey=''; batchSeq=0; releasing=false; lastToggleLogKey=''; initiativeNote=null; }
 
   window.DiceStage=Object.freeze({
-    build:BUILD,init:init,enabled:enabled,beginRound:beginRound,arm:arm,pressed:pressed,hosts:hosts,jobResult:jobResult,jobDisposed:jobDisposed,
+    build:BUILD,init:init,enabled:enabled,beginRound:beginRound,splitBatch:splitBatch,arm:arm,direct:direct,pressed:pressed,hosts:hosts,jobResult:jobResult,jobDisposed:jobDisposed,
     resultAckAutoMs:resultAckAutoMs,holdsRound:holdsRound,holdsBattleLog:holdsBattleLog,sequenceDone:sequenceDone,
     preHoldNarration:preHoldNarration,postFlipSignal:postFlipSignal,noteBattleLogRow:noteBattleLogRow,release:release,state:state,
     _pure:Object.freeze({
-      DICE_PREROLL_AUTO_MS:DICE_PREROLL_AUTO_MS,DICE_HOLD_MAX_MS:DICE_HOLD_MAX_MS,DICE_STAGE_TOTAL_MS:DICE_STAGE_TOTAL_MS,DICE_STAGE_ACK_MIN_MS:DICE_STAGE_ACK_MIN_MS,DICE_STAGE_ACK_MAX_MS:DICE_STAGE_ACK_MAX_MS,MAX_GLYPHS:MAX_GLYPHS,REASONS:REASONS,
-      dieKind:dieKind,stageGlyphs:stageGlyphs,planStageBatch:planStageBatch,ackBudgetMs:ackBudgetMs,countdownSeconds:countdownSeconds,ownBattleLogRow:ownBattleLogRow,createStageMachine:createStageMachine,glyphPoints:glyphPoints
+      DICE_PREROLL_AUTO_MS:DICE_PREROLL_AUTO_MS,DICE_HOLD_MAX_MS:DICE_HOLD_MAX_MS,DICE_STAGE_TOTAL_MS:DICE_STAGE_TOTAL_MS,DICE_STAGE_ACK_MIN_MS:DICE_STAGE_ACK_MIN_MS,DICE_STAGE_ACK_MAX_MS:DICE_STAGE_ACK_MAX_MS,DICE_STAGE_INITIATIVE_NOTE_TTL_MS:DICE_STAGE_INITIATIVE_NOTE_TTL_MS,MAX_GLYPHS:MAX_GLYPHS,STAGE_Z_INDEX:STAGE_Z_INDEX,REASONS:REASONS,
+      OVERLAY_INLINE_STYLE:OVERLAY_INLINE_STYLE,PANEL_INLINE_STYLE:PANEL_INLINE_STYLE,
+      dieKind:dieKind,initiativeLike:initiativeLike,isDirectKey:isDirectKey,stageGlyphs:stageGlyphs,splitStageBatch:splitStageBatch,planStageBatch:planStageBatch,ackBudgetMs:ackBudgetMs,countdownSeconds:countdownSeconds,ownBattleLogRow:ownBattleLogRow,createStageMachine:createStageMachine,glyphPoints:glyphPoints
     }),
     _test:Object.freeze({reset:resetForTests,mountStageView:mountStageView})
   });

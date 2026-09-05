@@ -26,7 +26,7 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./dice-roll-sound.js?v=0823"></script>
 <script src="./dice-fx.js?v=0903"></script>
 <script src="./dice-canvas.js?v=0903"></script>
-<script src="./dice-stage.js?v=0903"></script>
+<script src="./dice-stage.js?v=0905"></script>
 <script src="./ui-draft-guard.js?v=0831"></script>
 <script src="./music-playback-owner.js?v=847"></script>
 <script src="./music-v2-dark-launch.js?v=0825"></script>
@@ -2218,7 +2218,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202609051613;
+const FRONTEND_BUILD = 202609052204;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -3009,6 +3009,16 @@ function diceCanvasEventFromLegacy(input){
     }))
   };
 }
+// W110 (owner 09-05): no gold ring, burst or outline is drawn around the die — the die sits alone on the dim backdrop.
+// dice-canvas.js keys that chrome on critical/natOne, so the canvas event is handed over with those flags cleared;
+// the critical / nat-1 truth still reaches the player through the result card tier and the battle log (server values).
+function diceCanvasRingFreeEvent(event){
+  if(!event||typeof event!=='object')return event;
+  const groups=Array.isArray(event.groups)?event.groups:null;
+  const flagged=event.critical===true||event.natOne===true||(Array.isArray(event.effects)&&event.effects.length>0)||!!(groups&&groups.some(group=>group&&(group.critical===true||group.natOne===true)));
+  if(!flagged)return event;
+  return Object.assign({},event,{critical:false,natOne:false,effects:[],groups:groups?groups.map(group=>Object.assign({},group,{critical:false,natOne:false})):groups});
+}
 function diceRawChipPayload(input){
   const source=input&&typeof input==='object'?input:{};
   if(!Array.isArray(source.rawValues)||!source.rawValues.length||source.rawValues.length>32) return null;
@@ -3150,6 +3160,9 @@ function diceCanvasDefaultEnvironment(){
     stageArm:input=>{try{return window.DiceStage&&typeof window.DiceStage.arm==='function'?window.DiceStage.arm(input):null;}catch(_diceStageArmError){return null;}},
     stagePressed:input=>{try{return window.DiceStage&&typeof window.DiceStage.pressed==='function'?window.DiceStage.pressed(input):null;}catch(_diceStagePressedError){return null;}},
     resultAckAutoMs:input=>{try{const value=window.DiceStage&&typeof window.DiceStage.resultAckAutoMs==='function'?window.DiceStage.resultAckAutoMs(input):null;return value===null||value===undefined||!Number.isFinite(Number(value))?null:Number(value);}catch(_diceStageAckBudgetError){return null;}},
+    // W110: own-only batch split + direct-roll stage — both fail open to null (= the whole batch / the existing rails).
+    stageSplit:events=>{try{return window.DiceStage&&typeof window.DiceStage.splitBatch==='function'?window.DiceStage.splitBatch(events):null;}catch(_diceStageSplitError){return null;}},
+    stageDirect:input=>{try{return window.DiceStage&&typeof window.DiceStage.direct==='function'?window.DiceStage.direct(input):null;}catch(_diceStageDirectError){return null;}},
     mount:()=>{
       try{
         if(!document||!document.body) return null;
@@ -3336,7 +3349,7 @@ function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
     job.mount=mounted;
     try{
       handle=diceCanvas.render({
-        rollEvent:rollEvent, container:mounted.container,
+        rollEvent:diceCanvasRingFreeEvent(rollEvent), container:mounted.container,   // W110: no gold ring / burst / crit outline around the die
         settings:{reducedMotion:!!environment.reducedMotion()},
         onDone:()=>{ if(committed) awaitResultAcknowledgement(job); }
       });
@@ -3369,7 +3382,14 @@ function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
       try{job.pressPrompt=environment.mountPlayerRollPrompt({title:copy('ถึงตาคุณทอย','Your roll'),label:String(source.label||copy('ผลทอยของตัวละครคุณพร้อมแล้ว','Your character\'s roll is ready')),buttonLabel:copy('🎲 ทอยเต๋า','🎲 ROLL'),hint:copy('ถ้าไม่กด ระบบจะทอยให้อัตโนมัติ','Auto-roll starts shortly if you do not press'),onPress:()=>startJob(job,true)});}catch(_error){job.pressPrompt=null;}
       if(job.pressPrompt){try{job.pressTimer=environment.setTimer(()=>startJob(job,false),DICE_PRESS_AUTO_MS);}catch(_error){startJob(job,false);} }
       else startJob(job,false);
-    }else startJob(job,false);
+    }else{
+      // W110: a player-triggered roll outside a round batch (initiative press, saving throw, DM dice) opens the centered stage already pressed —
+      // the button just pressed was the roll. null = existing rails. With a job already active the new job keeps its queue place and joins the stage on mount.
+      let direct=null;
+      if(!activeJob){ try{ direct=typeof environment.stageDirect==='function'?environment.stageDirect(source):null; }catch(_diceStageDirectError){ direct=null; } }
+      if(direct&&typeof direct.onSkip==='function'){ try{ direct.onSkip(()=>{ if(job.done)return; const at=queue.indexOf(job); if(at>=0)queue.splice(at,1); if(job.canvasHandle&&typeof job.canvasHandle.cancel==='function'){ try{ job.canvasHandle.cancel(); }catch(_diceStageDirectCancelError){} } complete(job,'stage_released'); }); }catch(_diceStageDirectSkipError){} }
+      startJob(job,false);
+    }
     return Object.freeze({skipped:false,callbackTimeoutMs:diceCanvasCallbackBudgetMs(source.pressToRoll===true),cancel:()=>{ if(job.done)return false; if(job.canvasHandle&&typeof job.canvasHandle.cancel==='function'){ try{ job.canvasHandle.cancel(); }catch(_error){} } complete(job,'result_cancelled'); return true; }});
   }
   function pending(input){
@@ -3397,6 +3417,11 @@ function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
     const runner=legacyDiceFx&&legacyDiceFx._pure&&legacyDiceFx._pure.runChoreography;
     const finish=onceDone(input),source=Object.assign({},input&&typeof input==='object'?input:{},{onDone:finish});
     const events=Array.isArray(source.events)?source.events:[];source.events=events.map((event,index)=>Object.assign({},event,{queuePosition:Number.isInteger(event&&event.queuePosition)?event.queuePosition:index+1,queueTotal:Number.isInteger(event&&event.queueTotal)?event.queueTotal:events.length}));
+    // W110: only the logged-in player's own dice reach the runner and the stage — companions, monsters and other players are dropped from the
+    // display (the battle log already carries them). An own-less batch leaves the runner nothing to start: no stage, no hold, content at once.
+    // null = kill switch (dice_stage=off) / module missing → the previous behaviour (the whole batch on the rails).
+    let split=null;try{ split=typeof environment.stageSplit==='function'?environment.stageSplit(source.events):null; }catch(_diceStageSplitError){ split=null; }
+    if(split&&Array.isArray(split.events))source.events=split.events.slice();
     if(typeof runner!=='function'){ finish(); return Object.freeze({started:false,skipped:true,cancel:()=>false}); }
     const runNow=()=>{ try{ return runner(source,{roll:roll,setTimer:environment.setTimer,clearTimer:environment.clearTimer}); } catch(_error){ finish(); return Object.freeze({started:false,skipped:true,cancel:()=>false}); } };
     // W102: the center stage freezes the whole batch until the player's single press; null / not armed = existing flow (no own dice, stage off, hidden tab, already pressed this round).
@@ -3416,7 +3441,7 @@ function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
   }
   return Object.freeze({
     build:'20260815-dice04-r1', init:init, roll:roll, choreograph:choreograph, pending:pending,
-    _pure:Object.freeze(Object.assign({},legacyDiceFx&&legacyDiceFx._pure||{},{diceCanvasStableIdentity:diceCanvasStableIdentity,diceCanvasEventFromLegacy:diceCanvasEventFromLegacy,diceRawChipPayload:diceRawChipPayload,diceTargetLabel:diceTargetLabel,diceReceiptQueueOrder:diceReceiptQueueOrder})),
+    _pure:Object.freeze(Object.assign({},legacyDiceFx&&legacyDiceFx._pure||{},{diceCanvasStableIdentity:diceCanvasStableIdentity,diceCanvasEventFromLegacy:diceCanvasEventFromLegacy,diceCanvasRingFreeEvent:diceCanvasRingFreeEvent,diceRawChipPayload:diceRawChipPayload,diceTargetLabel:diceTargetLabel,diceReceiptQueueOrder:diceReceiptQueueOrder})),
     __diceCanvasAdapter:true
   });
 }
