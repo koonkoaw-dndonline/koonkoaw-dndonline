@@ -32,14 +32,24 @@
  * button, a click on the backdrop outside the panel (or Esc) is that escape and
  * never the press, and a panel that shows no die within 2 s fails open.
  *
+ * W112 (owner feedback 2026-09-05, styling only): the result card's footer is one
+ * tidy column. The auto-continue hint the page mounts, the acknowledge button
+ * above it and the "เล่นต่อ" escape below it now share one width, one 48px
+ * control height and one even gap; the hint is the smaller, quieter line
+ * (--fs-base) and both button labels are the larger primary affordance
+ * (--fs-md). Nothing else moves: the timers, the completed-key memory and the
+ * render watchdog, the own-dice-only rule, the kill switch, the backdrop/Esc
+ * escape and every fail-open path are byte-for-byte the W110/W111 behaviour.
+ *
  * language-impact: th+en — every module-owned string goes through the injected
  * copy(th,en) localizer (uiCopy in campaign.html); numbers/counters are neutral.
  * W111 adds no string: the escape reuses the existing เล่นต่อ / Play on pair.
+ * W112 adds no string either — it only resizes boxes that already existed.
  */
 (function attachDiceStage(){
   'use strict';
 
-  const BUILD='20260905-w111-rearm-hotfix';
+  const BUILD='20260905-w112-card-typography';
   const DICE_PREROLL_AUTO_MS=20000;   // no press → the stage rolls on its own
   const DICE_HOLD_MAX_MS=8000;        // content that arrives before the dice batch waits at most this long
   const DICE_STAGE_TOTAL_MS=35000;    // whole freeze budget with zero input (preroll + roll + result)
@@ -53,6 +63,18 @@
   const DICE_STAGE_STORE_KEY='dice_stage_keys_v1';   // W111: sessionStorage mirror of the per-key open counts
   const MAX_GLYPHS=6;
   const STAGE_Z_INDEX='2147482040';
+  // W112 (owner feedback 2026-09-05, styling only): the result card's footer — the auto-continue hint the page mounts
+  // and the "เล่นต่อ" escape directly under it — used to disagree (hint 16px/650 in a dark pill above a 14px/700
+  // button), which read as untidy. One footer scale now: one width, one control height, one even gap, the hint the
+  // smaller and quieter half, the button label never smaller than the hint. No timer, hold, memory or guard moves.
+  const FOOTER_W='min(300px,100%)';                  // every footer box — ack button, hint, escape — shares this width
+  const FOOTER_GAP='10px';                           // one even vertical rhythm through the footer column
+  const FOOTER_CTRL_H='48px';                        // both footer buttons; stays above the 44px tap-target floor
+  const FOOTER_HINT_PX=14;                           // --fs-base — the quieter half of the pair
+  const FOOTER_BTN_PX=16;                            // --fs-md — a control, so never smaller than the hint
+  const FOOTER_FONT_STACK='system-ui,-apple-system,"Segoe UI",sans-serif';
+  const FOOTER_HINT_FONT='600 var(--fs-base,'+FOOTER_HINT_PX+'px)/1.45 '+FOOTER_FONT_STACK;
+  const FOOTER_BTN_FONT='800 var(--fs-md,'+FOOTER_BTN_PX+'px)/1.25 '+FOOTER_FONT_STACK;
   const OWN_LOG_ENTRY_TYPES=Object.freeze(['attack','damage','save','check','initiative','heal']);
   const REASONS=Object.freeze({
     armed:'stage_armed',pressed:'stage_pressed',prerollAuto:'stage_preroll_auto',hiddenRelease:'stage_hidden_release',
@@ -303,13 +325,20 @@
       '.dstage-glyph .dstage-shell{fill:#322316;stroke:#d9b978;stroke-width:4;stroke-linejoin:round}\n'+
       '.dstage-glyph text{fill:currentColor;font:700 30px Georgia,serif;text-anchor:middle;dominant-baseline:middle}\n'+
       '.dstage-collapse{padding:6px 10px;border:1px solid rgba(90,60,25,.7);border-radius:8px;color:#2a1a0d;font-weight:800}\n'+
-      '.dstage-result{width:min(92vw,520px);max-width:100%;display:flex;flex-direction:column;align-items:center;gap:8px}\n'+
+      '.dstage-result{width:min(92vw,520px);max-width:100%;display:flex;flex-direction:column;align-items:center;gap:'+FOOTER_GAP+'}\n'+
       '.dstage-result:empty{display:none}\n'+
-      '.dstage-roll{min-width:220px;min-height:62px;padding:12px 26px;border:3px solid #2f1c0d;border-radius:12px;background:#3b2412;color:#fff2cf;font:800 var(--fs-lg,18px)/1.2 system-ui,-apple-system,"Segoe UI",sans-serif;box-shadow:0 6px 0 #170d06;touch-action:manipulation;cursor:pointer}\n'+
+      // W112: the acknowledge control the page mounts into the result host (campaign.html createDiceResultAckPanel)
+      // writes its own inline styles, which only !important can rebalance. Scoped under .dstage-result so the legacy
+      // rail/fallback result host the same panel can land in keeps its own look untouched.
+      '.dstage-result [data-dice-result-ack]{width:'+FOOTER_W+';max-width:100%;gap:'+FOOTER_GAP+'!important}\n'+
+      '.dstage-result [data-dice-result-ack]>button{box-sizing:border-box!important;width:100%!important;min-width:0!important;min-height:'+FOOTER_CTRL_H+'!important;padding:11px 20px!important;border-radius:10px!important;font:'+FOOTER_BTN_FONT+'!important}\n'+
+      '.dstage-result [data-dice-result-ack]>div{box-sizing:border-box!important;width:100%!important;max-width:100%!important;padding:7px 12px!important;border-radius:8px!important;background:rgba(15,9,4,.6)!important;font:'+FOOTER_HINT_FONT+'!important;overflow-wrap:anywhere}\n'+
+      '.dstage-roll{min-width:220px;width:'+FOOTER_W+';min-height:62px;padding:12px 26px;border:3px solid #2f1c0d;border-radius:12px;background:#3b2412;color:#fff2cf;font:800 var(--fs-lg,18px)/1.2 system-ui,-apple-system,"Segoe UI",sans-serif;box-shadow:0 6px 0 #170d06;touch-action:manipulation;cursor:pointer}\n'+
       '.dstage-roll:active{transform:translateY(3px);box-shadow:0 3px 0 #170d06}.dstage-roll:focus-visible{outline:3px solid #fff0a8;outline-offset:3px}\n'+
-      '.dstage-hint{font-size:var(--fs-sm,12px);line-height:1.45;opacity:.78}\n'+
+      '.dstage-hint{max-width:'+FOOTER_W+';font:'+FOOTER_HINT_FONT+';opacity:.8}\n'+
       '.dstage-hint:empty{display:none}\n'+
-      '.dstage-escape{flex:0 0 auto;min-width:200px;min-height:44px;margin-top:6px;padding:10px 22px;border:2px solid #5a3a1a;border-radius:10px;background:rgba(255,250,236,.94);color:#3a2612;font:700 var(--fs-base,14px)/1.2 system-ui,-apple-system,"Segoe UI",sans-serif;cursor:pointer;touch-action:manipulation}\n'+
+      // W112 keeps the pinned W111 tap-target head (flex/min-width/min-height) and squares the rest up with the card footer.
+      '.dstage-escape{flex:0 0 auto;min-width:200px;min-height:44px;box-sizing:border-box;width:'+FOOTER_W+';margin-top:0;padding:12px 22px;border:2px solid #5a3a1a;border-radius:10px;background:rgba(255,250,236,.94);color:#3a2612;font:'+FOOTER_BTN_FONT+';cursor:pointer;touch-action:manipulation}\n'+
       '.dstage-escape:focus-visible{outline:3px solid #fff0a8;outline-offset:3px}\n'+
       '.dstage-status{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}\n'+
       '[data-dice-stage]:not([data-dice-stage-phase="armed"]) .dstage-roll,[data-dice-stage]:not([data-dice-stage-phase="armed"]) .dstage-hint,[data-dice-stage]:not([data-dice-stage-phase="armed"]) .dstage-glyphs{display:none}\n'+
@@ -688,6 +717,7 @@
       DICE_PREROLL_AUTO_MS:DICE_PREROLL_AUTO_MS,DICE_HOLD_MAX_MS:DICE_HOLD_MAX_MS,DICE_STAGE_TOTAL_MS:DICE_STAGE_TOTAL_MS,DICE_STAGE_ACK_MIN_MS:DICE_STAGE_ACK_MIN_MS,DICE_STAGE_ACK_MAX_MS:DICE_STAGE_ACK_MAX_MS,DICE_STAGE_INITIATIVE_NOTE_TTL_MS:DICE_STAGE_INITIATIVE_NOTE_TTL_MS,MAX_GLYPHS:MAX_GLYPHS,STAGE_Z_INDEX:STAGE_Z_INDEX,REASONS:REASONS,
       DICE_STAGE_RENDER_WATCH_MS:DICE_STAGE_RENDER_WATCH_MS,DICE_STAGE_MAX_OPENS_PER_KEY:DICE_STAGE_MAX_OPENS_PER_KEY,DICE_STAGE_KEY_MEMORY_MAX:DICE_STAGE_KEY_MEMORY_MAX,DICE_STAGE_STORE_KEY:DICE_STAGE_STORE_KEY,SERVER_INITIATIVE_SOURCES:SERVER_INITIATIVE_SOURCES,
       OVERLAY_INLINE_STYLE:OVERLAY_INLINE_STYLE,PANEL_INLINE_STYLE:PANEL_INLINE_STYLE,
+      FOOTER_W:FOOTER_W,FOOTER_GAP:FOOTER_GAP,FOOTER_CTRL_H:FOOTER_CTRL_H,FOOTER_HINT_PX:FOOTER_HINT_PX,FOOTER_BTN_PX:FOOTER_BTN_PX,FOOTER_HINT_FONT:FOOTER_HINT_FONT,FOOTER_BTN_FONT:FOOTER_BTN_FONT,
       dieKind:dieKind,initiativeLike:initiativeLike,isDirectKey:isDirectKey,stageGlyphs:stageGlyphs,splitStageBatch:splitStageBatch,planStageBatch:planStageBatch,ackBudgetMs:ackBudgetMs,countdownSeconds:countdownSeconds,ownBattleLogRow:ownBattleLogRow,createStageMachine:createStageMachine,glyphPoints:glyphPoints,
       initiativeServerRolled:initiativeServerRolled,createKeyMemory:createKeyMemory,hasStageElement:hasStageElement
     }),
