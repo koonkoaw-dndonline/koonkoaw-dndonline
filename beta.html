@@ -2217,7 +2217,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202609050610;
+const FRONTEND_BUILD = 202609051055;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -3061,7 +3061,8 @@ function diceStagePlacement(viewWidth,viewHeight,resultRect,stageWidth,stageHeig
   const width=Math.max(1,Number(viewWidth)||1),height=Math.max(1,Number(viewHeight)||1),sw=Math.max(1,Number(stageWidth)||1),sh=Math.max(1,Number(stageHeight)||1),edge=DICE_STAGE_EDGE_PX,gap=DICE_RESULT_GAP_PX;
   const preferredTop=Math.max(edge,Math.min(height-edge-sh,(height-sh)/2));
   const rr=resultRect&&Number.isFinite(Number(resultRect.top))&&Number.isFinite(Number(resultRect.bottom))?resultRect:null;
-  if(!rr||Number(rr.right)<=0||Number(rr.left)>=width||Number(rr.bottom)<=0||Number(rr.top)>=height)return {top:preferredTop,hidden:false,reason:'center'};
+  const rrWidth=rr&&(Number.isFinite(Number(rr.width))?Number(rr.width):Number(rr.right)-Number(rr.left)),rrHeight=rr&&(Number.isFinite(Number(rr.height))?Number(rr.height):Number(rr.bottom)-Number(rr.top));
+  if(!rr||rrWidth<=0||rrHeight<=0||Number(rr.right)<=0||Number(rr.left)>=width||Number(rr.bottom)<=0||Number(rr.top)>=height)return {top:preferredTop,hidden:false,reason:'rehost'};
   const above=Number(rr.top)-gap-sh,below=Number(rr.bottom)+gap,candidates=[];
   if(above>=edge)candidates.push({top:above,hidden:false,reason:'above'});
   if(below+sh<=height-edge)candidates.push({top:below,hidden:false,reason:'below'});
@@ -3076,6 +3077,18 @@ function separateDiceStageFromResultRail(stage,resultHost){
     stage.style.left='50%';stage.style.top=String(placement.top)+'px';stage.style.transform='translateX(-50%)';stage.style.visibility=placement.hidden?'hidden':'visible';stage.style.opacity=placement.hidden?'0':'1';stage.setAttribute('data-dice-stage-placement',placement.reason);
     return placement;
   }catch(_diceStagePlacementError){return null;}
+}
+function diceResultHostIssue(resultHost,viewWidth,viewHeight){
+  try{
+    if(!resultHost||typeof resultHost.getBoundingClientRect!=='function')return 'result_host_hidden';
+    const rect=resultHost.getBoundingClientRect(),width=Number.isFinite(Number(rect.width))?Number(rect.width):Number(rect.right)-Number(rect.left),height=Number.isFinite(Number(rect.height))?Number(rect.height):Number(rect.bottom)-Number(rect.top);
+    if(width<=0||height<=0)return 'result_host_hidden';
+    if(Number(rect.right)<=0||Number(rect.left)>=viewWidth||Number(rect.bottom)<=0||Number(rect.top)>=viewHeight)return 'result_host_offscreen';
+    return '';
+  }catch(_diceResultHostIssueError){return 'result_host_hidden';}
+}
+function createDiceResultFallbackHost(documentRef,overlay){
+  const host=documentRef.createElement('div');host.setAttribute('data-dice-result-fallback','1');host.style.cssText='position:fixed;left:50%;right:auto;bottom:max(8px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:6;width:min(calc(100vw - 16px),500px);max-height:calc(100vh - 16px);display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:8px;box-sizing:border-box;pointer-events:auto';overlay.appendChild(host);return host;
 }
 function diceCanvasTimelineTotalMs(handle){const value=Number(handle&&handle.timeline&&handle.timeline.totalMs);return Number.isFinite(value)&&value>=0?value:null;}
 function diceCanvasJobTimeoutMs(handle){const total=diceCanvasTimelineTotalMs(handle);return total===null?DICE_CANVAS_JOB_TIMEOUT_MS:Math.max(DICE_CANVAS_JOB_TIMEOUT_MS,total+DICE_RESULT_ACK_AUTO_MS+DICE_CANVAS_JOB_MARGIN_MS);}
@@ -3144,20 +3157,31 @@ function diceCanvasDefaultEnvironment(){
         live.style.cssText='position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0';
         overlay.appendChild(stage); overlay.appendChild(live); document.body.appendChild(overlay);
         const battleScene=document.getElementById('battleScene'),battleRail=document.getElementById('diceBattleResultRail'),storyRail=document.getElementById('diceStoryResultRail');
-        const resultHost=battleScene&&battleRail&&battleScene.classList&&battleScene.classList.contains('on')?battleRail:(storyRail||battleRail||stage);
-        const relayout=()=>separateDiceStageFromResultRail(stage,resultHost);try{window.addEventListener('resize',relayout);document.addEventListener('scroll',relayout,true);}catch(_diceStageListenerError){}
+        let resultHost=battleScene&&battleRail&&battleScene.classList&&battleScene.classList.contains('on')?battleRail:(storyRail||battleRail||stage),resultFallbackHost=null,resultHostScrollAttempted=false,ackControl=null,detailControl=null,mounted=null;
+        const viewSize=()=>{const doc=document&&document.documentElement;return {width:Number(doc&&doc.clientWidth)||Number(window&&window.innerWidth)||1,height:Number(doc&&doc.clientHeight)||Number(window&&window.innerHeight)||1};};
+        const ensureResultHost=()=>{
+          if(resultHost===stage||resultFallbackHost)return '';
+          const view=viewSize(),stageRect=stage.getBoundingClientRect(),hostRect=resultHost.getBoundingClientRect();let issue=diceResultHostIssue(resultHost,view.width,view.height),placement=diceStagePlacement(view.width,view.height,hostRect,Number(stageRect.width)||Number(stage.clientWidth),Number(stageRect.height)||Number(stage.clientHeight));if(!issue||placement.reason!=='rehost')return '';
+          if(!resultHostScrollAttempted){resultHostScrollAttempted=true;try{resultHost.scrollIntoView({block:'nearest'});}catch(_diceResultHostScrollError){}const retryRect=resultHost.getBoundingClientRect();issue=diceResultHostIssue(resultHost,view.width,view.height);placement=diceStagePlacement(view.width,view.height,retryRect,Number(stageRect.width)||Number(stage.clientWidth),Number(stageRect.height)||Number(stage.clientHeight));if(!issue||placement.reason!=='rehost')return '';}
+          resultFallbackHost=createDiceResultFallbackHost(document,overlay);resultHost=resultFallbackHost;
+          try{if(detailControl&&detailControl.summary)resultHost.appendChild(detailControl.summary);if(ackControl&&ackControl.panel)resultHost.appendChild(ackControl.panel);}catch(_diceResultRehostMoveError){}
+          if(mounted)mounted.resultContainer=resultHost;
+          try{dicePlaybackLog(issue,{campaignId:String(campaign&&campaign.id||''),roundId:String(curRound&&curRound.id||''),resultHost:'fallback'});}catch(_diceResultHostLogError){}
+          return issue;
+        };
+        const relayout=()=>{ensureResultHost();const placement=separateDiceStageFromResultRail(stage,resultHost);if(resultFallbackHost&&placement){stage.setAttribute('data-dice-stage-placement','rehost');return Object.assign({},placement,{reason:'rehost'});}return placement;};
+        ensureResultHost();relayout();try{window.addEventListener('resize',relayout);document.addEventListener('scroll',relayout,true);}catch(_diceStageListenerError){}
         let connected=false;try{connected=overlay.isConnected===true||!!(document.documentElement&&typeof document.documentElement.contains==='function'&&document.documentElement.contains(overlay));}catch(_diceOverlayConnectedError){}
         recordDiceVisualProof('overlay_mounted',{connected:connected});
-        let ackControl=null,detailControl=null;
-        return {container:stage,resultContainer:resultHost,announce:text=>{ live.textContent=String(text||''); },showDiceDetails:mirror=>{if(detailControl)return detailControl;detailControl=mountDiceDetailMirror(document,stage,mirror,(th,en)=>uiCopy(th,en),resultHost);return detailControl;},showResultAck:model=>{
+        mounted={container:stage,resultContainer:resultHost,announce:text=>{ live.textContent=String(text||''); },showDiceDetails:mirror=>{if(detailControl)return detailControl;detailControl=mountDiceDetailMirror(document,stage,mirror,(th,en)=>uiCopy(th,en),resultHost);relayout();return detailControl;},showResultAck:model=>{
           if(ackControl)return ackControl;
           const panel=document.createElement('div');panel.setAttribute('data-dice-result-ack','1');panel.style.cssText='position:relative;z-index:4;display:flex;flex-direction:column;align-items:center;gap:7px;pointer-events:none;text-align:center';
           const button=document.createElement('button');button.type='button';button.textContent=String(model&&model.buttonLabel||'');button.style.cssText='min-width:190px;min-height:52px;padding:10px 20px;border:3px solid #2f1c0d;border-radius:10px;background:#3b2412;color:#fff2cf;font:750 var(--fs-lg)/1.25 system-ui,-apple-system,\'Segoe UI\',sans-serif;box-shadow:0 5px 0 #170d06;pointer-events:auto;touch-action:manipulation;';
           const hint=document.createElement('div');hint.textContent=String(model&&model.hint||'');hint.style.cssText='max-width:340px;padding:4px 8px;border-radius:6px;background:rgba(15,9,4,.78);color:#fff2cf;font:650 var(--fs-md)/1.4 system-ui,-apple-system,\'Segoe UI\',sans-serif;';
           button.onclick=()=>{try{if(model&&typeof model.onAcknowledge==='function')model.onAcknowledge();}catch(_diceAckClickError){}};
-          panel.appendChild(button);panel.appendChild(hint);resultHost.appendChild(panel);separateDiceStageFromResultRail(stage,resultHost);try{button.focus({preventScroll:true});}catch(_diceAckFocusError){}
-          let closed=false;ackControl={close:()=>{if(closed)return;closed=true;try{panel.remove();}catch(_diceAckRemoveError){}}};return ackControl;
+          let closed=false;ackControl={panel:panel,close:()=>{if(closed)return;closed=true;try{panel.remove();}catch(_diceAckRemoveError){}}};panel.appendChild(button);panel.appendChild(hint);resultHost.appendChild(panel);relayout();try{button.focus({preventScroll:true});}catch(_diceAckFocusError){}return ackControl;
         },dispose:()=>{try{window.removeEventListener('resize',relayout);document.removeEventListener('scroll',relayout,true);}catch(_diceStageListenerDisposeError){}try{if(ackControl)ackControl.close();}catch(_diceAckDisposeError){}try{if(detailControl)detailControl.close();}catch(_diceDetailDisposeError){} try{ overlay.remove(); }catch(_error){} try{if(focusOrigin&&focusOrigin.isConnected!==false)focusOrigin.focus({preventScroll:true});}catch(_diceFocusRestoreError){} try{recordDiceVisualProof('overlay_removed');}catch(_diceOverlayRemovedProofError){} }};
+        return mounted;
       }catch(_error){ return null; }
     },
     mountPlayerRollPrompt:model=>{
