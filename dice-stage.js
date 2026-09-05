@@ -20,13 +20,26 @@
  * released. There is no random source of any kind here: the module never
  * invents, reorders or reveals a value; it only owns timers, holds and chrome.
  *
+ * W111 (P0 hotfix, 2026-09-05): the stage remembers, per tab session, every key
+ * it has released, escaped, superseded or finished — arm() for such a key returns
+ * null at once (no overlay, no hold, log stage_key_completed_skip) — and a round
+ * key may mount the overlay at most twice per session whatever order the keys
+ * arrive in (the third is refused, log stage_rearm_guard; the counts are mirrored
+ * to sessionStorage so a page reload cannot restart the loop). An own initiative
+ * receipt the server already rolled without the player's press (actor_kind
+ * 'system' / initiative_roll_source server_timeout|server_wall_off) never arms:
+ * nothing is left to press. The escape is a full-size button under the roll
+ * button, a click on the backdrop outside the panel (or Esc) is that escape and
+ * never the press, and a panel that shows no die within 2 s fails open.
+ *
  * language-impact: th+en — every module-owned string goes through the injected
  * copy(th,en) localizer (uiCopy in campaign.html); numbers/counters are neutral.
+ * W111 adds no string: the escape reuses the existing เล่นต่อ / Play on pair.
  */
 (function attachDiceStage(){
   'use strict';
 
-  const BUILD='20260905-w110-own-rolls-r2';
+  const BUILD='20260905-w111-rearm-hotfix';
   const DICE_PREROLL_AUTO_MS=20000;   // no press → the stage rolls on its own
   const DICE_HOLD_MAX_MS=8000;        // content that arrives before the dice batch waits at most this long
   const DICE_STAGE_TOTAL_MS=35000;    // whole freeze budget with zero input (preroll + roll + result)
@@ -34,6 +47,10 @@
   const DICE_STAGE_ACK_MAX_MS=25000;  // mirrors DICE_RESULT_ACK_AUTO_MS in campaign.html
   const DICE_STAGE_TICK_MS=1000;
   const DICE_STAGE_INITIATIVE_NOTE_TTL_MS=1800000;   // W110: an initiative die rolled through the initiative button is remembered this long so the round batch does not replay it
+  const DICE_STAGE_RENDER_WATCH_MS=2000;             // W111: no die rendered inside the panel by then → fail-open release
+  const DICE_STAGE_MAX_OPENS_PER_KEY=2;              // W111: a round key mounts the overlay at most this many times per tab session
+  const DICE_STAGE_KEY_MEMORY_MAX=20;                // W111: bounded key memory (finished keys + open counts)
+  const DICE_STAGE_STORE_KEY='dice_stage_keys_v1';   // W111: sessionStorage mirror of the per-key open counts
   const MAX_GLYPHS=6;
   const STAGE_Z_INDEX='2147482040';
   const OWN_LOG_ENTRY_TYPES=Object.freeze(['attack','damage','save','check','initiative','heal']);
@@ -43,7 +60,9 @@
     sequenceDone:'stage_sequence_done',released:'stage_released',toggleOff:'stage_toggle_off',errorFailOpen:'stage_error_fail_open',
     playerEscape:'stage_player_escape',superseded:'stage_superseded',spectator:'stage_spectator_skip',viewUnavailable:'stage_view_unavailable',
     othersOmitted:'stage_others_omitted',initiativeNoted:'stage_initiative_noted',initiativeSkipped:'stage_initiative_already_rolled',
-    directOpened:'stage_direct_opened',directAdopted:'stage_direct_adopted',pressedByRoll:'stage_pressed_by_roll',splitError:'stage_split_error'
+    directOpened:'stage_direct_opened',directAdopted:'stage_direct_adopted',pressedByRoll:'stage_pressed_by_roll',splitError:'stage_split_error',
+    keyCompleted:'stage_key_completed_skip',rearmGuard:'stage_rearm_guard',initiativeServerRolled:'stage_initiative_server_rolled',
+    renderTimeout:'stage_render_timeout',backdropEscape:'stage_backdrop_escape',keyStoreError:'stage_key_store_error'
   });
 
   function finiteNumber(value){ const number=Number(value); return Number.isFinite(number)?number:null; }
@@ -71,22 +90,62 @@
   // die and never reaches the runner or the stage. Own initiative dice the player already rolled through the initiative
   // button (options.initiativeSeen) are skipped too. The counter is renumbered over own dice only; a single own die
   // carries no counter at all.
+  // W111: the server has already rolled an initiative die without the player's press when the receipt says so —
+  // initiative-press-runtime.ts stamps the combat_log row actor_kind:'system' and detail.initiative_roll_source
+  // 'server_timeout'|'server_wall_off' (a player press stamps 'player'/'player_press'). campaign.html already keeps
+  // actorKind!=='player' receipts out of own (playRoundCombatDiceMeta); this is the module's own wall for any
+  // own-marked initiative event that still carries that evidence. Nothing is left to press for it, so it leaves the
+  // stage with everybody else's dice. An own initiative without that evidence is still the player's press (W110).
+  const SERVER_INITIATIVE_SOURCES=Object.freeze(['server-timeout','server-wall-off']);
+  function initiativeServerRolled(event){
+    if(!initiativeLike(event))return false;
+    const rawSource=event.initiative_roll_source!==undefined?event.initiative_roll_source:(event.initiativeRollSource!==undefined?event.initiativeRollSource:event.source);
+    if(SERVER_INITIATIVE_SOURCES.includes(normalizedKey(rawSource)))return true;
+    const kind=event.actorKind!==undefined?event.actorKind:event.actor_kind;
+    return kind!==undefined&&kind!==null&&String(kind).trim()!==''&&normalizedKey(kind)!=='player';
+  }
   function splitStageBatch(events,options){
     const opts=options&&typeof options==='object'?options:{};
     const list=Array.isArray(events)?events.filter(isEventObject):[];
-    const own=[]; let others=0,initiativeSkipped=0;
+    const own=[]; let others=0,initiativeSkipped=0,serverRolled=0;
     list.forEach(function(event){
       if(event.pressToRoll!==true){ others++; return; }
+      if(initiativeServerRolled(event)){ serverRolled++; return; }
       if(initiativeLike(event)&&typeof opts.initiativeSeen==='function'&&opts.initiativeSeen(event)===true){ initiativeSkipped++; return; }
       own.push(event);
     });
     const total=own.length;
     const renumbered=own.map(function(event,index){ return Object.assign({},event,total>1?{queuePosition:index+1,queueTotal:total}:{queuePosition:null,queueTotal:null}); });
-    return Object.freeze({events:Object.freeze(renumbered),ownCount:total,othersCount:others,initiativeSkipped:initiativeSkipped,total:list.length});
+    return Object.freeze({events:Object.freeze(renumbered),ownCount:total,othersCount:others,initiativeSkipped:initiativeSkipped,initiativeServerRolled:serverRolled,total:list.length});
+  }
+  // W111: per-tab memory of the keys the stage has finished with and how often each key has mounted the overlay.
+  // `done` = keys released / escaped / superseded / finished this page session (cleared when the round key moves on);
+  // `opens` = mounts per key (never cleared, bounded, mirrored to sessionStorage by the runtime). Pure: no I/O here.
+  function createKeyMemory(options){
+    const max=Math.max(1,Math.round(finiteNumber(options&&options.max)||DICE_STAGE_KEY_MEMORY_MAX));
+    const opens=new Map(); const done=new Set();
+    function trimMap(map){ while(map.size>max){ map.delete(map.keys().next().value); } }
+    function trimSet(set){ while(set.size>max){ set.delete(set.values().next().value); } }
+    return Object.freeze({
+      noteOpen:function(key){ const id=String(key||''); if(!id)return 0; const next=(opens.get(id)||0)+1; opens.delete(id); opens.set(id,next); trimMap(opens); return next; },
+      opens:function(key){ return opens.get(String(key||''))||0; },
+      complete:function(key){ const id=String(key||''); if(!id)return false; done.delete(id); done.add(id); trimSet(done); return true; },
+      completed:function(key){ return done.has(String(key||'')); },
+      forget:function(key){ return done.delete(String(key||'')); },
+      clearCompleted:function(){ const count=done.size; done.clear(); return count; },
+      serialize:function(){ return JSON.stringify({v:1,opens:Array.from(opens.entries())}); },
+      load:function(text){
+        const parsed=JSON.parse(String(text||''));
+        if(!parsed||typeof parsed!=='object'||parsed.v!==1||!Array.isArray(parsed.opens))return 0;
+        parsed.opens.slice(-max).forEach(function(pair){ if(Array.isArray(pair)&&typeof pair[0]==='string'&&pair[0]&&Number.isInteger(pair[1])&&pair[1]>0){ opens.delete(pair[0]); opens.set(pair[0],Math.min(pair[1],1000)); } });
+        trimMap(opens); return opens.size;
+      },
+      snapshot:function(){ return Object.freeze({opens:Object.freeze(Array.from(opens.entries()).map(function(pair){ return Object.freeze(pair.slice()); })),done:Object.freeze(Array.from(done.values()))}); }
+    });
   }
   function planStageBatch(events){
     const list=Array.isArray(events)?events.filter(isEventObject):[];
-    const own=list.filter(function(event){ return event.pressToRoll===true; });
+    const own=list.filter(function(event){ return event.pressToRoll===true&&!initiativeServerRolled(event); });
     const first=own[0]||list[0]||null;                              // W110: the stage describes the player's own die, never somebody else's
     return Object.freeze({
       arm:own.length>0,
@@ -234,7 +293,7 @@
     style.textContent='\n'+
       '[data-dice-stage]{position:fixed;top:0;right:0;bottom:0;left:0;inset:0;width:100%;height:100%;margin:0;z-index:'+STAGE_Z_INDEX+';display:flex;flex-direction:column;align-items:center;justify-content:center;box-sizing:border-box;padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));background:rgba(6,10,16,.6);pointer-events:auto;overflow:hidden;overscroll-behavior:contain}\n'+
       '.dstage-panel{position:relative;flex:0 1 auto;width:min(94vw,560px);max-width:100%;max-height:100%;min-height:0;margin:auto;overflow:auto;display:flex;flex-direction:column;align-items:center;gap:10px;box-sizing:border-box;padding:16px 12px 18px;border:3px double #8b602f;border-radius:14px;background:linear-gradient(145deg,#f4e4bd,#d9bd82);color:#2a1a0d;text-align:center;box-shadow:0 18px 44px rgba(10,6,2,.5),inset 0 0 0 2px rgba(255,250,226,.55);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}\n'+
-      '.dstage-title{margin-top:18px;font-size:var(--fs-lg,18px);font-weight:800;line-height:1.4}\n'+
+      '.dstage-title{margin-top:2px;font-size:var(--fs-lg,18px);font-weight:800;line-height:1.4}\n'+
       '.dstage-label{max-width:100%;font-size:var(--fs-base,14px);line-height:1.45;opacity:.85;overflow-wrap:anywhere}\n'+
       '.dstage-dice{position:relative;width:min(92vw,520px);max-width:100%;min-height:330px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;background:transparent;border:0;outline:0;box-shadow:none}\n'+
       '.dstage-glyphs{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:10px 14px;padding:12px}\n'+
@@ -250,7 +309,8 @@
       '.dstage-roll:active{transform:translateY(3px);box-shadow:0 3px 0 #170d06}.dstage-roll:focus-visible{outline:3px solid #fff0a8;outline-offset:3px}\n'+
       '.dstage-hint{font-size:var(--fs-sm,12px);line-height:1.45;opacity:.78}\n'+
       '.dstage-hint:empty{display:none}\n'+
-      '.dstage-escape{position:absolute;top:8px;right:8px;padding:5px 10px;border:1px solid rgba(80,50,20,.6);border-radius:8px;background:rgba(255,250,236,.6);color:#3a2612;font:600 var(--fs-sm,12px)/1.2 system-ui,-apple-system,"Segoe UI",sans-serif;cursor:pointer}\n'+
+      '.dstage-escape{flex:0 0 auto;min-width:200px;min-height:44px;margin-top:6px;padding:10px 22px;border:2px solid #5a3a1a;border-radius:10px;background:rgba(255,250,236,.94);color:#3a2612;font:700 var(--fs-base,14px)/1.2 system-ui,-apple-system,"Segoe UI",sans-serif;cursor:pointer;touch-action:manipulation}\n'+
+      '.dstage-escape:focus-visible{outline:3px solid #fff0a8;outline-offset:3px}\n'+
       '.dstage-status{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}\n'+
       '[data-dice-stage]:not([data-dice-stage-phase="armed"]) .dstage-roll,[data-dice-stage]:not([data-dice-stage-phase="armed"]) .dstage-hint,[data-dice-stage]:not([data-dice-stage-phase="armed"]) .dstage-glyphs{display:none}\n'+
       '@keyframes dstage-idle{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-8px) rotate(3deg)}}\n'+
@@ -273,15 +333,29 @@
     } else holder.textContent='?';
     return holder;
   }
+  // W111: does the dice host hold a rendered die (an idle glyph while armed, the canvas job once rolling)?
+  function hasStageElement(node,attribute,depth){
+    if(!node||!node.children||(depth||0)>8)return false;
+    const kids=node.children;
+    for(let index=0;index<kids.length;index++){
+      const kid=kids[index]; if(!kid)continue;
+      if(typeof kid.getAttribute==='function'&&kid.getAttribute(attribute)!==null)return true;
+      if(hasStageElement(kid,attribute,(depth||0)+1))return true;
+    }
+    return false;
+  }
   function mountStageView(documentRef,model){
     if(!documentRef||!documentRef.body||!documentRef.createElement||!injectStyles(documentRef))return null;
     const source=model&&typeof model==='object'?model:{};
     const focusOrigin=documentRef.activeElement&&typeof documentRef.activeElement.focus==='function'?documentRef.activeElement:null;
     const overlay=documentRef.createElement('div'); overlay.setAttribute('data-dice-stage','1'); overlay.setAttribute('data-dice-stage-phase','armed'); overlay.setAttribute('role','dialog'); overlay.setAttribute('aria-modal','true'); overlay.setAttribute('aria-label',String(source.title||''));
     applyStyle(overlay,OVERLAY_INLINE_STYLE);
+    // W111: a click on the backdrop outside the panel is the escape — never the press; Esc does the same.
+    overlay.onclick=function(event){ const target=event&&event.target; if(target&&target!==overlay)return; safeCall(source.onEscape,'backdrop'); };
+    overlay.onkeydown=function(event){ const key=event&&(event.key||event.code); if(key==='Escape'||key==='Esc')safeCall(source.onEscape,'key'); };
     const panel=documentRef.createElement('div'); panel.className='dstage-panel'; panel.setAttribute('data-dice-stage-panel','1');
     applyStyle(panel,PANEL_INLINE_STYLE);
-    const escape=documentRef.createElement('button'); escape.type='button'; escape.className='dstage-escape'; escape.setAttribute('data-dice-stage-escape','1'); escape.textContent=String(source.escapeLabel||''); escape.onclick=function(){ safeCall(source.onEscape); };
+    const escape=documentRef.createElement('button'); escape.type='button'; escape.className='dstage-escape'; escape.setAttribute('data-dice-stage-escape','1'); escape.textContent=String(source.escapeLabel||''); escape.onclick=function(){ safeCall(source.onEscape,'button'); };
     const title=documentRef.createElement('div'); title.className='dstage-title'; title.textContent=String(source.title||'');
     const label=documentRef.createElement('div'); label.className='dstage-label'; label.setAttribute('data-dice-stage-label','1'); label.textContent=String(source.label||'');
     const dice=documentRef.createElement('div'); dice.className='dstage-dice'; dice.setAttribute('data-dice-stage-dice','1');
@@ -294,12 +368,12 @@
     const roll=documentRef.createElement('button'); roll.type='button'; roll.className='dstage-roll'; roll.setAttribute('data-dice-stage-roll','1'); roll.textContent=String(source.buttonLabel||''); roll.onclick=function(){ safeCall(source.onPress); };
     const hint=documentRef.createElement('div'); hint.className='dstage-hint'; hint.setAttribute('data-dice-stage-hint','1'); hint.textContent=String(source.hint||'');
     const status=documentRef.createElement('div'); status.className='dstage-status'; status.setAttribute('role','status'); status.setAttribute('aria-live','polite');
-    panel.appendChild(escape); panel.appendChild(title); panel.appendChild(label); panel.appendChild(dice); panel.appendChild(result); panel.appendChild(roll); panel.appendChild(hint); panel.appendChild(status);
+    panel.appendChild(title); panel.appendChild(label); panel.appendChild(dice); panel.appendChild(result); panel.appendChild(roll); panel.appendChild(hint); panel.appendChild(escape); panel.appendChild(status);   // W111: the escape is a full-size button under the roll button, visible in every phase
     overlay.appendChild(panel); documentRef.body.appendChild(overlay);
     try{ roll.focus({preventScroll:true}); }catch(error){}
     let closed=false;
     return Object.freeze({
-      overlay:overlay,panel:panel,diceHost:dice,resultHost:result,rollButton:roll,
+      overlay:overlay,panel:panel,diceHost:dice,resultHost:result,rollButton:roll,escapeButton:escape,
       setHint:function(text){ hint.textContent=String(text||''); },
       setPhase:function(phase,statusText){ overlay.setAttribute('data-dice-stage-phase',String(phase||'')); if(statusText!==undefined)status.textContent=String(statusText||''); },
       close:function(){ if(closed)return false; closed=true; try{ overlay.remove(); }catch(error){ try{ if(overlay.parentNode)overlay.parentNode.removeChild(overlay); }catch(removeError){} } try{ if(focusOrigin&&focusOrigin.isConnected!==false)focusOrigin.focus({preventScroll:true}); }catch(error){} return true; }
@@ -307,7 +381,7 @@
   }
 
   // ── runtime (campaign.html adapter surface) ────────────────────────────
-  let deps=null, machine=null, view=null, initialized=false, currentKey='', batchSeq=0, adoptedToken=null, releasing=false, visibilityBound=false, lastToggleLogKey='', initiativeNote=null;
+  let deps=null, machine=null, view=null, initialized=false, currentKey='', batchSeq=0, adoptedToken=null, releasing=false, visibilityBound=false, lastToggleLogKey='', initiativeNote=null, keyMemory=null, renderWatchTimer=null;
   let pressListeners=[], skipListeners=[];
   const preHoldTokens=new Map();
 
@@ -334,7 +408,7 @@
   }
   function enabled(){ return disabledCause()===''; }
   function hiddenNow(){ return callDep('hidden',undefined,false)===true; }
-  function closeView(){ if(view){ const closing=view; view=null; try{ closing.close(); }catch(error){} } }
+  function closeView(){ clearRenderWatch(); if(view){ const closing=view; view=null; try{ closing.close(); }catch(error){} } }
   function endNarrationPreHold(key,reason){
     const id=String(key||''); const token=preHoldTokens.get(id);
     if(machine)machine.endPreHold('narration',id,reason);
@@ -354,6 +428,60 @@
     const who=ownerKeyOf(event.who||event.actor||event.actor_name);
     return !who||!note.who||who===note.who;
   }
+  // W111 key memory — mirrored per tab (sessionStorage) so a page reload cannot restart the loop; a missing or blocked
+  // store leaves it in memory only. Tests inject deps.store.
+  function keyStore(){
+    try{ const injected=deps&&deps.store; if(injected&&typeof injected.getItem==='function'&&typeof injected.setItem==='function')return injected; }catch(error){}
+    try{ const storage=typeof window!=='undefined'&&window?window.sessionStorage:null; return storage&&typeof storage.getItem==='function'&&typeof storage.setItem==='function'?storage:null; }catch(error){ return null; }
+  }
+  function loadKeyMemory(){
+    const store=keyStore(); if(!store||!keyMemory)return false;
+    try{ const text=store.getItem(DICE_STAGE_STORE_KEY); if(typeof text==='string'&&text)keyMemory.load(text); return true; }
+    catch(error){ logRow({source:'diceStage',reason_code:REASONS.keyStoreError,op:'load',error:String(error&&error.message||error||'').slice(0,160),key:currentKey}); return false; }
+  }
+  function saveKeyMemory(){
+    const store=keyStore(); if(!store||!keyMemory)return false;
+    try{ store.setItem(DICE_STAGE_STORE_KEY,keyMemory.serialize()); return true; }
+    catch(error){ logRow({source:'diceStage',reason_code:REASONS.keyStoreError,op:'save',error:String(error&&error.message||error||'').slice(0,160),key:currentKey}); return false; }
+  }
+  function completeKey(key){ if(keyMemory)keyMemory.complete(key); }
+  function keyCompleted(key){ return !!(keyMemory&&keyMemory.completed(key)); }
+  // W111 render watch — a stage that shows no die within DICE_STAGE_RENDER_WATCH_MS (no idle glyph while armed; no
+  // canvas job after the press) is a blank wall, not a stage: it fails open and releases everything it held.
+  function clearRenderWatch(){
+    if(renderWatchTimer===null)return;
+    const id=renderWatchTimer; renderWatchTimer=null;
+    try{ const clear=dep('clearTimer'); if(clear)clear(id); else clearTimeout(id); }catch(error){}
+  }
+  function dieRendered(phase){
+    if(!view)return true;
+    if(phase==='armed')return hasStageElement(view.diceHost,'data-dice-stage-glyph',0);
+    const snap=machine?machine.snapshot():null;
+    return !!(snap&&snap.jobsActive>0)||hasStageElement(view.diceHost,'data-dice-canvas-stage',0);
+  }
+  function scheduleRenderWatch(phase){
+    clearRenderWatch();
+    try{
+      const set=dep('setTimer')||function(callback,delay){ return setTimeout(callback,delay); };
+      renderWatchTimer=set(function(){
+        renderWatchTimer=null;
+        try{
+          if(!machine||!machine.isOpen()||!view)return;
+          if(machine.snapshot().phase!==phase||dieRendered(phase))return;
+          logRow({source:'diceStage',reason_code:REASONS.renderTimeout,key:machine.snapshot().key,watch_phase:phase,watch_ms:DICE_STAGE_RENDER_WATCH_MS});
+          release(REASONS.renderTimeout);
+        }catch(error){ failOpen(error); }
+      },DICE_STAGE_RENDER_WATCH_MS);
+    }catch(error){ renderWatchTimer=null; }
+  }
+  function escapeHandler(key){
+    return function(site){
+      try{
+        if(site==='backdrop'||site==='key')logRow({source:'diceStage',reason_code:REASONS.backdropEscape,key:key,site:site});
+        release(REASONS.playerEscape);
+      }catch(error){ failOpen(error); }
+    };
+  }
   function riderHandle(){ return Object.freeze({armed:false,pressed:true,onPress:function(callback){ safeCall(callback,machine?machine.pressed():'auto'); },onSkip:addSkipListener}); }
   function armedHandle(){ return Object.freeze({armed:true,pressed:false,onPress:addPressListener,onSkip:addSkipListener}); }
   function machineHooks(){
@@ -363,10 +491,11 @@
       clearTimer:dep('clearTimer')||function(id){ clearTimeout(id); },
       onLog:logRow,
       onTick:function(seconds){ if(view)view.setHint(hintText(seconds)); },
-      onPress:function(source){ if(view)view.setPhase('rolling',copy('กำลังทอยเต๋า','Rolling dice')); const listeners=pressListeners.slice(); pressListeners=[]; listeners.forEach(function(callback){ safeCall(callback,source); }); },
+      onPress:function(source){ if(view)view.setPhase('rolling',copy('กำลังทอยเต๋า','Rolling dice')); scheduleRenderWatch('rolling'); const listeners=pressListeners.slice(); pressListeners=[]; listeners.forEach(function(callback){ safeCall(callback,source); }); },
       onSkip:function(payload){ const listeners=skipListeners.slice(); resetListeners(); listeners.forEach(function(callback){ safeCall(callback,payload&&payload.reason); }); },
       onHiddenRelease:function(payload){ callDep('releaseNarration',payload&&payload.key,null); },
       onClose:function(payload){
+        completeKey(payload&&payload.key);                            // W111: whatever closed it, this key is finished for the session
         closeView(); resetListeners();
         if(adoptedToken!==null){ const token=adoptedToken; adoptedToken=null; callDep('endHold',token,null); }
         if(payload&&payload.reason!==REASONS.sequenceDone)callDep('releaseNarration',payload&&payload.key,null);
@@ -380,7 +509,7 @@
     try{
       deps=options&&typeof options==='object'?options:{};
       if(machine)machine.reset(); closeView(); preHoldTokens.clear(); adoptedToken=null; resetListeners(); currentKey=''; lastToggleLogKey=''; initiativeNote=null;
-      machine=createStageMachine(machineHooks()); initialized=true;
+      keyMemory=createKeyMemory(); machine=createStageMachine(machineHooks()); initialized=true; loadKeyMemory();
       if(!visibilityBound){
         const doc=documentRef();
         if(doc&&typeof doc.addEventListener==='function'){ doc.addEventListener('visibilitychange',function(){ try{ if(hiddenNow()&&machine)machine.hidden(); }catch(error){ failOpen(error); } }); visibilityBound=true; }
@@ -388,7 +517,7 @@
       return true;
     }catch(error){ initialized=false; return false; }
   }
-  function beginRound(roundId){ currentKey=String(roundId||''); return currentKey; }
+  function beginRound(roundId){ const next=String(roundId||''); if(keyMemory&&next!==currentKey)keyMemory.clearCompleted(); currentKey=next; return currentKey; }   // W111: a new round key forgets the finished keys; the open counts stay
   // W110: the adapter hands every round batch through here before the runner sees it. null = kill switch / not
   // initialized → the previous behaviour (everybody's dice on the rails). Otherwise only the player's own dice come
   // back, renumbered over own dice; others (and an own initiative die already rolled through the initiative button) are
@@ -398,7 +527,8 @@
       if(!initialized||!machine)return null;
       if(callDep('stageOff',undefined,false)===true)return null;
       const split=splitStageBatch(events,{initiativeSeen:initiativeAlreadyRolled});
-      if(split.othersCount>0||split.initiativeSkipped>0)logRow({source:'diceStage',reason_code:split.othersCount>0?REASONS.othersOmitted:REASONS.initiativeSkipped,key:currentKey,own:split.ownCount,others_omitted:split.othersCount,initiative_skipped:split.initiativeSkipped,total:split.total});
+      if(split.othersCount>0||split.initiativeSkipped>0)logRow({source:'diceStage',reason_code:split.othersCount>0?REASONS.othersOmitted:REASONS.initiativeSkipped,key:currentKey,own:split.ownCount,others_omitted:split.othersCount,initiative_skipped:split.initiativeSkipped,initiative_server_rolled:split.initiativeServerRolled,total:split.total});
+      if(split.initiativeServerRolled>0)logRow({source:'diceStage',reason_code:REASONS.initiativeServerRolled,key:currentKey,own:split.ownCount,initiative_server_rolled:split.initiativeServerRolled,total:split.total});
       return split;
     }catch(error){ try{ logRow({source:'diceStage',reason_code:REASONS.splitError,error:String(error&&error.message||error||'').slice(0,160),key:currentKey}); }catch(logError){} return null; }
   }
@@ -410,6 +540,9 @@
       if(!plan.arm)return null;                                   // no own die in the batch: nothing to freeze for (others never reach the stage)
       const key=currentKey||('batch:'+String(++batchSeq));
       if(releasing){ const why=machine.snapshot().lastReason||REASONS.released; return Object.freeze({armed:true,pressed:false,onPress:function(){},onSkip:function(callback){ safeCall(callback,why); }}); }
+      // W111: a key this session already released / escaped / finished never re-arms — that replay of the same round
+      // batch (poll / realtime / refetch / reload) is what kept mounting a fresh wall in front of the owner's player.
+      if(keyCompleted(key)){ logRow({source:'diceStage',reason_code:REASONS.keyCompleted,key:key,site:'arm',own:plan.ownCount}); return null; }
       const cause=disabledCause();
       if(cause){ if(lastToggleLogKey!==key){ lastToggleLogKey=key; logRow({source:'diceStage',reason_code:REASONS.toggleOff,cause:cause,key:key}); } return null; }
       if(hiddenNow())return null;
@@ -423,7 +556,12 @@
           return riderHandle();
         }
         releasing=true; try{ machine.skip(REASONS.superseded); }finally{ releasing=false; }
+        if(snap.key===key&&keyMemory)keyMemory.forget(key);         // W111: a fresh batch replacing this key's unpressed stage re-arms the key — it is not a replay of a finished one
       }
+      // W111 watchdog: a round key mounts the overlay at most DICE_STAGE_MAX_OPENS_PER_KEY times per tab session, in
+      // whatever order the keys arrive (the finished-key memory is cleared when the round key moves on; this is not).
+      const opens=keyMemory?keyMemory.opens(key):0;
+      if(opens>=DICE_STAGE_MAX_OPENS_PER_KEY){ logRow({source:'diceStage',reason_code:REASONS.rearmGuard,key:key,opens:opens,max_opens:DICE_STAGE_MAX_OPENS_PER_KEY}); return null; }
       const doc=documentRef();
       const model={
         title:copy('ถึงตาคุณทอย','Your roll'),
@@ -433,12 +571,14 @@
         hint:hintText(DICE_PREROLL_AUTO_MS/1000),
         escapeLabel:copy('เล่นต่อ','Play on'),
         onPress:function(){ try{ if(machine)machine.press('player',REASONS.pressed); }catch(error){ failOpen(error); } },
-        onEscape:function(){ try{ release(REASONS.playerEscape); }catch(error){ failOpen(error); } }
+        onEscape:escapeHandler(key)
       };
       view=mountStageView(doc,model);
       if(!view){ logRow({source:'diceStage',reason_code:REASONS.viewUnavailable,key:key}); return null; }
       resetListeners();
       if(!machine.arm(key)){ closeView(); return null; }
+      if(keyMemory){ keyMemory.noteOpen(key); saveKeyMemory(); }
+      scheduleRenderWatch('armed');
       safeCall(source.onStart);                                    // the choreography's own narration hold starts now
       endNarrationPreHold(key,REASONS.holdAdopted);
       machine.endPreHoldsOfKind('battleLog',REASONS.holdAdopted);
@@ -469,7 +609,7 @@
         hint:'',
         escapeLabel:copy('เล่นต่อ','Play on'),
         onPress:function(){},
-        onEscape:function(){ try{ release(REASONS.playerEscape); }catch(error){ failOpen(error); } }
+        onEscape:escapeHandler(key)
       };
       view=mountStageView(documentRef(),model);
       if(!view){ logRow({source:'diceStage',reason_code:REASONS.viewUnavailable,key:key}); return null; }
@@ -505,6 +645,7 @@
     try{
       const key=String(roundId||''); if(!key||!machine||!enabled()||hiddenNow())return false;
       if(machine.isOpen()&&machine.snapshot().key===key)return false;
+      if(keyCompleted(key)){ logRow({source:'diceStage',reason_code:REASONS.keyCompleted,key:key,site:'pre_hold'}); return false; }   // W111: nothing will arm for a finished key — do not hold narration for it
       if(preHoldTokens.has(key))return false;
       const token=callDep('beginHold',key,null); if(token===null||token===undefined)return false;
       preHoldTokens.set(key,token);
@@ -535,9 +676,9 @@
     catch(error){ failOpen(error); return false; }
   }
   function state(){
-    return Object.freeze({build:BUILD,initialized:initialized,enabled:enabled(),cause:disabledCause(),currentKey:currentKey,viewOpen:!!view,machine:machine?machine.snapshot():null,preHoldTokens:Array.from(preHoldTokens.keys()),initiativeNote:initiativeNote?Object.freeze(Object.assign({},initiativeNote)):null,pressListeners:pressListeners.length,skipListeners:skipListeners.length});
+    return Object.freeze({build:BUILD,initialized:initialized,enabled:enabled(),cause:disabledCause(),currentKey:currentKey,viewOpen:!!view,machine:machine?machine.snapshot():null,preHoldTokens:Array.from(preHoldTokens.keys()),initiativeNote:initiativeNote?Object.freeze(Object.assign({},initiativeNote)):null,keyMemory:keyMemory?keyMemory.snapshot():null,renderWatch:renderWatchTimer!==null,pressListeners:pressListeners.length,skipListeners:skipListeners.length});
   }
-  function resetForTests(){ if(machine)machine.reset(); closeView(); preHoldTokens.clear(); adoptedToken=null; resetListeners(); currentKey=''; batchSeq=0; releasing=false; lastToggleLogKey=''; initiativeNote=null; }
+  function resetForTests(){ if(machine)machine.reset(); closeView(); preHoldTokens.clear(); adoptedToken=null; resetListeners(); currentKey=''; batchSeq=0; releasing=false; lastToggleLogKey=''; initiativeNote=null; keyMemory=createKeyMemory(); }
 
   window.DiceStage=Object.freeze({
     build:BUILD,init:init,enabled:enabled,beginRound:beginRound,splitBatch:splitBatch,arm:arm,direct:direct,pressed:pressed,hosts:hosts,jobResult:jobResult,jobDisposed:jobDisposed,
@@ -545,8 +686,10 @@
     preHoldNarration:preHoldNarration,postFlipSignal:postFlipSignal,noteBattleLogRow:noteBattleLogRow,release:release,state:state,
     _pure:Object.freeze({
       DICE_PREROLL_AUTO_MS:DICE_PREROLL_AUTO_MS,DICE_HOLD_MAX_MS:DICE_HOLD_MAX_MS,DICE_STAGE_TOTAL_MS:DICE_STAGE_TOTAL_MS,DICE_STAGE_ACK_MIN_MS:DICE_STAGE_ACK_MIN_MS,DICE_STAGE_ACK_MAX_MS:DICE_STAGE_ACK_MAX_MS,DICE_STAGE_INITIATIVE_NOTE_TTL_MS:DICE_STAGE_INITIATIVE_NOTE_TTL_MS,MAX_GLYPHS:MAX_GLYPHS,STAGE_Z_INDEX:STAGE_Z_INDEX,REASONS:REASONS,
+      DICE_STAGE_RENDER_WATCH_MS:DICE_STAGE_RENDER_WATCH_MS,DICE_STAGE_MAX_OPENS_PER_KEY:DICE_STAGE_MAX_OPENS_PER_KEY,DICE_STAGE_KEY_MEMORY_MAX:DICE_STAGE_KEY_MEMORY_MAX,DICE_STAGE_STORE_KEY:DICE_STAGE_STORE_KEY,SERVER_INITIATIVE_SOURCES:SERVER_INITIATIVE_SOURCES,
       OVERLAY_INLINE_STYLE:OVERLAY_INLINE_STYLE,PANEL_INLINE_STYLE:PANEL_INLINE_STYLE,
-      dieKind:dieKind,initiativeLike:initiativeLike,isDirectKey:isDirectKey,stageGlyphs:stageGlyphs,splitStageBatch:splitStageBatch,planStageBatch:planStageBatch,ackBudgetMs:ackBudgetMs,countdownSeconds:countdownSeconds,ownBattleLogRow:ownBattleLogRow,createStageMachine:createStageMachine,glyphPoints:glyphPoints
+      dieKind:dieKind,initiativeLike:initiativeLike,isDirectKey:isDirectKey,stageGlyphs:stageGlyphs,splitStageBatch:splitStageBatch,planStageBatch:planStageBatch,ackBudgetMs:ackBudgetMs,countdownSeconds:countdownSeconds,ownBattleLogRow:ownBattleLogRow,createStageMachine:createStageMachine,glyphPoints:glyphPoints,
+      initiativeServerRolled:initiativeServerRolled,createKeyMemory:createKeyMemory,hasStageElement:hasStageElement
     }),
     _test:Object.freeze({reset:resetForTests,mountStageView:mountStageView})
   });
