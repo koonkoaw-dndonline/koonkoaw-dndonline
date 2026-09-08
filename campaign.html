@@ -2218,7 +2218,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202609060033;
+const FRONTEND_BUILD = 202609072030;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -3892,25 +3892,26 @@ function toast(msg,isErr){const t=$('toast'),seq=++_toastWriteSeq;t.removeAttrib
 // W63 terminal error card copy surface start
 function terminalCardModel(body){
   if(!body||typeof body!=='object'||body.action_preserved!==true)return null;
-  const primaryAction=body.retryable===false?'edit':'retry';
+  const primaryAction=body.next_action==='edit'||body.retry_mode==='edit_only'||body.hold_domain||body.retryable===false?'edit':'retry';
   const fallbackTitle=primaryAction==='edit'?uiCopy('ต้องแก้ข้อความก่อนดำเนินเรื่อง','Edit the action before continuing'):uiCopy('ผู้เล่าเรื่องยังเรียบเรียงไม่สำเร็จ','The storyteller could not finish this turn');
   const fallbackDetail=primaryAction==='edit'?uiCopy('คำสั่งเดิมยังอยู่ครบ แก้ข้อความแล้วส่งใหม่ได้','Your original action is preserved. Edit it and submit again.'):uiCopy('โลกยังคงอยู่ ณ ขณะเดิมและคำสั่งของคุณยังไม่สูญหาย','The world remains at the same moment and your action is still preserved.');
-  const title=(String(body.error||'').trim()||fallbackTitle).slice(0,240),detail=(String(body.detail||'').trim()||fallbackDetail).slice(0,600),reason=(String(body.reason_code||'').trim()||'terminal_failure').slice(0,80);
+  const rawTitle=String(body.error||'').trim(),title=(rawTitle&&rawTitle!==String(body.reason_code||'').trim()?rawTitle:fallbackTitle).slice(0,240),detail=(String(body.detail||'').trim()||fallbackDetail).slice(0,600),reason=(String(body.reason_code||'').trim()||'terminal_failure').slice(0,80);
   return Object.freeze({title:title,detail:detail,reason:reason,primaryAction:primaryAction});
 }
 let _terminalErrorCardState=null;
 function dismissTerminalErrorCard(){const card=$('terminalErrorCard');if(card)card.hidden=true;_terminalErrorCardState=null;return true;}
 function showTerminalErrorCard(body){
   const model=terminalCardModel(body),card=$('terminalErrorCard');if(!model||!card)return false;
-  _terminalErrorCardState={roundId:String(curRound&&curRound.id||''),model:model};
-  $('terminalErrorTitle').textContent=model.title;$('terminalErrorDetail').textContent=model.detail;$('terminalErrorReason').textContent=model.reason;
-  const close=$('terminalErrorClose'),primary=$('terminalErrorPrimary');close.setAttribute('aria-label',uiCopy('ปิด','Dismiss'));close.onclick=dismissTerminalErrorCard;primary.textContent=model.primaryAction==='retry'?uiCopy('ลองอีกครั้ง','Try again'):uiCopy('แก้ข้อความ','Edit action');primary.onclick=runTerminalErrorPrimaryAction;
+  _terminalErrorCardState={roundId:String(curRound&&curRound.id||''),actionId:String(body.action_id||''),model:model};
+  $('terminalErrorTitle').textContent=model.title;$('terminalErrorDetail').textContent=model.detail;$('terminalErrorReason').textContent='';$('terminalErrorReason').hidden=true;
+  const close=$('terminalErrorClose'),primary=$('terminalErrorPrimary');close.setAttribute('aria-label',uiCopy('ปิด','Dismiss'));close.onclick=dismissTerminalErrorCard;primary.textContent=model.primaryAction==='retry'?uiCopy('ลองอีกครั้ง','Try again'):uiCopy('✎ แก้คำสั่งของฉัน','✎ Edit my action');primary.onclick=runTerminalErrorPrimaryAction;
   card.hidden=false;return true;
 }
 function runTerminalErrorPrimaryAction(){
   const state=_terminalErrorCardState,action=state&&state.model&&state.model.primaryAction;dismissTerminalErrorCard();
   if(action==='retry'){resolveRound(false);return true;}
   if(action!=='edit')return false;
+  if(state.actionId){Promise.resolve(supa.from('actions').select('id,action_text,user_id').eq('id',state.actionId).eq('round_id',state.roundId).maybeSingle()).then(function(result){if(result.error||!result.data)throw new Error('action unavailable');const row=result.data;if(!isHost&&String(row.user_id)!==String(me&&me.id)){toast(uiCopy('คำสั่งที่ติดเป็นของเพื่อน ให้เจ้าของคำสั่งแก้แล้วส่งใหม่','The held action belongs to another player; its owner can edit and resend it.'),true);return;}return retractActionForEdit(row.id,String(row.user_id)===String(me&&me.id)?row.action_text:'');}).catch(function(){toast(uiCopy('เปิดคำสั่งเพื่อแก้ไม่ได้ กรุณาโหลดรอบใหม่','The action could not be opened for editing. Reload the round.'),true);});return true;}
   try{if(typeof switchTab==='function')switchTab('story');}catch(e){}
   const focusInput=function(){const input=$('actInput');if(!input)return false;input.focus();try{input.scrollIntoView({block:'center',behavior:'smooth'});}catch(e){}return true;};
   if(!focusInput()){try{Promise.resolve(typeof renderRoundbar==='function'?renderRoundbar():null).finally(function(){setTimeout(focusInput,0);});}catch(e){setTimeout(focusInput,0);}}
@@ -6358,10 +6359,10 @@ function companionV2UiEnabled(){ return !!campaign&&String(campaign.companion_mo
 function companionLegacyUiMessage(){ return uiCopy('โลกนี้คงใช้ระบบคอมพาเนี่ยนแบบเดิมถาวร จึงไม่มีรายชื่อ/ความสัมพันธ์ส่วนตัวแบบ V2 ข้อมูลสมาชิกปาร์ตี้เดิมยังอยู่ครบ — Companion V2 ใช้ได้กับโลกที่สร้างใหม่เท่านั้น','This world remains on the legacy companion system, so V2 roster and private relationship tools are unavailable. Existing party companions are unchanged; Companion V2 is available only to newly created worlds.'); }
 async function companionResolve(payload,options){
   if(!companionV2UiEnabled()) throw new Error(companionLegacyUiMessage());
-  const tok=(await supa.auth.getSession()).data.session?.access_token; if(!tok) throw new Error('กรุณาเข้าสู่ระบบใหม่');
+  const tok=(await supa.auth.getSession()).data.session?.access_token; if(!tok) throw new Error(uiCopy('กรุณาเข้าสู่ระบบใหม่','Please sign in again'));
   const request={method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify(Object.assign({campaign_id:campaign.id},payload))}; if(options&&options.signal) request.signal=options.signal;
   const r=await fetch(RESOLVE_FN,request);
-  const j=await r.json(); if(!r.ok||j.error){ const e=new Error(j.note||j.message||j.error||'ทำรายการไม่สำเร็จ'); e.payload=j; throw e; } return j;
+  const j=await r.json(); if(!r.ok||j.error){ const e=new Error(j.note||j.message||j.error||uiCopy('ทำรายการไม่สำเร็จ','The request could not be completed')); e.payload=j; throw e; } return j;
 }
 // COMPANION-ACCEPT-Y2 copy surface 1 start
 const COMPANION_UI_ENDPOINT_MS=15000,COMPANION_UI_REFRESH_MS=12000;
@@ -7316,6 +7317,7 @@ function renderNpcCombatAidOfferCard(bar){
   if(latest){ const note=document.createElement('div'); note.className='note npc-combat-aid-response'; note.style.cssText='text-align:left;padding:8px 7px;color:#FAC775'; note.textContent=latest[1]==='accepted'?uiCopy('(แก้: คำตอบรับของเจ้าถูกส่งถึงผู้ยื่นข้อเสนอแล้ว เขาจะเข้าประจำที่เมื่อแนวรบเปิดทาง)','(Fixed: your acceptance has reached the one who made the offer; they will take their place when the battle line opens)'):latest[1]==='expired'?uiCopy('(แก้: ข้อเสนอนั้นถูกเก็บไว้ก่อนคำตอบจะไปถึง และไม่มีผู้ใดถือความเงียบเป็นคำยินยอม)','(Fixed: the offer was set aside before the answer arrived, and no one treated silence as consent)'):uiCopy('(แก้: คำปฏิเสธของเจ้าถูกส่งถึงผู้ยื่นข้อเสนอแล้ว และข้อเสนอนั้นถูกเก็บไว้)','(Fixed: your refusal has reached the one who made the offer, and the offer has been set aside)'); bar.appendChild(note); }
 }
 async function renderRoundbar(){
+  resolvingStallAge(curRound);
   const myseq=++roundbarSeq;            // กัน render ซ้อน (ต้นเหตุกล่องตอบซ้ำ)
   const bar=$('roundbar');
   const isHost = campaign.host_id===me.id;
@@ -7391,7 +7393,7 @@ async function renderRoundbar(){
     if(isHost&&_vaOther&&_vaOther.active){ var fOther=document.createElement('button'); fOther.className='btn warn sm'; fOther.style.marginTop='8px'; fOther.textContent=uiCopy('⚡ กู้รอบที่ค้างของกลุ่ม '+_vaOtherGroup,'⚡ Recover pending terminal for group '+_vaOtherGroup); fOther.onclick=function(){ submitVictoryAck(true,_vaOtherGroup); }; bar.appendChild(fOther); }
     return;
   }
-  if(curRound.phase==='resolving'){ bar.innerHTML=uiCopy('<div class="statusline"><span class="pill wait">DM กำลังประมวลผล…</span></div>','<div class="statusline"><span class="pill wait">DM is resolving…</span></div>'); return; }
+  if(curRound.phase==='resolving'){ bar.innerHTML=uiCopy('<div class="statusline"><span class="pill wait">DM กำลังประมวลผล…</span></div>','<div class="statusline"><span class="pill wait">DM is resolving…</span></div>'); renderResolvingStall(bar,curRound,isHost); return; }
   if(curRound.phase!=='awaiting_actions'){ bar.innerHTML=''; return; }
   if(typeof diceStageHoldsRound==='function'&&diceStageHoldsRound(curRound.id)){ bar.innerHTML=''; return; }   // W102: the round's options stay off the DOM until the dice stage is acknowledged
   refreshSelectionGate();
@@ -8201,10 +8203,14 @@ function setMyThinking(on){
   try { if (typeof rtChannel !== 'undefined' && rtChannel && typeof rtChannel.track === 'function') rtChannel.track({ thinking: !!on, uid: (me && me.id) || 'anon', at: Date.now() }); } catch(e){}
 }
 var _autoChain=0, _waitRetryChain=0;
-async function resolveRound(force, mode){
+async function resolveRound(force, mode, recover){
   if(gateBeforePlay()) return;
   if(slowlifeState&&slowlifeState.active){ toast(uiCopy('(แก้: ปิด Slowlife และรวมปาร์ตี้ก่อนดำเนินรอบหลัก)','(Fixed: close Slowlife and regroup before continuing the main round)'),true); switchTab('companion'); return; }
-  if(resolving) return; resolving=true; renderRoundbar();
+  const recovery=recover===true&&force===true&&campaign.host_id===me.id&&resolvingStallAge(curRound)>180000;
+  if(recover===true&&!recovery||resolving&&!recovery) return;
+  const previous=resolveRound.controller, run=resolveRound.sequence=(resolveRound.sequence||0)+1, controller=new AbortController();
+  resolveRound.controller=controller; resolveRound.startedAt=Date.now(); if(recovery&&previous) previous.abort();
+  resolving=true; renderRoundbar();
   var _again=false, _waitRetry=false;
   var afterSubmit=!!window._afterSubmit; window._afterSubmit=false;   // เพิ่งกดส่ง → ถ้าเจอ "รอ" ให้ลองซ้ำ (กัน race)
   // บอกผู้เล่นคนอื่นว่า DM กำลังทำงาน (presence broadcast)
@@ -8214,15 +8220,16 @@ async function resolveRound(force, mode){
     const body={campaign_id:campaign.id, force:!!force, group_no:Math.max(1,Math.min(2,Math.floor(Number((myChar&&myChar.group_no)||(curRound&&curRound.group_no))||1)))}; if(mode) body.mode=mode;   // v738: resolver/scene directives must bind to this player's split group
     if(mode==='intro'){ const ck=document.getElementById('loreFirstCk'); if(ck) body.lore_first=!!ck.checked; }   // v198
     const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-      body:JSON.stringify(body)});
+      body:JSON.stringify(body),signal:controller.signal});
     const j=await r.json();
+    if(run!==resolveRound.sequence) return;
     setQuestAffordancesFromResponse(j,r.ok?'resolved_response':'preserve_response');
-    if(!r.ok){
+    if(!r.ok||j.status==='refused'){
       const _repairReasons=['atk_narr_damage_blocked','encounter_redo_claim_blocked','attack_claim_without_mechanics'];
       if(_repairReasons.includes(j.reason_code)&&j.action_preserved===true&&j.action_id){
         window._actionRepair={round_id:curRound&&curRound.id,action_id:j.action_id,reason_code:j.reason_code};
-      }else if(j.action_preserved===true&&j.retryable!==false){
-        window._actionRepair={round_id:curRound&&curRound.id,action_id:j.action_id||null,reason_code:j.reason_code||'action_preserved_retryable',generic:true,affordances:Array.isArray(j.affordances)?j.affordances:[]};
+      }else if(j.action_preserved===true&&(j.retryable!==false||j.next_action==='edit')){
+        window._actionRepair={round_id:curRound&&curRound.id,action_id:j.action_id||null,reason_code:j.hold_reason||j.reason_code||'action_preserved_retryable',generic:true,affordances:Array.isArray(j.affordances)?j.affordances:[]};
       }
       const _terminalCardShown=showTerminalErrorCard(j);
       if(!_terminalCardShown&&j.reason_code==='action_auto_voided'){
@@ -8233,12 +8240,15 @@ async function resolveRound(force, mode){
     else if(j.status==='busy'){ /* someone else is resolving */ }
     else if(j.status==='intro'){ toast(uiCopy('โลกถูกสร้างแล้ว — สร้างตัวละครได้เลย!','World created — you can now create a character!')); }
     else if(j.status==='opened'||j.status==='resolved'){ if(j.auto_next){ _again=true; } else { toast(j.status==='opened'?uiCopy('เปิดฉากแล้ว!','Scene opened!'):uiCopy('DM ดำเนินเรื่องต่อแล้ว!','The DM continued the story!')); } }
-  }catch(e){ toast(uiCopy('เชื่อมต่อระบบเกมไม่สำเร็จ — ตรวจเครือข่ายแล้วกดลองใหม่เอง','Could not reach the resolver — check the network and retry manually'),true); }
+  }catch(e){ if(run===resolveRound.sequence) toast(uiCopy('เชื่อมต่อระบบเกมไม่สำเร็จ — ตรวจเครือข่ายแล้วกดลองใหม่เอง','Could not reach the resolver — check the network and retry manually'),true); }
   finally{
-    resolving=false; setMyThinking(false); await refreshAll(); renderStory();
-    if(_again && _autoChain<24){ _autoChain++; _waitRetryChain=0; setTimeout(function(){ resolveRound(false); }, 600); }
-    else if(_waitRetry && _waitRetryChain<3){ _waitRetryChain++; window._afterSubmit=true; setTimeout(function(){ resolveRound(false); }, 1800); }
+    if(run===resolveRound.sequence){
+    resolveRound.controller=null;
+    resolving=false; setMyThinking(false); await refreshAll(); if(run!==resolveRound.sequence) return; renderStory();
+    if(_again && _autoChain<24){ _autoChain++; _waitRetryChain=0; setTimeout(function(){ if(run===resolveRound.sequence) resolveRound(false); }, 600); }
+    else if(_waitRetry && _waitRetryChain<3){ _waitRetryChain++; window._afterSubmit=true; setTimeout(function(){ if(run===resolveRound.sequence) resolveRound(false); }, 1800); }
     else { _autoChain=0; _waitRetryChain=0; }
+    }
   }
 }
 
@@ -8833,9 +8843,9 @@ async function _renderMeInner(){
     `<div class="note" style="margin:-2px 0 4px;">AC = ${esc(acRes.label)}</div>`+
     num('Hit Points (HP)',hp)+num('Hit Dice',_derivedCombat759.hitDice)+num('Initiative',initv)+num('Speed (ft)',_derivedCombat759.speed)+num('Proficiency',sign(prof))+num(uiCopy('Attunement (เวท)','Attunement (magic items)'),bon.attune+'/3')+
     slotPillsHtml(sheet)+
-    (bon.attune>3?'<div class="note" style="color:#FAC775">⚠ attunement เกิน 3 (กฎ 5e สูงสุด 3 ชิ้น)</div>':'')+
-    (bsum.length?`<div class="note" style="margin:2px 0">โบนัสไอเทม: ${esc(bsum.join(' · '))}</div>`:'')+
-    (bon.effects.length?`<div class="note" style="margin:2px 0;color:#9ad">ของเวท: ${esc(bon.effects.map(e=>e.name).join(', '))}</div>`:'');
+    (bon.attune>3?'<div class="note" style="color:#FAC775">'+uiCopy('⚠ attunement เกิน 3 (กฎ 5e สูงสุด 3 ชิ้น)','⚠ More than 3 attuned items (5e allows at most 3)')+'</div>':'')+
+    (bsum.length?`<div class="note" style="margin:2px 0">${uiCopy('โบนัสไอเทม: ','Item bonuses: ')}${esc(bsum.join(' · '))}</div>`:'')+
+    (bon.effects.length?`<div class="note" style="margin:2px 0;color:#9ad">${uiCopy('ของเวท: ','Magic items: ')}${esc(bon.effects.map(e=>e.name).join(', '))}</div>`:'');
   p.appendChild(it);
   renderSheetCapabilitySummary(p,sheet,_meCapabilityRows,myChar);
 
@@ -10336,13 +10346,37 @@ function bsToggleCharSheet(){
   try{ Promise.resolve(typeof renderMe==='function'?renderMe():null).then(fill,fill); }catch(e){ fill(); }
 }
 // ── v44: Force Resolve ใน combat ต้อง confirm — บอกชัดว่ากำลังข้ามเทิร์นใคร (เทิร์นที่ถูกข้าม = auto-Dodge) ──
-async function forceResolveConfirm(){
+// W120: elapsed state uses the existing round snapshot; no additional polling or DB read.
+function resolvingStallAge(round,now=Date.now()){
+  if(!round||round.phase!=='resolving'){ resolvingStallAge.seen=null; return 0; }
+  const claim=Date.parse(String(round.resolve_claimed_at||''));
+  const seen=resolvingStallAge.seen;
+  if(!seen||seen.id!==round.id) resolvingStallAge.seen={id:round.id,at:now};
+  let age=Math.max(0,now-(Number.isFinite(claim)?claim:resolvingStallAge.seen.at));
+  for(const row of narrative||[]) if(row.round_id===round.id&&row.status==='placeholder'){
+    const at=Date.parse(String(row.created_at||'')); age=Math.min(age,Number.isFinite(at)?Math.max(0,now-at):0);
+  }
+  if(resolving&&Number(resolveRound.startedAt)) age=Math.min(age,Math.max(0,now-resolveRound.startedAt));
+  return age;
+}
+// W120 resolving stall copy surface start
+function renderResolvingStall(bar,round,host){
+  if(resolvingStallAge(round)<=180000) return;
+  const note=document.createElement('div'); note.className='note'; note.setAttribute('data-resolving-stall','1');
+  note.textContent=host
+    ?uiCopy('⏳ การดำเนินเรื่องใช้เวลานานกว่าปกติ กดดำเนินเรื่องต่อเพื่อลองกู้รอบนี้','⏳ This scene is taking longer than usual. Press Continue story to recover this round.')
+    :uiCopy('⏳ การดำเนินเรื่องใช้เวลานานกว่าปกติ ให้เจ้าของโลกกดดำเนินเรื่องต่อ','⏳ This scene is taking longer than usual. Ask the host to press Continue story.');
+  bar.appendChild(note);
+  if(host){ const b=document.createElement('button'); b.className='btn warn'; b.textContent=uiCopy('⚡ ดำเนินเรื่องต่อ','⚡ Continue story'); b.onclick=()=>forceResolveConfirm(true); bar.appendChild(b); }
+}
+// W120 resolving stall copy surface end
+async function forceResolveConfirm(recover){
   try{
     const inB=document.body.classList.contains('in-battle')||!!window._combatActive;
     const an=(typeof gCombat!=='undefined'&&gCombat&&gCombat.active)?gCombat.activeName:null;
     if(inB&&an&&!await uiConfirmText(uiCopy('ตอนนี้รอเทิร์นของ "'+an+'" อยู่\nหากดำเนินเรื่องต่อ '+an+' จะตั้งรับ (Dodge) ในรอบนี้\n(บอทอาจกำลังคิด — รอสักครู่ก่อนได้)\n\nยืนยันหรือไม่?','The party is waiting for "'+an+'".\nContinuing now makes '+an+' take the Dodge action this round.\n(The bot may still be thinking; you can wait a moment.)\n\nContinue?'),'combat-force-resolve')) return;
   }catch(e){}
-  resolveRound(true);
+  return resolveRound(true,undefined,recover===true);
 }
 // ── v816: per-slot Gemini tier + deterministic cooldown recovery (masked status only) ──
 function appendGeminiKeyTierControls(tools, styleCtl, DMF){
@@ -13351,7 +13385,7 @@ window.cc = (function(){
       return { items: enemies.map(function(e){
         var rr=ccTargetReach(e, atkRangeFt);
         if(rr.ok) return { label: e.name, meta: atk.line, commit:{slot:'action', label:'โจมตี '+e.name+' ('+atk.name+')', dice: atk.line, weapon:atk.weapon||atk.name} };
-        return { label: e.name, meta:'⚠ ไกลเกินระยะโจมตี ('+rr.dist+' ช่อง · ตีถึง '+rr.max+') — เดินเข้าใกล้ก่อน', dim:true };
+        return { label: e.name, meta:uiCopy('⚠ ไกลเกินระยะโจมตี ('+rr.dist+' ช่อง · ตีถึง '+rr.max+') — เดินเข้าใกล้ก่อน','⚠ Out of attack range ('+rr.dist+' squares · reach '+rr.max+') — move closer first'), dim:true };
       })};
     }
 
@@ -13407,19 +13441,19 @@ window.cc = (function(){
       if(!spell) return { items:[] };
       var opts = [];
       if(spell.target==='self'){
-        opts.push({ label:'ร่ายใส่ตัวเอง', commit:{slot:slotName, label: spell.name+' ▸ ตัวเอง', dice: spell.dice, skillId: spell._skillId||null} });
+        opts.push({ label:uiCopy('ร่ายใส่ตัวเอง','Cast on self'), commit:{slot:slotName, label: spell.name+' ▸ ตัวเอง', displayLabel:uiCopy(spell.name+' ▸ ตัวเอง',spell.name+' ▸ Self'), dice: spell.dice, skillId: spell._skillId||null} });
       } else if(/^(sphere_|cone_|line_)/.test(spell.target||'')){
-        opts.push({ label:'เล็งพื้นที่บน Map', meta:'('+spell.target+')', mapPick:true, target:spell.target,
+        opts.push({ label:uiCopy('เล็งพื้นที่บน Map','Target area on Map'), meta:'('+spell.target+')', mapPick:true, target:spell.target,
           commit:{slot:slotName, label: spell.name+' ▸ MAP', dice: spell.dice, skillId: spell._skillId||null} });
       } else {
         var _spRangeFt=ccRangeFtFromStr(spell.range);   // v295: กรองศัตรูที่เกินระยะเวท (เล็งเป้าตัวเดียว)
         enemies.forEach(function(e){
           var rr=ccTargetReach(e, _spRangeFt);
-          if(rr.ok){ opts.push({ label:e.name, meta:'ศัตรู', commit:{slot:slotName, label: spell.name+' ▸ '+e.name, dice: spell.dice, skillId: spell._skillId||null} }); }
-          else { opts.push({ label:e.name, meta:'⚠ ไกลเกินระยะเวท ('+rr.dist+' ช่อง · ถึง '+rr.max+')', dim:true }); }
+          if(rr.ok){ opts.push({ label:e.name, meta:uiCopy('ศัตรู','Enemy'), commit:{slot:slotName, label: spell.name+' ▸ '+e.name, dice: spell.dice, skillId: spell._skillId||null} }); }
+          else { opts.push({ label:e.name, meta:uiCopy('⚠ ไกลเกินระยะเวท ('+rr.dist+' ช่อง · ถึง '+rr.max+')','⚠ Out of spell range ('+rr.dist+' squares · reach '+rr.max+')'), dim:true }); }
         });
-        opts.push({ label:'ตัวเอง', meta:'พันธมิตร', commit:{slot:slotName, label: spell.name+' ▸ ตัวเอง', dice: spell.dice, skillId: spell._skillId||null} });
-        allies.forEach(function(a){ opts.push({ label:a.name, meta:'พันธมิตร', commit:{slot:slotName, label: spell.name+' ▸ '+a.name, dice: spell.dice, skillId: spell._skillId||null} }); });
+        opts.push({ label:uiCopy('ตัวเอง','Self'), meta:uiCopy('พันธมิตร','Allied'), commit:{slot:slotName, label: spell.name+' ▸ ตัวเอง', displayLabel:uiCopy(spell.name+' ▸ ตัวเอง',spell.name+' ▸ Self'), dice: spell.dice, skillId: spell._skillId||null} });
+        allies.forEach(function(a){ opts.push({ label:a.name, meta:uiCopy('พันธมิตร','Allied'), commit:{slot:slotName, label: spell.name+' ▸ '+a.name, dice: spell.dice, skillId: spell._skillId||null} }); });
       }
       return { items: opts };
     }
@@ -13432,9 +13466,9 @@ window.cc = (function(){
     if(last==='use_object'){
       var uobj=[];
       // เฉพาะของจริง: สิ่งของในฉาก (interactables) + ไอเทมในกระเป๋าตัวละคร
-      try{ ((window.__ccCtx&&window.__ccCtx.interactables)||[]).slice(0,8).forEach(function(it){ uobj.push({label:it.label, meta:(it.desc||'ในฉาก'), commit:{slot:'action', label:'ใช้ '+it.label}}); }); }catch(e){}
-      try{ ((window.__ccCtx&&window.__ccCtx.inventory)||[]).slice(0,14).forEach(function(it){ uobj.push({label:it.name+(it.qty>1?(' x'+it.qty):''), meta:'ในกระเป๋า', commit:{slot:'action', label:'ใช้ '+it.name}}); }); }catch(e){}
-      if(!uobj.length) uobj.push({label:'(ไม่มีสิ่งของให้ใช้ในฉากหรือกระเป๋า)', dim:true});
+      try{ ((window.__ccCtx&&window.__ccCtx.interactables)||[]).slice(0,8).forEach(function(it){ uobj.push({label:it.label, meta:(it.desc||uiCopy('ในฉาก','In the scene')), commit:{slot:'action', label:'ใช้ '+it.label, displayLabel:uiCopy('ใช้ '+it.label,'Use '+it.label)}}); }); }catch(e){}
+      try{ ((window.__ccCtx&&window.__ccCtx.inventory)||[]).slice(0,14).forEach(function(it){ uobj.push({label:it.name+(it.qty>1?(' x'+it.qty):''), meta:uiCopy('ในกระเป๋า','In your pack'), commit:{slot:'action', label:'ใช้ '+it.name, displayLabel:uiCopy('ใช้ '+it.name,'Use '+it.name)}}); }); }catch(e){}
+      if(!uobj.length) uobj.push({label:uiCopy('(ไม่มีสิ่งของให้ใช้ในฉากหรือกระเป๋า)','(No usable item in the scene or your pack)'), dim:true});
       return { items: uobj };
     }
 
@@ -13444,7 +13478,7 @@ window.cc = (function(){
       return { items: tlist.map(function(t){
         if(!isHelp){   // v295: Grapple/Shove = melee → ต้องเข้าถึงตัวเป้า (เดิน+เอื้อม 5ft)
           var rr=ccTargetReach(t, 5);
-          if(!rr.ok) return { label:t.name, meta:'⚠ ไกลเกินระยะ ('+rr.dist+' ช่อง · ถึง '+rr.max+') — เดินเข้าใกล้ก่อน', dim:true };
+          if(!rr.ok) return { label:t.name, meta:uiCopy('⚠ ไกลเกินระยะ ('+rr.dist+' ช่อง · ถึง '+rr.max+') — เดินเข้าใกล้ก่อน','⚠ Out of range ('+rr.dist+' squares · reach '+rr.max+') — move closer first'), dim:true };
         }
         return { label: t.name, mapPick:true, target:'creature',
           commit:{slot:'action',
@@ -13461,7 +13495,7 @@ window.cc = (function(){
       ((character.features&&character.features.bonus)||[]).forEach(function(f){
         items.push({label:f.name, meta:f.uses, commit:{slot:'bonus', label:f.name, skillId:f.id||null}});
       });
-      if(!items.length) items.push({label:'(ไม่มี bonus action ที่ใช้ได้สำหรับตัวละครนี้ — ข้ามช่องนี้ได้เลย)', dim:true});
+      if(!items.length) items.push({label:uiCopy('(ไม่มี bonus action ที่ใช้ได้สำหรับตัวละครนี้ — ข้ามช่องนี้ได้เลย)','(No bonus action is available for this character — you can skip this slot)'), dim:true});
       return { items: items };
     }
 
