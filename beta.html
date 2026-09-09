@@ -2720,7 +2720,7 @@ function partyDecisionWaitCount(decision){ return Math.max(0,Number(decision.quo
 // party-decision-ballot-copy.ts; the golden locks this mirror. The client never
 // renders server-sent message text — it maps the returned surface through this
 // catalog, so an unknown or hostile response can never speak to the player.
-const PARTY_DECISION_OPEN_UI_COPY=Object.freeze({
+const PARTY_DECISION_OPEN_UI_COPY=Object.freeze({ 'open-failed':Object.freeze(['เสียงเรียกคณะยังเปิดวงมติไม่ได้ ทางเลือกเดิมจึงยังไม่ถูกนำไปใช้','The call to the party could not open a decision. The proposed paths remain unchosen.']),
   'host-open-cta':Object.freeze(['เรียกคณะให้ลงมติเลือกเส้นทาง','Call the party to choose the path']),
   'host-open-waiting':Object.freeze(['เสียงเรียกกำลังไปถึงคณะ—รอสักครู่ก่อนเรียกอีกครั้ง','The call is reaching the party—wait a moment before calling again.']),
   'host-opened':Object.freeze(['วงลงมติเปิดแล้ว—ทุกเสียงที่มีสิทธิ์กำลังเลือกทางของคณะ',"The decision is open—every eligible voice may now choose the party's path."]),
