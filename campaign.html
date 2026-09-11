@@ -2218,7 +2218,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202609072030;
+const FRONTEND_BUILD = 202609110823;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2353,10 +2353,12 @@ function questAffordanceIntent(affordance, actorCharacterId){
   return {version:1,kind:'player_quest',operation:affordance.operation,target:{kind:affordance.operation==='accept'?'quest_offer':'active_quest',id:affordance.id},source:{kind:affordance.source_kind,id:affordance.source_id},actor_character_id:String(actorCharacterId)};
 }
 async function submitQuestAffordance(affordance){
-  if(gateBeforePlay()||window._questAffordanceSubmitting||resolving) return;
+  if(gateBeforePlay()) return;
+  if(window._questAffordanceSubmitting){ toast(uiCopy('กำลังส่ง… กรุณารอสักครู่','Sending… please wait')); return; }
+  if(resolving){ toast(uiCopy('DM กำลังประมวลผล — รอรอบถัดไปเพื่อเลือกเควส','The DM is resolving — wait for the next round to choose a quest'),true); return; }
   const aff=questAffordanceNormalize(affordance,'button');
   if(!aff||!curRound||!myChar){ toast(uiCopy('(แก้: ยังส่งตัวเลือกเควสไม่ได้ เพราะข้อมูลรอบหรือตัวละครไม่ครบ)','(Fixed: the quest choice cannot be submitted because round or character data is incomplete.)'),true); return; }
-  window._questAffordanceSubmitting=true;
+  window._questAffordanceSubmitting=true; actionSubmitFeedback(); toast(uiCopy('กำลังส่ง… กรุณารอสักครู่','Sending… please wait'));
   try{
     const repair=window._actionRepair&&String(window._actionRepair.round_id||'')===String(curRound.id)?window._actionRepair:null;
     if(repair&&repair.action_id){ const released=await retractActionForEdit(repair.action_id,''); if(!released) return; }
@@ -2367,10 +2369,10 @@ async function submitQuestAffordance(affordance){
     await loadRound(); renderRoundbar(); window._afterSubmit=true; await resolveRound(false);
     if(activeTab()==='quest') await renderQuest();
   }catch(e){ toast(e.message||uiCopy('(แก้: ส่งตัวเลือกเควสไม่สำเร็จ — ยังไม่มีสถานะเควสถูกเปลี่ยน)','(Fixed: the quest choice could not be submitted; no quest state changed.)'),true); }
-  finally{ window._questAffordanceSubmitting=false; try{ if(activeTab()==='quest') renderQuest(); else if(activeTab()==='story') renderStory(); }catch(e){} }
+  finally{ window._questAffordanceSubmitting=false; actionSubmitFeedback(); try{ if(activeTab()==='quest') renderQuest(); else if(activeTab()==='story') renderStory(); }catch(e){} }
 }
 async function retractActionForEdit(actionId, draftText){
-  if(!curRound||!actionId) return;
+  if(!curRound||!actionId){ toast(uiCopy('ยังแก้คำสั่งไม่ได้ — ไม่พบรอบหรือคำสั่งนี้','Cannot edit yet — the round or action is missing'),true); return; }
   try{
     var rpc=await supa.rpc('retract_action_v2',{p_cid:campaign.id,p_round:curRound.id,p_group:actionIngressGroup(curRound,myChar&&myChar.id),p_action:actionId});
     if(rpc.error||!rpc.data||rpc.data.ok!==true) throw new Error(actionIngressError(rpc.data&&rpc.data.error,rpc.error&&rpc.error.message));
@@ -2382,7 +2384,7 @@ async function retractActionForEdit(actionId, draftText){
   }catch(e){ toast(e.message||uiCopy('ปลดคำสั่งไม่สำเร็จ','Could not release the action'),true); return false; }
 }
 async function resolveInventoryAffordance(actionId, affordance){
-  if(resolving||!curRound||!actionId||!affordance||!affordance.payload) return;
+  if(resolving||!curRound||!actionId||!affordance||!affordance.payload){ toast(resolving?uiCopy('DM กำลังประมวลผล — กรุณารอ','The DM is resolving — please wait'):uiCopy('ยังยืนยันตัวเลือกคลังไม่ได้ — ข้อมูลรอบหรือรายการไม่ครบ','Cannot confirm the inventory choice yet — round or item data is incomplete'),true); return; }
   resolving=true; renderRoundbar(); setMyThinking(true);
   try{
     const token=(await supa.auth.getSession()).data.session?.access_token;
@@ -2412,7 +2414,7 @@ async function resolveInventoryAffordance(actionId, affordance){
   }
 }
 async function submitInventoryAffordance(affordance){
-  if(resolving||!curRound||!myChar||!affordance||!affordance.payload) return;
+  if(resolving||!curRound||!myChar||!affordance||!affordance.payload){ toast(resolving?uiCopy('DM กำลังประมวลผล — กรุณารอ','The DM is resolving — please wait'):uiCopy('ยังส่งตัวเลือกคลังไม่ได้ — ข้อมูลรอบ ตัวละคร หรือรายการไม่ครบ','Cannot submit the inventory choice yet — round, character or item data is incomplete'),true); return; }
   if(!inventoryAffordanceUiAllowed(affordance,curRound.meta)){
     toast(uiCopy('(แก้: ตอนนี้ยังขายของไม่ได้ — ต้องอยู่ในร้านหรือกำลังซื้อขายกับ NPC ที่ระบบยืนยันก่อน)','(Fixed: items cannot be sold here; enter a shop or establish a verified NPC trade first.)'),true);
     return;
@@ -2569,7 +2571,7 @@ function renderFrontendRefreshBanner(){
   const v=frontendRefreshSafe(), why={draft:uiCopy('มีข้อความที่ยังไม่ได้ส่ง','an unsent draft'),local_write:uiCopy('คำขอในเครื่องกำลังจบ','a local request is finishing'),resolving:uiCopy('DM กำลังประมวลผล','the DM is resolving'),combat:uiCopy('ยังอยู่กลางการต่อสู้','combat is active'),victory_transaction:uiCopy('กำลังปิดธุรกรรมหลังศึก','the victory transaction is active')};
   el.innerHTML='<div>'+uiCopy('⚠️ หน้าเกมรุ่นนี้เก่ากว่ารุ่นที่ระบบเกมรองรับ','⚠️ This game page is older than the game service requires')+(v.safe?uiCopy(' — พร้อมรีเฟรชอย่างปลอดภัย',' — safe to reload'):uiCopy(' — รอคำขอในเครื่องให้จบ',' — waiting for the local request'))+'</div><div style="font-weight:400;opacity:.85">'+(v.safe?(v.stashed?uiCopy('ข้อความร่างจะถูกเก็บในเครื่องและคืนหลังโหลดหน้าใหม่','Your draft will be saved locally and restored after reload'):uiCopy('กดปุ่มเมื่อพร้อม ข้อมูลเกมถูกเก็บไว้อย่างปลอดภัยแล้ว','Reload when ready; your game data is safe')):uiCopy('รอ: ','Waiting for: ')+v.blockers.map(x=>why[x]||x).join(' · '))+'</div>';
   // v737 P0-A: reload พร้อม cache-buster จาก min build (GitHub Pages เสิร์ฟ HTML แคชได้ — reload() เปล่าอาจได้ไฟล์เก่าซ้ำ) · คง query เดิมทั้งหมด (id/code) แก้เฉพาะ v
-  const b=document.createElement('button'); b.type='button'; b.textContent=v.safe?uiCopy('รีเฟรชเพื่อใช้รุ่นล่าสุด','Reload latest version'):uiCopy('ยังรีเฟรชไม่ได้','Reload not safe yet'); b.disabled=!v.safe; b.style.cssText='margin-top:7px;padding:7px 12px'; b.onclick=async()=>{ if(!frontendRefreshSafe().safe) return; if(!frontendStashDrafts()&&frontendDraftPending()){ if(!await uiConfirmText(uiCopy('บันทึกฉบับร่างไม่สำเร็จ (เบราว์เซอร์ไม่ให้เก็บข้อมูล) — รีเฟรชแล้วข้อความที่พิมพ์ไว้จะหาย ยืนยันรีเฟรช?','Draft could not be saved (browser storage unavailable) — reloading will lose the typed text. Reload anyway?'),'frontend-refresh-lose-draft')) return; } try{ const u=new URL(window.location.href); u.searchParams.set('v', String((_frontendRequirement&&_frontendRequirement.minBuild)||FRONTEND_BUILD)); window.location.replace(u.toString()); }catch(e){ window.location.reload(); } }; el.appendChild(b);   // v738b P3-4: stash ล้ม + มี draft = ต้อง confirm ก่อนทิ้ง
+  const b=document.createElement('button'); b.type='button'; b.textContent=v.safe?uiCopy('รีเฟรชเพื่อใช้รุ่นล่าสุด','Reload latest version'):uiCopy('ยังรีเฟรชไม่ได้','Reload not safe yet'); b.disabled=!v.safe; b.style.cssText='margin-top:7px;padding:7px 12px'; b.onclick=async()=>{ if(!frontendRefreshSafe().safe) return toast(uiCopy('ยังรีเฟรชไม่ได้ในขณะนี้ รอให้การทำงานปัจจุบันเสร็จก่อน','Reload is not available yet. Wait for the current activity to finish.')); if(!frontendStashDrafts()&&frontendDraftPending()){ if(!await uiConfirmText(uiCopy('บันทึกฉบับร่างไม่สำเร็จ (เบราว์เซอร์ไม่ให้เก็บข้อมูล) — รีเฟรชแล้วข้อความที่พิมพ์ไว้จะหาย ยืนยันรีเฟรช?','Draft could not be saved (browser storage unavailable) — reloading will lose the typed text. Reload anyway?'),'frontend-refresh-lose-draft')) return; } try{ const u=new URL(window.location.href); u.searchParams.set('v', String((_frontendRequirement&&_frontendRequirement.minBuild)||FRONTEND_BUILD)); window.location.replace(u.toString()); }catch(e){ window.location.reload(); } }; el.appendChild(b);   // v738b P3-4: stash ล้ม + มี draft = ต้อง confirm ก่อนทิ้ง
 }
 function frontendRequirementSeen(minBuild,minEpoch){
   const mb=Number(minBuild), mep=Number(minEpoch); if(!(mb>FRONTEND_BUILD||mep>FRONTEND_COMPAT_EPOCH)) return;
@@ -4134,7 +4136,7 @@ async function selectWorldCampaign(id){
   await enterCampaign();
 }
 async function requestWorldSwitch(){
-  if(worldSwitchReloading||worldChoices.length<2)return;
+  if(worldSwitchReloading){ toast(uiCopy('กำลังเปลี่ยนโลก… กรุณารอ','Switching worlds… please wait')); return; } if(worldChoices.length<2){ toast(uiCopy('ยังไม่มีโลกอื่นให้สลับ','There is no other world to switch to')); return; }
   worldSwitchReloading=true;   // closes reconnect/resync entry points during the teardown→reload boundary
   worldSwitcherLanguage=UI18N.language(uiLanguage());
   try{sessionStorage.setItem('ttrpg_world_switcher_language',worldSwitcherLanguage);}catch(e){}
@@ -5231,7 +5233,7 @@ async function loadNarrative(){
   try{if(typeof triggerPostFlipRoundRefetchFromRows==='function')triggerPostFlipRoundRefetchFromRows(narrative);}catch(_postFlipLoadNarrativeTriggerError){}
 }
 async function loadOlderNarrative(){
-  if(!narrative.length) return;
+  if(!narrative.length){ toast(uiCopy('ยังไม่มีบทก่อนหน้านี้ให้โหลด','There is no earlier narrative to load')); return; }
   try{ const { data } = await supa.from('narrative').select('*').eq('campaign_id',campaign.id)
     .eq('group_no',terminalGroupForUi())
     .lt('created_at',narrative[0].created_at).order('created_at',{ascending:false}).limit(NARR_WINDOW);
@@ -5799,7 +5801,7 @@ let pb={str:8,dex:8,con:8,int:8,wis:8,cha:8};
 function pbSpent(){ let s=0; for(const k in pb) s+=PB_COST[pb[k]]; return s; }
 function abMod(v){ const m=Math.floor((v-10)/2); return (m>=0?'+':'−')+Math.abs(m); }
 function pbAdj(ab,d){
-  const nv=pb[ab]+d; if(nv<8||nv>15) return;
+  const nv=pb[ab]+d; if(nv<8||nv>15){ toast(uiCopy('คะแนนซื้อแต้มต้องอยู่ระหว่าง 8 ถึง 15','Point-buy scores must be between 8 and 15'),true); return; }
   if(d>0){ const extra=PB_COST[nv]-PB_COST[pb[ab]]; if(extra>(PB_BUDGET-pbSpent())){ toast(uiText('builder.pointsInsufficient'),true); return; } }
   pb[ab]=nv; renderPB(); suggestHP();
 }
@@ -6173,7 +6175,7 @@ function renderSpellPick(){
   wrap.innerHTML=html;
 }
 function toggleSpell(slug){
-  const sp=SPELL_CAT.find(x=>x.slug===slug); if(!sp) return;
+  const sp=SPELL_CAT.find(x=>x.slug===slug); if(!sp){ toast(uiCopy('ไม่พบเวทนี้ — เปิดรายการเวทใหม่แล้วลองอีกครั้ง','Spell not found — reopen the spell list and try again'),true); return; }
   const caps=spellCaps(); const i=chosenSpells.findIndex(x=>x.slug===slug);
   if(i>=0){ chosenSpells.splice(i,1); }
   else {
@@ -6394,12 +6396,12 @@ async function slowlifeMutate(payload,success){
   catch(e){ toast(e.message||uiCopy('ทำรายการไม่สำเร็จ','Request failed'),true); slowlifeState._ts=0; await loadSlowlifeState(true); renderRoundbar(); if(activeTab()==='companion') renderCompanion(); return null; }
 }
 async function slowlifeSetMode(mode){
-  if(campaign.host_id!==me.id) return;
+  if(campaign.host_id!==me.id){ toast(uiCopy('เฉพาะโฮสต์ของโลกนี้ที่ทำรายการนี้ได้','Only the host of this world can do this'),true); return; }
   const j=await slowlifeMutate({set_wall_mode:{slowlife_lanes:mode}},uiCopy('ตั้งโหมด Slowlife แล้ว','Slowlife mode updated'));
   if(j) await loadSlowlifeState(true);
 }
 async function slowlifeOpen(kind){
-  if(campaign.host_id!==me.id) return;
+  if(campaign.host_id!==me.id){ toast(uiCopy('เฉพาะโฮสต์ของโลกนี้ที่ทำรายการนี้ได้','Only the host of this world can do this'),true); return; }
   const horizon=Math.floor(Number(await uiPromptText(uiCopy('ระยะเวลาหน้าต่าง (นาที · 15-720 · หาร 5 ลงตัว)','Window length in minutes (15-720, divisible by 5)'),'60','slowlife-window-minutes',{inputType:'number'}))||0);
   if(horizon<15||horizon>720||horizon%5) return toast(uiCopy('เวลาไม่ถูกต้อง','Invalid duration'),true);
   await slowlifeMutate({slowlife_open:{kind:kind,horizon_minutes:horizon,request_key:crypto.randomUUID()}},uiCopy('เปิดช่วง Slowlife แล้ว','Slowlife opened'));
@@ -6509,8 +6511,8 @@ async function slowlifeShare(knowledgeId){
   await slowlifeMutate({slowlife_share:{knowledge_id:knowledgeId,mode:'public_observation',request_key:crypto.randomUUID()}},uiCopy('เปิดเผยข้อมูลให้ปาร์ตี้แล้ว','Fact shared with the party'));
 }
 async function slowlifeClose(){
-  if(campaign.host_id!==me.id) return;
-  const sw=slowlifeState&&slowlifeState.window; if(!sw) return;
+  if(campaign.host_id!==me.id){ toast(uiCopy('เฉพาะโฮสต์ของโลกนี้ที่ทำรายการนี้ได้','Only the host of this world can do this'),true); return; }
+  const sw=slowlifeState&&slowlifeState.window; if(!sw){ toast(uiCopy('ไม่มีช่วง Slowlife ที่กำลังเปิดอยู่','There is no open Slowlife window'),true); return; }
   if(!await uiConfirmText(uiCopy('รวมปาร์ตี้และยืนยันเวลาโลกตอนนี้? บทส่วนตัวยังคงเห็นเฉพาะผู้รับ · หากยังไม่มีเลน ระบบจะยกเลิกโดยไม่ขยับเวลา','Regroup and commit world time now? Private prose remains recipient-only. If no lane exists, the window is cancelled without advancing time.'),'slowlife-close')) return;
   const j=await slowlifeMutate({slowlife_close:{window_id:sw.id,request_key:crypto.randomUUID()}},uiCopy('รวมปาร์ตี้แล้ว','Party regrouped'));
   if(j) await refreshAll();
@@ -6687,7 +6689,7 @@ function companionSoon(label){ toast(label+uiCopy(' จะเปิดในเ�
 async function companionEstateChoose(estateId,action){
   const sourceButton=companionActiveButton();
   try{ const v=await companionViewLoad(true),estate=(v.estates||[]).find(row=>String(row.id)===String(estateId)); if(!estate) return toast(uiCopy('รายการมรดกนี้ไม่อยู่ในคิวแล้ว','This estate entry is no longer awaiting a choice.'),true); const state=estate.choice_capability&&estate.choice_capability.actions&&estate.choice_capability.actions[action]; if(!state||state.allowed!==true) return toast(uiCopy(state&&state.reason_th||'ระบบยังยืนยันสิทธิ์เลือกมรดกไม่ได้',state&&state.reason_en||'The server has not verified estate-choice access yet.'),true);
-    let target=null; if(action==='recover'||action==='pass_on'){ const targets=Array.isArray(v.estate_targets)?v.estate_targets:[]; if(!targets.length) return toast(uiCopy('ไม่มีตัวละครที่รับของก้อนนี้ได้','No eligible character can receive this estate entry.'),true); const targetId=await uiSelectInPage({title:action==='recover'?uiCopy('เลือกผู้รับคืน','Choose who recovers it'):uiCopy('เลือกผู้รับของ','Choose who receives it'),message:uiCopy('ระบบจะย้ายของทั้งก้อนพร้อมหลักฐานทุกหน่วย','The whole entry and every unit identity will move together.'),surfaceId:'companion-estate-target',options:targets.map(row=>({value:row.character_id,label:row.name})),acceptText:uiCopy('เลือก','Select')}); if(!targetId) return; target=targets.find(row=>String(row.character_id)===String(targetId))||null; if(!target) return; }
+    let target=null; if(action==='recover'||action==='pass_on'){ const targets=Array.isArray(v.estate_targets)?v.estate_targets:[]; if(!targets.length) return toast(uiCopy('ไม่มีตัวละครที่รับของก้อนนี้ได้','No eligible character can receive this estate entry.'),true); const targetId=await uiSelectInPage({title:action==='recover'?uiCopy('เลือกผู้รับคืน','Choose who recovers it'):uiCopy('เลือกผู้รับของ','Choose who receives it'),message:uiCopy('ระบบจะย้ายของทั้งก้อนพร้อมหลักฐานทุกหน่วย','The whole entry and every unit identity will move together.'),surfaceId:'companion-estate-target',options:targets.map(row=>({value:row.character_id,label:row.name})),acceptText:uiCopy('เลือก','Select')}); if(!targetId) return; target=targets.find(row=>String(row.character_id)===String(targetId))||null; if(!target) return toast(uiCopy('ตัวละครที่เลือกไม่อยู่ในรายชื่อผู้รับแล้ว โปรดเลือกใหม่','The selected character is no longer an eligible recipient. Please choose again.'),true); }
     const actionLabel={recover:uiCopy('รับคืน','recover'),bury:uiCopy('ฝังไปพร้อมกัน','bury'),pass_on:uiCopy('ส่งต่อ','pass on'),leave:uiCopy('เก็บไว้กับผู้ตาย','leave with the deceased')}[action]||action,item=String(estate.item_name||'')==='unknown_item'?uiCopy('รายการที่ไม่ทราบชื่อ','the unknown item'):String(estate.item_name||uiCopy('รายการที่ไม่ทราบชื่อ','the unknown item')); if(!await uiConfirmText(uiCopy(`ยืนยันว่าจะ${actionLabel} ${item} ×${Math.max(1,Math.floor(Number(estate.quantity)||1))}${target?' ให้ '+target.name:''}?`,`Confirm that you want to ${actionLabel} ${item} ×${Math.max(1,Math.floor(Number(estate.quantity)||1))}${target?' to '+target.name:''}?`),'companion-estate-choice')) return;
     const j=await companionActionResolve('estate:'+estateId+':'+action,{companion_estate_choice:{estate_id:estateId,action,target_character_id:target&&target.character_id||null,request_key:crypto.randomUUID()}},{button:sourceButton}); toast(j.note||uiCopy('บันทึกชะตาของมรดกแล้ว','Estate choice saved.')); _companionViewCache=null; await uiBoundedTask(()=>refreshAll(),{timeoutMs:COMPANION_UI_REFRESH_MS,timeoutMessage:uiCopy('บันทึกแล้ว แต่หน้าเกมยังรีเฟรชไม่ทัน','Saved, but the game view did not refresh in time.')}); renderCompanion();
   }catch(e){ toast(e.message||uiCopy('บันทึกชะตาของมรดกไม่สำเร็จ','Could not save the estate choice.'),true); }
@@ -6765,7 +6767,7 @@ function renderChatList(){
   list.scrollTop=list.scrollHeight;
 }
 async function sendChat(){
-  const ta=$('chatInput'); const body=ta&&ta.value.trim(); if(!body) return;
+  const ta=$('chatInput'); const body=ta&&ta.value.trim(); if(!body){ toast(uiCopy('พิมพ์ข้อความก่อนส่ง','Type a message before sending'),true); return; }
   ta.value=''; ta.focus();
   try{ const { error }=await supa.from('chat_messages').insert({campaign_id:campaign.id,user_id:me.id,body:body.slice(0,2000)}); if(error) throw error; }
   catch(e){ toast(e.message||uiCopy('ส่งไม่สำเร็จ','Submit failed'),true); }
@@ -6912,8 +6914,8 @@ function renderRecruitmentAffordance(feed,rows){
       : uiCopy('การกดปุ่มจะส่งคำเชิญในนามตัวละครของคุณ จากนั้นระบบจะเพิ่มสมาชิกเมื่อ NPC ยอมรับและธุรกรรมชีทสำเร็จเท่านั้น','This sends an invitation from your character. The server adds the member only after NPC acceptance and a complete sheet transaction.');
     card.appendChild(note);
     const btn=document.createElement('button'); btn.type='button'; btn.className='btn'; btn.disabled=inCombat; btn.textContent=inCombat?uiCopy('รอยืนยันหลังจบศึก','Confirm after combat'):uiCopy('เชิญ '+name+' เข้าปาร์ตี้','Invite '+name+' to the party');
-    btn.onclick=async()=>{ if(inCombat||btn.disabled) return; btn.disabled=true; await quickSubmit(uiCopy('ฉันขอเชิญ '+name+' เข้าร่วมปาร์ตี้อย่างเป็นทางการ หากเจ้าตัวยินยอม','I formally invite '+name+' to join the party, if they accept.')); };
-    card.appendChild(btn); feed.appendChild(card);
+    btn.onclick=async()=>{ if(inCombat) return toast(uiCopy('รอให้จบการต่อสู้ก่อนเชิญเข้าร่วมปาร์ตี้','Wait until combat ends before inviting someone to the party.')); if(btn.disabled) return toast(uiCopy('กำลังส่งคำเชิญ รอสักครู่','Sending the invitation. Please wait.')); btn.disabled=true; var sent=false; try{ sent=(await quickSubmit(uiCopy('ฉันขอเชิญ '+name+' เข้าร่วมปาร์ตี้อย่างเป็นทางการ หากเจ้าตัวยินยอม','I formally invite '+name+' to join the party, if they accept.')))===true; }catch(e){ toast(uiCopy('ส่งคำเชิญไม่สำเร็จ โปรดลองใหม่','Could not send the invitation. Please try again.'),true); }finally{ btn.dataset.actionSubmitBlocked=String(sent||!!inCombat); btn.disabled=sent||!!inCombat; } };
+    card.appendChild(actionSubmitButton(btn,'quick',inCombat)); feed.appendChild(card);
   });
 }
 function renderQuestAffordanceStorySignal(feed){
@@ -6992,7 +6994,7 @@ function makeSkipBtn(){
   };
   label();
   const iv=setInterval(()=>{ if(!document.body.contains(sk)){ clearInterval(iv); return; } label(); },1000);
-  sk.onclick=async()=>{ if(await uiConfirmText(uiCopy('ข้ามเทิร์นของ ','Skip the turn for ')+(gCombat.activeName||uiCopy('ผู้เล่นนี้','this player'))+uiCopy('?\n(เทิร์นนี้จะถือว่าตั้งรับ/Dodge — ใช้เมื่อผู้เล่น/บอทไม่ตอบสนองเท่านั้น)','?\n(This turn will count as defending/Dodge — use only when the player or bot is unresponsive.)'),'combat-skip-turn')) resolveRound(true); };
+  sk.onclick=async()=>{ if(await uiConfirmText(uiCopy('ข้ามเทิร์นของ ','Skip the turn for ')+(gCombat.activeName||uiCopy('ผู้เล่นนี้','this player'))+uiCopy('?\n(เทิร์นนี้จะถือว่าตั้งรับ/Dodge — ใช้เมื่อผู้เล่น/บอทไม่ตอบสนองเท่านั้น)','?\n(This turn will count as defending/Dodge — use only when the player or bot is unresponsive.)'),'combat-skip-turn')) resolveRound(true,undefined,false,true); };
   return sk;
 }
 // DM Options v704: flat envelope renderer + suggestion-only draft. Canonical block is mirrored in beta.html.
@@ -7016,7 +7018,7 @@ function dmParseOption(raw){
   return out;
 }
 function dmFillOption(opt,setRec,idx){
-  const t=$('actInput'); if(!t) return;
+  const t=$('actInput'); if(!t){ toast(resolving||(curRound&&curRound.phase==='resolving')?uiCopy('DM กำลังประมวลผล — ยังส่งคำสั่งไม่ได้ตอนนี้ ลองใหม่อีกครู่','The DM is resolving — you cannot send an action right now. Try again shortly.'):uiCopy('ยังไม่มีช่องสั่งการในรอบนี้ — ลองใหม่อีกครู่','Actions are not available in this round yet — try again shortly.'),true); return; }
   t.value=opt.action||opt.title||''; t.focus();
   window._dmOptionDraftRef=(setRec&&setRec.set_id)?{set_id:String(setRec.set_id),index:idx,character_id:(myChar&&myChar.id)||null,rid:(curRound&&curRound.id)||null}:null;
   const contextKey=dmOptionSelectionContext(setRec);
@@ -7177,7 +7179,7 @@ function persOptsWidget(){
 // v287: ผู้เล่นกด "ไปต่อ" หลังอ่านบทปิดท้ายศึก → server เพิ่ม done · ครบทุกคน (หรือ host force) → finalize → VICTORY
 async function forceLevelup(){   // v538 H5: host บังคับปิด level_up gate (คนออฟไลน์ค้าง)
   if(gateBeforePlay()) return;
-  if(!campaign||!me||campaign.host_id!==me.id) return;
+  if(!campaign||!me||campaign.host_id!==me.id){ toast(uiCopy('เฉพาะโฮสต์ของโลกนี้ที่ทำรายการนี้ได้','Only the host of this world can do this'),true); return; }
   if(!await uiConfirmText(uiCopy('ข้ามการรอผู้เล่นที่ยังไม่เลือกสกิลเลเวลอัพ แล้วเล่นต่อ?\n(XP/เลเวลของคนที่ยังไม่กดจะไม่หาย — ระบบเลื่อนให้รอบหน้า)','Stop waiting for players who have not chosen their level-up ability and continue?\n(Their XP/level will not be lost — the system will defer it to the next round.)'),'levelup-force-skip')) return;
   try{
     var sess=(await supa.auth.getSession()).data.session; var tok=sess&&sess.access_token;
@@ -7187,10 +7189,33 @@ async function forceLevelup(){   // v538 H5: host บังคับปิด le
     toast(uiCopy('⚡ ข้ามการเลเวลอัพแล้ว — เล่นต่อได้','⚡ Level-up skipped — you can keep playing')); try{ await loadState(); renderRoundbar(); }catch(e){}
   }catch(e){ toast(uiCopy('ข้ามการเลเวลอัพไม่สำเร็จ: ','Could not skip level-up: ')+((e&&e.message)||e),true); }
 }
+// W170 R1: existing submit latches own feedback on current and rebuilt buttons.
+function actionSubmitFeedback(button){
+  var flags={action:'_actSubmitting',quick:'_quickBusy',session:'_snSubmitting',npcAid:'_npcAidOfferSubmitting',quest:'_questAffordanceSubmitting'};
+  (button?[button]:document.querySelectorAll('[data-action-submit]')).forEach(function(node){
+    var kind=node.dataset.actionSubmit, busy=!!window[flags[kind]];
+    node.disabled=busy||node.dataset.actionSubmitBlocked==='true'||(kind==='quest'&&!!resolving);
+    node.textContent=busy?uiCopy('กำลังส่ง…','Sending…'):node.dataset.actionSubmitLabel;
+    node.setAttribute('aria-busy',String(busy));
+  });
+}
+function actionSubmitButton(button,kind,blocked){
+  button.dataset.actionSubmit=kind; button.dataset.actionSubmitLabel=button.textContent;
+  button.dataset.actionSubmitBlocked=String(!!blocked); actionSubmitFeedback(button); return button;
+}
+// W170: update current nodes, including buttons rebuilt while the request is pending.
+function victoryAckFeedback(){
+  document.querySelectorAll('[data-victory-ack]').forEach(function(button){
+    var busy=!!window._vaSubmitting;
+    button.disabled=busy||!!resolving;
+    button.textContent=busy?uiCopy('กำลังส่ง…','Sending…'):button.dataset.victoryAck;
+    button.setAttribute('aria-busy',String(busy));
+  });
+}
 async function submitVictoryAck(force,groupOverride){
   if(gateBeforePlay()) return;
-  if(window._vaSubmitting) return;   // v418: กันกดซ้ำ/ยิงซ้อน → server finalize ซ้ำ → ป้าย VICTORY เด้ง 2 รอบ
-  window._vaSubmitting=true;
+  if(window._vaSubmitting){ toast(uiCopy('กำลังส่ง… กรุณารอสักครู่','Sending… please wait')); return; }   // v418: keep the duplicate-submit fence.
+  window._vaSubmitting=true; victoryAckFeedback(); toast(uiCopy('กำลังส่ง… กรุณารอสักครู่','Sending… please wait'));
   var _terminalFinalized=false;
   try{
     var sess=(await supa.auth.getSession()).data.session; var tok=sess&&sess.access_token;
@@ -7201,19 +7226,19 @@ async function submitVictoryAck(force,groupOverride){
     try{ var rs=await supa.from('campaign_state').select('*').eq('campaign_id',campaign.id).maybeSingle(); if(!rs.error&&rs.data){ worldState=rs.data; cacheSave('state',worldState); } }catch(e){}
     if(j.status==='victory_finalized'){ _terminalFinalized=true; window._terminalExitPending=true; try{ await renderRoundbar(); }catch(e){} toast(uiCopy('🏆 ชัยชนะ!','🏆 Victory!')); try{ await refreshAll(); if(activeTab()==='me') renderMe(); }catch(e){} }   /* v756: terminalExitPending hides stale battle actions until the explicit outro finishes · v559: refreshAll (ไม่ใช่แค่ loadState) — finalize เขียน XP/loot/เงินลง character_sheets → reload mySheet ให้แท็บ Stat อัปเดต */
     else if(j.status==='defeat_finalized'){ _terminalFinalized=true; window._terminalExitPending=true; try{ await renderRoundbar(); }catch(e){} toast(uiCopy('💀 พ่ายแพ้… แต่เรื่องราวยังไม่จบ','💀 Defeat… but the story is not over')); try{ await refreshAll(); if(activeTab()==='me') renderMe(); }catch(e){} }   /* v756 live playtest: กัน Battle Scene ค้าง HP/initiative ศึกเก่าระหว่าง outro · v531b: defeat gate (v506) จบ — ห้ามใช้ข้อความชัยชนะ */
-    else if(j.status==='no_victory_pending'){ /* จบไปแล้ว */ }
+    else if(j.status==='no_victory_pending'){ toast(uiCopy('รับทราบแล้ว — ช่วงนี้จบไปแล้ว','Already acknowledged — this stage has ended')); }
     else if(j.status==='victory_ack_retry'||j.status==='defeat_retry'){ toast(j.note||uiCopy('(แก้: ธุรกรรมหลังศึกยังไม่ครบ — กรุณาลองอีกครั้ง)','(Fixed: the post-combat transaction is incomplete — try again.)'),true); }
     else toast(uiCopy('✓ พร้อมแล้ว (','✓ Ready (')+(j.done||0)+'/'+(j.total||0)+')');
     try{ await renderRoundbar(); }catch(e){}
     if(_terminalFinalized&&typeof exitBattleSceneWithOutro==='function'&&window._bsShown){ try{ await exitBattleSceneWithOutro(); }catch(e){} }
     else try{ scheduleBattleScene(); }catch(e){}
   }catch(e){ toast(uiCopy('ส่งไม่สำเร็จ ลองใหม่','Submit failed — try again'),true); }
-  finally{ window._vaSubmitting=false; if(_terminalFinalized){ window._terminalExitPending=false; try{ await renderRoundbar(); }catch(e){} } }
+  finally{ window._vaSubmitting=false; victoryAckFeedback(); if(_terminalFinalized){ window._terminalExitPending=false; try{ await renderRoundbar(); }catch(e){} } }
 }
 // ── v617 SESSION: host เริ่มตอนถัดไป (จาก interlude) — มิเรอร์ submitVictoryAck ──
 async function submitSessionNext(){
-  if(window._snSubmitting) return;
-  window._snSubmitting=true;
+  if(window._snSubmitting){ toast(uiCopy('กำลังส่ง… กรุณารอสักครู่','Sending… please wait')); return; }
+  window._snSubmitting=true; actionSubmitFeedback(); toast(uiCopy('กำลังส่ง… กรุณารอสักครู่','Sending… please wait'));
   try{
     var sessS=(await supa.auth.getSession()).data.session; var tokS=sessS&&sessS.access_token;
     var rS=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tokS},body:JSON.stringify({campaign_id:campaign.id, session_next:true})});
@@ -7223,7 +7248,7 @@ async function submitSessionNext(){
     try{ await loadState(); }catch(e){}
     try{ await renderRoundbar(); }catch(e){}
   }catch(e){ toast(uiCopy('เริ่มตอนใหม่ไม่สำเร็จ ลองใหม่','Could not start a new session — try again'),true); }
-  finally{ window._snSubmitting=false; }
+  finally{ window._snSubmitting=false; actionSubmitFeedback(); }
 }
 // v638 BUG2 ownerWall: เจ้าของ options/roll แบบ 'รวม 2 แท็ก' (for_char_id=combat turn-lock · opt_for=story addressee) — branch-agnostic
 //   ปิด cross-branch fail-open: รอบคอมแบตที่ render ผ่านสาขา non-combat (badge COMBAT แต่ _combatActive ยังไม่ทัน) เดิมเช็คแค่ opt_for
@@ -7267,7 +7292,7 @@ async function respondNpcCombatAidOffer(offerKey,decision){
   if(!match||!myChar||String(match[1]).toLowerCase()!==String(myChar.id||'').toLowerCase()||!curRound||!['accept','decline'].includes(decision)){
     toast(uiCopy('(แก้: คำตอบนี้ไม่ตรงกับข้อเสนอที่ส่งถึงเจ้า จึงไม่มีสิ่งใดเปลี่ยนแปลง)','(Fixed: this answer did not match the offer addressed to you, so nothing changed.)'),true); return;
   }
-  if(window._npcAidOfferSubmitting) return; window._npcAidOfferSubmitting=true;
+  if(window._npcAidOfferSubmitting){ toast(uiCopy('กำลังส่ง… กรุณารอสักครู่','Sending… please wait')); return; } window._npcAidOfferSubmitting=true; actionSubmitFeedback(); toast(uiCopy('กำลังส่ง… กรุณารอสักครู่','Sending… please wait'));
   try{
     // OFFER-CLICK-TIME-01 (migration 0249): this screen never sends a click time.
     // The binding instant is stamped by the server inside respond_npc_offer_consent_v1
@@ -7299,7 +7324,7 @@ async function respondNpcCombatAidOffer(offerKey,decision){
     toast(decision==='accept'?uiCopy('คำตอบรับของเจ้าถูกส่งถึงผู้ยื่นข้อเสนอแล้ว','Your acceptance has reached the one who made the offer'):uiCopy('คำปฏิเสธของเจ้าถูกส่งถึงผู้ยื่นข้อเสนอแล้ว','Your refusal has reached the one who made the offer'));
     renderRoundbar();
   }catch(e){ toast(uiCopy('(แก้: คำตอบยังส่งไปไม่ถึง — ข้อเสนอยังคงเดิมและลองตอบใหม่ได้)','(Fixed: the answer did not reach its destination; the offer is unchanged and you may try again.)'),true); }
-  finally{ window._npcAidOfferSubmitting=false; }
+  finally{ window._npcAidOfferSubmitting=false; actionSubmitFeedback(); }
 }
 function renderNpcCombatAidOfferCard(bar){
   if(!bar||!myChar) return;
@@ -7308,8 +7333,8 @@ function renderNpcCombatAidOfferCard(bar){
     const card=document.createElement('div'); card.className='note npc-combat-aid-offer'; card.style.cssText='text-align:left;padding:10px 9px;line-height:1.6;border:1px solid rgba(250,199,117,.65);border-radius:8px;background:rgba(250,199,117,.07);margin:6px 0';
     const copy=document.createElement('div'); copy.textContent=state.content||uiCopy('มีผู้ยื่นมือขอร่วมยืนในแนวรบ และกำลังรอฟังคำตอบของเจ้า','Someone has offered to stand in the battle line and waits for your answer'); card.appendChild(copy);
     const row=document.createElement('div'); row.style.cssText='display:flex;gap:8px;margin-top:8px;flex-wrap:wrap';
-    const yes=document.createElement('button'); yes.type='button'; yes.className='btn sm'; yes.textContent=uiCopy('ตอบรับให้ร่วมรบ','Accept their aid'); yes.disabled=!!window._npcAidOfferSubmitting; yes.onclick=()=>respondNpcCombatAidOffer(state.offerKey,'accept'); row.appendChild(yes);
-    const no=document.createElement('button'); no.type='button'; no.className='btn ghost sm'; no.textContent=uiCopy('ปฏิเสธครั้งนี้','Decline for now'); no.disabled=!!window._npcAidOfferSubmitting; no.onclick=()=>respondNpcCombatAidOffer(state.offerKey,'decline'); row.appendChild(no);
+    const yes=document.createElement('button'); yes.type='button'; yes.className='btn sm'; yes.textContent=uiCopy('ตอบรับให้ร่วมรบ','Accept their aid'); yes.disabled=!!window._npcAidOfferSubmitting; yes.onclick=()=>respondNpcCombatAidOffer(state.offerKey,'accept'); row.appendChild(actionSubmitButton(yes,'npcAid'));
+    const no=document.createElement('button'); no.type='button'; no.className='btn ghost sm'; no.textContent=uiCopy('ปฏิเสธครั้งนี้','Decline for now'); no.disabled=!!window._npcAidOfferSubmitting; no.onclick=()=>respondNpcCombatAidOffer(state.offerKey,'decline'); row.appendChild(actionSubmitButton(no,'npcAid'));
     card.appendChild(row); bar.appendChild(card);
   });
   const local=window._npcAidOfferLocalStatus||{}, ownPrefix='p9_combat_aid:';
@@ -7387,10 +7412,10 @@ async function renderRoundbar(){
     if(_mineAck){
       var d=document.createElement('div'); d.className='note'; d.style.cssText='padding:6px 4px;color:#7fd17f;font-weight:600'; d.textContent=uiCopy('✓ คุณพร้อมแล้ว — รอเพื่อนอีก '+Math.max(0,_tot-_done.length)+' คน','✓ You are ready — waiting for '+Math.max(0,_tot-_done.length)+' more'); bar.appendChild(d);
     } else if(_mineInGate){
-      var bGo=document.createElement('button'); bGo.className='btn'; bGo.style.marginTop='6px'; bGo.textContent=uiCopy('✓ ไปต่อ (อ่านจบแล้ว)','✓ Continue (finished reading)'); bGo.disabled=!!resolving; bGo.onclick=function(){ submitVictoryAck(false); }; bar.appendChild(bGo);
+      var bGo=document.createElement('button'); bGo.className='btn'; bGo.style.marginTop='6px'; bGo.textContent=uiCopy('✓ ไปต่อ (อ่านจบแล้ว)','✓ Continue (finished reading)'); bGo.disabled=!!resolving; bGo.dataset.victoryAck=bGo.textContent; bGo.onclick=function(){ submitVictoryAck(false); }; bar.appendChild(bGo); victoryAckFeedback();
     }
-    if(isHost){ var fSk=document.createElement('button'); fSk.className='btn warn sm'; fSk.style.marginTop='8px'; fSk.textContent=uiCopy((_vaDefeat?'⚡ ข้ามรอทุกคน → ไปต่อ':'⚡ ข้ามรอทุกคน → VICTORY')+' (กลุ่ม '+_vaGroup+')',(_vaDefeat?'⚡ Skip all → Continue':'⚡ Skip all → VICTORY')+' (group '+_vaGroup+')'); fSk.onclick=function(){ submitVictoryAck(true,_vaGroup); }; bar.appendChild(fSk); }
-    if(isHost&&_vaOther&&_vaOther.active){ var fOther=document.createElement('button'); fOther.className='btn warn sm'; fOther.style.marginTop='8px'; fOther.textContent=uiCopy('⚡ กู้รอบที่ค้างของกลุ่ม '+_vaOtherGroup,'⚡ Recover pending terminal for group '+_vaOtherGroup); fOther.onclick=function(){ submitVictoryAck(true,_vaOtherGroup); }; bar.appendChild(fOther); }
+    if(isHost){ var fSk=document.createElement('button'); fSk.className='btn warn sm'; fSk.style.marginTop='8px'; fSk.textContent=uiCopy((_vaDefeat?'⚡ ข้ามรอทุกคน → ไปต่อ':'⚡ ข้ามรอทุกคน → VICTORY')+' (กลุ่ม '+_vaGroup+')',(_vaDefeat?'⚡ Skip all → Continue':'⚡ Skip all → VICTORY')+' (group '+_vaGroup+')'); fSk.dataset.victoryAck=fSk.textContent; fSk.onclick=function(){ submitVictoryAck(true,_vaGroup); }; bar.appendChild(fSk); victoryAckFeedback(); }
+    if(isHost&&_vaOther&&_vaOther.active){ var fOther=document.createElement('button'); fOther.className='btn warn sm'; fOther.style.marginTop='8px'; fOther.textContent=uiCopy('⚡ กู้รอบที่ค้างของกลุ่ม '+_vaOtherGroup,'⚡ Recover pending terminal for group '+_vaOtherGroup); fOther.dataset.victoryAck=fOther.textContent; fOther.onclick=function(){ submitVictoryAck(true,_vaOtherGroup); }; bar.appendChild(fOther); victoryAckFeedback(); }
     return;
   }
   if(curRound.phase==='resolving'){ bar.innerHTML=uiCopy('<div class="statusline"><span class="pill wait">DM กำลังประมวลผล…</span></div>','<div class="statusline"><span class="pill wait">DM is resolving…</span></div>'); renderResolvingStall(bar,curRound,isHost); return; }
@@ -7444,7 +7469,7 @@ async function renderRoundbar(){
         const nb=document.createElement('button'); nb.className='btn'; nb.style.cssText='display:block;margin-top:8px';
         nb.textContent=uiCopy('▶ เริ่มตอนที่ ','▶ Start Episode ')+((Math.floor(+_sa.no)||1)+1);
         nb.onclick=submitSessionNext;
-        sw.appendChild(nb);
+        sw.appendChild(actionSubmitButton(nb,'session'));
       }
       bar.appendChild(sw);
     }
@@ -7509,7 +7534,7 @@ async function renderRoundbar(){
     if(done){ const w=document.createElement('div'); w.className='note'; w.style.cssText='text-align:left;padding:6px 2px'; w.innerHTML=uiCopy('✓ สั่ง '+escapeHtml(myPet.name)+' แล้ว — รอ DM ดำเนินเรื่อง','✓ '+escapeHtml(myPet.name)+' ordered — waiting for the DM to continue'); bar.appendChild(w); }
     else {
       const pta=document.createElement('textarea'); pta.id='petActInput'; pta.placeholder=uiCopy('จะให้ '+myPet.name+' ทำอะไร?','What should '+myPet.name+' do?'); bar.appendChild(pta);
-      const pb=document.createElement('button'); pb.className='btn'; pb.textContent=uiCopy('ส่งคำสั่ง ('+myPet.name+')','Submit ('+myPet.name+')'); pb.onclick=()=>submitAction(myPet.id); bar.appendChild(pb);
+      const pb=document.createElement('button'); pb.className='btn'; pb.textContent=uiCopy('ส่งคำสั่ง ('+myPet.name+')','Submit ('+myPet.name+')'); pb.onclick=()=>submitAction(myPet.id); bar.appendChild(actionSubmitButton(pb,'action'));
     }
     if(isHost){ const f=document.createElement('button'); f.className='btn warn sm'; f.textContent=resolving?uiCopy('กำลังดำเนินเรื่อง…','Continuing…'):uiCopy('⚡ ดำเนินเรื่องต่อ','⚡ Continue Scene'); f.disabled=resolving; f.onclick=()=>forceResolveConfirm(); bar.appendChild(f); }
     return;
@@ -7623,7 +7648,7 @@ async function renderRoundbar(){
       // One free-text draft in combat, deliberately separate from BATTLE COMMAND.
       const draft=document.createElement('div'); draft.className='copt';
       const taC=document.createElement('textarea'); taC.id='actInput'; taC.placeholder=uiCopy('พิมพ์หรือแก้การกระทำได้อิสระ — ตัวเลือกของ DM เป็นเพียงคำแนะนำ','Type or edit any action — DM options are suggestions only'); if(keepAct) taC.value=keepAct; draft.appendChild(taC);
-      const sbC=document.createElement('button'); sbC.type='button'; sbC.className='btn'; sbC.textContent=primaryActionLabel(); sbC.onclick=()=>submitAction(); draft.appendChild(sbC); bar.appendChild(draft);
+      const sbC=document.createElement('button'); sbC.type='button'; sbC.className='btn'; sbC.textContent=primaryActionLabel(); sbC.onclick=()=>submitAction(); draft.appendChild(actionSubmitButton(sbC,'action')); bar.appendChild(draft);
       if(window._dmOptionStale&&Array.isArray(cb.options)&&cb.options.length) bar.appendChild(persOptsWidget());
       // เมนู COMBAT COMMAND — ย่อเหลือปุ่มบรรทัดเดียว (ทั้ง desktop+mobile) กดแล้วขยาย: desktop=หน้าต่างลอยเยื้องซ้าย · mobile=กางในแผงเดิม
       if(typeof window.cc==='object' && window.cc && typeof window.cc.openInline==='function'){
@@ -7699,7 +7724,7 @@ async function renderRoundbar(){
       bar.appendChild(dice);
       const dn=document.createElement('div'); dn.className='econleg'; dn.textContent=uiCopy('“DM ทอยให้” = ใช้ผลสุ่มจริงตามกติกา · “ทอยเอง” = ทอยเต๋าจริงในมือแล้วใส่เลข','“DM rolls” uses a real rules-based roll · “Roll yourself” lets you enter a physical die result'); bar.appendChild(dn);
     }
-    const b=document.createElement('button'); b.className='btn'; b.textContent=primaryActionLabel(); b.onclick=submitAction; bar.appendChild(b);
+    const b=document.createElement('button'); b.className='btn'; b.textContent=primaryActionLabel(); b.onclick=submitAction; bar.appendChild(actionSubmitButton(b,'action'));
     // D: ขอตัวเลือกเฉพาะตัว — กดแล้ว DM ปั่น 3-5 ทางเลือกสำหรับ 'ตัวละครเรา' ณ สถานการณ์นี้ (on-demand ไม่เปลือง token ถ้าไม่กด)
     if(myChar){ bar.appendChild(persOptsWidget()); }
     }
@@ -7738,7 +7763,7 @@ async function renderRoundbar(){
       }
     }else if(!pending.length && curRound.phase==='awaiting_actions'){
       const rb=document.createElement('button'); rb.className='btn ghost sm'; rb.textContent=uiCopy('↻ ลองประมวลผลรอบนี้','↻ Retry this round');
-      rb.disabled=!!resolving; rb.onclick=()=>resolveRound(false); bar.appendChild(rb);
+      rb.disabled=!!resolving; rb.onclick=()=>resolveRound(false,undefined,false,true); bar.appendChild(rb);
     }
   }
   if(isHost){ const f=document.createElement('button'); f.className='btn warn sm'; f.textContent=resolving?uiCopy('กำลังดำเนินเรื่อง…','Continuing…'):uiCopy('⚡ ดำเนินเรื่องต่อ','⚡ Continue Scene'); f.disabled=resolving; f.onclick=()=>forceResolveConfirm(); if(!_inventoryEditOnly)bar.appendChild(f); }
@@ -8152,12 +8177,12 @@ async function submitAction(charIdOverride){
   if(window._vaSubmitting||window._terminalExitPending){ toast(uiCopy('(แก้: ยังส่งคำสั่งไม่ได้ระหว่างระบบกำลังเปลี่ยนจากศึกที่จบแล้วไปยังฉากใหม่)','(Fixed: actions cannot be submitted while the ended encounter is transitioning to the new scene.)'),true); return; }
   if(gCombat&&gCombat.active&&typeof charIdOverride!=='string'&&playerCombatUiState()!=='act'){ toast(uiCopy('(แก้: ส่งคำสั่งไม่ได้ เพราะยังไม่ถึงตาหรือผู้กระทำหมดสติ)','(Fixed: the action was not submitted because it is not your turn or the actor is unconscious.)'),true); await reloadMySheet(); return; }
   if(slowlifeState&&slowlifeState.active){ toast(uiCopy('(แก้: รอบหลักถูกพัก — ใช้เลน Slowlife หรือรวมปาร์ตี้ก่อน)','(Fixed: the main round is paused — use a Slowlife lane or regroup first)'),true); switchTab('companion'); return; }
-  if(window._actSubmitting) return;   // v538: กัน double-click (มิเรอร์ _quickBusy/_vaSubmitting) — เดิมไม่มี guard → 2 insert ชน unique(round_id,user_id) = toast error ดิบ
+  if(window._actSubmitting){ toast(uiCopy('กำลังส่ง… กรุณารอสักครู่','Sending… please wait')); return; }   // v538: keep the duplicate-submit fence.
   const isPet=(typeof charIdOverride==='string');
   const cid=isPet?charIdOverride:(myChar?.id||null);
   let txt=$(isPet?'petActInput':'actInput')?.value.trim(); if(!txt){toast(uiCopy('พิมพ์การกระทำก่อน','Type your action first'),true);return;}
   if(!isPet && pendingAoE){ txt+=`\n[เป้าหมายพื้นที่: ศูนย์กลาง ${pendingAoE.centerCell} ${pendingAoE.radiusFt?('รัศมี '+pendingAoE.radiusFt+' ฟุต'):'(จุดเดียว)'} ครอบคลุม ${pendingAoE.cells.join(', ')}]`; }
-  window._actSubmitting=true;
+  window._actSubmitting=true; actionSubmitFeedback(); toast(uiCopy('กำลังส่ง… กรุณารอสักครู่','Sending… please wait'));
   try{
     const ref=(!isPet&&window._dmOptionDraftRef&&window._dmOptionDraftRef.rid===curRound.id)?window._dmOptionDraftRef:null;
     if(ref){
@@ -8178,22 +8203,22 @@ async function submitAction(charIdOverride){
     await loadRound(); renderRoundbar();
     window._afterSubmit=true; resolveRound(false);   // ลองประมวลผล — backend ตอบ waiting ถ้ายังไม่ครบ
   }catch(e){ toast(e.message||uiCopy('ส่งไม่สำเร็จ','Submit failed'),true); }
-  finally{ window._actSubmitting=false; }
+  finally{ window._actSubmitting=false; actionSubmitFeedback(); }
 }
 
 async function quickSubmit(text){
-  if(!curRound || !text) return;
+  if(!curRound || !text){ toast(uiCopy('ยังส่งไม่ได้ — ข้อมูลรอบหรือการกระทำไม่ครบ','Cannot submit yet — the round or action is missing'),true); return; }
   if(gateBeforePlay()) return;
   if(window._vaSubmitting||window._terminalExitPending){ toast(uiCopy('(แก้: ยังส่งคำสั่งไม่ได้ระหว่างระบบกำลังเปลี่ยนจากศึกที่จบแล้วไปยังฉากใหม่)','(Fixed: actions cannot be submitted while the ended encounter is transitioning to the new scene.)'),true); return; }
   if(gCombat&&gCombat.active&&playerCombatUiState()!=='act'){ toast(uiCopy('(แก้: ส่งคำสั่งไม่ได้ เพราะยังไม่ถึงตาหรือผู้กระทำหมดสติ)','(Fixed: the action was not submitted because it is not your turn or the actor is unconscious.)'),true); await reloadMySheet(); return; }
   if(slowlifeState&&slowlifeState.active){ toast(uiCopy('(แก้: รอบหลักถูกพัก — ใช้เลน Slowlife หรือรวมปาร์ตี้ก่อน)','(Fixed: the main round is paused — use a Slowlife lane or regroup first)'),true); switchTab('companion'); return; }
-  if(window._quickBusy) return; window._quickBusy=true;
+  if(window._quickBusy){ toast(uiCopy('กำลังส่ง… กรุณารอสักครู่','Sending… please wait')); return; } window._quickBusy=true; actionSubmitFeedback(); toast(uiCopy('กำลังส่ง… กรุณารอสักครู่','Sending… please wait'));
   try{
     await submitActionV2(curRound,myChar?.id||null,text,null);
     window._actionEditDraft=''; window._actionRepair=null;
-    toast(uiCopy('ส่งแล้ว ✓','Submitted ✓')); await loadRound(); renderRoundbar(); window._afterSubmit=true; resolveRound(false);
+    toast(uiCopy('ส่งแล้ว ✓','Submitted ✓')); await loadRound(); renderRoundbar(); window._afterSubmit=true; resolveRound(false); return true;
   }catch(e){ toast(e.message||uiCopy('ส่งไม่สำเร็จ','Submit failed'),true); }
-  finally{ window._quickBusy=false; }
+  finally{ window._quickBusy=false; actionSubmitFeedback(); }
 }
 async function introAdventure(){ resolveRound(false,'intro'); }
 async function startFirstScene(){ resolveRound(false); }
@@ -8203,11 +8228,11 @@ function setMyThinking(on){
   try { if (typeof rtChannel !== 'undefined' && rtChannel && typeof rtChannel.track === 'function') rtChannel.track({ thinking: !!on, uid: (me && me.id) || 'anon', at: Date.now() }); } catch(e){}
 }
 var _autoChain=0, _waitRetryChain=0;
-async function resolveRound(force, mode, recover){
+async function resolveRound(force, mode, recover, fromClick){
   if(gateBeforePlay()) return;
   if(slowlifeState&&slowlifeState.active){ toast(uiCopy('(แก้: ปิด Slowlife และรวมปาร์ตี้ก่อนดำเนินรอบหลัก)','(Fixed: close Slowlife and regroup before continuing the main round)'),true); switchTab('companion'); return; }
   const recovery=recover===true&&force===true&&campaign.host_id===me.id&&resolvingStallAge(curRound)>180000;
-  if(recover===true&&!recovery||resolving&&!recovery) return;
+  if(recover===true&&!recovery||resolving&&!recovery){ if(fromClick) toast(resolving?uiCopy('กำลังดำเนินเรื่องอยู่ รอสักครู่','The story is being processed. Please wait.'):uiCopy('การกู้รอบค้างยังไม่พร้อม โปรดรอให้ครบเวลาหรือรีเฟรชสถานะ','Recovery is not available yet. Wait for the time limit or refresh the round status.')); return; }
   const previous=resolveRound.controller, run=resolveRound.sequence=(resolveRound.sequence||0)+1, controller=new AbortController();
   resolveRound.controller=controller; resolveRound.startedAt=Date.now(); if(recovery&&previous) previous.abort();
   resolving=true; renderRoundbar();
@@ -9027,7 +9052,7 @@ async function _renderPartyInner(){
   if(_partyDraft&&window.UiDraftGuard&&window.UiDraftGuard.restore) window.UiDraftGuard.restore(_partyDraft,document);
 }
 async function retryQuestRewards(btn){
-  if(campaign.host_id!==me.id) return;
+  if(campaign.host_id!==me.id){ toast(uiCopy('เฉพาะโฮสต์ของโลกนี้ที่ทำรายการนี้ได้','Only the host of this world can do this'),true); return; }
   if(btn) btn.disabled=true;
   try{
     const tok=(await supa.auth.getSession()).data.session?.access_token; if(!tok) throw new Error(uiCopy('กรุณาเข้าสู่ระบบใหม่','Please sign in again'));
@@ -9182,7 +9207,7 @@ async function renderQuest(){
       const row=document.createElement('div'); row.className='quest-affordance-row'; row.style.cssText=FONT+';text-align:left;padding:7px 0;border-bottom:1px solid #333';
       const title=document.createElement('div'); title.style.cssText='font-size:var(--fs-base);font-weight:700'; title.innerHTML=escapeHtml(questTitleWithoutDifficultyLabel(aff.public_title))+bpBadge(aff); row.appendChild(title);
       if(aff.public_premise){ const premise=document.createElement('div'); premise.style.cssText='font-size:var(--fs-sm);color:#aaa;line-height:1.55;margin:3px 0 6px'; premise.textContent=aff.public_premise; row.appendChild(premise); }
-      const button=document.createElement('button'); button.type='button'; button.className='btn sm'; button.textContent=questAffordanceLabel(aff); button.disabled=!!window._questAffordanceSubmitting||!!resolving; button.onclick=()=>submitQuestAffordance(aff); row.appendChild(button); offers.appendChild(row);
+      const button=document.createElement('button'); button.type='button'; button.className='btn sm'; button.textContent=questAffordanceLabel(aff); button.disabled=!!window._questAffordanceSubmitting||!!resolving; button.onclick=()=>submitQuestAffordance(aff); row.appendChild(actionSubmitButton(button,'quest')); offers.appendChild(row);
     });
     p.appendChild(offers);
   }
@@ -9208,14 +9233,14 @@ async function renderQuest(){
     // ชั้นข้อมูล (blueprint ทั้งก้อนถึง client) ปิดแยกในใบ W24 ฝั่ง server   // v194: คำใบ้สาธารณะ
     body.innerHTML=html||('<div class="muted" style="font-size:var(--fs-base)">'+escapeHtml(uiCopy('ยังไม่มีรายละเอียด','No details yet'))+'</div>');
     const turnIn=turnInAffordances.find(aff=>String(aff.id)===String(q.id)||String(aff.source_id)===String(q.id));
-    if(turnIn){ mountedTurnInIds.add(turnIn.id); const button=document.createElement('button'); button.type='button'; button.className='btn sm'; button.style.marginTop='8px'; button.textContent=questAffordanceLabel(turnIn); button.disabled=!!window._questAffordanceSubmitting||!!resolving; button.onclick=()=>submitQuestAffordance(turnIn); body.appendChild(button); }
+    if(turnIn){ mountedTurnInIds.add(turnIn.id); const button=document.createElement('button'); button.type='button'; button.className='btn sm'; button.style.marginTop='8px'; button.textContent=questAffordanceLabel(turnIn); button.disabled=!!window._questAffordanceSubmitting||!!resolving; button.onclick=()=>submitQuestAffordance(turnIn); body.appendChild(actionSubmitButton(button,'quest')); }
     det.appendChild(body);
     p.appendChild(det);
   });
   turnInAffordances.filter(aff=>!mountedTurnInIds.has(aff.id)).forEach(aff=>{
     const card=document.createElement('div'); card.className='item quest-affordance-turnin'; card.style.cssText=FONT+';text-align:left';
     const title=document.createElement('div'); title.style.cssText='font-size:var(--fs-base);font-weight:700;margin-bottom:6px'; const quest=active.find(q=>String(q.id)===String(aff.id)||String(q.id)===String(aff.source_id))||aff; title.innerHTML=escapeHtml(questTitleWithoutDifficultyLabel(aff.public_title))+bpBadge(quest); card.appendChild(title);
-    const button=document.createElement('button'); button.type='button'; button.className='btn sm'; button.textContent=questAffordanceLabel(aff); button.disabled=!!window._questAffordanceSubmitting||!!resolving; button.onclick=()=>submitQuestAffordance(aff); card.appendChild(button); p.appendChild(card);
+    const button=document.createElement('button'); button.type='button'; button.className='btn sm'; button.textContent=questAffordanceLabel(aff); button.disabled=!!window._questAffordanceSubmitting||!!resolving; button.onclick=()=>submitQuestAffordance(aff); card.appendChild(actionSubmitButton(button,'quest')); p.appendChild(card);
   });
   // เควสที่จบแล้ว (สำเร็จ/ล้มเหลว) — พับเก็บ
   if(ended.length){
@@ -9387,7 +9412,7 @@ function useConsumable(name, effect){
   else { switchTab('story'); toast(uiCopy('พิมพ์ "ใช้ ','Type "Use ')+name+uiCopy('" ในช่องสั่งการ เพื่อให้ DM ประมวลผล','" in the action box for the DM to resolve'),true); }
 }
 async function equipItem(name){
-  if(!myChar||!name) return; const slot=equipSlotFor(name); if(!slot){ toast(uiCopy('ไอเทมนี้สวมใส่ไม่ได้','This item cannot be equipped'),true); return; }
+  if(!myChar||!name){ toast(uiCopy('เลือกตัวละครและรายการของก่อน','Select a character and item first'),true); return; } const slot=equipSlotFor(name); if(!slot){ toast(uiCopy('ไอเทมนี้สวมใส่ไม่ได้','This item cannot be equipped'),true); return; }
   try{
     const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle();
     if(r.error) throw r.error;   /* review-r1 F16: เช็ค SELECT error (เดิมเงียบ → _prev undefined → ข้าม optimistic lock → lost update) */
@@ -9411,7 +9436,7 @@ async function equipItem(name){
 }
 // v365 #10: ใส่อาวุธ light ช่องมือรอง (Two-Weapon Fighting — resolver v363 อ่าน equipment.offhand)
 async function equipOffhand(name){
-  if(!myChar||!name) return; if(equipSlotFor(name)!=='weapon'){ toast(uiCopy('ช่องมือรองใส่ได้เฉพาะอาวุธ','Only weapons can be equipped in the off hand'),true); return; }
+  if(!myChar||!name){ toast(uiCopy('เลือกตัวละครและรายการของก่อน','Select a character and item first'),true); return; } if(equipSlotFor(name)!=='weapon'){ toast(uiCopy('ช่องมือรองใส่ได้เฉพาะอาวุธ','Only weapons can be equipped in the off hand'),true); return; }
   try{
     const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle();
     if(r.error) throw r.error;   /* review-r1 F16: เช็ค SELECT error (เดิมเงียบ → _prev undefined → ข้าม optimistic lock → lost update) */
@@ -9425,7 +9450,7 @@ async function equipOffhand(name){
   }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast(uiCopy('ของเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง','The inventory changed while editing — reload and try again'),true); try{await refreshAll();}catch(_){} renderItems(); } else toast(uiCopy('ใส่มือรองไม่สำเร็จ','Could not equip off-hand item'),true); }
 }
 async function unequipAccessory(name){
-  if(!myChar||!name) return;
+  if(!myChar||!name){ toast(uiCopy('เลือกตัวละครและรายการของก่อน','Select a character and item first'),true); return; }
   try{
     const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle();
     if(r.error) throw r.error;   /* review-r1 F16: เช็ค SELECT error (เดิมเงียบ → _prev undefined → ข้าม optimistic lock → lost update) */
@@ -9433,19 +9458,19 @@ async function unequipAccessory(name){
     let acc=Array.isArray(sheet.equipment.accessories)?sheet.equipment.accessories.slice():[]; let removed=false;
     const i=acc.findIndex(a=>(typeof a==='string'?a:(a&&a.name))===name);
     if(i>=0){ acc.splice(i,1); removed=true; } else if(sheet.equipment.accessory===name){ sheet.equipment.accessory=''; removed=true; }
-    sheet.equipment.accessories=acc; if(!removed) return;
+    sheet.equipment.accessories=acc; if(!removed){ toast(uiCopy('ของชิ้นนี้ไม่ได้สวมใส่อยู่แล้ว','This item is already unequipped')); return; }
     let inv=Array.isArray(sheet.inventory)?sheet.inventory.slice():[]; inv.push({name,qty:1}); sheet.inventory=inv;
     persistCombatStats(sheet, myChar.class); await _saveSheet(sheet, _prev, ['equipment','inventory']); tick(); toast(uiCopy('ถอด ','Unequipped ')+name+' ✓'); renderItems();
   }catch(e){ if(e&&e.code==='SHEET_CONFLICT'){ toast(uiCopy('ของเปลี่ยนระหว่างแก้ — โหลดใหม่ ลองอีกครั้ง','The inventory changed while editing — reload and try again'),true); try{await refreshAll();}catch(_){} renderItems(); } else toast(uiCopy('ถอดไม่สำเร็จ','Could not unequip item'),true); }
 }
 // ถอด: ย้ายจากช่อง equipment → กระเป๋า
 async function unequipItem(slot){
-  if(!myChar) return;
+  if(!myChar){ toast(uiCopy('เลือกตัวละครก่อน','Select a character first'),true); return; }
   try{
     const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle();
     if(r.error) throw r.error;   /* review-r1 F16: เช็ค SELECT error (เดิมเงียบ → _prev undefined → ข้าม optimistic lock → lost update) */
     const sheet=(r.data&&r.data.sheet)||{}; const _prev=r.data&&r.data.updated_at; sheet.equipment=sheet.equipment||{};
-    const val=sheet.equipment[slot]; if(!val) return;
+    const val=sheet.equipment[slot]; if(!val){ toast(uiCopy('ช่องนี้ไม่มีของสวมใส่อยู่แล้ว','This slot is already empty')); return; }
     let inv=Array.isArray(sheet.inventory)?sheet.inventory.slice():[]; inv.push({name:val,qty:1});
     sheet.equipment[slot]=''; sheet.inventory=inv;
     persistCombatStats(sheet, myChar.class); await _saveSheet(sheet, _prev, ['equipment','inventory']); tick(); toast(uiCopy('ถอด ','Unequipped ')+val+' ✓'); renderItems();
@@ -10329,7 +10354,7 @@ document.addEventListener('keydown', function(e){
   try{ var _bs=document.getElementById('battleScene'); if(_bs && _bs.classList.contains('bs-has-sheet')){ bsCloseSheets(); e.preventDefault(); return; } }catch(_e){}
   try{ var _rt=document.getElementById('combatCommandPanel'); if(_rt && _rt.classList.contains('cc-show')){ window.cc.close(); e.preventDefault(); } }catch(_e){}
 });
-function bsToggleSheet(key){ var map={cmd:'bsCmdWrap',init:'bsInitBox',log:'bsLogBox',hud:'bsHud',chat:'bsChatBox'}; var id=map[key]; if(!id) return; var el=document.getElementById(id); if(!el) return; var willOpen=!el.classList.contains('bs-sheet-open'); bsCloseSheets(); if(willOpen){ var scene=document.getElementById('battleScene'); if(scene && el.parentNode!==scene && window.matchMedia && window.matchMedia('(max-width:1023px)').matches){ el._homeParent=el.parentNode; el._homeNext=el.nextSibling; scene.appendChild(el); } el.classList.add('bs-sheet-open'); var bd=document.getElementById('bsSheetBackdrop'); if(bd) bd.classList.add('on'); if(scene) scene.classList.add('bs-has-sheet'); } try{ tick(); }catch(e){} }
+function bsToggleSheet(key){ var map={cmd:'bsCmdWrap',init:'bsInitBox',log:'bsLogBox',hud:'bsHud',chat:'bsChatBox'}; var id=map[key]; if(!id){ toast(uiCopy('ไม่พบแผงนี้ในฉากต่อสู้','This panel is not available in the battle scene'),true); return; } var el=document.getElementById(id); if(!el){ toast(uiCopy('แผงนี้ยังไม่พร้อม — เปิดฉากต่อสู้แล้วลองอีกครั้ง','This panel is not ready — open the battle scene and try again'),true); return; } var willOpen=!el.classList.contains('bs-sheet-open'); bsCloseSheets(); if(willOpen){ var scene=document.getElementById('battleScene'); if(scene && el.parentNode!==scene && window.matchMedia && window.matchMedia('(max-width:1023px)').matches){ el._homeParent=el.parentNode; el._homeNext=el.nextSibling; scene.appendChild(el); } el.classList.add('bs-sheet-open'); var bd=document.getElementById('bsSheetBackdrop'); if(bd) bd.classList.add('on'); if(scene) scene.classList.add('bs-has-sheet'); } try{ tick(); }catch(e){} }
 // C: เปิด/ปิดชีทตัวละคร (โคลนจาก panel-me แบบอ่านอย่างเดียว — ไม่หลุดจากฉากรบ)
 function bsToggleCharSheet(){
   var ov=document.getElementById('bsCharSheet');
@@ -10376,7 +10401,7 @@ async function forceResolveConfirm(recover){
     const an=(typeof gCombat!=='undefined'&&gCombat&&gCombat.active)?gCombat.activeName:null;
     if(inB&&an&&!await uiConfirmText(uiCopy('ตอนนี้รอเทิร์นของ "'+an+'" อยู่\nหากดำเนินเรื่องต่อ '+an+' จะตั้งรับ (Dodge) ในรอบนี้\n(บอทอาจกำลังคิด — รอสักครู่ก่อนได้)\n\nยืนยันหรือไม่?','The party is waiting for "'+an+'".\nContinuing now makes '+an+' take the Dodge action this round.\n(The bot may still be thinking; you can wait a moment.)\n\nContinue?'),'combat-force-resolve')) return;
   }catch(e){}
-  return resolveRound(true,undefined,recover===true);
+  return resolveRound(true,undefined,recover===true,true);
 }
 // ── v816: per-slot Gemini tier + deterministic cooldown recovery (masked status only) ──
 function appendGeminiKeyTierControls(tools, styleCtl, DMF){
@@ -11015,7 +11040,7 @@ function renderBattleChat(){
   setTimeout(function(){ el.scrollTop=_cnear?el.scrollHeight:_cprev; },0);
 }
 async function sendBattleChat(){
-  var ta=document.getElementById('bsChatInput'); var body=ta&&ta.value.trim(); if(!body) return;
+  var ta=document.getElementById('bsChatInput'); var body=ta&&ta.value.trim(); if(!body){ toast(uiCopy('พิมพ์ข้อความก่อนส่ง','Type a message before sending'),true); return; }
   ta.value='';
   try{ await supa.from('chat_messages').insert({campaign_id:campaign.id,user_id:me.id,body:body.slice(0,2000)}); }
   catch(e){ try{ toast(e.message||uiCopy('ส่งไม่สำเร็จ','Submit failed'),true); }catch(_){} }
@@ -11122,7 +11147,7 @@ function gridPickPaint(kind,c,r){
   }catch(e){}
   return false;
 }
-function aoePickCell(c,r){ if(gridCommandDelegate('aoe','select',{c:c,r:r})) return; if(!aoeMode) return; gridPickLeaseActivity('select'); aoeCenter={c:c,r:r}; if(!gridPickPaint('aoe',c,r)) gridFastRefresh(); }
+function aoePickCell(c,r){ if(gridCommandDelegate('aoe','select',{c:c,r:r})) return; if(!aoeMode) return toast(uiCopy('ไม่ได้อยู่ในโหมดเลือกพื้นที่แล้ว โปรดเลือกความสามารถอีกครั้ง','Area targeting is no longer active. Select the ability again.')); gridPickLeaseActivity('select'); aoeCenter={c:c,r:r}; if(!gridPickPaint('aoe',c,r)) gridFastRefresh(); }
 // เปิดตัวเลือกพื้นที่บน Map ให้ Command Menu (คืนผลผ่าน callback) — รัศมีจาก target เช่น sphere_20/cone_15/line_30
 function ccGridPick(target, cb){
   if(gridCommandAdapter&&gridCommandFlow){
@@ -11208,7 +11233,7 @@ function ccMovePick(cb, instantBinding){
   if(_bsShown){ Promise.resolve(renderBattleScene('manual')).catch(()=>false).then(()=>gridPickLeaseEnter('legacy-move',gridBoardLeaseIdentity())); } else if(typeof renderCombat==='function'){ renderCombat(); setTimeout(()=>gridPickLeaseEnter('legacy-move',gridBoardLeaseIdentity()),0); }
   try{ toast(uiCopy('แตะช่องสีเขียวเพื่อเลือกที่จะเดินไป แล้วกด ✓','Tap a green tile to choose your destination, then select ✓')); }catch(e){}
 }
-function movePickCell(c,r){ if(gridCommandDelegate('move','select',{c:c,r:r})) return; if(!moveMode) return; gridPickLeaseActivity('select'); moveSel={c:c,r:r}; if(!gridPickPaint('move',c,r)) gridFastRefresh(); }
+function movePickCell(c,r){ if(gridCommandDelegate('move','select',{c:c,r:r})) return; if(!moveMode) return toast(uiCopy('ไม่ได้อยู่ในโหมดเลือกทางเดินแล้ว โปรดเลือกย้ายตำแหน่งอีกครั้ง','Movement selection is no longer active. Choose Move again.')); gridPickLeaseActivity('select'); moveSel={c:c,r:r}; if(!gridPickPaint('move',c,r)) gridFastRefresh(); }
 function moveConfirm(){
   if(gridCommandDelegate('move','confirm')) return;
   gridPickLeaseActivity('confirm_attempt');
@@ -12382,11 +12407,11 @@ async function dmOptionsAuditCard(){
       const paint=(saved=false)=>{ const current=reviewsByKey.get(key); status.textContent=current?(saved?uiCopy('บันทึกแล้ว: ','Saved: '):uiCopy('สถานะ: ','Status: '))+reviewLabelText(current.label):uiCopy('สถานะ: ยังไม่ตรวจ','Status: not reviewed'); buttons.forEach(({button,label})=>button.style.opacity=current&&current.label===label?'1':'.72'); };
       line.appendChild(status); const actions=document.createElement('div'); actions.style.cssText='display:flex;gap:5px;flex-wrap:wrap';
       reviewLabels.forEach(label=>{ const button=document.createElement('button'); button.className='btn ghost sm'; button.textContent=reviewLabelText(label); buttons.push({button,label}); button.onclick=async()=>{
-        buttons.forEach(x=>x.button.disabled=true); status.textContent=uiCopy('กำลังบันทึก…','Saving…');
+        if(button.disabled){ status.textContent=uiCopy('กำลังบันทึก…','Saving…'); return; } buttons.forEach(x=>x.button.disabled=true); status.textContent=uiCopy('กำลังบันทึก…','Saving…'); try{
         const saved=await supa.rpc('upsert_dm_option_candidate_review_v1',{p_system_log_id:row.id,p_candidate_ordinal:ordinal,p_reason_code:exactReason,p_label:label,p_policy_version:reviewPolicy,p_note:null});
-        buttons.forEach(x=>x.button.disabled=false);
         if(saved.error){ status.textContent=uiCopy('บันทึกไม่สำเร็จ โปรดลองใหม่','Review save failed. Please try again.'); return; }
         reviewsByKey.set(key,{system_log_id:row.id,candidate_ordinal:ordinal,reason_code:exactReason,label,policy_version:reviewPolicy,reviewed_at:new Date().toISOString()}); paint(true);
+        }catch(e){ status.textContent=uiCopy('บันทึกไม่สำเร็จ โปรดลองใหม่','Review save failed. Please try again.'); }finally{ buttons.forEach(x=>x.button.disabled=false); }
       }; actions.appendChild(button); });
       line.appendChild(actions); paint(); reviewBox.appendChild(line);
       });
@@ -12498,7 +12523,7 @@ async function renderPerformanceCard(p){
     const row=document.createElement('label'); row.style.cssText='display:flex;align-items:center;gap:8px;margin:3px 0;cursor:pointer';
     const rb=document.createElement('input'); rb.type='radio'; rb.name='perfPick'; rb.checked=(window._perfPick===t.id); rb.onchange=()=>{ window._perfPick=t.id; };
     const nm=document.createElement('span'); nm.style.cssText='flex:1;font-size:var(--fs-base)'; nm.setAttribute('data-runtime-origin','reference-source'); nm.textContent='♪ '+(t.name||'track');
-    const pv=document.createElement('button'); pv.className='btn ghost sm'; pv.type='button'; pv.textContent='▶'; pv.title=uiCopy('ฟังตัวอย่าง','Preview'); pv.onclick=(e)=>{ e.preventDefault(); try{ if(!_musicOwnerAcquire('preview','performance_preview'))return; if(window._perfPrev&&window._perfPrev.pause) window._perfPrev.pause(); const a=new Audio(PUBLIC_URL+'audio/'+t.storage_path); a.volume=Math.max(0,Math.min(1,musicVol)); a.addEventListener('ended',function(){if(window._perfPrev===a){window._perfPrev=null;if(musicOn)_moodNow();}},{once:true}); a.play(); window._perfPrev=a; }catch(_e){} };
+    const pv=document.createElement('button'); pv.className='btn ghost sm'; pv.type='button'; pv.textContent='▶'; pv.title=uiCopy('ฟังตัวอย่าง','Preview'); pv.onclick=(e)=>{ e.preventDefault(); try{ if(!_musicOwnerAcquire('preview','performance_preview'))return toast(uiCopy('ยังเล่นตัวอย่างเพลงไม่ได้ โปรดลองอีกครั้งเมื่อเสียงปัจจุบันจบ','The preview cannot play yet. Try again when the current audio finishes.')); if(window._perfPrev&&window._perfPrev.pause) window._perfPrev.pause(); const a=new Audio(PUBLIC_URL+'audio/'+t.storage_path); a.volume=Math.max(0,Math.min(1,musicVol)); a.addEventListener('ended',function(){if(window._perfPrev===a){window._perfPrev=null;if(musicOn)_moodNow();}},{once:true}); const playing=a.play(); window._perfPrev=a; if(playing&&typeof playing.catch==='function') playing.catch(()=>{if(window._perfPrev===a){window._perfPrev=null;toast(uiCopy('เล่นตัวอย่างเพลงไม่สำเร็จ โปรดลองใหม่','Could not play the preview. Please try again.'),true);}}); }catch(_e){toast(uiCopy('เล่นตัวอย่างเพลงไม่สำเร็จ โปรดลองใหม่','Could not play the preview. Please try again.'),true);} };
     const del=document.createElement('button'); del.className='btn ghost sm'; del.type='button'; del.textContent='✕'; del.onclick=(e)=>{ e.preventDefault(); deletePerformTrack(t.id,t.storage_path); };
     row.appendChild(rb); row.appendChild(nm); row.appendChild(pv); row.appendChild(del); body.appendChild(row);
   });
@@ -12612,7 +12637,7 @@ function openPinEditor(d){
   function refreshSel(){ sel.innerHTML=rooms.map(r=>'<option value="'+r.id+'">'+(pins[r.id]?'✓ ':'· ')+escapeHtml(String(r.name))+'</option>').join(''); }
   function redraw(){ layer.innerHTML=rooms.map(r=>{const pin=pins[r.id]; if(!pin) return ''; const cur=sel.value===r.id; return '<div style="position:absolute;left:'+pin.x+'%;top:'+pin.y+'%;transform:translate(-50%,-50%);text-align:center"><div style="width:'+(cur?15:11)+'px;height:'+(cur?15:11)+'px;border-radius:50%;background:'+(cur?'#FAC775':'#5B8DEF')+';border:2px solid #000;margin:0 auto"></div><div style="font-size:var(--fs-xs);color:#fff;text-shadow:0 0 3px #000,0 0 3px #000;white-space:nowrap;font-weight:600">'+escapeHtml(String(r.name).slice(0,16))+'</div></div>';}).join(''); }
   refreshSel(); redraw();
-  wrap.onclick=function(ev){ const rc=img.getBoundingClientRect(); if(!rc.width) return; const x=Math.max(0,Math.min(100,(ev.clientX-rc.left)/rc.width*100)); const y=Math.max(0,Math.min(100,(ev.clientY-rc.top)/rc.height*100)); const id=sel.value; if(!id) return; pins[id]={x:Math.round(x*10)/10,y:Math.round(y*10)/10};
+  wrap.onclick=function(ev){ const rc=img.getBoundingClientRect(); if(!rc.width||!rc.height) return toast(uiCopy('ภาพแผนที่ยังไม่พร้อม โปรดรอให้ภาพโหลดแล้วลองอีกครั้ง','The map image is not ready. Wait for it to load and try again.')); const x=Math.max(0,Math.min(100,(ev.clientX-rc.left)/rc.width*100)); const y=Math.max(0,Math.min(100,(ev.clientY-rc.top)/rc.height*100)); const id=sel.value; if(!id) return toast(uiCopy('เลือกห้องก่อนปักตำแหน่งบนแผนที่','Choose a room before placing its map pin.')); pins[id]={x:Math.round(x*10)/10,y:Math.round(y*10)/10};
     const idx=rooms.findIndex(r=>r.id===id); let nextId=id; for(let k=1;k<=rooms.length;k++){const nr=rooms[(idx+k)%rooms.length]; if(!pins[nr.id]){ nextId=nr.id; break; }} sel.value=nextId; refreshSel(); sel.value=nextId; redraw(); };
   sel.onchange=redraw;
   ov.appendChild(sel); ov.appendChild(wrap);
