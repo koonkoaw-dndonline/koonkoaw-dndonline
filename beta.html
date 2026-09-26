@@ -23,6 +23,7 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./grid-command-flow.js?v=961"></script>
 <script src="./grid-command-adapter.js?v=822"></script>
 <script src="./grid-board-replacement-lease.js?v=202608110249"></script>
+<script src="./battle-vfx.js?v=20260925vfx05"></script>
 <script src="./dice-roll-sound.js?v=0823"></script>
 <script src="./dice-fx.js?v=0903"></script>
 <script src="./dice-canvas.js?v=0903"></script>
@@ -969,6 +970,21 @@ body.in-battle .bs-cs-btn{display:block;}
 .bs-col{display:flex;flex-direction:column;gap:10px;min-width:0;min-height:0;}
 .bs-hud{display:flex;flex-direction:column;gap:6px;flex:0 0 auto;}
 .bs-board{border:0;background:transparent;padding:0;overflow-x:auto;flex:0 0 auto;}   /* v454: เอากรอบนอกออก เหลือเส้นเดียว (ใช้ border ของ svg เอง) */
+.bs-vfx-host{position:relative;}
+.bs-vfx-layer{position:absolute;inset:0;pointer-events:none;z-index:2;overflow:hidden;}
+.bs-vfx-cue{position:absolute;transform:translate(-50%,-50%);border:var(--vfx-line,3px) solid var(--vfx-color);border-radius:50%;opacity:var(--vfx-opacity,.88);box-shadow:0 0 0 2px var(--vfx-rim,#101820),0 0 8px 4px var(--vfx-color),inset 0 0 8px var(--vfx-color);animation:bsVfxPulse .54s ease-out forwards;image-rendering:pixelated;}
+.bs-vfx-cue[data-vfx-kind="cold"],.bs-vfx-cue[data-vfx-kind="radiant"]{--vfx-rim:#10253a;}
+.bs-vfx-cue[data-vfx-kind="poison"],.bs-vfx-cue[data-vfx-kind="bludgeoning"]{--vfx-rim:#30200e;}
+.bs-vfx-cue[data-vfx-kind="heal"]{border-radius:24%;--vfx-rim:#064c35;}
+.bs-vfx-cue[data-vfx-kind="heal"]::before,.bs-vfx-cue[data-vfx-kind="heal"]::after{content:'';position:absolute;background:#064c35;}
+.bs-vfx-cue[data-vfx-kind="heal"]::before{left:23%;right:23%;height:3px;top:calc(50% - 1.5px);}
+.bs-vfx-cue[data-vfx-kind="heal"]::after{top:23%;bottom:23%;width:3px;left:calc(50% - 1.5px);}
+.bs-vfx-cue[data-vfx-kind="temporary_hp"]{border-radius:45% 45% 65% 65%/30% 30% 75% 75%;--vfx-rim:#15337b;}
+.bs-vfx-cue[data-vfx-kind="temporary_hp"]::after{content:'';position:absolute;inset:21%;border:2px solid #15337b;border-radius:inherit;}
+.bs-vfx-cue img{width:100%;height:100%;object-fit:contain;image-rendering:pixelated;}
+.bs-vfx-cue.bs-vfx-still{animation:bsVfxFade .18s linear forwards;}
+@keyframes bsVfxPulse{0%{transform:translate(-50%,-50%) scale(.45);opacity:0}35%{opacity:var(--vfx-opacity,.92)}100%{transform:translate(-50%,-50%) scale(1.18);opacity:0}}
+@keyframes bsVfxFade{0%{opacity:var(--vfx-opacity,.82)}100%{opacity:0}}
 .bs-board .item{border:0;padding:0;background:transparent;}
 .bs-init{border:2px solid #fff;border-radius:8px;background:#000;padding:8px 10px;flex:0 0 auto;max-height:34vh;overflow-y:auto;}
 .bs-log{border:2px solid #fff;border-radius:8px;background:#000;padding:8px 10px;flex:1;min-height:120px;overflow-y:auto;}
@@ -2218,7 +2234,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202609110823;
+const FRONTEND_BUILD = 202609251533;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -4588,7 +4604,11 @@ function _cacheSet(key,value){
     localStorage.setItem(key,value);
   }catch(e){ try{ _evictCacheFor(key.length+String(value).length); localStorage.setItem(key,value); }catch(_e){} }   // quota → evict+retry (กันเขียนล้มเงียบทิ้ง storage เต็มค้าง)
 }
-function cacheSave(kind,data){ _cacheSet(cacheKey(kind), JSON.stringify(data)); }
+// W266: a world's Gemini keys never persist in this browser. The server keeps them out of settings; strip any that still arrive, and drop any cached state that holds one.
+function stateCacheSafe(s){ if(!s||typeof s!=='object'||!s.settings||typeof s.settings!=='object') return s; const st={}; for(const k in s.settings){ if(!/^gemini_key[0-9]*$/.test(k)) st[k]=s.settings[k]; } return Object.assign({},s,{settings:st}); }
+function cacheSave(kind,data){ _cacheSet(cacheKey(kind), JSON.stringify(kind==='state'?stateCacheSafe(data):data)); }
+function purgeSecretStateCaches(){ try{ for(let i=localStorage.length-1;i>=0;i--){ const k=localStorage.key(i); if(k&&k.indexOf('ttrpg_c_state_')===0&&/"gemini_key[0-9]*"\s*:/.test(localStorage.getItem(k)||'')) localStorage.removeItem(k); } }catch(e){} }
+purgeSecretStateCaches();
 function cacheLoad(kind){ try{ const s=localStorage.getItem(cacheKey(kind)); return s?JSON.parse(s):null; }catch(e){ return null; } }
 // v300: catalog (item/class/spell/skill) = ค่าเดียวกันทุกแคมเปญ → cache แบบ global ครั้งเดียว (เดิม per-campaign = itemcat 138KB × N โลก = localStorage เต็ม → หลุด login)
 function _catSet(kind,data){ _cacheSet('ttrpg_cat_'+kind, JSON.stringify(data)); }
@@ -5395,6 +5415,7 @@ async function loadState(){
   try{ const r=await supa.from('campaign_state').select('*').eq('campaign_id',campaign.id).maybeSingle();
     if(r.error) throw r.error; worldState=r.data; cacheSave('state',worldState);
   }catch(e){ const c=cacheLoad('state'); if(c!==null) worldState=c; }
+  if(_bsShown) refreshBattleVfxGate();
   /* v732 E17 (run2 จอจริง: WORLD panel ค้าง date/เวลา/อากาศ 3 ค่าพร้อมกันทั้งที่ DB ถูก): renderClock ผูกกับ realtime handler+renderStory เท่านั้น
      — หน้าต่างที่ channel ตาย/refresh ทาง path อื่นทำ panel ค้างจนกว่าจะสลับแท็บ · ให้ทุกการโหลด state วาดนาฬิกาใหม่เสมอ (idempotent · เบา) */
   try{ if(typeof renderClock==='function') renderClock(); }catch(e){}
@@ -7542,7 +7563,7 @@ async function renderRoundbar(){
   // หมดสติ (HP 0) ระหว่างคอมแบต → ห้ามสั่งการ แสดงสถานะ Death Save แทน (server ทอยให้รอบละครั้ง)
   if(myChar && playerCombatUiState()==='death_save'){
     const ds=(mySheet.death_saves||{});
-    const _rolled = !!(ds.round && window._combatRound && +ds.round >= +window._combatRound);   // ทอยของรอบนี้ไปแล้ว → ล็อกจนกว่าจะขึ้นรอบใหม่
+    const _rolled = !!(ds.encounter_id===window.gEncId && ds.round && window._combatRound && +ds.round >= +window._combatRound);   // ทอยของรอบนี้ไปแล้ว → ล็อกจนกว่าจะขึ้นรอบใหม่
     const _deathSaveActionAvailable=!ds.dead&&!ds.stable&&!_rolled;
     const w=document.createElement('div'); w.className='note'; w.style.cssText='text-align:left;padding:10px 4px;line-height:1.8;color:#ff8a8a;font-weight:600;border:1px solid #d32f2f;border-radius:8px';
     w.innerHTML = ds.dead ? uiCopy('💀 ตัวละครสิ้นใจแล้ว…','💀 Your character has died…')
@@ -7551,7 +7572,7 @@ async function renderRoundbar(){
     r94RenderStabilityLog('downed',{dead:!!ds.dead,stable:!!ds.stable,rolled:_rolled});   // G3: backstage only — the Death Save button and its enabled state are the player-facing signal
     if(!ds.dead && !ds.stable){
       const rb=document.createElement('button'); rb.className='btn'; rb.style.cssText='margin-top:10px;display:block;width:100%';
-      rb.textContent=_rolled?uiCopy('⏳ ทอยรอบนี้แล้ว — รอรอบถัดไป','⏳ Rolled this round — wait for the next round'):uiCopy('🎲 ทอย DEATH SAVE (รอบละครั้ง)','🎲 Roll DEATH SAVE (once per round)');
+      rb.textContent=_rolled?uiCopy('⏳ ทอยรอบนี้แล้ว — รอรอบถัดไป','⏳ Rolled this round — wait for the next round'):uiCopy('🎲 ทอย DEATH SAVE (เมื่อถึงเทิร์น)','🎲 Roll DEATH SAVE (on your turn)');
       rb.disabled=_rolled;
       rb.onclick=async()=>{
         if(gateBeforePlay()) return;   // v738b P3-3: stale build = server 426 อยู่แล้ว แต่ต้องไม่โชว์ raw error — gate ชั้น UX เหมือนปุ่มอื่น
@@ -7560,13 +7581,13 @@ async function renderRoundbar(){
           const tok=(await supa.auth.getSession()).data.session?.access_token;
           const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({campaign_id:campaign.id, death_save:true})});
           const j=await r.json();
-          if(j.error){ toast(j.error,true); rb.disabled=false; rb.textContent=uiCopy('🎲 ทอย DEATH SAVE (รอบละครั้ง)','🎲 Roll DEATH SAVE (once per round)'); return; }
+          if(j.error){ toast(j.error,true); rb.disabled=false; rb.textContent=j.code==='not_turn_owner'?uiCopy('⏳ ยังไม่ถึงเทิร์น — รอคิว','⏳ Not your turn — wait'):uiCopy('🎲 ทอย DEATH SAVE (เมื่อถึงเทิร์น)','🎲 Roll DEATH SAVE (on your turn)'); return; }
           toast('🎲 d20 = '+j.roll+(j.revived?uiCopy(' — ปาฏิหาริย์ ฟื้น HP 1!',' — miracle! Revived at 1 HP!'):j.dead?uiCopy(' — สิ้นใจ…',' — died…'):j.stable?uiCopy(' — อาการคงที่!',' — stabilized!'):(j.roll>=10?uiCopy(' — สำเร็จ (',' — success (')+j.s+'/3)':uiCopy(' — ล้มเหลว (',' — failure (')+j.f+'/3)')), !(j.revived||j.stable||j.roll>=10));
-          mySheet.death_saves={s:j.s,f:j.f,round:j.round,stable:j.stable,dead:j.dead};
+          mySheet.death_saves={s:j.s,f:j.f,round:j.round,encounter_id:j.encounter_id,stable:j.stable,dead:j.dead};
           if(j.revived && mySheet.combat){ mySheet.combat.hp=1; }
           renderRoundbar();
           try{ resolveRound(false); }catch(e){}   // ดันเกมต่อทันที — ศัตรู/บอททำเทิร์นถัดไป ไม่ค้างรอ
-        }catch(e){ toast(uiCopy('ทอยไม่สำเร็จ ลองใหม่','Roll failed — try again'),true); rb.disabled=false; rb.textContent=uiCopy('🎲 ทอย DEATH SAVE (รอบละครั้ง)','🎲 Roll DEATH SAVE (once per round)'); }
+        }catch(e){ toast(uiCopy('ทอยไม่สำเร็จ ลองใหม่','Roll failed — try again'),true); rb.disabled=false; rb.textContent=uiCopy('🎲 ทอย DEATH SAVE (เมื่อถึงเทิร์น)','🎲 Roll DEATH SAVE (on your turn)'); }
       };
       w.appendChild(rb);
     }
@@ -10298,7 +10319,7 @@ async function renderInitiativeTracker(p){
   });
   wrap.appendChild(list); p.appendChild(wrap);
   // combat log feed
-  let logs=[]; try{ const r=await supa.from('combat_log').select('*').eq('encounter_id',enc.id).order('seq',{ascending:true}).limit(60); logs=r.data||[]; }catch(e){}
+  let logs=[]; try{ const r=await supa.from('combat_log').select('*').eq('encounter_id',enc.id).order('seq',{ascending:false}).limit(60); logs=(r.data||[]).reverse(); }catch(e){}
   if(logs.length){
     const ICON={initiative:'🎲',attack:'🎲',damage:'💥',heal:'💚',save:'🛡',check:'🎯',move:'👣',condition:'⭐',death:'☠',flee:'🏃',round_advance:'🔄',note:'📝'};
     const lc=document.createElement('div'); lc.className='item';
@@ -10705,6 +10726,13 @@ function relocateForBattle(on){
 }
 // v618 B6: adaptive debounce — resolve หนึ่งรอบ server เขียน 6 ตาราง = realtime storm → render ถี่ · render ช้า (>400ms รวม query) = ถอยหลังตามจริง (สูงสุด 2s) กัน render ต่อคิวอิ่มตัว main thread (เคสจอค้าง ~10 นาที playtest 07-13 · เร็วปกติ = 300ms เดิม)
 function scheduleBattleScene(trigger){ clearTimeout(_bsRenderT); var _trigger=trigger||'poll', _d=300; try{ var _dur=window._bsLastDur||0, _since=Date.now()-(window._bsLastEnd||0); if(_dur>400) _d=Math.min(2000, Math.max(_d, Math.round(_dur*1.5), 900-_since)); }catch(e){} _bsRenderT=setTimeout(async function(){ var _t0=Date.now(); try{ await syncBattleScene(_trigger); } finally { window._bsLastEnd=Date.now(); window._bsLastDur=window._bsLastEnd-_t0; } }, _d); }   // รวบจังหวะ event ถี่ๆ ให้เป็น render เดียว (ลดกระตุก) — ข้อ 3 (06-08): 550→300ms ลดหน่วงภาพ
+function refreshBattleVfxGate(){
+  if(!_bsShown||!window.BattleVfx||!campaign?.id)return;
+  const was=window.BattleVfx.enabled(campaign.id);
+  window.BattleVfx.refreshGate(supa,campaign.id).then(on=>{
+    if(_bsShown&&on!==was)scheduleBattleScene('vfx-gate');
+  }).catch(()=>{});
+}
 async function syncBattleScene(trigger){
   if(typeof campaign==='undefined' || !campaign) return;
   // v739 FZ-2: scope enemy truth through this viewer's encounter group
@@ -10764,6 +10792,7 @@ async function exitBattleSceneWithOutro(){
 }
 function enterBattleScene(){
   _bsShown=true;
+  refreshBattleVfxGate();
   // (06-08) safety re-sync: มือถือ realtime หลุดบ่อย → event 'จบศึก/หมากขยับ' อาจไม่ถึง ทำให้ฉากรบค้าง/กระดานไม่อัปเดต
   //   ตั้ง interval เบาๆ ทุก 8 วิ เช็คสถานะสดจาก DB → ออกฉากเมื่อศึกจบ + วาดกระดานใหม่ แม้พลาด event
   try{ if(_bsSafetyTimer) clearInterval(_bsSafetyTimer); _bsSafetyTimer=setInterval(function(){ try{ syncBattleScene('safety_poll'); }catch(e){} }, 8000); }catch(e){}
@@ -10783,6 +10812,7 @@ function enterBattleScene(){
 }
 function exitBattleScene(){
   _bsShown=false;
+  if(window.BattleVfx) window.BattleVfx.reset();
   try{ if(_bsSafetyTimer){ clearInterval(_bsSafetyTimer); _bsSafetyTimer=null; } }catch(e){}   // (06-08) หยุด safety re-sync เมื่อออกฉากรบ
   var el=document.getElementById('battleScene');
   relocateForBattle(false);
@@ -10804,6 +10834,7 @@ async function renderBattleScene(trigger){
     try{ renderClock(); var wc=document.getElementById('worldClock'), hud=document.getElementById('bsHud');
       if(wc&&hud){ var hc=document.getElementById('bsHudClock'); if(!hc){ hud.innerHTML='<div id="bsHudClock"></div>'; hc=document.getElementById('bsHudClock'); } if(hc.innerHTML!==wc.innerHTML) hc.innerHTML=wc.innerHTML; }
     }catch(e){}
+    try{window.BattleVfx?.mountUserControl(document.getElementById('bsHud'),campaign.id,uiCopy('เปิดภาพเอฟเฟกต์','Show effects'),uiCopy('ปิดภาพเอฟเฟกต์','Hide effects'),()=>renderBattleScene('manual'),dmToolsHostAllowed(),uiCopy('แสดง/ได้รับ','Played/returned'));}catch(e){}
     // เมนูย่อย DM TOOLS ในฉากรบ (host เท่านั้น) — พับเก็บใต้กล่องสถานะ/WORLD · มือถือเปิดผ่านแผ่น "🗺 สถานะ"
     try{
       var hud4=document.getElementById('bsHud');
@@ -10818,7 +10849,9 @@ async function renderBattleScene(trigger){
     // เรนเดอร์ grid ลงกล่องชั่วคราวก่อน แล้วค่อยสลับทีเดียว (ไม่ให้จอว่างระหว่างโหลด = ไม่กระพริบ)
     var board=document.getElementById('bsBoard');
     if(board){ await gridBoardRequestRender(trigger||'poll',async function(){ var _tmp=document.createElement('div'); try{ await renderBattleGrid(_tmp); }catch(e){} if(!_tmp.children.length){ _tmp.innerHTML=uiCopy('<div class="note" style="text-align:center;padding:16px;color:#9a9a9a">— ยังไม่มีสนามรบ —</div>','<div class="note" style="text-align:center;padding:16px;color:#9a9a9a">— No battle map yet —</div>'); } var _bsig=_tmp.innerHTML; if(board.getAttribute('data-sig')!==_bsig){ board.setAttribute('data-sig',_bsig); board.replaceChildren.apply(board, Array.prototype.slice.call(_tmp.childNodes)); } }); }
-    try{ await renderBattleInitLog(document.getElementById('bsInit'), document.getElementById('bsLog')); }catch(e){}
+    const _vfxScope={encounterId:null};
+    try{ await renderBattleInitLog(document.getElementById('bsInit'), document.getElementById('bsLog'),_vfxScope); }catch(e){}
+    if(window.BattleVfx) window.BattleVfx.sync(supa,campaign.id,terminalGroupForUi(),_vfxScope.encounterId,board);
     // บรรยายเฉพาะการต่อสู้ (3 บทล่าสุด) — ไม่เอาเนื้อเรื่องเก่ามาแปะ
     try{
       var nw=document.getElementById('bsNarrWrap');
@@ -10923,10 +10956,11 @@ async function refreshInitiativePressPrompt(trigger){
 }
 function initiativeWaitingLabel(){return uiCopy('· รอกดทอย','· WAITING FOR ROLL');}
 // INITIATIVE-PRESS-W31 copy surface 1 end
-async function renderBattleInitLog(initEl, logEl){
+async function renderBattleInitLog(initEl, logEl, vfxScope){
   let enc=null;
   try{ const r=await supa.from('combat_encounters').select('*').eq('campaign_id',campaign.id).eq('group_no',terminalGroupForUi()).neq('status','ended').maybeSingle(); if(!r.error) enc=r.data; }catch(e){}
-  if(!enc){ closeInitiativePressPrompt(); if(initEl) initEl.replaceChildren(); if(logEl) logEl.replaceChildren(); try{ window.gEncStartedAt=null; }catch(e){} return; }
+  if(!enc){ if(vfxScope) vfxScope.encounterId=null; closeInitiativePressPrompt(); if(initEl) initEl.replaceChildren(); if(logEl) logEl.replaceChildren(); try{ window.gEncStartedAt=null; if(window.BattleVfx) window.BattleVfx.reset(); }catch(e){} return null; }
+  if(vfxScope) vfxScope.encounterId=enc.id;
   try{ window.gEncId=enc.id; window.gEncStartedAt=enc.created_at||enc.started_at||window.gEncStartedAt||null; }catch(e){}   // v739: exact encounter keeps outro/log scoped to this group
   // (06-11) ยิง 3 query พร้อมกัน (เดิม serial 3 รอบ + log อีก 1) — ลดเวลารอ render ฉากรบ
   let ents=[], csMap={}, _logsPre=null;
@@ -10934,11 +10968,11 @@ async function renderBattleInitLog(initEl, logEl){
     const [rE,rC,rL]=await Promise.all([
       supa.from('initiative_entries').select('*').eq('encounter_id',enc.id).order('sort',{ascending:true,nullsFirst:false}),
       supa.from('combat_state').select('id,cur_hp,monsters(max_hp,name)').eq('campaign_id',campaign.id),
-      logEl?supa.from('combat_log').select('*').eq('encounter_id',enc.id).order('seq',{ascending:true}).limit(80):Promise.resolve({data:null})
+      logEl?supa.from('combat_log').select('*').eq('encounter_id',enc.id).order('seq',{ascending:false}).limit(80):Promise.resolve({data:null})
     ]);
     ents=(rE&&rE.data)||[];
     ((rC&&rC.data)||[]).forEach(x=>csMap[x.id]=x);
-    _logsPre=(rL&&rL.data)||null;
+    _logsPre=(rL&&rL.data)||null; if(_logsPre) _logsPre.reverse();
   }catch(e){}
   syncInitiativePressPrompt(enc,ents);
   if(initEl){
@@ -10978,6 +11012,7 @@ async function renderBattleInitLog(initEl, logEl){
       bsAnimateDice(logEl);   // v623 B (DG-6): แอนิเมตเลขทอยจริงบนแถวใหม่
     }
   }
+  return enc.id;
 }
 function combatLogServerRolled(row){
   const d=row&&row.detail&&typeof row.detail==='object'?row.detail:{};
@@ -11643,7 +11678,10 @@ async function renderBattleGrid(p){
     if(t.kind==='pc'||t.kind==='ally'||t.kind==='npc'){ const _dc=characters.find(x=>x.id===t.ref_char_id); if(_dc&&/^0\s*\//.test(String((_dc.public_status||{}).hp||''))){ down=true; _supine=true; } } else if(t.kind==='monster'){ const _dcs=csMap[t.ref_combat_state_id]; if(_dcs&&Number.isFinite(+_dcs.cur_hp)&&+_dcs.cur_hp<=0){ down=true; _supine=true; } }   // v448 ล้ม=HP0 · v458 HP0=หงาย
     const _lieDeg=_supine?-74:74;
     const op=(down&&t.kind!=='pc'&&t.kind!=='ally'&&t.kind!=='npc')?0.4:1;   // v449.1: ตัวละครล้ม = หมุนนอนตะแคงแต่ "ไม่จางสี" (ผู้ใช้ขอ) · มอน/วัตถุล้มยังจางเหมือนเดิม
-    const _hd=hd2dCharHref(t); let s=`<g class="gtok"${t._deco?' style="pointer-events:none"':''} onclick="this.classList.toggle('lblon')"><title>${escapeHtml(t.label||'')}</title>`;
+    const _hd=hd2dCharHref(t); const _vOn=!!(window.BattleVfx&&window.BattleVfx.enabled(campaign.id)), _vrk=t.ref_char_id?'character':(t.ref_combat_state_id?'combat_state':'');
+    const _vri=t.ref_char_id||t.ref_combat_state_id||'';
+    const _vattr=_vOn&&t.id&&_vrk?` data-token-id="${escapeHtml(String(t.id))}" data-grid-id="${escapeHtml(String(grid.id))}" data-ref-kind="${_vrk}" data-ref-id="${escapeHtml(String(_vri))}" data-col="${+t.col}" data-row="${+t.row}" data-size="${+t.size||1}" data-vfx-visible="${!(Array.isArray(t.flags)&&t.flags.some(f=>f==='hidden'||f==='invisible'))}"`:'';
+    let s=`<g class="gtok"${_vattr}${t._deco?' style="pointer-events:none"':''} onclick="this.classList.toggle('lblon')"><title>${escapeHtml(t.label||'')}</title>`+(_vattr?`<circle data-vfx-anchor="1" cx="${fx.toFixed(1)}" cy="${(fy-20).toFixed(1)}" r="0" style="pointer-events:none"/>`:'');
     if(t.ref_char_id && typeof myChar!=='undefined' && myChar && t.ref_char_id===myChar.id){ s+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy-1).toFixed(1)}" rx="14" ry="6.5" fill="none" stroke="#FAC775" stroke-width="2" opacity="0.5" style="pointer-events:none"/>`; }   // v560: มาร์คตัวเรา = วงเหลืองจางที่เท้า
     if(t.kind==='object'&&Array.isArray(t.flags)&&t.flags.includes('hazard')){ s+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy-2).toFixed(1)}" rx="14" ry="7" fill="#ff6a2b" opacity="0.32" style="pointer-events:none"><animate attributeName="opacity" values="0.18;0.5;0.18" dur="0.9s" repeatCount="indefinite"/><animate attributeName="rx" values="12;15;12" dur="0.9s" repeatCount="indefinite"/></ellipse>`; }   /* v482 P5: hazard (ไฟ/กรดบนพื้น) = วงเรืองส้มเต้น แยกจากไฟตกแต่ง */
     if(Array.isArray(t.flags)&&t.flags.includes('trap')&&t.flags.includes('revealed')){ s+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy-2).toFixed(1)}" rx="15" ry="8" fill="#ff2d2d" opacity="0.28" style="pointer-events:none"><animate attributeName="opacity" values="0.14;0.55;0.14" dur="0.85s" repeatCount="indefinite"/><animate attributeName="rx" values="12;16;12" dur="0.85s" repeatCount="indefinite"/></ellipse>`; }   /* v486 REQ3: กับดักเปิดเผย = พื้นแดงจางกระพริบ */
@@ -12615,8 +12653,8 @@ async function addDungeon(nm,th,fi,btn){
 }
 async function deleteDungeon(id,mapPath){
   if(!await uiConfirmText(uiCopy('ลบดันเจียนนี้?','Delete this dungeon?'),'dungeon-delete')) return;
+  const {error}=await supa.from('dungeons').delete().eq('id',id); if(error){ toast((error.message==='puzzle_posed_binding_immutable'||error.message==='puzzle_posed_server_owned')?uiCopy('ลบดันเจียนที่มีปริศนาปรากฏในเรื่องแล้วไม่ได้','A dungeon with a puzzle already introduced in the story cannot be deleted.'):error.message,true); return; }
   if(mapPath){ try{ await supa.storage.from('maps').remove([mapPath]); }catch(e){} }
-  const {error}=await supa.from('dungeons').delete().eq('id',id); if(error){ toast(error.message,true); return; }
   // bugfix: ถ้าแผนที่ที่ลบถูกตั้งเป็นฉากปัจจุบัน → เคลียร์ current_map (กันแท็บ Map ชี้ไฟล์ที่หายไปแล้ว)
   try{ if(worldState&&worldState.current_map===mapPath){ await supa.from('campaign_state').update({current_map:null,updated_at:new Date().toISOString()}).eq('campaign_id',campaign.id); await loadState(); renderMap(); } }catch(e){}
   toast(uiCopy('ลบแล้ว','Deleted')); renderFiles();
@@ -12694,7 +12732,7 @@ async function addPuzzleFile(fnm,fi,btn){
 }
 async function deletePuzzle(id){
   if(!await uiConfirmText(uiCopy('ลบปริศนานี้?','Delete this puzzle?'),'puzzle-delete')) return;
-  const {error}=await supa.from('puzzles').delete().eq('id',id); if(error){ toast(error.message,true); return; }
+  const {error}=await supa.from('puzzles').delete().eq('id',id); if(error){ toast(error.message==='puzzle_posed_server_owned'?uiCopy('ลบปริศนาที่ปรากฏในเรื่องแล้วไม่ได้','A puzzle already introduced in the story cannot be deleted.'):error.message,true); return; }
   toast(uiCopy('ลบแล้ว','Deleted')); renderFiles();
 }
 async function uploadRefFile(fi,sel,btn){
@@ -12992,7 +13030,7 @@ function startRtFallback(){
   (function(){ var _hb=Date.now(); document.addEventListener('visibilitychange',function(){ _hb=Date.now(); }); setInterval(function(){ var now=Date.now(), gap=now-_hb; _hb=now; if(document.hidden) return; if(gap>4000 && gap<120000){ try{ var lg=JSON.parse(localStorage.getItem('_freezeLog')||'[]'); lg.push({t:new Date().toISOString(), blockedMs:gap, battle:!!window._bsShown, lastRenderMs:window._bsLastDur||0}); localStorage.setItem('_freezeLog', JSON.stringify(lg.slice(-20))); console.warn('[freezeDetect] main thread ถูกบล็อก ~'+gap+'ms (battle='+(!!window._bsShown)+')'); }catch(e){} } }, 1000); })();
   // v728 free-tier: ช่อง joined ที่ "ไม่มี event" คือสภาวะปกติ ไม่ใช่ socket ตาย — full resync สูงสุดนาทีละครั้ง; disconnected ยัง recovery เร็ว
   _rtPoll=setInterval(()=>{ if(document.hidden) return; const joined=!!(rtChannel&&rtChannel.state==='joined'); const stale=Date.now()-rtLastSyncTs; if(stale>(joined?60000:7000)) resyncAll(false); }, 10000);
-  document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ ensureRtAlive(); const now=Date.now(); if(now-_narrVisibleReconcileTs>=5000){ _narrVisibleReconcileTs=now; resyncAll(true,true); } } });
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ ensureRtAlive(); if(_bsShown)refreshBattleVfxGate(); const now=Date.now(); if(now-_narrVisibleReconcileTs>=5000){ _narrVisibleReconcileTs=now; resyncAll(true,true); } } });
   window.addEventListener('online',()=>{ ensureRtAlive(); resyncAll(true); });
   window.addEventListener('pageshow',()=>{ ensureRtAlive(); resyncAll(true); });
 }
