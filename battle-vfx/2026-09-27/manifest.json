@@ -1,0 +1,665 @@
+{
+ "schema": "battle-vfx-pack/v1",
+ "version": "2026-09-27",
+ "status": "uploaded_unreferenced — FACE-4 wires setManifest/status overlay; gates stay OFF until the owner approves live-grid screenshots",
+ "sources": {
+  "effects": "C:\\Users\\User\\.codex\\visualizations\\2026\\09\\22\\01a0c93f-11c0-7c93-945a-15dd90adb0e8\\vfx03-r4-quality-pass-20260927-r2",
+  "status_icons": "C:\\Users\\User\\.codex\\visualizations\\2026\\09\\22\\01a0c93f-11c0-7c93-945a-15dd90adb0e8\\vfx-visual-rework-r4"
+ },
+ "decisions": [
+  "owner 2026-09-27: r4 accepted for bludgeoning/fist/slashing/thunder and the 15 status icons",
+  "owner 2026-09-27: review the VFX-03 re-pass; if it passes, upload — coordinator review passed (r2 fixed bludgeoning, poison, zone_thorns, zone_vines, zone_web)"
+ ],
+ "playback": {
+  "impact": "8-frame 460ms one-shot alpha pulse, exact source pixels, transparent final frame",
+  "delivery": "8-frame 720ms subtle alpha loop, renderer controls movement",
+  "zone": "8-frame 960ms subtle alpha loop, exact first/last seam, draw beneath token"
+ },
+ "counts": {
+  "effects": 26,
+  "frames": 90,
+  "status": 15
+ },
+ "effects": {
+  "acid": {
+   "kind": "impact",
+   "still": {
+    "url": "./battle-vfx/2026-09-27/effects/acid.png",
+    "sha256": "558616E3A4533FCABC9A66AE5B61CB87964A0FCEA4616D74959C0AAB05A66CD2"
+   },
+   "frames": [
+    {
+     "url": "./battle-vfx/2026-09-27/frames/acid/frame-00.png",
+     "sha256": "88634A3871FB665500911DF66A3DAB0504E01FEEB8EFE62A7B4347F893AFBC8F"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/acid/frame-01.png",
+     "sha256": "93AD5A48D5329EB9F356F24459FEC835739BAAE8F56EDA4E0CDE119B3375E29C"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/acid/frame-02.png",
+     "sha256": "0F4B26917360B0378CBF45ED84812EA898D95630E26D92EFD65D4257762C45B9"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/acid/frame-03.png",
+     "sha256": "FCA78963DAC26216F34912878946A266AC2FB1F123ED7E0A92FCEB7CDF56872D"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/acid/frame-04.png",
+     "sha256": "105E96D7A1BD1E886A46B403B06A80A6AA7790F40435AE65F58E5DA51A92BA07"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/acid/frame-05.png",
+     "sha256": "AE45EA96DB085C7C89D3586097DDC4B106D253AE0A7C1BAC0707401857FA4D36"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/acid/frame-06.png",
+     "sha256": "173368ABAB9B3F6F20ED6E9E3BFF1A933E36D0EA6307B3BA104B735092B4DD96"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/acid/frame-07.png",
+     "sha256": "E4CD47E6BFDF452C67E0DDE817CF2A635B24A108F5920826306DD17EAAED1405"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/acid/frame-08.png",
+     "sha256": "EFC01E3C99556AB099BA95234F9E3A8B6F29C6644458476529D442F9905A7CD7"
+    }
+   ]
+  },
+  "beam": {
+   "kind": "delivery",
+   "still": {
+    "url": "./battle-vfx/2026-09-27/effects/beam.png",
+    "sha256": "1A9566C652CFCB36694D65C6DF52C858B9901F10B13E91F5071C773FC6616212"
+   },
+   "frames": [
+    {
+     "url": "./battle-vfx/2026-09-27/frames/beam/frame-00.png",
+     "sha256": "1FE14BB8B9F5E926565E9270268948A12658C5EF6D937B3B4A270BD47EBACEB3"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/beam/frame-01.png",
+     "sha256": "F3DD47E0A4249CB576A1067250A8F9B2AFE58065998668E2D0418F59FEDA7E77"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/beam/frame-02.png",
+     "sha256": "40618FFBDE616B8E4E06F0F00F73D0329EC703D411BB37D938300F70C719C434"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/beam/frame-03.png",
+     "sha256": "9EF1E9FA40EAA10C9AAE17CC3D105392C3F8B0189ACA5E1949D03987DCB914D7"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/beam/frame-04.png",
+     "sha256": "B0F60A18A4DCAE14FE342DF547B8BC5628CCE75F6D59D8356E06C9CADFAC7C1E"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/beam/frame-05.png",
+     "sha256": "8F05CBB2893825F630E4CDDB3A77A8B5B12B61C3E1771EF33FD8938854C1BBF1"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/beam/frame-06.png",
+     "sha256": "3F7602C18DF27F6949E24163A6139A17B0B7597A436E1BDA4A38A9D20B8888B6"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/beam/frame-07.png",
+     "sha256": "C666F65DFE5BE2DF8F44526D0622D16BF1A89EFDD6D608AF1DF4ED5BD305A782"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/beam/frame-08.png",
+     "sha256": "AB12442CE9C7F88B74FA08194982FCA2B31F2E9AE4BB5E32B2D2A55445A95F69"
+    }
+   ]
+  },
+  "bludgeoning": {
+   "kind": "impact",
+   "still": {
+    "url": "./battle-vfx/2026-09-27/effects/bludgeoning.png",
+    "sha256": "19B86B6B085FF6266CC66E8BF7E4CFEBA4D89F1CF5C39E56DE3860AB0E549D63"
+   },
+   "frames": []
+  },
+  "cold": {
+   "kind": "impact",
+   "still": {
+    "url": "./battle-vfx/2026-09-27/effects/cold.png",
+    "sha256": "47483C261F0C86B16C00214669C6AB9C1A65ECE5C5E71B190D05F704C5BFFB5A"
+   },
+   "frames": [
+    {
+     "url": "./battle-vfx/2026-09-27/frames/cold/frame-00.png",
+     "sha256": "2EC1675F32481131F259BAA6D397220673CBACAAC7C76CBFD9100E587CBA862C"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/cold/frame-01.png",
+     "sha256": "B03501744049B7CF06C70DA7ED1AC1A239441C68DD99981D8EDF2DFE98062B10"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/cold/frame-02.png",
+     "sha256": "CDCFF053C33EFCC3002569DD2698D5BD936D17BA544965B1C67EB7A1F5599E81"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/cold/frame-03.png",
+     "sha256": "D5587A3A49CD8FCFEC6ADC058C258A866A9E86B3FDCE3872CDFA355AA6FA494B"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/cold/frame-04.png",
+     "sha256": "DE5A1170EE1C949C37B859AB2B2F3921AAD07E7F70582172045CF2ECA350F129"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/cold/frame-05.png",
+     "sha256": "1BD89303C0F10AD29664EBE74BCC27BB74C013BE43D57F1E8EC1F20607727AE8"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/cold/frame-06.png",
+     "sha256": "C8CC4B6DB0641CEE3AB114B25E118F1E7013310B04B9CB7FF74E7004797BB79D"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/cold/frame-07.png",
+     "sha256": "C5E4D256BBF4D5DEE9391FCE7A68838519A704E340C5F9647C0544BC10410F5D"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/cold/frame-08.png",
+     "sha256": "6970635C93CAD8B3D74D977C9D769696A871C2285731BB3BFA6512FE2F171DCA"
+    }
+   ]
+  },
+  "dash": {
+   "kind": "delivery",
+   "still": {
+    "url": "./battle-vfx/2026-09-27/effects/dash.png",
+    "sha256": "CE7975E41EA1FEAEC6F1CAFEADA395F7C98E1BF592429CF0765DFB9546F78A56"
+   },
+   "frames": [
+    {
+     "url": "./battle-vfx/2026-09-27/frames/dash/frame-00.png",
+     "sha256": "F01F1A5686F0772A31DD156DC4481F7E5CCF8FD57382E1A1D8ADD5AB0B27F162"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/dash/frame-01.png",
+     "sha256": "4F5B15746B757EEB5B1D0A513BA6CC3F4A60842836092AD00CD4E501D7E1FFC1"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/dash/frame-02.png",
+     "sha256": "C91E14D85DED36D8F75A400CC65D8715DABAA3B8B053CA964814C421A3C3A921"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/dash/frame-03.png",
+     "sha256": "A9DC6B8CC8DEAF91A535F6633AAC9BEC0DB1CEB393F6308B57E89749DEDAC0FF"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/dash/frame-04.png",
+     "sha256": "B8336899126DCA834394D006BC6AF48817AE96F9DAB0AEA62C65D05CCDD69C7C"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/dash/frame-05.png",
+     "sha256": "D0712618041744959901B38CD2512171D14160605DA450058BCB86FA4A25A98C"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/dash/frame-06.png",
+     "sha256": "BD2F06FFFD7A6CB36A5F75BAA859C6115A80A1B087AE9A71AFA3FAE83F81043C"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/dash/frame-07.png",
+     "sha256": "9D06D11B86245947A497F8289949B3D1E88D0D29722F3160B7369460FAE72F57"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/dash/frame-08.png",
+     "sha256": "28B9D42C21FB055CB8240E06ABF36C90BAA4F815759262F3C6F9C3AB7C89814F"
+    }
+   ]
+  },
+  "fire": {
+   "kind": "impact",
+   "still": {
+    "url": "./battle-vfx/2026-09-27/effects/fire.png",
+    "sha256": "37AC800A51E6BCCF92677D8E79B5293D3D0E7C78B1F36DE3384F61D37106383D"
+   },
+   "frames": [
+    {
+     "url": "./battle-vfx/2026-09-27/frames/fire/frame-00.png",
+     "sha256": "C34C2C9BAFE03CC85C4335D9A9A59089BCF6F7688DC45EDBA34259EF8EB1FAF5"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/fire/frame-01.png",
+     "sha256": "731A3F0EA2C367A6AC365D247D6676AD9F86E99898846C07EEB93AB6788C549E"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/fire/frame-02.png",
+     "sha256": "3A19DCF3AC3B3A0EA3C4A6532DFA6DC3D4C0D83CB3186945545F3D5ED2D61712"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/fire/frame-03.png",
+     "sha256": "B6215EC293D3870FA8F037259E6244F2A1493330A5F741B9CF171D195563731E"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/fire/frame-04.png",
+     "sha256": "DB815FCA1D238B07F80E3C2343F0F66EE8045F1048218595088DE347146F8468"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/fire/frame-05.png",
+     "sha256": "3EAF211615D92DD72A654BF80BBAF07BFDF657B682D96F79E3B58F308925620A"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/fire/frame-06.png",
+     "sha256": "0CFDC565D9E9F6DD718074B6DE9422695A676E3855106A3379A544E3E47FA51B"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/fire/frame-07.png",
+     "sha256": "D4AC57FC09DF865BD43C2FF420AE125BB3D9CAD031007E52F14DF25449AF715D"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/fire/frame-08.png",
+     "sha256": "5098973FA7586AD2F770AACDB8993B87AF73DE19491B1A302F16F2EE26E3164F"
+    }
+   ]
+  },
+  "fist": {
+   "kind": "impact",
+   "still": {
+    "url": "./battle-vfx/2026-09-27/effects/fist.png",
+    "sha256": "E7EAC31174A328B020EFC7AB5B7EE2E56A9E8CBE79CCBD6CF352AFDAF3D0A1AF"
+   },
+   "frames": []
+  },
+  "force": {
+   "kind": "impact",
+   "still": {
+    "url": "./battle-vfx/2026-09-27/effects/force.png",
+    "sha256": "F9663CF496B6E7C5BC376B3B620D46831C6383CD9D379C019E8ED82FA31FA0ED"
+   },
+   "frames": [
+    {
+     "url": "./battle-vfx/2026-09-27/frames/force/frame-00.png",
+     "sha256": "AB8CE2035EEECAF9386E5AF5082506693795A6AF906729DE2EC4098E14F3EF53"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/force/frame-01.png",
+     "sha256": "E4C84999461748D18CC76C5B2A90ACF7EB296E2E5D9D636F82561F6BB6F92A7C"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/force/frame-02.png",
+     "sha256": "05E88052D3C7B364F1440BC7CC0C8214A66C721F153924151B07A6980FA49487"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/force/frame-03.png",
+     "sha256": "5D1141EB102005ADB0928F4F8C43D4E9F1827313AF6578C8291E5A143FA4D604"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/force/frame-04.png",
+     "sha256": "3F718ACC00F2D272D36DFFA5FB9B7E2D05961512A39ACF67352CAE4D9E584C63"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/force/frame-05.png",
+     "sha256": "8B4D0CE2556214BDF06F5CF24F9CFAA59C2E3F5F48C8D6DD8D120567A3AC26BB"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/force/frame-06.png",
+     "sha256": "A69A888FF0D960D3111F09958079AB9A4AE41F931E613EDB8E25133FF4E82C28"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/force/frame-07.png",
+     "sha256": "6038D717FA86E5FA4D2C49136BAAEB395D18D060AEEB8AD22FCD9C0ADAB5602E"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/force/frame-08.png",
+     "sha256": "96716BDC0EBDDCC12843F29CA08A3FFD5894CAAC418A46B02E7681232F074285"
+    }
+   ]
+  },
+  "heal": {
+   "kind": "impact",
+   "still": {
+    "url": "./battle-vfx/2026-09-27/effects/heal.png",
+    "sha256": "83BE00B25062E768755A14894A8DC567E18C4A0F46915FB9123CA69126349973"
+   },
+   "frames": [
+    {
+     "url": "./battle-vfx/2026-09-27/frames/heal/frame-00.png",
+     "sha256": "70E958EC7ECFA8036F9DC6EB47623EFE7665399F5B4EB4B02E9E22847F66AA1E"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/heal/frame-01.png",
+     "sha256": "543949BC915EEC6253F8B0D7AB987DB6957C946A78B21752E375A9942FCAA7BD"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/heal/frame-02.png",
+     "sha256": "867C2980C7675D74DF14EBC901F10BEAF28460EB318F6A25550403C7B99CD5A5"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/heal/frame-03.png",
+     "sha256": "F8C8E27C58762DD1E4734D2F06B125D269DC21039CA1819D668354997D06FF3E"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/heal/frame-04.png",
+     "sha256": "ADA1A9A564885C598EC7F3F4408722801F55A31E27A98671A21DD054821CF5D6"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/heal/frame-05.png",
+     "sha256": "EE0DC6A13B474A6E6CF983707A60BE50F6D9E454799501A3FE72B519F6390743"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/heal/frame-06.png",
+     "sha256": "950E27677705AD5B09A3E1240CE8C3D55BC6B37C687AC7719EA3F7918802FB5B"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/heal/frame-07.png",
+     "sha256": "776F5D9016BE69B55364CCB5F74918AEC624547CFD08EB725301293822B8A836"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/heal/frame-08.png",
+     "sha256": "71BC0EB0098DFCB5AF5BF12AFAACC4DD58D9C910B51D90B292A889DDCFB80F72"
+    }
+   ]
+  },
+  "lightning": {
+   "kind": "impact",
+   "still": {
+    "url": "./battle-vfx/2026-09-27/effects/lightning.png",
+    "sha256": "E96B6A2021AD5E5AFF8E668DF5BE34BF005C5B1416A768D8B5DE475BA3B644F5"
+   },
+   "frames": [
+    {
+     "url": "./battle-vfx/2026-09-27/frames/lightning/frame-00.png",
+     "sha256": "CCD248AAAA2308AD5C13CFF2A652422B83C629BD978CEDFC6259420B67EA5371"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/lightning/frame-01.png",
+     "sha256": "D923503D12114F4CEBB93372D1BD7264C4F4E597CFF2B6D160366C9034629980"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/lightning/frame-02.png",
+     "sha256": "5F11C99DE7CBE047880270DE64FBB3D6115E0153AC79767D2CEBC626AA81F421"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/lightning/frame-03.png",
+     "sha256": "440CB1B012899672B79B9DCB3E15304CE508526AEC72A3D19513B031C1430E4B"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/lightning/frame-04.png",
+     "sha256": "ADF041F0466F2039CB80555CD4A2661513D16C323227F74B45321B56E6C9CCD9"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/lightning/frame-05.png",
+     "sha256": "05E5887DC8D6DDE6BDA590BB99B1E432E865EA7A846DEFB0AF4A8C0FD05037C8"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/lightning/frame-06.png",
+     "sha256": "098365642511CDC781D227B5FA9A3CFA93A9707AACC4E7C60425473281F7CC3C"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/lightning/frame-07.png",
+     "sha256": "0C328B61219D11785554A4D4A5494737CA6AE34D98A73879DAD1FF6014737845"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/lightning/frame-08.png",
+     "sha256": "8C993514086877C8CEFC15B8B1D7AA7AE04580DC896F826106DA6D0F54207E50"
+    }
+   ]
+  },
+  "necrotic": {
+   "kind": "impact",
+   "still": {
+    "url": "./battle-vfx/2026-09-27/effects/necrotic.png",
+    "sha256": "4FBFEE9CA0E89B78F4786CA48B92E408DB9A66120310867F03DEBB99E4934F3F"
+   },
+   "frames": []
+  },
+  "piercing": {
+   "kind": "impact",
+   "still": {
+    "url": "./battle-vfx/2026-09-27/effects/piercing.png",
+    "sha256": "F2B37DACFB072F420250C91AB57BBB1642943FA0DB8B2F8B246A57D2370FF147"
+   },
+   "frames": []
+  },
+  "poison": {
+   "kind": "impact",
+   "still": {
+    "url": "./battle-vfx/2026-09-27/effects/poison.png",
+    "sha256": "FD79609D883FEF6081096E8C6DE4CAE61A950A08CFDBCD21CEA279579A5DD988"
+   },
+   "frames": [
+    {
+     "url": "./battle-vfx/2026-09-27/frames/poison/frame-00.png",
+     "sha256": "18A85E8F58394E4A0B1099BBC1B4BCDED4D7A1E12C0FF34580A7B3122ED1D388"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/poison/frame-01.png",
+     "sha256": "5FDF7D5762A3059DEA8A088A8075EF4006C852CA3B2A44BC17DB47FBAC43605A"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/poison/frame-02.png",
+     "sha256": "DB10792AB71DB9A058E0A42F914E442202D1A8A0C22054758BBCFD9A525DBE4D"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/poison/frame-03.png",
+     "sha256": "F445CADE7C060A039D113EBE2FF29E5736E55EBEE5844C8BE463E19F70494D61"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/poison/frame-04.png",
+     "sha256": "6FC617758828BC4F94641A0CE0286E21BBF079281A3D912F01E7D974E65FF9DE"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/poison/frame-05.png",
+     "sha256": "F1E7ADBC7D1F388C0E294C441519CEEF6EC96A3075F0FCA864F41BFF6B601124"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/poison/frame-06.png",
+     "sha256": "42542C9556C482D53511C92E5C243072F22BDC79FD190DDE7B1F966F7AD3F396"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/poison/frame-07.png",
+     "sha256": "E8AFEDEC4AECC5A56835FDB345B6D52CC94B8D04749E13A9192A47414AB03CE1"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/poison/frame-08.png",
+     "sha256": "36D59842878AF9583EF7EA684CEF4B2EFB8E877488615878C20BB06320A02635"
+    }
+   ]
+  },
+  "projectile": {
+   "kind": "delivery",
+   "still": {
+    "url": "./battle-vfx/2026-09-27/effects/projectile.png",
+    "sha256": "926A4FB6A62B636944163D56F2B4BCC28ED7BC147813BA499EAFE9E0E087732D"
+   },
+   "frames": []
+  },
+  "psychic": {
+   "kind": "impact",
+   "still": {
+    "url": "./battle-vfx/2026-09-27/effects/psychic.png",
+    "sha256": "AB7F6CFEB2DDF48E4AC9C16A2B79A6477E573D93BC70651237830BDA0942853B"
+   },
+   "frames": []
+  },
+  "radiant": {
+   "kind": "impact",
+   "still": {
+    "url": "./battle-vfx/2026-09-27/effects/radiant.png",
+    "sha256": "71F43C4664307C6C6458FEBC9440CA06CA9669C3F39750147136EE51F2F782A9"
+   },
+   "frames": []
+  },
+  "slashing": {
+   "kind": "impact",
+   "still": {
+    "url": "./battle-vfx/2026-09-27/effects/slashing.png",
+    "sha256": "EE02F68C20E672BACB9EDE6F447779BC19954BD6CE9B0CECDDD26F37AA702EE1"
+   },
+   "frames": []
+  },
+  "temporary_hp": {
+   "kind": "impact",
+   "still": {
+    "url": "./battle-vfx/2026-09-27/effects/temporary_hp.png",
+    "sha256": "8B6CBC6D0AF71433E45113FA778D6E34E48FD7580030E5C050ED59640DB79DCA"
+   },
+   "frames": [
+    {
+     "url": "./battle-vfx/2026-09-27/frames/temporary_hp/frame-00.png",
+     "sha256": "99DDDF88CD19D5C43F520A0D7B42D1BB803A3F9A9F7C7C60992832916F928DB7"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/temporary_hp/frame-01.png",
+     "sha256": "35C5E16D8CBD8A94C1DEA4B272D6175D553060A8A123AB5E1E7124D597338C65"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/temporary_hp/frame-02.png",
+     "sha256": "91EFB814A8A14687A774D380C5115736B5658F75459889ED490AF915F8D1FB60"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/temporary_hp/frame-03.png",
+     "sha256": "FA5696A4B12AC5E7AE9EE7A9BA5B6D3AE4DBEC052714AA1A7F3E1A2262885E3E"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/temporary_hp/frame-04.png",
+     "sha256": "259590EC0A273E908D3400B7A05E8062B962D8A83052C73F861514A8AEC10B89"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/temporary_hp/frame-05.png",
+     "sha256": "8AF57C3D9AE5D278F46ED9E6896F31DA8DC2AD8634DDCF47F615C30300CF616B"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/temporary_hp/frame-06.png",
+     "sha256": "88C76607393230C8CF6A266CBB5B9270D20ACC406250B00638D4EB07ACBC11EE"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/temporary_hp/frame-07.png",
+     "sha256": "BBC57C87AB575C94A82728DA2170DFBFBEAF38FE8627CC9025878CE7EA26D327"
+    },
+    {
+     "url": "./battle-vfx/2026-09-27/frames/temporary_hp/frame-08.png",
+     "sha256": "CE9FB1BF84445A7C3B88B174DD039B8E1641D1788CD121EB2825DDABFD1B4D40"
+    }
+   ]
+  },
+  "thunder": {
+   "kind": "impact",
+   "still": {
+    "url": "./battle-vfx/2026-09-27/effects/thunder.png",
+    "sha256": "1E4C0E8132710C9D42CBA6D1D190F2425C293381F3C5ED4ABD35DCE40EEB35E9"
+   },
+   "frames": []
+  },
+  "wave": {
+   "kind": "delivery",
+   "still": {
+    "url": "./battle-vfx/2026-09-27/effects/wave.png",
+    "sha256": "FE85B33075B773852B8B4D92DB36AD29500F31FE860D709C5052EED769875A1F"
+   },
+   "frames": []
+  },
+  "zone_fire": {
+   "kind": "zone",
+   "still": {
+    "url": "./battle-vfx/2026-09-27/effects/zone_fire.png",
+    "sha256": "ABAFB089526194B8E8B31786ECC10EC87A178BDA8838ED196C6482819259EA08"
+   },
+   "frames": []
+  },
+  "zone_fog": {
+   "kind": "zone",
+   "still": {
+    "url": "./battle-vfx/2026-09-27/effects/zone_fog.png",
+    "sha256": "4419EC1D524C433B6F286319ADAC724103601E15D1D1A84AC81CF4BE279C2114"
+   },
+   "frames": []
+  },
+  "zone_smoke": {
+   "kind": "zone",
+   "still": {
+    "url": "./battle-vfx/2026-09-27/effects/zone_smoke.png",
+    "sha256": "401F382454605706284491D358ACFDDD9E7E06A8849ED041F60091A82A8BCA39"
+   },
+   "frames": []
+  },
+  "zone_thorns": {
+   "kind": "zone",
+   "still": {
+    "url": "./battle-vfx/2026-09-27/effects/zone_thorns.png",
+    "sha256": "B520E674D162069F0F82A28C63237605D793CE9F91CD89F806782FBE32537C1A"
+   },
+   "frames": []
+  },
+  "zone_vines": {
+   "kind": "zone",
+   "still": {
+    "url": "./battle-vfx/2026-09-27/effects/zone_vines.png",
+    "sha256": "53A82479B4BA3940169A9517AE9FCFE8052DFF995DC88A3DB51703B64D6A98F9"
+   },
+   "frames": []
+  },
+  "zone_web": {
+   "kind": "zone",
+   "still": {
+    "url": "./battle-vfx/2026-09-27/effects/zone_web.png",
+    "sha256": "5CE233E31A4BA1D34D1D790370A99B519500C71A8FB25D527EF7D9E08BB4488C"
+   },
+   "frames": []
+  }
+ },
+ "status_icons": {
+  "blinded": {
+   "url": "./battle-vfx/2026-09-27/status/blinded.png",
+   "sha256": "DB1295221C3C5C72D4D61A7119F12826BF84DF41DFAC9E7A9AD4D3F3148B2DA9"
+  },
+  "charmed": {
+   "url": "./battle-vfx/2026-09-27/status/charmed.png",
+   "sha256": "D42032AAF121587B7B63F9C56BC80B48E37C084DA7C803E6CFB4F52C587E3D64"
+  },
+  "deafened": {
+   "url": "./battle-vfx/2026-09-27/status/deafened.png",
+   "sha256": "E6F6358CA6A469432E9BBF3FB787162D50AA228E9A1536036CDAC6FCC96BABC6"
+  },
+  "exhaustion": {
+   "url": "./battle-vfx/2026-09-27/status/exhaustion.png",
+   "sha256": "B526E285086224C34239376D509C092BD4A3E3379A56F6B4C636046172011007"
+  },
+  "frightened": {
+   "url": "./battle-vfx/2026-09-27/status/frightened.png",
+   "sha256": "8F7C0534DCBED7A3C68D3BF4997EE93D75D84237AE4049C25D5B989B467F62D4"
+  },
+  "grappled": {
+   "url": "./battle-vfx/2026-09-27/status/grappled.png",
+   "sha256": "5C1CE1FD4AAFF41A3C40B93FAAF29A52C5B601C37D48D045A80554BAF0B19EA3"
+  },
+  "incapacitated": {
+   "url": "./battle-vfx/2026-09-27/status/incapacitated.png",
+   "sha256": "5CB4BE8E5C8B1B48DDFD9828DD4708DDA803D63C31F37ABA01EECEB850905AA8"
+  },
+  "invisible": {
+   "url": "./battle-vfx/2026-09-27/status/invisible.png",
+   "sha256": "F4F8D8BDF049E46777E61462F40BA1E9D2AD16874A4ED962BA2CE62DCDFC0727"
+  },
+  "paralyzed": {
+   "url": "./battle-vfx/2026-09-27/status/paralyzed.png",
+   "sha256": "3377B29791D540F21772CDE182615D6CA705608DAF80D6A2AE901278925D80BD"
+  },
+  "petrified": {
+   "url": "./battle-vfx/2026-09-27/status/petrified.png",
+   "sha256": "0C1AE58247EA9D5DC4627F58CCFE19F3DDAD62EF149B2CDB6402D055EB29BEFA"
+  },
+  "poisoned": {
+   "url": "./battle-vfx/2026-09-27/status/poisoned.png",
+   "sha256": "803E301F4F68AE70CD60A3F0A5A5D8ED539CAF4F33316AC8197635D40F065079"
+  },
+  "prone": {
+   "url": "./battle-vfx/2026-09-27/status/prone.png",
+   "sha256": "498376375E5922D1267967DF8B409C11A062BE03AE6457D7531FA00C062AA38C"
+  },
+  "restrained": {
+   "url": "./battle-vfx/2026-09-27/status/restrained.png",
+   "sha256": "7DEE895F6D152CD76F3FF4705E51253D7263F6B95C70020DF8631D4A24996708"
+  },
+  "stunned": {
+   "url": "./battle-vfx/2026-09-27/status/stunned.png",
+   "sha256": "3F226C4D85B81A1AFD53744F30C2A944708C7C148C1FE2C24F4644AB17E7086B"
+  },
+  "unconscious": {
+   "url": "./battle-vfx/2026-09-27/status/unconscious.png",
+   "sha256": "547E328079DB7061247F5080EFE5282CD105E76468ED56400BB816D970477B76"
+  }
+ }
+}
