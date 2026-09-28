@@ -23,15 +23,19 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./grid-command-flow.js?v=961"></script>
 <script src="./grid-command-adapter.js?v=822"></script>
 <script src="./grid-board-replacement-lease.js?v=202608110249"></script>
-<script src="./battle-vfx.js?v=20260925vfx05"></script>
+<script src="./battle-vfx.js?v=20260927vfxlive01"></script>
+<script src="./battle-facing-manifest.js?v=20260927face01"></script>
+<script src="./battle-facing.js?v=20260927face01"></script>
+<script src="./battle-facing-motion.js?v=20260927face01"></script>
 <script src="./dice-roll-sound.js?v=0823"></script>
 <script src="./dice-fx.js?v=0903"></script>
-<script src="./dice-canvas.js?v=0903"></script>
+<script src="./dice-canvas.js?v=20260927dicelive01"></script>
 <script src="./dice-stage.js?v=0907"></script>
 <script src="./ui-draft-guard.js?v=0831"></script>
 <script src="./music-playback-owner.js?v=847"></script>
 <script src="./music-v2-dark-launch.js?v=0825"></script>
 <script src="./npc-codex-reader.js?v=0826r14"></script>
+<script src="./grid-touch-telemetry.js?v=20260926w276"></script>
 <style>
 /* ============================================================
    TTRPG CAMPAIGN — Dragon Quest (NES) monochrome re-skin (เฟส 5)
@@ -972,7 +976,9 @@ body.in-battle .bs-cs-btn{display:block;}
 .bs-board{border:0;background:transparent;padding:0;overflow-x:auto;flex:0 0 auto;}   /* v454: เอากรอบนอกออก เหลือเส้นเดียว (ใช้ border ของ svg เอง) */
 .bs-vfx-host{position:relative;}
 .bs-vfx-layer{position:absolute;inset:0;pointer-events:none;z-index:2;overflow:hidden;}
-.bs-vfx-cue{position:absolute;transform:translate(-50%,-50%);border:var(--vfx-line,3px) solid var(--vfx-color);border-radius:50%;opacity:var(--vfx-opacity,.88);box-shadow:0 0 0 2px var(--vfx-rim,#101820),0 0 8px 4px var(--vfx-color),inset 0 0 8px var(--vfx-color);animation:bsVfxPulse .54s ease-out forwards;image-rendering:pixelated;}
+.bs-vfx-cue{position:absolute;transform:translate(-50%,-50%);border:var(--vfx-line,3px) solid var(--vfx-color);border-radius:50%;opacity:var(--vfx-opacity,.88);box-shadow:0 0 0 2px var(--vfx-rim,#101820),0 0 8px 4px var(--vfx-color),inset 0 0 8px var(--vfx-color);animation:bsVfxPulse .46s ease-out forwards;image-rendering:pixelated;}
+.bs-vfx-cue[data-vfx-playback-kind="delivery"]{animation:none;}
+.bs-vfx-cue[data-vfx-playback-kind="zone"]{animation:bsVfxZone .96s ease-in-out infinite alternate;}
 .bs-vfx-cue[data-vfx-kind="cold"],.bs-vfx-cue[data-vfx-kind="radiant"]{--vfx-rim:#10253a;}
 .bs-vfx-cue[data-vfx-kind="poison"],.bs-vfx-cue[data-vfx-kind="bludgeoning"]{--vfx-rim:#30200e;}
 .bs-vfx-cue[data-vfx-kind="heal"]{border-radius:24%;--vfx-rim:#064c35;}
@@ -983,6 +989,15 @@ body.in-battle .bs-cs-btn{display:block;}
 .bs-vfx-cue[data-vfx-kind="temporary_hp"]::after{content:'';position:absolute;inset:21%;border:2px solid #15337b;border-radius:inherit;}
 .bs-vfx-cue img{width:100%;height:100%;object-fit:contain;image-rendering:pixelated;}
 .bs-vfx-cue.bs-vfx-still{animation:bsVfxFade .18s linear forwards;}
+.bs-vfx-cue[data-vfx-kind="miss"]::after,.bs-vfx-cue[data-vfx-kind="blocked"]::after{position:absolute;inset:0;display:grid;place-items:center;font:900 20px/1 system-ui,sans-serif;color:#fff;text-shadow:0 1px 3px #101820;}
+.bs-vfx-cue[data-vfx-kind="miss"]::after{content:'×';}
+.bs-vfx-cue[data-vfx-kind="blocked"]::after{content:'⊘';}
+.bs-vfx-static{position:absolute;transform:translate(-50%,-50%);width:18px;height:18px;box-sizing:border-box;border:1px solid #fff;border-radius:4px;background:#142232;color:#fff;box-shadow:0 1px 4px #07121c;font:700 10px/16px system-ui,sans-serif;text-align:center;white-space:nowrap;image-rendering:pixelated;}
+.bs-vfx-static img{display:block;width:100%;height:100%;object-fit:contain;image-rendering:pixelated;}
+.bs-vfx-hazard{width:32px;height:32px;border-color:#ffb26d;background:#813617;opacity:.82;animation:bsVfxZone .96s ease-in-out infinite alternate;}
+.bs-vfx-trap{border-color:#ff8f8f;background:#762525;opacity:.82;}
+@keyframes bsVfxZone{from{opacity:.56}to{opacity:.9}}
+@media (prefers-reduced-motion:reduce){.bs-vfx-hazard{animation:none;}}
 @keyframes bsVfxPulse{0%{transform:translate(-50%,-50%) scale(.45);opacity:0}35%{opacity:var(--vfx-opacity,.92)}100%{transform:translate(-50%,-50%) scale(1.18);opacity:0}}
 @keyframes bsVfxFade{0%{opacity:var(--vfx-opacity,.82)}100%{opacity:0}}
 .bs-board .item{border:0;padding:0;background:transparent;}
@@ -2234,7 +2249,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202609251533;
+const FRONTEND_BUILD = 202609281200;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2598,8 +2613,8 @@ function frontendRequirementSeen(minBuild,minEpoch){
 setInterval(frontendRestoreDrafts,1000);
 async function checkFrontendBuild(){
   if(_frontendBuildCheckBusy) return; _frontendBuildCheckBusy=true;
-  window._musicV2AudioIdentityReceiptCap=false; window._musicV2AudioIdentitySelectedReceiptCap=false; window._musicV2AudioIdentityCapabilityChecked=false;
-  try{ const tok=(await supa.auth.getSession()).data.session?.access_token; if(!tok){window._musicV2AudioIdentityCapabilityChecked=true;window._musicV2PendingHeardReceipt=null;return;} const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({ping:true,client_build:FRONTEND_BUILD,client_epoch:FRONTEND_COMPAT_EPOCH})}); const j=await r.json(); window._musicV2AudioIdentityReceiptCap=!!(r.ok&&j&&j.features&&j.features.music_v2_audio_identity_receipt_v1===true); window._musicV2AudioIdentitySelectedReceiptCap=!!(r.ok&&j&&j.features&&j.features.music_v2_audio_identity_selected_receipt_v1===true); window._musicV2AudioIdentityCapabilityChecked=true; if(window._musicV2AudioIdentityReceiptCap)_flushPendingMusicHeardReceipt();else window._musicV2PendingHeardReceipt=null; frontendRequirementSeen(j.min_frontend_build,j.min_frontend_epoch); }catch(e){window._musicV2AudioIdentityReceiptCap=false;window._musicV2AudioIdentitySelectedReceiptCap=false;window._musicV2AudioIdentityCapabilityChecked=true;window._musicV2PendingHeardReceipt=null;} finally{_frontendBuildCheckBusy=false;}
+  window._diceGravityV2=false; window._musicV2AudioIdentityReceiptCap=false; window._musicV2AudioIdentitySelectedReceiptCap=false; window._musicV2AudioIdentityCapabilityChecked=false;
+  try{ const tok=(await supa.auth.getSession()).data.session?.access_token; if(!tok){if(window._pcFacingV1===true&&window._bsShown)scheduleBattleScene('face-gate');window._pcFacingV1=false;window._diceGravityV2=false;window._musicV2AudioIdentityCapabilityChecked=true;window._musicV2PendingHeardReceipt=null;return;} const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({ping:true,client_build:FRONTEND_BUILD,client_epoch:FRONTEND_COMPAT_EPOCH})}); const j=await r.json(); const _priorFacing=window._pcFacingV1===true; window._pcFacingV1=!!(r.ok&&j?.features?.pc_facing_v1===true); window._diceGravityV2=!!(r.ok&&j?.features?.dice_gravity_v2===true); if(_priorFacing!==window._pcFacingV1&&window._bsShown)scheduleBattleScene('face-gate'); window._musicV2AudioIdentityReceiptCap=!!(r.ok&&j&&j.features&&j.features.music_v2_audio_identity_receipt_v1===true); window._musicV2AudioIdentitySelectedReceiptCap=!!(r.ok&&j&&j.features&&j.features.music_v2_audio_identity_selected_receipt_v1===true); window._musicV2AudioIdentityCapabilityChecked=true; if(window._musicV2AudioIdentityReceiptCap)_flushPendingMusicHeardReceipt();else window._musicV2PendingHeardReceipt=null; frontendRequirementSeen(j.min_frontend_build,j.min_frontend_epoch); }catch(e){if(window._pcFacingV1===true&&window._bsShown)scheduleBattleScene('face-gate');window._pcFacingV1=false;window._diceGravityV2=false;window._musicV2AudioIdentityReceiptCap=false;window._musicV2AudioIdentitySelectedReceiptCap=false;window._musicV2AudioIdentityCapabilityChecked=true;window._musicV2PendingHeardReceipt=null;} finally{_frontendBuildCheckBusy=false;}
 }
 // host ใส่/แก้ Gemini key ของโลก (เรียกเองหรือเด้งอัตโนมัติเมื่อ server บอกว่ายังไม่มี key)
 async function betaAskKey(){
@@ -3368,7 +3383,7 @@ function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
     try{
       handle=diceCanvas.render({
         rollEvent:diceCanvasRingFreeEvent(rollEvent), container:mounted.container,   // W110: no gold ring / burst / crit outline around the die
-        settings:{reducedMotion:!!environment.reducedMotion()},
+        settings:{reducedMotion:!!environment.reducedMotion(),gravityDiceV2:window._diceGravityV2===true},
         onDone:()=>{ if(committed) awaitResultAcknowledgement(job); }
       });
     }catch(_error){ try{ mounted.dispose(); }catch(_disposeError){} job.mount=null; legacyFallback(job); return; }
@@ -3687,6 +3702,17 @@ function createGridPickLeaseHost(deps){
 }
 
 function gridBoardLeaseIdentity(){ try{ return gridCommandAdapter&&gridCommandAdapter.readIdentity?gridCommandAdapter.readIdentity():null; }catch(error){ return null; } }
+const gridTouchTelemetry=window.TTRPG_GRID_TOUCH_TELEMETRY?.create?.({
+  context:()=>campaign&&curRound&&myChar?{campaign_id:campaign.id,group_no:terminalGroupForUi(),round_id:curRound.id,character_id:myChar.id}:null,
+  onFailure:(reason)=>gridCommandNote('telemetry',reason),
+  send:async(item)=>{
+    const token=(await supa.auth.getSession()).data.session?.access_token;
+    if(!token) return {ok:false,retryable:false};
+    const controller=new AbortController(), timer=setTimeout(()=>controller.abort(),2500);
+    try{ const response=await fetch(SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/grid-touch',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(item),signal:controller.signal}); return {ok:response.ok,retryable:response.status>=500}; }
+    finally{ clearTimeout(timer); }
+  }
+})||{note:()=>{},leaseReenter:()=>{},submittedAction:()=>{},feedbackVisible:()=>{}};
 function gridCommandFlowState(){ try{ return gridCommandFlow?gridCommandFlow.state():null; }catch(error){ return null; } }
 // diag ถาวรแบบเงียบ (ring 20 · ไม่มี console) — ใบวัดบนอุปกรณ์จริงอ่าน reason ที่ยิงจริงผ่าน window.gridCommandDiag()
 const gridCommandDiagRing=[];
@@ -3769,6 +3795,7 @@ function gridCommandTryReenter(){
   });
   if(!opened||!opened.ok){ gridCommandNote('reenter-failed',plan.reason); gridCommandSyncSession('reenter-failed'); return false; }
   gridCommandSession={kind:plan.kind,handlers:opened.handlers};
+  gridTouchTelemetry.leaseReenter(opened.sessionId);
   gridCommandNote('reenter',plan.reason);
   return true;
 }
@@ -3858,6 +3885,7 @@ try{
       resumeCommandMenu:(info)=>{ gridCommandSession=null; gridCommandUiReset((info&&info.reason)||'resume'); return true; },   // GRID-G5: ทางกลับ root ที่ไม่พึ่ง binding (binding ถูกกินไปแล้ว = เดิมไม่มีใครรีเซ็ต UI)
       onEvent:(event)=>{
         const type=event&&event.type;
+        gridTouchTelemetry.note(event);
         if(type==='snapshot-primed'){ if(gridCommandReenter) setTimeout(gridCommandTryReenter,0); return true; }   // รอ DOM กระดานใหม่ติดจอก่อน แล้วค่อยเปิด picker คืน
         if(type==='picker-invalidated'||type==='picker-cancelled'||type==='draft-ready'||type==='fallback-requested') gridCommandSyncSession(type);
         return true;
@@ -10646,6 +10674,21 @@ function buildDmToolsCard(withFrame){
     mBtn.disabled=false;   // v277: re-enable เสมอ (เดิม return ตอนสำเร็จ → ปุ่มค้าง disabled = เปลี่ยนได้ครั้งเดียว)
   };
   rM.appendChild(mSel); rM.appendChild(mHpIn); rM.appendChild(mBtn); rM.appendChild(mRef); tools.appendChild(rM);
+  const vfxRow=document.createElement('div'); vfxRow.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0';
+  const vfxButton=styleCtl(document.createElement('button')); vfxButton.type='button'; vfxButton.className='btn ghost sm'; vfxButton.disabled=true;
+  vfxButton.textContent=uiCopy('กำลังตรวจภาพเอฟเฟกต์…','Checking battle effects…');
+  let vfxWorldOn=null;
+  const paintVfxWorld=()=>{vfxButton.disabled=vfxWorldOn===null;vfxButton.textContent=vfxWorldOn===null?uiCopy('ตรวจภาพเอฟเฟกต์ไม่ได้','Battle effects unavailable'):vfxWorldOn?uiCopy('ปิดภาพเอฟเฟกต์ทั้งโลก','Disable effects for this world'):uiCopy('เปิดภาพเอฟเฟกต์ทั้งโลก','Enable effects for this world');};
+  supa.rpc('combat_effect_enabled_v1',{p_campaign:campaign.id}).then(result=>{vfxWorldOn=result.error?null:result.data===true;paintVfxWorld();}).catch(()=>{vfxWorldOn=null;paintVfxWorld();});
+  vfxButton.onclick=async()=>{if(vfxWorldOn===null)return;const next=!vfxWorldOn;vfxButton.disabled=true;
+    try{const result=await supa.rpc('set_combat_effect_enabled_v1',{p_campaign:campaign.id,p_enabled:next});
+      if(result.error||result.data!==next)throw result.error||new Error('effect_gate_mismatch');
+      vfxWorldOn=next;await window.BattleVfx?.refreshGate(supa,campaign.id);
+      if(_bsShown)scheduleBattleScene('vfx-world-gate');
+      toast(next?uiCopy('เปิดภาพเอฟเฟกต์ของโลกแล้ว','Battle effects enabled for this world'):uiCopy('ปิดภาพเอฟเฟกต์ของโลกแล้ว','Battle effects disabled for this world'));
+    }catch(e){toast(uiCopy('เปลี่ยนภาพเอฟเฟกต์ไม่สำเร็จ','Could not change battle effects'),true);}
+    finally{paintVfxWorld();}};
+  vfxRow.appendChild(vfxButton);tools.appendChild(vfxRow);
   // v211 BETA: เบต้าเทสเตอร์เหลือเฉพาะ 'ชุดกู้ภัย' (ตั้ง HP + จบการต่อสู้) — ซ่อนปุ่มปรับแต่งทั้งหมด
   //   เหตุผล: (1) host หน้าใหม่กดมั่ว (2) ทุกโลกเบต้าต้องรันค่า default เดียวกัน รายงานบั๊กถึงเทียบกันได้
   if(BETA) return tools;
@@ -10729,7 +10772,7 @@ function scheduleBattleScene(trigger){ clearTimeout(_bsRenderT); var _trigger=tr
 function refreshBattleVfxGate(){
   if(!_bsShown||!window.BattleVfx||!campaign?.id)return;
   const was=window.BattleVfx.enabled(campaign.id);
-  window.BattleVfx.refreshGate(supa,campaign.id).then(on=>{
+  window.BattleVfx.refreshGate(supa,campaign.id,'battle-vfx/'+encodeURIComponent('2026-09-27')+'/').then(on=>{
     if(_bsShown&&on!==was)scheduleBattleScene('vfx-gate');
   }).catch(()=>{});
 }
@@ -10812,6 +10855,7 @@ function enterBattleScene(){
 }
 function exitBattleScene(){
   _bsShown=false;
+  window.BattleFacingMotion?.reset();
   if(window.BattleVfx) window.BattleVfx.reset();
   try{ if(_bsSafetyTimer){ clearInterval(_bsSafetyTimer); _bsSafetyTimer=null; } }catch(e){}   // (06-08) หยุด safety re-sync เมื่อออกฉากรบ
   var el=document.getElementById('battleScene');
@@ -10851,7 +10895,12 @@ async function renderBattleScene(trigger){
     if(board){ await gridBoardRequestRender(trigger||'poll',async function(){ var _tmp=document.createElement('div'); try{ await renderBattleGrid(_tmp); }catch(e){} if(!_tmp.children.length){ _tmp.innerHTML=uiCopy('<div class="note" style="text-align:center;padding:16px;color:#9a9a9a">— ยังไม่มีสนามรบ —</div>','<div class="note" style="text-align:center;padding:16px;color:#9a9a9a">— No battle map yet —</div>'); } var _bsig=_tmp.innerHTML; if(board.getAttribute('data-sig')!==_bsig){ board.setAttribute('data-sig',_bsig); board.replaceChildren.apply(board, Array.prototype.slice.call(_tmp.childNodes)); } }); }
     const _vfxScope={encounterId:null};
     try{ await renderBattleInitLog(document.getElementById('bsInit'), document.getElementById('bsLog'),_vfxScope); }catch(e){}
-    if(window.BattleVfx) window.BattleVfx.sync(supa,campaign.id,terminalGroupForUi(),_vfxScope.encounterId,board);
+    if(window._pcFacingV1===true) window.BattleFacingMotion?.sync(board,{campaignId:campaign.id,groupNo:terminalGroupForUi(),encounterId:_vfxScope.encounterId});
+    else window.BattleFacingMotion?.reset();
+    if(window.BattleVfx){
+      window.BattleVfx.sync(supa,campaign.id,terminalGroupForUi(),_vfxScope.encounterId,board);
+      window.BattleVfx.syncStaticSnapshot(supa,campaign.id,terminalGroupForUi(),_vfxScope.encounterId,board);
+    }
     // บรรยายเฉพาะการต่อสู้ (3 บทล่าสุด) — ไม่เอาเนื้อเรื่องเก่ามาแปะ
     try{
       var nw=document.getElementById('bsNarrWrap');
@@ -11431,6 +11480,13 @@ function hd2dCharHref(t){
     return href;
   }catch(e){ return null; }
 }
+function hd2dCharFacingAsset(t){
+  const fallback=hd2dCharHref(t);
+  return window.BattleFacing?.selectTokenAsset({enabled:window._pcFacingV1===true,
+    token:t,manifest:window.BattleFacingManifest,
+    base:SPRITE_ROOT+'characters-8dir/2026-09-26',fallback,failedUrls:window._monImg})
+    || {href:fallback,anchorFraction:0.875,directional:false};
+}
 
 // v420: tint ฉากตามช่วงเวลาของวัน (อ่าน worldState.clock.time จาก campaign_state · มิเรอร์ timeIcon) — เที่ยง/กลางวัน = ไม่ tint
 function _todTintSvg(w,h){ try{ const t=String((typeof worldState!=='undefined'&&worldState&&worldState.clock&&worldState.clock.time)||'').toLowerCase(); let c=null,o=0;
@@ -11678,10 +11734,11 @@ async function renderBattleGrid(p){
     if(t.kind==='pc'||t.kind==='ally'||t.kind==='npc'){ const _dc=characters.find(x=>x.id===t.ref_char_id); if(_dc&&/^0\s*\//.test(String((_dc.public_status||{}).hp||''))){ down=true; _supine=true; } } else if(t.kind==='monster'){ const _dcs=csMap[t.ref_combat_state_id]; if(_dcs&&Number.isFinite(+_dcs.cur_hp)&&+_dcs.cur_hp<=0){ down=true; _supine=true; } }   // v448 ล้ม=HP0 · v458 HP0=หงาย
     const _lieDeg=_supine?-74:74;
     const op=(down&&t.kind!=='pc'&&t.kind!=='ally'&&t.kind!=='npc')?0.4:1;   // v449.1: ตัวละครล้ม = หมุนนอนตะแคงแต่ "ไม่จางสี" (ผู้ใช้ขอ) · มอน/วัตถุล้มยังจางเหมือนเดิม
-    const _hd=hd2dCharHref(t); const _vOn=!!(window.BattleVfx&&window.BattleVfx.enabled(campaign.id)), _vrk=t.ref_char_id?'character':(t.ref_combat_state_id?'combat_state':'');
-    const _vri=t.ref_char_id||t.ref_combat_state_id||'';
+    const _faceAsset=hd2dCharFacingAsset(t), _hd=_faceAsset.href; const _vOn=!!(window.BattleVfx&&window.BattleVfx.enabled(campaign.id)), _vrk=t.ref_char_id?'character':(t.ref_combat_state_id?'combat_state':(t.kind==='object'&&Array.isArray(t.flags)&&(t.flags.includes('hazard')||(t.flags.includes('trap')&&t.flags.includes('revealed')&&!t.flags.includes('hidden')))?'object':''));
+    const _vri=t.ref_char_id||t.ref_combat_state_id||(_vrk==='object'?t.id:'');
     const _vattr=_vOn&&t.id&&_vrk?` data-token-id="${escapeHtml(String(t.id))}" data-grid-id="${escapeHtml(String(grid.id))}" data-ref-kind="${_vrk}" data-ref-id="${escapeHtml(String(_vri))}" data-col="${+t.col}" data-row="${+t.row}" data-size="${+t.size||1}" data-vfx-visible="${!(Array.isArray(t.flags)&&t.flags.some(f=>f==='hidden'||f==='invisible'))}"`:'';
-    let s=`<g class="gtok"${_vattr}${t._deco?' style="pointer-events:none"':''} onclick="this.classList.toggle('lblon')"><title>${escapeHtml(t.label||'')}</title>`+(_vattr?`<circle data-vfx-anchor="1" cx="${fx.toFixed(1)}" cy="${(fy-20).toFixed(1)}" r="0" style="pointer-events:none"/>`:'');
+    const _fattr=window._pcFacingV1===true&&t.kind==='pc'&&t.id?` data-face-token-id="${escapeHtml(String(t.id))}" data-face-grid-id="${escapeHtml(String(grid.id))}" data-face-col="${+t.col}" data-face-row="${+t.row}" data-face-x="${fx.toFixed(1)}" data-face-y="${fy.toFixed(1)}"`:'';
+    let s=`<g class="gtok"${_vattr}${_fattr}${t._deco?' style="pointer-events:none"':''} onclick="this.classList.toggle('lblon')"><title>${escapeHtml(t.label||'')}</title>`+(_vattr?`<circle data-vfx-anchor="1" cx="${fx.toFixed(1)}" cy="${(fy-(_vrk==='object'?2:20)).toFixed(1)}" r="0" style="pointer-events:none"/>`:'');
     if(t.ref_char_id && typeof myChar!=='undefined' && myChar && t.ref_char_id===myChar.id){ s+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy-1).toFixed(1)}" rx="14" ry="6.5" fill="none" stroke="#FAC775" stroke-width="2" opacity="0.5" style="pointer-events:none"/>`; }   // v560: มาร์คตัวเรา = วงเหลืองจางที่เท้า
     if(t.kind==='object'&&Array.isArray(t.flags)&&t.flags.includes('hazard')){ s+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy-2).toFixed(1)}" rx="14" ry="7" fill="#ff6a2b" opacity="0.32" style="pointer-events:none"><animate attributeName="opacity" values="0.18;0.5;0.18" dur="0.9s" repeatCount="indefinite"/><animate attributeName="rx" values="12;15;12" dur="0.9s" repeatCount="indefinite"/></ellipse>`; }   /* v482 P5: hazard (ไฟ/กรดบนพื้น) = วงเรืองส้มเต้น แยกจากไฟตกแต่ง */
     if(Array.isArray(t.flags)&&t.flags.includes('trap')&&t.flags.includes('revealed')){ s+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy-2).toFixed(1)}" rx="15" ry="8" fill="#ff2d2d" opacity="0.28" style="pointer-events:none"><animate attributeName="opacity" values="0.14;0.55;0.14" dur="0.85s" repeatCount="indefinite"/><animate attributeName="rx" values="12;16;12" dur="0.85s" repeatCount="indefinite"/></ellipse>`; }   /* v486 REQ3: กับดักเปิดเผย = พื้นแดงจางกระพริบ */
@@ -11702,7 +11759,7 @@ async function renderBattleGrid(p){
     else { const _tkimg=tokImgHref(t), _mt=(_tkimg&&_tkimg.tiles)||1, _mpx=_SZ.mo*_mt;   // revert: monster = _SZ.mo(64) × tiles (size-category) · _mt ใช้ pawn/HP ต่อ
       const _moc=(_mt>1)&&monOccludesParty(t,toks);   // v570: มอนใหญ่บังหมากปาร์ตี้หลัง → จางให้เห็นทะลุ
       if(_tkimg&&_tkimg.url&&monSpriteOk(_tkimg.url)){ const _mo=_imgTok(_tkimg.url,_FR.mo,_mpx,_SPRITE_BLUR); s+=(_moc?`<g opacity="0.4">`+_mo+`</g>`:_mo); }   // v638 BUG1: sprite โหลดไม่ได้ → ตกไปสาขา pawn (ไม่ใช่ภาพว่าง)
-      else if(_hd&&monSpriteOk(_hd)){ s+=_imgTok(_hd,_FR.ch,_SZ.ch,_SPRITE_BLUR,true); }   /* v899fe: ตัวละครก็ต้องมี load-check — sprite ล้ม = pawn ไม่ใช่รูปแตก */   // v642: ตัวละคร (PC/ally/npc + มอน humanoid ที่ยืม sprite_class) = smooth · พื้น/วัตถุ/มอน คง pixelated เดิม → ความต่างของ filter กลายเป็นภาษาบอกว่าอันไหนคือตัวละคร (มิเรอร์แนวคิด DoF v560 ที่แยกชั้นหน้า/ชั้นหลัง) · revert = เปลี่ยน true เป็น false
+      else if(_hd&&monSpriteOk(_hd)){ s+=_imgTok(_hd,_faceAsset.anchorFraction,_SZ.ch,_SPRITE_BLUR,true); }   /* v899fe: ตัวละครก็ต้องมี load-check — sprite ล้ม = pawn ไม่ใช่รูปแตก */   // v642: ตัวละคร (PC/ally/npc + มอน humanoid ที่ยืม sprite_class) = smooth · พื้น/วัตถุ/มอน คง pixelated เดิม → ความต่างของ filter กลายเป็นภาษาบอกว่าอันไหนคือตัวละคร (มิเรอร์แนวคิด DoF v560 ที่แยกชั้นหน้า/ชั้นหลัง) · revert = เปลี่ยน true เป็น false
       else { const pal=PAL[t.kind]||PAL.pc, ba=pal[0], da=pal[1], li=pal[2];
         const _tf=`${down?`rotate(${_lieDeg} ${fx.toFixed(1)} ${(fy-8).toFixed(1)}) `:''}${_mt>1?`translate(${fx.toFixed(1)} ${fy.toFixed(1)}) scale(${_mt}) translate(${(-fx).toFixed(1)} ${(-fy).toFixed(1)})`:''}`.trim();   // v449: ล้ม=หมุนรอบกึ่งกลาง pawn (อยู่กับที่) + มอนใหญ่=scale
         if(_tf) s+=`<g transform="${_tf}">`;
@@ -11713,7 +11770,7 @@ async function renderBattleGrid(p){
       const cur=csMap[t.ref_combat_state_id]; let pct=null;
       if(t.kind==='monster'&&cur){ const mx=cur.monsters&&cur.monsters.max_hp; if(mx) pct=Math.max(0,Math.min(1,cur.cur_hp/mx)); }
       else if(t.kind==='pc'||t.kind==='ally'){ const ch=characters.find(x=>x.id===t.ref_char_id); const hp=ch&&ch.public_status&&ch.public_status.hp; if(hp&&/^\d+\/\d+/.test(String(hp))){ const m2=String(hp).split('/'); pct=Math.max(0,Math.min(1,(+m2[0])/(+m2[1]||1))); } }
-      if(pct!=null){ const co=pct<=0.34?'#E24B4A':pct<=0.67?'#EF9F27':'#97C459'; const _img=_hd||(_tkimg&&_tkimg.url); const _ph=(t.kind==='monster'?_SZ.mo*_mt:_SZ.ch); const _hy=_img?(fy-Math.round(_ph*(t.kind==='monster'?_FR.mo:_FR.ch))-7):(fy-32);   /* v420: ยก HP bar เหนือหัว sprite ที่ใหญ่ขึ้น */ s+=`<rect x="${(fx-12).toFixed(1)}" y="${_hy.toFixed(1)}" width="24" height="3.5" fill="rgba(0,0,0,0.7)"/>`; s+=`<rect x="${(fx-12).toFixed(1)}" y="${_hy.toFixed(1)}" width="${(24*pct).toFixed(1)}" height="3.5" fill="${co}"/>`; }
+      if(pct!=null){ const co=pct<=0.34?'#E24B4A':pct<=0.67?'#EF9F27':'#97C459'; const _img=_hd||(_tkimg&&_tkimg.url); const _ph=(t.kind==='monster'?_SZ.mo*_mt:_SZ.ch); const _hy=_img?(fy-Math.round(_ph*(t.kind==='monster'?_FR.mo:_faceAsset.anchorFraction))-7):(fy-32);   /* v420: ยก HP bar เหนือหัว sprite ที่ใหญ่ขึ้น */ s+=`<rect x="${(fx-12).toFixed(1)}" y="${_hy.toFixed(1)}" width="24" height="3.5" fill="rgba(0,0,0,0.7)"/>`; s+=`<rect x="${(fx-12).toFixed(1)}" y="${_hy.toFixed(1)}" width="${(24*pct).toFixed(1)}" height="3.5" fill="${co}"/>`; }
     }
     const isAct=(activeRef.char&&t.ref_char_id===activeRef.char)||(activeRef.cs&&t.ref_combat_state_id===activeRef.cs);
     if(isAct) s+=_cellGlow(t.col,t.row);   // v473: เจ้าของเทิน = ช่อง grid เรืองแสง (แทนวงแหวนใต้เท้าที่ดูลอย)
@@ -11775,8 +11832,12 @@ async function renderBattleGrid(p){
     if(t.kind==='pc'||t.kind==='ally'||t.kind==='npc'){ const _dc=characters.find(x=>x.id===t.ref_char_id); if(_dc&&/^0\s*\//.test(String((_dc.public_status||{}).hp||''))){ down=true; _supine=true; } } else if(t.kind==='monster'){ const _dcs=csMap[t.ref_combat_state_id]; if(_dcs&&Number.isFinite(+_dcs.cur_hp)&&+_dcs.cur_hp<=0){ down=true; _supine=true; } }   // v448 ล้ม=HP0 · v458 HP0=หงาย
     const _lieDeg=_supine?-74:74;
     const op=(down&&t.kind!=='pc'&&t.kind!=='ally'&&t.kind!=='npc')?0.4:1;   // v449.1: ตัวละครล้ม = หมุนนอนตะแคงแต่ "ไม่จางสี" (ผู้ใช้ขอ) · มอน/วัตถุล้มยังจางเหมือนเดิม
-    const _hd=hd2dCharHref(t), _hdOk=!!(_hd&&(tokenSpriteSet(t)!=='v1'||monSpriteOk(_hd)));   // LOOKFEEL-01: legacy renderer must observe V1 object-not-found too; PC/ally V2 behavior stays unchanged
-    svg+=`<g class="gtok"${t._deco?' style="pointer-events:none"':''} onclick="this.classList.toggle('lblon')"><title>${escapeHtml(t.label||'')}</title>`;
+    const _faceAsset=hd2dCharFacingAsset(t), _hd=_faceAsset.href, _hdOk=!!(_hd&&((_faceAsset.directional||tokenSpriteSet(t)==='v1')?monSpriteOk(_hd):true));   // W277: directional URL failures repaint to standing art; OFF preserves V2 loading.
+    const _vOn=!!(window.BattleVfx&&window.BattleVfx.enabled(campaign.id)), _vrk=t.ref_char_id?'character':(t.ref_combat_state_id?'combat_state':(t.kind==='object'&&Array.isArray(t.flags)&&(t.flags.includes('hazard')||(t.flags.includes('trap')&&t.flags.includes('revealed')&&!t.flags.includes('hidden')))?'object':''));
+    const _vri=t.ref_char_id||t.ref_combat_state_id||(_vrk==='object'?t.id:'');
+    const _vattr=_vOn&&t.id&&_vrk?` data-token-id="${escapeHtml(String(t.id))}" data-grid-id="${escapeHtml(String(grid.id))}" data-ref-kind="${_vrk}" data-ref-id="${escapeHtml(String(_vri))}" data-col="${+t.col}" data-row="${+t.row}" data-size="${+t.size||1}" data-vfx-visible="${!(Array.isArray(t.flags)&&t.flags.some(f=>f==='hidden'||f==='invisible'))}"`:'';
+    const _fattr=window._pcFacingV1===true&&t.kind==='pc'&&t.id?` data-face-token-id="${escapeHtml(String(t.id))}" data-face-grid-id="${escapeHtml(String(grid.id))}" data-face-col="${+t.col}" data-face-row="${+t.row}" data-face-x="${fx.toFixed(1)}" data-face-y="${fy.toFixed(1)}"`:'';
+    svg+=`<g class="gtok"${_vattr}${_fattr}${t._deco?' style="pointer-events:none"':''} onclick="this.classList.toggle('lblon')"><title>${escapeHtml(t.label||'')}</title>`+(_vattr?`<circle data-vfx-anchor="1" cx="${fx.toFixed(1)}" cy="${(fy-(_vrk==='object'?2:20)).toFixed(1)}" r="0" style="pointer-events:none"/>`:'');
     // เงา (HD2D มีฐานในตัว — ข้ามเงาซ้ำ)
     if(!_hdOk) svg+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy+5).toFixed(1)}" rx="${t._deco?9:13}" ry="${t._deco?3.2:4.5}" fill="rgba(0,0,0,${t._deco?0.3:0.45})"/>`;
     const _spr=(t.kind==='object')?spriteFn(t):null;
@@ -11797,7 +11858,7 @@ async function renderBattleGrid(p){
       if(_hdOk){
         // HD2D character sprite — anchor 64/112 → footX/footY (pixelated, ตามทิศ facing)
         const _sz=36;
-        svg+=`<image href="${_hd}" x="${(fx-_sz/2).toFixed(1)}" y="${(fy-_sz*0.875).toFixed(1)}" width="${_sz}" height="${_sz}" style="image-rendering:pixelated" opacity="${op}"${down?` transform="rotate(${_lieDeg} ${fx.toFixed(1)} ${(fy-_sz*0.375).toFixed(1)})"`:''}/>`;   // v449: ล้ม=หมุนรอบกึ่งกลางภาพ (นอนตะแคงอยู่กับที่)
+        svg+=`<image href="${_hd}" x="${(fx-_sz/2).toFixed(1)}" y="${(fy-_sz*_faceAsset.anchorFraction).toFixed(1)}" width="${_sz}" height="${_sz}" style="image-rendering:pixelated" opacity="${op}"${down?` transform="rotate(${_lieDeg} ${fx.toFixed(1)} ${(fy-_sz*0.375).toFixed(1)})"`:''}/>`;   // v449: ล้ม=หมุนรอบกึ่งกลางภาพ (นอนตะแคงอยู่กับที่)
       } else {
       const pal=PAL[t.kind]||PAL.pc; const [ba,da,li]=pal;
       if(down) svg+=`<g transform="rotate(${_lieDeg} ${fx.toFixed(1)} ${(fy-8).toFixed(1)})">`;   // v449: ล้ม=หมุนรอบกึ่งกลาง pawn (อยู่กับที่)
@@ -13865,9 +13926,12 @@ window.cc = (function(){
         return false;
       }
       // v739 FZ-1: one RPC owns validation+idempotency+insert. No direct/fallback table write.
-      try{ await submitActionV2(curRound,cid,narrativeTagged,structured); }
+      let savedAction;
+      try{ savedAction=await submitActionV2(curRound,cid,narrativeTagged,structured); }
       catch(e){ if(typeof toast==='function') toast(e.message||uiCopy('ส่งไม่สำเร็จ','Submit failed'),true); return false; }
+      if(typeof gridTouchTelemetry!=='undefined') gridTouchTelemetry.submittedAction(savedAction&&savedAction.action_id,structured);
       if (typeof toast==='function') toast(uiCopy('ส่งการกระทำแล้ว ✓','Action submitted ✓'));
+      if(typeof gridTouchTelemetry!=='undefined') gridTouchTelemetry.feedbackVisible();
       // ข้อ 3 (06-08): optimistic — อัปเดตฉากรบทันทีหลังส่ง (มาร์คเดิน/สถานะ) ไม่รอ realtime เด้งกลับ
       try{ if(typeof _bsShown!=='undefined' && _bsShown && typeof renderBattleScene==='function') renderBattleScene('manual'); }catch(e){}
       // ── B (review-r1 F15): การหัก skills.used max_uses ย้ายไป server แล้ว (structured block-and-strip · server-authoritative · กัน double-charge ที่เดิม client+server หักซ้ำ) — client ไม่หักเอง · UI รีเฟรชหลัง resolve ผ่าน loadRound ──

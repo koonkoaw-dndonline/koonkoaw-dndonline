@@ -241,10 +241,8 @@
     return Math.max(min, Math.min(max, value));
   }
 
-  // DICE-PRESS-01 live-face geometry. d6 and d20 are true projected
-  // meshes: the face labels belong to mesh faces throughout the tumble, and
-  // the final quaternion is solved from the server-owned face. Other dice keep
-  // the established pixel-art fallback until their meshes are added.
+  // Projected meshes keep the numbered surface attached to the physical die.
+  // d4 is read at the upper vertex; percentile rolls use two numbered d10s.
   function vec3(x, y, z) {
     return { x: x, y: y, z: z };
   }
@@ -392,6 +390,55 @@
   }
 
   function buildPolyhedronModels() {
+    const tetraVertices = [
+      [1, 1, 1], [-1, -1, 1], [-1, 1, -1], [1, -1, -1],
+    ].map(function (row) {
+      return vecNormalize(vec3(row[0], row[1], row[2]));
+    });
+    const tetraFaces = [
+      [0, 1, 2], [0, 3, 1], [0, 2, 3], [1, 3, 2],
+    ].map(function (indices, index) {
+      return polyFace(tetraVertices, indices, index + 1);
+    });
+    const octaVertices = [
+      [1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0],
+      [0, 0, 1], [0, 0, -1],
+    ].map(function (row) {
+      return vec3(row[0], row[1], row[2]);
+    });
+    const octaFaces = [
+      [4, 0, 2], [4, 2, 1], [4, 1, 3], [4, 3, 0],
+      [5, 2, 0], [5, 1, 2], [5, 3, 1], [5, 0, 3],
+    ].map(function (indices, index) {
+      return polyFace(octaVertices, indices, index + 1);
+    });
+    const decaTipHeight = 1.28;
+    const decaRingHeight = decaTipHeight /
+      (1 + 2 / (1 / Math.cos(Math.PI / 5) - 1));
+    const decaVertices = [
+      vec3(0, 0, decaTipHeight), vec3(0, 0, -decaTipHeight),
+    ];
+    for (let index = 0; index < 5; index++) {
+      const angle = index * TAU / 5;
+      decaVertices.push(vec3(
+        Math.cos(angle), Math.sin(angle), decaRingHeight,
+      ));
+      decaVertices.push(vec3(
+        Math.cos(angle + TAU / 10),
+        Math.sin(angle + TAU / 10),
+        -decaRingHeight,
+      ));
+    }
+    const decaFaces = [];
+    for (let index = 0; index < 5; index++) {
+      const next = (index + 1) % 5;
+      decaFaces.push(polyFace(decaVertices, [
+        0, 2 + index * 2, 3 + index * 2, 2 + next * 2,
+      ], index + 1));
+      decaFaces.push(polyFace(decaVertices, [
+        1, 3 + index * 2, 2 + next * 2, 3 + next * 2,
+      ], index + 6));
+    }
     const cubeVertices = [
       [-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1],
       [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1],
@@ -422,8 +469,36 @@
     const icoFaces = icoIndices.map(function (indices, index) {
       return polyFace(icoVertices, indices, index + 1);
     });
+    // The dodecahedron is the dual of the icosahedron. One pentagon surrounds
+    // each icosahedron vertex, so every visible label sits on a real face.
+    const dodecaVertices = icoFaces.map(function (face) {
+      return vecNormalize(face.indices.reduce(function (sum, index) {
+        return vecAdd(sum, icoVertices[index]);
+      }, vec3(0, 0, 0)));
+    });
+    const dodecaFaces = icoVertices.map(function (normal, vertexIndex) {
+      const tangent = vecNormalize(vecCross(
+        Math.abs(normal.z) < .9 ? vec3(0, 0, 1) : vec3(0, 1, 0),
+        normal,
+      ));
+      const bitangent = vecCross(normal, tangent);
+      const adjacent = icoFaces.map(function (face, faceIndex) {
+        return face.indices.includes(vertexIndex) ? faceIndex : -1;
+      }).filter(function (index) { return index >= 0; });
+      adjacent.sort(function (left, right) {
+        const a = dodecaVertices[left];
+        const b = dodecaVertices[right];
+        return Math.atan2(vecDot(a, bitangent), vecDot(a, tangent)) -
+          Math.atan2(vecDot(b, bitangent), vecDot(b, tangent));
+      });
+      return polyFace(dodecaVertices, adjacent, vertexIndex + 1);
+    });
     return deepFreeze({
+      d4: { die: "d4", vertices: tetraVertices, faces: tetraFaces },
       d6: { die: "d6", vertices: cubeVertices, faces: cubeFaces },
+      d8: { die: "d8", vertices: octaVertices, faces: octaFaces },
+      d10: { die: "d10", vertices: decaVertices, faces: decaFaces },
+      d12: { die: "d12", vertices: dodecaVertices, faces: dodecaFaces },
       d20: { die: "d20", vertices: icoVertices, faces: icoFaces },
     });
   }
@@ -441,7 +516,10 @@
       return candidate.value === integer(face);
     });
     if (!targetFace) return null;
-    const align = quatFromUnitVectors(targetFace.normal, vec3(0, 0, 1));
+    const landingNormal = die === "d4"
+      ? model.vertices[integer(face) - 1]
+      : targetFace.normal;
+    const align = quatFromUnitVectors(landingNormal, vec3(0, 0, 1));
     const random = createMotionPrng((integer(seed) || 0) ^ targetFace.value);
     const yaw = quatFromAxisAngle(vec3(0, 0, 1), random() * TAU);
     return deepFreeze(quatMultiply(yaw, align));
@@ -452,7 +530,12 @@
     if (!model || !orientation) return null;
     let bestFace = null;
     let bestDot = -Infinity;
-    model.faces.forEach(function (face) {
+    const surfaces = die === "d4"
+      ? model.vertices.map(function (vertex, index) {
+        return { value: index + 1, normal: vertex };
+      })
+      : model.faces;
+    surfaces.forEach(function (face) {
       const dot = quatRotate(orientation, face.normal).z;
       if (dot > bestDot) {
         bestDot = dot;
@@ -992,7 +1075,7 @@
     return Math.max(10, size * factor);
   }
 
-  function initialBodies(dice, layout, width, height, seed) {
+  function initialBodies(dice, layout, width, height, seed, gravityDiceV2) {
     const random = createMotionPrng(seed);
     const positionById = new Map(layout.positions.map(function (position) {
       return [position.id, position];
@@ -1001,7 +1084,9 @@
       const target = positionById.get(item.id);
       const size = target ? target.size : 48;
       const radius = bodyRadius(item.die, size);
-      const liveFace = !!liveFaceModelFor(item.die);
+      const liveFace = gravityDiceV2
+        ? !!liveFaceModelFor(item.die)
+        : item.die === "d6" || item.die === "d20";
       // Supported dice enter close to the camera at the visual center, then
       // drift onto the tabletop. The small deterministic spread prevents a
       // multi-die packet from becoming one unreadable stack.
@@ -1020,11 +1105,14 @@
         y: y,
         vx: Math.cos(direction) * speed,
         vy: Math.sin(direction) * speed - .25 - random() * .25,
+        z: liveFace && gravityDiceV2 ? 36 + random() * 32 : 0,
+        vz: liveFace && gravityDiceV2 ? .025 + random() * .035 : 0,
         angle: random() * TAU,
         angular: (random() - .5) * .035,
         mass: DIE_MASS[item.die] || 1.18,
         radius: radius,
         collisions: 0,
+        impacts: 0,
       };
     });
   }
@@ -1061,11 +1149,30 @@
     return 1;
   }
 
-  function stepBodies(bodies, width, height, stepMs) {
+  function stepBodies(bodies, width, height, stepMs, gravityDiceV2) {
     const scale = stepMs / 16.6667;
     let edgeCollisions = 0;
     let pairCollisions = 0;
     bodies.forEach(function (body) {
+      // Height is independent of tabletop travel. Gravity and inelastic floor
+      // contacts yield a short fall followed by smaller rebounds.
+      if (gravityDiceV2 && (body.z > 0 || body.vz > 0)) {
+        body.vz -= .004 * scale;
+        body.z += body.vz * stepMs;
+        if (body.z <= 0) {
+          body.z = 0;
+          body.impacts++;
+          const restitution =
+            (.5 - Math.min(.12, Math.max(0, body.mass - .72) * .1)) /
+            (1 + body.impacts * .13);
+          body.vz = Math.abs(body.vz) > .018
+            ? Math.abs(body.vz) * restitution
+            : 0;
+          body.vx *= .83;
+          body.vy *= .83;
+          body.angular *= .74;
+        }
+      }
       body.vy += .018 * scale;
       body.vx *= Math.pow(.989, scale);
       body.vy *= Math.pow(.989, scale);
@@ -1112,9 +1219,12 @@
       vy: Number(body.vy.toFixed(6)),
       angle: Number(body.angle.toFixed(6)),
       angular: Number(body.angular.toFixed(8)),
+      z: Number(body.z.toFixed(4)),
+      vz: Number(body.vz.toFixed(6)),
       mass: Number(body.mass.toFixed(4)),
       radius: Number(body.radius.toFixed(4)),
       collisions: body.collisions,
+      impacts: body.impacts,
     });
   }
 
@@ -1133,17 +1243,22 @@
       1600,
     );
     const quality = qualityPlan(deviceHints);
+    const gravityDiceV2 = !!deviceHints && deviceHints.gravityDiceV2 === true;
     const timeline = timelineFor(event);
     const dice = visualDiceFor(event);
     const seed = motionSeedFrom(event.id);
-    const bodies = initialBodies(dice, layout, width, height, seed);
+    const bodies = initialBodies(
+      dice, layout, width, height, seed, gravityDiceV2,
+    );
     const frames = [{ atMs: 0, items: bodies.map(bodySnapshot) }];
     let edgeCollisionCount = 0;
     let pairCollisionCount = 0;
     let at = 0;
     while (at < timeline.rollMs) {
       const step = Math.min(quality.stepMs, timeline.rollMs - at);
-      const collisions = stepBodies(bodies, width, height, step);
+      const collisions = stepBodies(
+        bodies, width, height, step, gravityDiceV2,
+      );
       edgeCollisionCount += collisions.edge;
       pairCollisionCount += collisions.pair;
       at += step;
@@ -1151,6 +1266,7 @@
     }
     return deepFreeze({
       seed: seed,
+      gravityDiceV2: gravityDiceV2,
       width: width,
       height: height,
       quality: quality,
@@ -1191,30 +1307,32 @@
           vy: lerp(item.vy, target.vy, progress),
           angle: lerp(item.angle, target.angle, progress),
           angular: lerp(item.angular, target.angular, progress),
+          z: lerp(item.z, target.z, progress),
+          vz: lerp(item.vz, target.vz, progress),
           mass: target.mass,
           radius: target.radius,
           collisions: target.collisions,
+          impacts: target.impacts,
         };
       }),
     };
   }
 
-  function physicsMotionForBody(body) {
+  function physicsMotionForBody(body, gravityDiceV2) {
     const vx = finiteNumber(body && body.vx) || 0;
     const vy = finiteNumber(body && body.vy) || 0;
     const angular = finiteNumber(body && body.angular) || 0;
     const mass = Math.max(.5, finiteNumber(body && body.mass) || 1);
     const radius = Math.max(1, finiteNumber(body && body.radius) || 24);
-    const collisions = Math.max(0, integer(body && body.collisions) || 0);
     const speed = Math.sqrt(vx * vx + vy * vy);
     const rotationalSpeed = Math.abs(angular) * radius;
-    const collisionDamping = 1 / (1 + collisions * .08);
-    const height = clamp(
-      (speed * .42 + rotationalSpeed * .34) *
-        (1.08 - Math.min(.28, (mass - .72) * .18)) * collisionDamping,
-      0,
-      .92,
-    );
+    const height = gravityDiceV2 === false
+      ? clamp((speed * .42 + rotationalSpeed * .34) *
+        (1.08 - Math.min(.28, (mass - .72) * .18)) /
+        (1 + Math.max(0, integer(body && body.collisions) || 0) * .08),
+        0, .92)
+      : clamp((finiteNumber(body && body.z) || 0) /
+        Math.max(40, radius * 2), 0, .92);
     return deepFreeze({
       speed: speed,
       rotationalSpeed: rotationalSpeed,
@@ -1245,6 +1363,26 @@
     const spin = (finiteNumber(body && body.angle) || 0) +
       angular * radius * 2.4 + speed * .65;
     return deepFreeze(quatMultiply(quatFromAxisAngle(axis, spin), start));
+  }
+
+  function physicalFaceForDie(die) {
+    if (!die || die.die !== "d10" || !die.percentilePart) {
+      return die ? die.authoritativeFace : null;
+    }
+    const display = integer(die.displayFace);
+    if (display === null) return null;
+    const digit = die.percentilePart === "tens" ? display / 10 : display;
+    return digit === 0 ? 10 : digit;
+  }
+
+  function labelForModelFace(item, value) {
+    if (item.percentilePart === "tens") {
+      return value === 10 ? "00" : String(value * 10);
+    }
+    if (item.percentilePart === "ones") {
+      return value === 10 ? "0" : String(value);
+    }
+    return String(value);
   }
 
   function framePlanAt(motion, elapsedMs) {
@@ -1282,9 +1420,12 @@
           vy: item.vy,
           angle: item.angle,
           angular: item.angular,
+          z: item.z,
+          vz: item.vz,
           mass: item.mass,
           radius: item.radius,
           collisions: item.collisions,
+          impacts: item.impacts,
         };
       });
     }
@@ -1307,21 +1448,36 @@
       items: items.map(function (item) {
         const die = diceById.get(item.id);
         const target = targetById.get(item.id);
-        const liveFace = !!liveFaceModelFor(die.die);
+        const liveFace = motion.gravityDiceV2
+          ? !!liveFaceModelFor(die.die)
+          : die.die === "d6" || die.die === "d20";
+        const physicalFace = physicalFaceForDie(die);
         const bodyMotion = liveFace
-          ? physicsMotionForBody(item)
+          ? physicsMotionForBody(item, motion.gravityDiceV2)
           : { height: 0, scale: 1, shadowScale: 1 };
         const orientationSeed = motion.seed ^ motionSeedFrom(item.id);
         let orientation = liveFace
           ? physicsOrientationFor(
             die.die,
-            die.authoritativeFace,
+            physicalFace,
             orientationSeed,
             item,
           )
           : null;
         let landing = bodyMotion;
-        if (liveFace && elapsed > motion.timeline.rollMs) {
+        if (liveFace && motion.gravityDiceV2 &&
+            elapsed < motion.timeline.rollMs) {
+          const faceLock = smoothStep((elapsed - motion.timeline.rollMs * .76) /
+            (motion.timeline.rollMs * .24));
+          if (faceLock > 0) {
+            orientation = quatSlerp(
+              orientation,
+              landingOrientationFor(die.die, physicalFace, orientationSeed),
+              faceLock,
+            );
+          }
+        }
+        if (liveFace && elapsed >= motion.timeline.rollMs) {
           const settleProgress = clamp(
             (elapsed - motion.timeline.rollMs) /
               Math.max(1, motion.timeline.settleMs),
@@ -1330,16 +1486,20 @@
           );
           const targetOrientation = landingOrientationFor(
             die.die,
-            die.authoritativeFace,
+            physicalFace,
             orientationSeed,
           );
           const blend = smoothStep(settleProgress);
-          const wobble = Math.sin(settleProgress * Math.PI * 5) *
-            (1 - settleProgress) * .075;
-          orientation = quatMultiply(
-            quatFromAxisAngle(vec3(1, .35, 0), wobble),
-            quatSlerp(orientation, targetOrientation, blend),
-          );
+          if (motion.gravityDiceV2) {
+            orientation = targetOrientation;
+          } else {
+            const wobble = Math.sin(settleProgress * Math.PI * 5) *
+              (1 - settleProgress) * .075;
+            orientation = quatMultiply(
+              quatFromAxisAngle(vec3(1, .35, 0), wobble),
+              quatSlerp(orientation, targetOrientation, blend),
+            );
+          }
           landing = {
             height: lerp(bodyMotion.height, 0, blend),
             scale: lerp(bodyMotion.scale, 1, blend),
@@ -1356,6 +1516,10 @@
           displayFace: settled ? die.displayFace : null,
           orientation: orientation,
           topFace: liveFace ? topFaceForOrientation(die.die, orientation) : null,
+          z: liveFace && elapsed >= motion.timeline.rollMs
+            ? lerp(item.z, 0, smoothStep((elapsed - motion.timeline.rollMs) /
+              Math.max(1, motion.timeline.settleMs)))
+            : item.z,
           height: landing.height,
           scale: landing.scale,
           shadowScale: landing.shadowScale,
@@ -1906,8 +2070,13 @@
     if (!model || !item.orientation) return false;
     const colors = paletteForItem(item, settings.theme, settings.colorBlind);
     const facetPalette = facetPaletteFor(colors.fill);
+    const skinImage = settings.skinV1 === true ? settings.skinImage : null;
+    const skinReady = skinImage && skinImage.complete !== false &&
+      (finiteNumber(skinImage.naturalWidth) ||
+        finiteNumber(skinImage.width) || 0) > 0;
     const strokeWidth = vectorStrokeWidthFor(item.size);
     const radius = item.size * .54 * (finiteNumber(item.scale) || 1);
+    const liftedY = item.y - Math.max(0, finiteNumber(item.z) || 0);
     const shadowRadius = item.size * .43 *
       (finiteNumber(item.shadowScale) || 1);
     safeContextCall(context, "save");
@@ -1948,7 +2117,7 @@
       const perspective = 1 + vertex.z * .12;
       return {
         x: item.x + vertex.x * radius * perspective,
-        y: item.y + vertex.y * radius * perspective,
+        y: liftedY + vertex.y * radius * perspective,
         z: vertex.z,
       };
     });
@@ -1988,6 +2157,22 @@
       } catch (error) {}
       tracePolygon(context, row.points);
       safeContextCall(context, "fill");
+      if (skinReady && typeof context.drawImage === "function") {
+        safeContextCall(context, "save");
+        tracePolygon(context, row.points);
+        safeContextCall(context, "clip");
+        try {
+          context.globalAlpha = .58;
+        } catch (error) {}
+        safeContextCall(context, "drawImage", [
+          skinImage,
+          row.center.x - radius,
+          row.center.y - radius,
+          radius * 2,
+          radius * 2,
+        ]);
+        safeContextCall(context, "restore");
+      }
       safeContextCall(context, "stroke");
     });
 
@@ -2008,9 +2193,10 @@
     }
 
     faces.filter(function (row) {
+      if (item.die === "d4") return false;
       return row.normal.z > (item.die === "d6" ? .12 : .34);
     }).forEach(function (row) {
-      const label = String(row.face.value);
+      const label = labelForModelFace(item, row.face.value);
       const fontSize = faceLabelRenderPlanFor(
         item.die,
         label,
@@ -2049,6 +2235,48 @@
         ]);
       }
     });
+    if (item.die === "d4" && item.displayFace === null &&
+        item.size >= 60) {
+      // A top-read tetrahedron prints each vertex value near that corner on
+      // its adjacent faces. Keep these small while tumbling; enlarge only the
+      // authoritative upper-vertex result once it has landed.
+      faces.forEach(function (row) {
+        row.face.indices.forEach(function (vertexIndex, corner) {
+          const point = row.points[corner];
+          const center = {
+            x: lerp(point.x, row.center.x, .34),
+            y: lerp(point.y, row.center.y, .34),
+          };
+          const label = String(vertexIndex + 1);
+          drawProjectedFaceLabel(
+            context, row.points, center, item.size, label,
+            Math.round(item.size * .16), colors.ink, 2,
+          );
+        });
+      });
+    }
+    if (item.die === "d4" && item.displayFace !== null) {
+      const vertexIndex = integer(item.displayFace) - 1;
+      const apex = projected[vertexIndex];
+      const apexFace = faces.filter(function (row) {
+        return row.face.indices.includes(vertexIndex);
+      }).sort(function (left, right) {
+        return right.normal.z - left.normal.z;
+      })[0];
+      if (apex && apexFace) {
+        const label = String(item.displayFace);
+        const size = faceLabelRenderPlanFor("d4", label, item.size,
+          item.scale, true).fontSize;
+        const center = {
+          x: lerp(apex.x, apexFace.center.x, .45),
+          y: lerp(apex.y, apexFace.center.y, .45),
+        };
+        drawProjectedFaceLabel(
+          context, apexFace.points, center, item.size, label, size,
+          colors.ink, Math.max(2, strokeWidth * 1.5),
+        );
+      }
+    }
     if (item.critical || item.natOne) {
       const border = item.critical ? criticalBorder : natOneBorder;
       const ring = Math.max(8, item.size * .56 * (finiteNumber(item.scale) || 1));
@@ -2518,6 +2746,7 @@
       {},
       environment.deviceHints(),
       settings.deviceHints || {},
+      { gravityDiceV2: settings.gravityDiceV2 === true },
     );
     const layout = layoutGroups(event.groups, width);
     const height = clamp(
@@ -2587,6 +2816,8 @@
           theme: settings.theme,
           colorBlind: settings.colorBlind === true,
           reducedMotion: reduced,
+          skinV1: settings.skinV1 === true,
+          skinImage: settings.skinImage,
         });
       } catch (error) {}
       state.frameCount++;
@@ -2743,6 +2974,7 @@
       timelineFor: timelineFor,
       qualityPlan: qualityPlan,
       faceGeometryFor: faceGeometryFor,
+      liveFaceModelFor: liveFaceModelFor,
       landingOrientationFor: landingOrientationFor,
       topFaceForOrientation: topFaceForOrientation,
       tumbleOrientationFor: tumbleOrientationFor,

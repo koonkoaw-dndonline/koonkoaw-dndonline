@@ -10,15 +10,34 @@
     piercing:'#e9d4ac',poison:'#9edb72',psychic:'#dc9aff',radiant:'#fff5b2',
     slashing:'#ffd1bd',thunder:'#aaa8ff',heal:'#20e390',temporary_hp:'#40a8ff',
     miss:'#d3d6e0',blocked:'#b4c6d1'};
-  const ASSET_VERSION='20260925vfx05';
-  // PixelLab exports remain visual candidates until owner upload/approval.
+  const ASSET_VERSION='20260927vfxlive01';
+  const PACK_URL='./battle-vfx/2026-09-27/manifest.json';
+  const PACK_PREFIX='./battle-vfx/2026-09-27/';
+  const PACK_SHA256='603c6dea8fd13abcb35e1a211f76cd63386a9fb8c9f8d8a8ed0a39a83bfcf8fc';
+  const PACK_KEYS=new Set(['acid','beam','bludgeoning','cold','dash','fire','fist',
+    'force','heal','lightning','necrotic','piercing','poison','projectile',
+    'psychic','radiant','slashing','temporary_hp','thunder','wave','zone_fire',
+    'zone_fog','zone_smoke','zone_thorns','zone_vines','zone_web']);
+  const STATUS={blinded:['BL','ตาบอด','Blinded'],charmed:['CH','ถูกเสน่ห์','Charmed'],
+    deafened:['DE','หูหนวก','Deafened'],exhaustion:['EX','อ่อนล้า','Exhaustion'],
+    frightened:['FR','หวาดกลัว','Frightened'],grappled:['GR','ถูกจับยึด','Grappled'],
+    incapacitated:['IN','ไร้ความสามารถ','Incapacitated'],
+    paralyzed:['PA','เป็นอัมพาต','Paralyzed'],petrified:['PE','กลายเป็นหิน','Petrified'],
+    poisoned:['PO','ติดพิษ','Poisoned'],prone:['PR','ล้มคว่ำ','Prone'],
+    restrained:['RE','ถูกตรึง','Restrained'],stunned:['ST','มึนงง','Stunned'],
+    unconscious:['UN','หมดสติ','Unconscious']};
+  const ZONES={fire:['F','ไฟ','Fire'],acid:['A','กรด','Acid'],
+    oil:['O','น้ำมัน','Oil'],trap:['T','กับดักที่เปิดเผย','Revealed trap']};
   const manifest=Object.create(null);
+  const statusIcons=Object.create(null);
+  let manifestFlight=null,manifestReady=false;
   let scope='',cursor=null,boardSvg=null,boardWatched=null,observer=null;
   let layerNode=null,hostNode=null,listeners=false,listenerDocument=null;
-  let inFlight=false,active=0,epoch=0,flightSerial=0;
+  let inFlight=false,active=0,epoch=0,flightSerial=0,staticFlightSerial=0;
   let gateCampaign='',gateEnabled=false,gateFlight=0;
   const counts={returned:0,played:0,skipped:Object.create(null)};
   const seen=new Set();
+  const staticNodes=[];
   const timers=new Set();
   const motions=new Set();
   function userEnabled(campaignId){
@@ -27,7 +46,7 @@
   }
   function enabled(campaignId){return gateEnabled&&gateCampaign===campaignId&&userEnabled(campaignId);}
   function skip(reason){counts.skipped[reason]=(counts.skipped[reason]||0)+1;}
-  async function refreshGate(supa,campaignId){
+  async function refreshGate(supa,campaignId,packDir=PACK_PREFIX.slice(2)){
     if(gateCampaign!==campaignId){reset();gateCampaign=campaignId;gateEnabled=false;
       counts.returned=0;counts.played=0;counts.skipped=Object.create(null);}
     const flight=++gateFlight;
@@ -39,7 +58,9 @@
       }
     }catch(_error){}
     if(flight!==gateFlight||gateCampaign!==campaignId) return false;
-    gateEnabled=on;
+    const artReady=on&&'./'+packDir===PACK_PREFIX?await loadManifest():false;
+    if(flight!==gateFlight||gateCampaign!==campaignId)return false;
+    gateEnabled=on&&artReady;
     if(!enabled(campaignId)) reset();
     return enabled(campaignId);
   }
@@ -65,9 +86,10 @@
     for(const motion of motions) motion.cancel();
     motions.clear();
     if(layerNode) layerNode.replaceChildren();
+    staticNodes.length=0;
   }
   function reset(){
-    epoch++;flightSerial++;
+    epoch++;flightSerial++;staticFlightSerial++;
     scope=''; cursor=null; boardSvg=null; inFlight=false; seen.clear(); clearVisuals();
     if(observer){observer.disconnect();observer=null;}
     if(boardWatched&&boardWatched.removeEventListener)
@@ -83,7 +105,7 @@
       listeners=false;listenerDocument=null;
     }
   }
-  function onResume(){ if(!enabled(gateCampaign)){reset();return;} epoch++;flightSerial++;inFlight=false;cursor=null;clearVisuals(); }
+  function onResume(){ if(!enabled(gateCampaign)){reset();return;} epoch++;flightSerial++;staticFlightSerial++;inFlight=false;cursor=null;clearVisuals(); }
   function onVisibilityChange(){
     if(root.document&&root.document.visibilityState==='visible') onResume();
   }
@@ -152,7 +174,8 @@
       targetSize:Number(row.target_size),actorCol:Number(row.actor_col),
       actorRow:Number(row.actor_row),actorSize:Number(row.actor_size),
       kind:row.kind,keys,strength,createdAt:Date.parse(row.created_at||''),
-      canNudge:row.kind==='damage'&&!blocked&&row.attack!=='none'&&
+      canNudge:(row.kind==='damage'||row.kind==='miss')&&row.attack!=='none'&&
+        row.actor_ref_kind==='character'&&row.target_ref_kind==='combat_state'&&
         row.actor_token_id!==row.target_token_id};
   }
   function exactToken(board,cue,which){
@@ -174,8 +197,8 @@
     }
     return found;
   }
-  function point(node,layer){
-    const sprite=node&&node.querySelector('image');
+  function point(node,layer,preferAnchor){
+    const sprite=!preferAnchor&&node&&node.querySelector('image');
     const anchor=sprite||node&&node.querySelector('[data-vfx-anchor]');
     if(!anchor||!anchor.getScreenCTM) return null;
     const m=anchor.getScreenCTM();
@@ -201,6 +224,50 @@
     return typeof url==='string'&&/^\.\/battle-vfx\/[a-z0-9_./-]+\.png$/i.test(url)&&
       !url.includes('..')?url+'?v='+ASSET_VERSION:null;
   }
+  function packAsset(item){
+    return item&&typeof item.url==='string'&&item.url.startsWith(PACK_PREFIX)&&
+      /^[A-F0-9]{64}$/i.test(String(item.sha256||''))&&localFrame(item.url)
+      ?item.url:null;
+  }
+  function setManifest(next){
+    if(!next||next.schema!=='battle-vfx-pack/v1'||next.version!=='2026-09-27'||
+      !next.effects||!next.status_icons||
+      Object.keys(next.effects).length!==PACK_KEYS.size||
+      Object.keys(next.status_icons).length!==15)return false;
+    const effects=Object.create(null),icons=Object.create(null);
+    for(const [key,value] of Object.entries(next.effects)){
+      if(!PACK_KEYS.has(key)||!value||!['impact','delivery','zone'].includes(value.kind)||
+        !packAsset(value.still)||!Array.isArray(value.frames)||value.frames.length>40||
+        value.frames.some(item=>!packAsset(item)))return false;
+      effects[key]={kind:value.kind,still:value.still.url,
+        frames:value.frames.map(item=>item.url)};
+    }
+    for(const [key,value] of Object.entries(next.status_icons)){
+      if(!Object.hasOwn(STATUS,key)&&key!=='invisible')return false;
+      const url=packAsset(value);if(!url)return false;icons[key]=url;
+    }
+    for(const key of Object.keys(manifest))delete manifest[key];
+    for(const key of Object.keys(statusIcons))delete statusIcons[key];
+    Object.assign(manifest,effects);Object.assign(statusIcons,icons);
+    manifestReady=true;
+    return true;
+  }
+  async function loadManifest(){
+    if(manifestReady)return true;
+    if(manifestFlight)return manifestFlight;
+    manifestFlight=(async()=>{
+      try{
+        const response=await root.fetch(PACK_URL,{cache:'force-cache'});
+        if(!response.ok||!root.crypto?.subtle)return false;
+        const bytes=await response.arrayBuffer();
+        const hash=[...new Uint8Array(await root.crypto.subtle.digest('SHA-256',bytes))]
+          .map(byte=>byte.toString(16).padStart(2,'0')).join('');
+        return hash===PACK_SHA256&&setManifest(JSON.parse(new TextDecoder().decode(bytes)));
+      }catch(_error){return false;}
+      finally{manifestFlight=null;}
+    })();
+    return manifestFlight;
+  }
   function watchBoard(board){
     if(board===boardWatched) return;
     if(observer){observer.disconnect();observer=null;}
@@ -222,6 +289,11 @@
     if(!target||!actor){skip('exact_token');return false;}
     const center=point(target,layer);
     if(!center){skip('position');return false;}
+    const effect=manifest[cue.keys[0]]||
+      (['miss','blocked'].includes(cue.keys[0])?{kind:'impact',frames:[]}:null);
+    if(!effect){skip('art_missing');return false;}
+    const origin=effect.kind==='delivery'?point(actor,layer):null;
+    if(effect.kind==='delivery'&&!origin){skip('delivery_position');return false;}
     const reduced=!!(root.matchMedia&&root.matchMedia('(prefers-reduced-motion: reduce)').matches);
     const size=cueSize(target,cue);
     const node=root.document.createElement('div');
@@ -232,19 +304,28 @@
     node.style.setProperty('--vfx-line',Math.max(1,3*cue.strength)+'px');
     node.style.setProperty('--vfx-opacity',String(Math.min(0.92,0.45+0.45*cue.strength)));
     node.setAttribute('data-vfx-kind',cue.keys[0]);
-    const frames=manifest[cue.keys[0]]&&manifest[cue.keys[0]].frames;
+    node.setAttribute('data-vfx-playback-kind',effect.kind);
+    const frames=effect?(effect.frames.length?effect.frames:[effect.still]):null;
+    const duration=effect?.kind==='delivery'?720:effect?.kind==='zone'?960:460;
     if(Array.isArray(frames)&&frames.length){
       const src=localFrame(frames[0]);
       if(src){
         const img=root.document.createElement('img');
         img.alt='';img.draggable=false;img.src=src;node.appendChild(img);
         if(!reduced&&frames.length>1){
-          const interval=Math.max(35,Math.floor(420/frames.length));
-          let frame=0;
+          const frameSteps=effect.kind==='zone'?2*(frames.length-1):
+            effect.kind==='delivery'?2*frames.length:frames.length-1;
+          const interval=Math.max(1,Math.floor(duration/frameSteps));
+          let frame=0,direction=1;
           const step=()=>{
             timers.delete(timer);
-            if(!node.isConnected||frame>=frames.length-1) return;
-            frame++;const next=localFrame(frames[frame]);if(next)img.src=next;
+            if(!node.isConnected)return;
+            if(frame>=frames.length-1&&effect.kind==='impact')return;
+            if(effect.kind==='zone'&&(frame>=frames.length-1||frame<=0))
+              direction=frame>=frames.length-1?-1:1;
+            frame=effect.kind==='zone'?frame+direction:
+              frame>=frames.length-1?0:frame+1;
+            const next=localFrame(frames[frame]);if(next)img.src=next;
             timer=setTimeout(step,interval);timers.add(timer);
           };
           let timer=setTimeout(step,interval);timers.add(timer);
@@ -252,6 +333,11 @@
       }
     }
     layer.appendChild(node);active++;
+    if(effect.kind==='delivery'&&!reduced&&node.animate){
+      const travel=node.animate([{left:origin.x+'px',top:origin.y+'px'},
+        {left:center.x+'px',top:center.y+'px'}],{duration:duration,iterations:1});
+      motions.add(travel);travel.onfinish=function(){motions.delete(travel);};
+    }
     if(cue.canNudge&&!reduced){
       const from=point(actor,layer);
       if(actor&&from&&actor.animate){
@@ -264,9 +350,84 @@
       }
     }
     const timer=setTimeout(()=>{node.remove();active=Math.max(0,active-1);timers.delete(timer);},
-      reduced?180:540);
+      reduced?180:duration);
     timers.add(timer);
     return true;
+  }
+  function normalizeStatic(row,expected){
+    if(!row||row.visibility_scope!=='party'||
+      row.campaign_id!==expected.campaign_id||row.encounter_id!==expected.encounter_id||
+      Number(row.group_no)!==expected.group_no||!UUID.test(String(row.grid_id||''))||
+      !UUID.test(String(row.token_id||''))||!UUID.test(String(row.ref_id||''))||
+      row.col===null||row.row===null||row.size===null||
+      !whole(row.col)||!whole(row.row)||!whole(row.size)||
+      Number(row.col)>19||Number(row.row)>19||
+      Number(row.size)<1||Number(row.size)>20) return null;
+    const kind=row.kind,slug=row.slug;
+    if(kind==='status'&&(!Object.hasOwn(STATUS,slug)||
+      !['character','combat_state'].includes(row.ref_kind)||row.expires_round!==null)) return null;
+    if(kind==='hazard'&&(!['fire','acid','oil'].includes(slug)||
+      row.ref_kind!=='object'||row.ref_id!==row.token_id||
+      row.expires_round===null||!whole(row.expires_round))) return null;
+    if(kind==='trap'&&(slug!=='trap'||row.ref_kind!=='object'||
+      row.ref_id!==row.token_id||row.expires_round!==null)) return null;
+    if(!['status','hazard','trap'].includes(kind)) return null;
+    return {key:row.token_id+'|'+kind+'|'+slug,kind,slug,
+      target:row.token_id,grid:row.grid_id,targetRefKind:row.ref_kind,
+      targetRef:row.ref_id,targetCol:Number(row.col),targetRow:Number(row.row),
+      targetSize:Number(row.size)};
+  }
+  function renderStatic(rows,expected,board,layer){
+    for(const node of staticNodes)node.remove();
+    staticNodes.length=0;
+    if(!Array.isArray(rows)||rows.length>256||!board.isConnected)return;
+    const cues=[],keys=new Set();
+    for(const row of rows){
+      const cue=normalizeStatic(row,expected);
+      if(!cue||keys.has(cue.key))continue;
+      keys.add(cue.key);cues.push(cue);
+    }
+    const counts=new Map();
+    for(const cue of cues){
+      const token=exactToken(board,cue,'target');if(!token)continue;
+      const center=point(token,layer,cue.kind!=='status');if(!center)continue;
+      const offset=counts.get(cue.target)||0;
+      counts.set(cue.target,offset+1);
+      const label=cue.kind==='status'?STATUS[cue.slug]:ZONES[cue.slug];
+      const node=root.document.createElement('div');
+      node.className='bs-vfx-static bs-vfx-'+cue.kind;
+      node.style.left=(center.x+(cue.kind==='status'?(offset%4)*19-25:0))+'px';
+      node.style.top=(center.y+(cue.kind==='status'?-33-Math.floor(offset/4)*19:0))+'px';
+      node.title=typeof root.uiCopy==='function'?root.uiCopy(label[1],label[2]):
+        root.document?.documentElement?.lang==='en'?label[2]:label[1];
+      node.setAttribute('data-vfx-static',cue.kind+':'+cue.slug);
+      const art=cue.kind==='status'?statusIcons[cue.slug]:
+        cue.kind==='hazard'&&cue.slug==='fire'?manifest.zone_fire?.still:null;
+      if(art){const img=root.document.createElement('img');img.alt='';
+        img.draggable=false;img.src=localFrame(art);node.appendChild(img);}
+      else node.textContent=label[0];
+      layer.appendChild(node);staticNodes.push(node);
+    }
+  }
+  async function syncStaticSnapshot(supa,campaignId,groupNo,encounterId,board){
+    if(!enabled(campaignId)||!supa||!board||
+      !UUID.test(String(campaignId||''))||!UUID.test(String(encounterId||''))||
+      ![1,2].includes(Number(groupNo)))return;
+    const svg=board.querySelector('svg'),layer=ensureLayer(board);
+    if(!svg||!layer)return;
+    const expectedScope=[campaignId,groupNo,encounterId].join(':');
+    if(scope!==expectedScope)return;
+    const thisEpoch=epoch,thisFlight=++staticFlightSerial;
+    let rows=null;
+    try{
+      const response=await supa.rpc('combat_status_zone_snapshot_v1',
+        {p_campaign:campaignId,p_group:groupNo,p_encounter:encounterId});
+      if(response&&!response.error)rows=response.data;
+    }catch(_error){}
+    if(thisEpoch!==epoch||thisFlight!==staticFlightSerial||
+      scope!==expectedScope||board.querySelector('svg')!==svg||!enabled(campaignId))return;
+    renderStatic(rows,{campaign_id:campaignId,group_no:Number(groupNo),
+      encounter_id:encounterId},board,layer);
   }
   async function sync(supa,campaignId,groupNo,encounterId,board){
     if(!enabled(campaignId)){if(scope||layerNode||listeners) reset();return;}
@@ -316,14 +477,10 @@
     }catch(_error){ /* cosmetic only; next poll retries from the current cursor */ }
     finally{if(thisFlight===flightSerial) inFlight=false;}
   }
-  root.BattleVfx={normalize,exactToken,cueSize,localFrame,point,play,sync,reset,
+  root.BattleVfx={normalize,normalizeStatic,renderStatic,syncStaticSnapshot,
+    exactToken,cueSize,localFrame,point,play,sync,reset,loadManifest,
     enabled,refreshGate,setUserEnabled,mountUserControl,stats:()=>({returned:counts.returned,
       played:counts.played,skipped:{...counts.skipped}}),
-    setManifest:function(next){
-      for(const key of Object.keys(manifest)) delete manifest[key];
-      for(const [key,value] of Object.entries(next||{}))
-        if(COLORS[key]&&value&&Array.isArray(value.frames)&&
-          value.frames.length<=40&&value.frames.every(localFrame))
-          manifest[key]={frames:value.frames.slice()};
-    }};
+    packStats:()=>({ready:manifestReady,effects:Object.keys(manifest).length,
+      icons:Object.keys(statusIcons).length}),setManifest};
 })(typeof window!=='undefined'?window:globalThis);
