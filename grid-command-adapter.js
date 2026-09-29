@@ -89,6 +89,24 @@
     });
   }
 
+  // C0928-8: a down/unconscious/dead actor still occupies its cell. Match the
+  // resolver's actor rule; decoration and marker rows do not occupy movement.
+  function movementCellAvailable(tokens,c,r,characterId,gridId){
+    if(!Array.isArray(tokens)||!clean(characterId)||!clean(gridId)||
+      finite(c)===null||finite(r)===null||!Number.isInteger(Number(c))||!Number.isInteger(Number(r))) return false;
+    const sameGrid=function(t){ return t&&(!clean(t.grid_id)||clean(t.grid_id)===clean(gridId)); };
+    const mover=tokens.find(function(t){ return sameGrid(t)&&clean(t.ref_char_id)===clean(characterId)&&finite(t.col)!==null&&finite(t.row)!==null; });
+    if(!mover) return false;
+    const size=function(t){ return t.size==null?1:integer(t.size,1,20); },movingSize=size(mover);
+    if(movingSize===null) return false;
+    return !tokens.some(function(t){
+      if(!sameGrid(t)||clean(t.ref_char_id)===clean(characterId)||t.kind==='object'||t.kind==='marker') return false;
+      const n=size(t),x=finite(t.col),y=finite(t.row);
+      if(n===null||x===null||y===null) return true;
+      return Number(c)<x+n&&Number(c)+movingSize>x&&Number(r)<y+n&&Number(r)+movingSize>y;
+    });
+  }
+
   function setAttribute(node,name,value){
     if(!node||typeof node.setAttribute!=='function') return false;
     node.setAttribute(name,String(value));
@@ -305,6 +323,7 @@
       const grid=input.grid||(cache&&cache.grid);
       const identity=input.identity||readIdentity();
       if(!grid||!validIdentity(identity)||clean(identity.gridId)!==clean(grid.id)) return false;
+      if(grid.encounter_id!=null&&(clean(grid.encounter_id)!==clean(identity.encounterId)||clean(grid.campaign_id)!==clean(identity.campaignId)||clean(grid.group_no)!==clean(identity.groupNo))) return false;
       const cols=integer(grid.cols??input.cols,1,20);
       const rows=integer(grid.rows??input.rows,1,200);
       const cellFt=finite(grid.cell_ft??input.cellFt??input.cell_ft);
@@ -342,7 +361,7 @@
             r:r,
             cell:label,
             pickable:true,
-            moveAllowed:!!origin&&distance>0&&distance<=maxCells&&!walls.has(label),
+            moveAllowed:!!origin&&!(cache&&cache.movementReady===false)&&distance>0&&distance<=maxCells&&!walls.has(label)&&movementCellAvailable(tokens,c,r,characterId,grid.id),
             centerX:geometry.centerX,
             centerY:geometry.centerY,
             shape:geometry.shape
@@ -590,6 +609,11 @@
         if(draft.kind==='move'){
           const cell=clean(draft.destination&&draft.destination.cell);
           if(!cell) return false;
+          const cache=cacheForHost(),character=characterForHost(),dest=draft.destination;
+          const identity=cache&&cache.grid&&cache.grid.encounter_id!=null?readIdentity():null;
+          if(cache&&cache.grid&&cache.grid.encounter_id!=null&&(!identity||clean(cache.grid.encounter_id)!==clean(identity.encounterId)||clean(cache.grid.campaign_id)!==clean(identity.campaignId)||clean(cache.grid.group_no)!==clean(identity.groupNo))) return false;
+          // Recheck the latest cached board before touching the command draft.
+          if(cell!==cellLabel(dest.c,dest.r)||!cache||cache.movementReady===false||!cache.grid||!movementCellAvailable(cache.toks,dest.c,dest.r,character&&character.id,cache.grid.id)) return false;
           const movement={label:'เดินไปช่อง '+cell,moveTo:cell};
           if(isObject(binding.turn)){
             binding.turn.movement=movement;
@@ -714,6 +738,7 @@
   root.TTRPG_GRID_COMMAND_ADAPTER=Object.freeze({
     build:BUILD,
     copy:COPY,
+    movementCellAvailable:movementCellAvailable,
     create:createAdapter
   });
 })(globalThis);

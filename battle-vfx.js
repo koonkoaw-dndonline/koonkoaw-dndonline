@@ -198,7 +198,8 @@
     return found;
   }
   function point(node,layer,preferAnchor){
-    const sprite=!preferAnchor&&node&&node.querySelector('image');
+    const status=preferAnchor==='status';
+    const sprite=(!preferAnchor||status)&&node&&node.querySelector('image');
     const anchor=sprite||node&&node.querySelector('[data-vfx-anchor]');
     if(!anchor||!anchor.getScreenCTM) return null;
     const m=anchor.getScreenCTM();
@@ -212,6 +213,19 @@
       .matrixTransform(m);
     const rect=layer.getBoundingClientRect();
     if(!Number.isFinite(p.x)||!Number.isFinite(p.y)) return null;
+    // Status follows the transformed sprite's top edge, including prone rotation
+    // and responsive board scaling. Damage/delivery still use its centre.
+    if(status&&sprite){
+      const sx=Number(sprite.getAttribute('x')),sy=Number(sprite.getAttribute('y'));
+      const w=Number(sprite.getAttribute('width')),h=Number(sprite.getAttribute('height'));
+      if(![sx,sy,w,h].every(Number.isFinite)||w<=0||h<=0) return null;
+      const corners=[[sx,sy],[sx+w,sy],[sx,sy+h],[sx+w,sy+h]]
+        .map(([cx,cy])=>new root.DOMPoint(cx,cy).matrixTransform(m));
+      if(corners.some(c=>!Number.isFinite(c.x)||!Number.isFinite(c.y))) return null;
+      return {x:(Math.min(...corners.map(c=>c.x))+Math.max(...corners.map(c=>c.x)))/2-rect.left,
+        y:Math.min(...corners.map(c=>c.y))-rect.top};
+    }
+    if(status) return {x:p.x-rect.left,y:p.y-rect.top-12}; // vector pawn head / HP bar
     return {x:p.x-rect.left,y:p.y-rect.top};
   }
   function cueSize(node,cue){
@@ -390,14 +404,16 @@
     const counts=new Map();
     for(const cue of cues){
       const token=exactToken(board,cue,'target');if(!token)continue;
-      const center=point(token,layer,cue.kind!=='status');if(!center)continue;
-      const offset=counts.get(cue.target)||0;
-      counts.set(cue.target,offset+1);
+      const center=point(token,layer,cue.kind==='status'?'status':true);if(!center)continue;
+      const countKey=cue.kind+':'+cue.target,offset=counts.get(countKey)||0;
+      counts.set(countKey,offset+1);
       const label=cue.kind==='status'?STATUS[cue.slug]:ZONES[cue.slug];
       const node=root.document.createElement('div');
       node.className='bs-vfx-static bs-vfx-'+cue.kind;
-      node.style.left=(center.x+(cue.kind==='status'?(offset%4)*19-25:0))+'px';
-      node.style.top=(center.y+(cue.kind==='status'?-33-Math.floor(offset/4)*19:0))+'px';
+      const statusCount=cue.kind==='status'?cues.filter(c=>c.target===cue.target&&c.kind==='status').length:0;
+      const rowCount=Math.min(4,statusCount-Math.floor(offset/4)*4);
+      node.style.left=(center.x+(cue.kind==='status'?((offset%4)-(rowCount-1)/2)*19:0))+'px';
+      node.style.top=(center.y+(cue.kind==='status'?-18-Math.floor(offset/4)*19:0))+'px';
       node.title=typeof root.uiCopy==='function'?root.uiCopy(label[1],label[2]):
         root.document?.documentElement?.lang==='en'?label[2]:label[1];
       node.setAttribute('data-vfx-static',cue.kind+':'+cue.slug);
