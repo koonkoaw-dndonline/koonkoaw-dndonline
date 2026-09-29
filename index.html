@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Gemini Chat</title>
+<title>EverRoll</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+Thai:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -239,8 +239,8 @@ textarea#msgInput::placeholder{color:var(--text2);}
 
 <div class="header">
   <div class="logo">✦</div>
-  <div class="header-title">Gemini Chat</div>
-  <a class="hbtn" href="campaign.html?v=1200" style="text-decoration:none;">⚔ โหมดแคมเปญ</a>
+  <div class="header-title">EverRoll</div>
+  <a class="hbtn" href="campaign.html?v=1018" style="text-decoration:none;">⚔ โหมดแคมเปญ</a>
   <button class="hbtn" onclick="saveChat()">💾 บันทึกแชท</button>
   <button class="hbtn" onclick="toggleSettings()">⚙ ตั้งค่า</button>
 </div>
@@ -605,7 +605,7 @@ function renderAttachPreview(){
 
 // ─── SAVE ───
 function saveChat(){
-  const lines=['# Gemini Chat Export',`Model: ${config.model}`,`Date: ${new Date().toLocaleString('th-TH')}`,'---\n'];
+  const lines=['# EverRoll Export',`Model: ${config.model}`,`Date: ${new Date().toLocaleString('th-TH')}`,'---\n'];
   history.forEach(h=>{
     const role=h.role==='user'?'👤 User':'✦ AI';
     const text=h.parts.filter(p=>p.text).map(p=>p.text).join('\n');

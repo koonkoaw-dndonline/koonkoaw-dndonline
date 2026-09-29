@@ -4,12 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="dark">
-<title>TTRPG Campaign</title>
+<title>EverRoll</title>
 <!-- v281: standalone PWA — "เพิ่มลงหน้าจอหลัก" แล้วเปิดจากไอคอน = แอปแยก storage ถาวร (กัน iOS Safari ITP ลบ session ทุก 7 วัน → ล็อกอินค้างจริง) -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="TTRPG">
+<meta name="apple-mobile-web-app-title" content="EverRoll">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
@@ -21,11 +21,11 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./i18n-runtime.js?v=20260813a1"></script>
 <script src="./character-content-en.js?v=20260813a1"></script>
 <script src="./grid-command-flow.js?v=961"></script>
-<script src="./grid-command-adapter.js?v=822"></script>
+<script src="./grid-command-adapter.js?v=20260928move08"></script>
 <script src="./grid-board-replacement-lease.js?v=202608110249"></script>
-<script src="./battle-vfx.js?v=20260927vfxlive01"></script>
+<script src="./battle-vfx.js?v=20260928vfxanchor01"></script>
 <script src="./battle-facing-manifest.js?v=20260927face01"></script>
-<script src="./battle-facing.js?v=20260927face01"></script>
+<script src="./battle-facing.js?v=20260928turn10"></script>
 <script src="./battle-facing-motion.js?v=20260927face01"></script>
 <script src="./dice-roll-sound.js?v=0823"></script>
 <script src="./dice-fx.js?v=0903"></script>
@@ -1908,7 +1908,7 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
 <div id="topbar">
 <div class="hd">
   <div class="logo"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="7" y="5" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/><rect x="2" y="7" width="1" height="1"/><rect x="5" y="7" width="1" height="1"/></svg></div>
-  <div class="ttl" id="hdTitle" onclick="gridDiagHatchClick()">TTRPG Campaign</div>
+  <div class="ttl" id="hdTitle" onclick="gridDiagHatchClick()">EverRoll</div>
   <span class="code hidden" id="hdCode" title="Click to copy invite code"></span>
   <span class="code hidden" id="hdWorld" title="World ID"></span>
   <span class="who" id="hdWho"></span>
@@ -2249,7 +2249,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202609281200;
+const FRONTEND_BUILD = 202609291018;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -11317,8 +11317,25 @@ function ccMovePick(cb, instantBinding){
   if(_bsShown){ Promise.resolve(renderBattleScene('manual')).catch(()=>false).then(()=>gridPickLeaseEnter('legacy-move',gridBoardLeaseIdentity())); } else if(typeof renderCombat==='function'){ renderCombat(); setTimeout(()=>gridPickLeaseEnter('legacy-move',gridBoardLeaseIdentity()),0); }
   try{ toast(uiCopy('แตะช่องสีเขียวเพื่อเลือกที่จะเดินไป แล้วกด ✓','Tap a green tile to choose your destination, then select ✓')); }catch(e){}
 }
-function movePickCell(c,r){ if(gridCommandDelegate('move','select',{c:c,r:r})) return; if(!moveMode) return toast(uiCopy('ไม่ได้อยู่ในโหมดเลือกทางเดินแล้ว โปรดเลือกย้ายตำแหน่งอีกครั้ง','Movement selection is no longer active. Choose Move again.')); gridPickLeaseActivity('select'); moveSel={c:c,r:r}; if(!gridPickPaint('move',c,r)) gridFastRefresh(); }
+function gridMoveCellAvailable(c,r){
+  const api=window.TTRPG_GRID_COMMAND_ADAPTER,cache=_gridCache;
+  return !!(api&&typeof api.movementCellAvailable==='function'&&cache&&cache.movementReady===true&&cache.grid&&myChar&&
+    (!cache.grid.campaign_id||cache.grid.campaign_id===campaign.id)&&
+    (!window.gEncId||cache.grid.encounter_id===window.gEncId)&&
+    (cache.grid.group_no==null||Number(cache.grid.group_no)===Number(terminalGroupForUi()))&&
+    api.movementCellAvailable(cache.toks,c,r,myChar.id,cache.grid.id));
+}
+async function gridMovementScopeReady(cache){
+  if(!cache||cache.tokensRead!==true||!cache.grid||!Array.isArray(cache.toks)) return false;
+  const g=cache.grid;
+  if(g.active!==true||g.campaign_id!==campaign.id||Number(g.group_no)!==Number(terminalGroupForUi())) return false;
+  try{ const er=await uiActiveEncounter('id,status'); return !!(!er.error&&er.data&&er.data.status==='active'&&g.encounter_id===er.data.id); }
+  catch(e){ return false; }
+}
+function gridMoveCellRefused(){ toast(uiCopy('ช่องนี้มีหมากอยู่ หรือข้อมูลตำแหน่งยังไม่พร้อม กรุณาเลือกช่องว่างใหม่','This cell is occupied or its position data is unavailable. Choose another empty cell.'),true); }
+function movePickCell(c,r){ if(!gridMoveCellAvailable(c,r)){ gridMoveCellRefused(); return; } if(gridCommandDelegate('move','select',{c:c,r:r})) return; if(!moveMode) return toast(uiCopy('ไม่ได้อยู่ในโหมดเลือกทางเดินแล้ว โปรดเลือกย้ายตำแหน่งอีกครั้ง','Movement selection is no longer active. Choose Move again.')); gridPickLeaseActivity('select'); moveSel={c:c,r:r}; if(!gridPickPaint('move',c,r)) gridFastRefresh(); }
 function moveConfirm(){
+  if(moveSel&&!gridMoveCellAvailable(moveSel.c,moveSel.r)){ gridMoveCellRefused(); return; }
   if(gridCommandDelegate('move','confirm')) return;
   gridPickLeaseActivity('confirm_attempt');
   if(!moveMode||!moveSel){ try{toast(uiCopy('แตะช่องปลายทางก่อน','Tap a destination tile first'),true);}catch(e){} return; }
@@ -11482,7 +11499,7 @@ function hd2dCharHref(t){
 }
 function hd2dCharFacingAsset(t){
   const fallback=hd2dCharHref(t);
-  return window.BattleFacing?.selectTokenAsset({enabled:window._pcFacingV1===true,
+  return window.BattleFacing?.presentTokenAsset({enabled:window._pcFacingV1===true,
     token:t,manifest:window.BattleFacingManifest,
     base:SPRITE_ROOT+'characters-8dir/2026-09-26',fallback,failedUrls:window._monImg})
     || {href:fallback,anchorFraction:0.875,directional:false};
@@ -11498,14 +11515,27 @@ function _todTintSvg(w,h){ try{ const t=String((typeof worldState!=='undefined'&
   return `<rect x="0" y="0" width="${w}" height="${h}" fill="${c}" opacity="${o}" style="pointer-events:none"/>`;
 }catch(e){ return ''; } }
 
+function gridProneTransform(box,center,halfWidth,halfHeight,iso,degrees){
+  const angle=degrees*Math.PI/180,cos=Math.cos(angle),sin=Math.sin(angle),cx=box.x+box.width/2,cy=box.y+box.height/2;
+  const extentX=(Math.abs(cos)*box.width+Math.abs(sin)*box.height)/2,extentY=(Math.abs(sin)*box.width+Math.abs(cos)*box.height)/2;
+  // A fallen body lies on the projected ground plane, including its vertical squash.
+  const sx=Math.min(1,halfWidth/extentX),sy=Math.min(1,halfHeight/extentY);
+  let extent=0;
+  for(const x of [-box.width/2,box.width/2]) for(const y of [-box.height/2,box.height/2]){
+    const rx=(cos*x-sin*y)*sx,ry=(sin*x+cos*y)*sy;
+    extent=Math.max(extent,iso?Math.abs(rx)/halfWidth+Math.abs(ry)/halfHeight:Math.max(Math.abs(rx)/halfWidth,Math.abs(ry)/halfHeight));
+  }
+  const scale=0.9/Math.max(1,extent),a=scale*cos*sx,b=scale*sin*sy,c=-scale*sin*sx,d=scale*cos*sy;
+  return 'matrix('+[a,b,c,d,center[0]-a*cx-c*cy,center[1]-b*cx-d*cy].map(v=>v.toFixed(6)).join(' ')+')';
+}
 function boundedCanvasSampleSize(width,height,maxSide){ const w=Math.max(1,Math.floor(+width||1)),h=Math.max(1,Math.floor(+height||1)),cap=Math.max(16,Math.floor(+maxSide||96)),scale=Math.min(1,cap/Math.max(w,h)); return {width:Math.max(1,Math.round(w*scale)),height:Math.max(1,Math.round(h*scale))}; }
 async function renderBattleGrid(p){
   // ── (06-10) cache: แตะเลือกช่อง/ยืนยันเดิน = วาดจากข้อมูลล่าสุดทันที (0 query) — full fetch เฉพาะ render ปกติ ──
   const _useCache = _gridUseCache && _gridCache && (Date.now()-_gridCache.ts < 15000);
   _gridUseCache=false;
-  let grid=null, toks=[], csMap={}, activeRef={char:null,cs:null}, _actsCached=null;
+  let grid=null, toks=[], csMap={}, activeRef={char:null,cs:null}, _actsCached=null, tokensRead=false;
   if(_useCache){
-    grid=_gridCache.grid; toks=_gridCache.toks; csMap=_gridCache.csMap; activeRef=_gridCache.activeRef; _actsCached=_gridCache.acts;
+    grid=_gridCache.grid; toks=_gridCache.toks; csMap=_gridCache.csMap; activeRef=_gridCache.activeRef; _actsCached=_gridCache.acts; tokensRead=_gridCache.tokensRead===true;
   } else {
     try{ const r=await supa.from('battle_grids').select('*').eq('campaign_id',campaign.id).eq('group_no',terminalGroupForUi()).eq('active',true).maybeSingle(); if(!r.error) grid=r.data; }catch(e){ return; }
     if(!grid) return;
@@ -11517,15 +11547,16 @@ async function renderBattleGrid(p){
         supa.from('combat_encounters').select('active_entry_id').eq('campaign_id',campaign.id).eq('group_no',terminalGroupForUi()).neq('status','ended').maybeSingle(),
         (typeof curRound!=='undefined'&&curRound&&curRound.id)?supa.from('actions').select('character_id,structured_turn,lifecycle_state').eq('round_id',curRound.id).eq('lifecycle_state','active'):Promise.resolve({data:null})
       ]);
-      toks=(rT&&rT.data)||[];
+      tokensRead=!!(rT&&!rT.error&&Array.isArray(rT.data)); toks=tokensRead?rT.data:[];
       ((rC&&rC.data)||[]).forEach(x=>csMap[x.id]=x);   // HP: party จาก characters.public_status · monster จาก combat_state
       // ตัวที่ถึงตา (active_entry → ref) เพื่อไฮไลต์
       if(rE&&rE.data&&rE.data.active_entry_id){ const e2=await supa.from('initiative_entries').select('character_id,combat_state_id').eq('id',rE.data.active_entry_id).maybeSingle(); if(e2.data){ activeRef.char=e2.data.character_id; activeRef.cs=e2.data.combat_state_id; } }
       _actsCached=(rA&&rA.data)||null;
     }catch(e){}
-    _gridCache={grid:grid,toks:toks,csMap:csMap,activeRef:activeRef,acts:_actsCached,ts:Date.now()};
+    _gridCache={grid:grid,toks:toks,csMap:csMap,activeRef:activeRef,acts:_actsCached,tokensRead:tokensRead,movementReady:false,ts:Date.now()};
   }
   if(!grid) return;
+  _gridCache.movementReady=await gridMovementScopeReady(_gridCache);
   _lastGrid={cols:grid.cols,rows:grid.rows,cell_ft:grid.cell_ft||5};
 
   const cols=grid.cols, rows=grid.rows;
@@ -11557,6 +11588,7 @@ async function renderBattleGrid(p){
   // anchor รวม (ใช้ได้ทั้งสองโหมด): footXY=ฐานเท้า token · cellCenter=กลางช่อง (ลูกศร/มาร์ค)
   const footXY=(c,r)=> ISO ? [isx(c,r), isy(c,r)+IHTH*0.35] : [footX(c), footY(c,r)];
   const cellCenter=(c,r)=> ISO ? [isx(c,r), isy(c,r)] : [tileX(c)+TILE/2, tileY(r)+TILE*SY/2];   // หมากบนพื้นสูงยกตามระดับ
+  const proneTransform=(box,t,degrees)=>{ const n=Math.max(1,Math.floor(+t.size||1)),center=cellCenter(+t.col+(n-1)/2,+t.row+(n-1)/2); return gridProneTransform(box,center,(ISO?IHTW:TILE/2)*n,(ISO?IHTH:TILE*SY/2)*n,ISO,degrees); };
   // v473: ไฮไลต์เจ้าของเทิน = "ช่อง grid ที่ยืนเรืองแสง" (แทนวงแหวนใต้เท้าที่ดูลอย) — รูปตรงโหมด (ISO diamond / flat rect) + pulse
   const _cellGlow=(c,r)=>{ if(c==null||r==null) return '';
     if(ISO){ const x=isx(c,r),y=isy(c,r); return `<polygon points="${x},${(y-IHTH).toFixed(1)} ${(x+IHTW).toFixed(1)},${y.toFixed(1)} ${x},${(y+IHTH).toFixed(1)} ${(x-IHTW).toFixed(1)},${y.toFixed(1)}" fill="#FAC775" opacity="0.3" stroke="#FFE9A8" stroke-width="2" style="pointer-events:none"><animate attributeName="opacity" values="0.16;0.46;0.16" dur="1.5s" repeatCount="indefinite"/></polygon>`; }
@@ -11745,7 +11777,7 @@ async function renderBattleGrid(p){
     // v420: ตัดเงากลม renderer ออก (ผู้ใช้ขอ — แอสเซ็ทไม่มีฐานในตัว ยืนบน tile โดยตรง) · ขยาย sprite + anchor เท้าตามชนิด (char/obj/mon เท้าคนละแถว 0.875/0.855/0.905)
     const _DETAIL=1.3;   // v422: ขยาย sprite +30% (เห็นรายละเอียดงานศิลป์ชัดขึ้น) — ปรับค่านี้ตัวเดียว
     const _FR={ch:0.875,ob:0.855,mo:0.905}, _SZ={ch:64*_DETAIL*_ACTOR_SCALE,mo:64*_DETAIL*_ACTOR_SCALE,ob:64*_DETAIL*_ACTOR_SCALE};   // v561: สเกล 'แอสเซ็ททั้งหมด' (คน/มอน/วัตถุ) ×_ACTOR_SCALE เท่ากัน — สัดส่วนคงเดิม (แก้ v560 ที่วัตถุไม่โต = เกวียนเล็ก/มอนดูใหญ่เกิน) · base 64px × _DETAIL
-    const _imgTok=(href,fr,px,bl,sm)=>{ const z=px; const _rd=down?` transform="rotate(${_lieDeg} ${fx.toFixed(1)} ${(fy-z*fr+z/2).toFixed(1)})"`:''; const _st=sm?'image-rendering:auto':`image-rendering:pixelated${bl?';filter:blur('+bl+'px)':''}`; return `<image href="${href}" x="${(fx-z/2).toFixed(1)}" y="${(fy-z*fr).toFixed(1)}" width="${z.toFixed(1)}" height="${z.toFixed(1)}" style="${_st}" opacity="${op}"${_rd}/>`; };   // v449: ล้ม=หมุนรอบ 'กึ่งกลางภาพ' (นอนตะแคงอยู่กับที่ ไม่เหวี่ยงหลุดนอกช่องจนหาย) · v642: param sm → smooth (ไม่ pixelated ไม่ blur) · เหตุผล: svg เป็น width:100% = สเกลลื่นตามจอ อัตราย่อไม่มีวันลงตัว (วัดจริง มือถือ DPR2: sprite 35.2 css / 70 device px = asset 128 over 1.82× → nearest ทิ้งพิกเซล 45% แบบไม่สม่ำเสมอ) · pixelated ถูกเฉพาะตอนคุมซูมเป็นจำนวนเต็มได้ ซึ่ง renderer นี้คุมไม่ได้ · _SPRITE_BLUR=0.4 เดิมคือพลาสเตอร์ปิดอาการนี้
+    const _imgTok=(href,fr,px,bl,sm)=>{ const z=px; const _rd=down?` transform="${proneTransform({x:fx-z/2,y:fy-z*fr,width:z,height:z},t,_lieDeg)}"`:''; const _st=sm?'image-rendering:auto':`image-rendering:pixelated${bl?';filter:blur('+bl+'px)':''}`; return `<image href="${href}" x="${(fx-z/2).toFixed(1)}" y="${(fy-z*fr).toFixed(1)}" width="${z.toFixed(1)}" height="${z.toFixed(1)}" style="${_st}" opacity="${op}"${_rd}/>`; };   // C0928-8: center and contain the fallen image in its own grid footprint.
     const _oimg=(t.kind==='object')?tokImgHref(t):null;
     const _oimgOk=!!(_oimg&&_oimg.url&&monSpriteOk(_oimg.url));   /* v899fe: วัตถุใช้ load-check เดียวกับมอน (v638) — storage ล้มชั่วขณะเคยค้างเป็นไอคอนรูปแตกถาวร (เคสจริง Koon 08-12) · ล้ม = ตกไป vector sprite/glyph แล้ว re-render เมื่อรู้ผล */
     const _spr=(t.kind==='object'&&!_oimgOk)?spriteFn(t):null, gly=glyphFor(t);
@@ -11761,7 +11793,7 @@ async function renderBattleGrid(p){
       if(_tkimg&&_tkimg.url&&monSpriteOk(_tkimg.url)){ const _mo=_imgTok(_tkimg.url,_FR.mo,_mpx,_SPRITE_BLUR); s+=(_moc?`<g opacity="0.4">`+_mo+`</g>`:_mo); }   // v638 BUG1: sprite โหลดไม่ได้ → ตกไปสาขา pawn (ไม่ใช่ภาพว่าง)
       else if(_hd&&monSpriteOk(_hd)){ s+=_imgTok(_hd,_faceAsset.anchorFraction,_SZ.ch,_SPRITE_BLUR,true); }   /* v899fe: ตัวละครก็ต้องมี load-check — sprite ล้ม = pawn ไม่ใช่รูปแตก */   // v642: ตัวละคร (PC/ally/npc + มอน humanoid ที่ยืม sprite_class) = smooth · พื้น/วัตถุ/มอน คง pixelated เดิม → ความต่างของ filter กลายเป็นภาษาบอกว่าอันไหนคือตัวละคร (มิเรอร์แนวคิด DoF v560 ที่แยกชั้นหน้า/ชั้นหลัง) · revert = เปลี่ยน true เป็น false
       else { const pal=PAL[t.kind]||PAL.pc, ba=pal[0], da=pal[1], li=pal[2];
-        const _tf=`${down?`rotate(${_lieDeg} ${fx.toFixed(1)} ${(fy-8).toFixed(1)}) `:''}${_mt>1?`translate(${fx.toFixed(1)} ${fy.toFixed(1)}) scale(${_mt}) translate(${(-fx).toFixed(1)} ${(-fy).toFixed(1)})`:''}`.trim();   // v449: ล้ม=หมุนรอบกึ่งกลาง pawn (อยู่กับที่) + มอนใหญ่=scale
+        const _tf=down?proneTransform({x:fx-9.6,y:fy-27.6,width:19.2,height:32.2},t,_lieDeg):(_mt>1?`translate(${fx.toFixed(1)} ${fy.toFixed(1)}) scale(${_mt}) translate(${(-fx).toFixed(1)} ${(-fy).toFixed(1)})`:'');
         if(_tf) s+=`<g transform="${_tf}">`;
         s+=`<rect x="${(fx-9).toFixed(1)}" y="${(fy-16).toFixed(1)}" width="18" height="20" rx="3" fill="${ba}" stroke="${da}" stroke-width="1.2" opacity="${op}"/>`;
         s+=`<rect x="${(fx-9).toFixed(1)}" y="${(fy-16).toFixed(1)}" width="18" height="4.5" fill="${li}" opacity="${op}"/>`;
@@ -11824,7 +11856,10 @@ async function renderBattleGrid(p){
   }
   // tokens เรียงตามแถว (painter's: หลัง→หน้า) · v421: ตัวละคร(pc/ally/npc)วาดทับบนสุด → มอนตัวใหญ่ไม่บังตัวละครจนมองไม่เห็น
   const _isCharF=t=>(t.kind==='pc'||t.kind==='ally'||t.kind==='npc');
+  const _isActorF=t=>(_isCharF(t)||t.kind==='monster');
   const order=toks.concat(_decoToks).sort((a,b)=>(a.row-b.row)||((_isCharF(a)?1:0)-(_isCharF(b)?1:0))|| ((a.z||0)-(b.z||0)));   // v448: row (depth) ก่อน = หน้าทับหลัง · char tiebreak
+  // C0928-6: stable actor foreground also in the flat renderer, as in ISO.
+  order.sort((a,b)=>(+_isActorF(a))-(+_isActorF(b)));
   order.forEach(t=>{
     const fx=footX(t.col), fy=footY(t.col,t.row);
     let down=Array.isArray(t.flags)&&(t.flags.includes('down')||t.flags.includes('dead')||t.flags.includes('prone'));
@@ -11858,10 +11893,10 @@ async function renderBattleGrid(p){
       if(_hdOk){
         // HD2D character sprite — anchor 64/112 → footX/footY (pixelated, ตามทิศ facing)
         const _sz=36;
-        svg+=`<image href="${_hd}" x="${(fx-_sz/2).toFixed(1)}" y="${(fy-_sz*_faceAsset.anchorFraction).toFixed(1)}" width="${_sz}" height="${_sz}" style="image-rendering:pixelated" opacity="${op}"${down?` transform="rotate(${_lieDeg} ${fx.toFixed(1)} ${(fy-_sz*0.375).toFixed(1)})"`:''}/>`;   // v449: ล้ม=หมุนรอบกึ่งกลางภาพ (นอนตะแคงอยู่กับที่)
+        svg+=`<image href="${_hd}" x="${(fx-_sz/2).toFixed(1)}" y="${(fy-_sz*_faceAsset.anchorFraction).toFixed(1)}" width="${_sz}" height="${_sz}" style="image-rendering:pixelated" opacity="${op}"${down?` transform="${proneTransform({x:fx-_sz/2,y:fy-_sz*_faceAsset.anchorFraction,width:_sz,height:_sz},t,_lieDeg)}"`:''}/>`;
       } else {
       const pal=PAL[t.kind]||PAL.pc; const [ba,da,li]=pal;
-      if(down) svg+=`<g transform="rotate(${_lieDeg} ${fx.toFixed(1)} ${(fy-8).toFixed(1)})">`;   // v449: ล้ม=หมุนรอบกึ่งกลาง pawn (อยู่กับที่)
+      if(down) svg+=`<g transform="${proneTransform({x:fx-9.6,y:fy-27.6,width:19.2,height:32.2},t,_lieDeg)}">`;
       // ตัวยืน (3D): ตัว+แถบบน+หัว
       svg+=`<rect x="${(fx-9).toFixed(1)}" y="${(fy-16).toFixed(1)}" width="18" height="20" rx="3" fill="${ba}" stroke="${da}" stroke-width="1.2" opacity="${op}"/>`;
       svg+=`<rect x="${(fx-9).toFixed(1)}" y="${(fy-16).toFixed(1)}" width="18" height="4.5" fill="${li}" opacity="${op}"/>`;
@@ -11951,7 +11986,7 @@ async function renderBattleGrid(p){
     if(myTok){
       const sp=(typeof mySheet!=='undefined'&&mySheet&&mySheet.combat&&+mySheet.combat.speed)||30;
       const cf=grid.cell_ft||5; const maxC=Math.max(1,Math.floor(sp/cf));
-      const _mc=[]; for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){ const cell=rc2cell(c,r), d=Math.max(Math.abs(c-myTok.col),Math.abs(r-myTok.row)); if(d>0&&d<=maxC&&!walls.has(cell)) _mc.push([c,r]); }
+      const _mc=[]; for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){ const cell=rc2cell(c,r), d=Math.max(Math.abs(c-myTok.col),Math.abs(r-myTok.row)); if(d>0&&d<=maxC&&!walls.has(cell)&&gridMoveCellAvailable(c,r)) _mc.push([c,r]); }
       if(ISO) _mc.sort((a,b)=>(a[0]+a[1])-(b[0]+b[1]));
       const _sf=footXY(myTok.col,myTok.row), sfx=_sf[0], sfy=_sf[1];
       _mc.forEach(p=>{ const c=p[0], r=p[1], seld=moveSel&&moveSel.c===c&&moveSel.r===r;
@@ -13242,6 +13277,45 @@ function ccSlotLedgerState(ledger,sheetRefreshOk){
   if(slotsKnown){ for(let L=1;L<=9;L++){ slots[L]=[Math.max(0,Math.floor(+lvUsed[String(L)]||0)),Math.max(0,Math.floor(+lvMax[L]||0))]; } }
   return {slots:slots,slotsKnown:slotsKnown,slotQuotaState:loaded?'loaded':(sheetRefreshOk===true?'none':'loading')};
 }
+// C0928-3: identities must be active party entries AND present on the current encounter grid.
+async function ccLoadGridTargets(ctx){
+  ctx.allies=[];
+  try{
+    const er=await uiActiveEncounter('id,status');
+    if(er.error||!er.data||er.data.status==='ended') throw new Error('encounter unavailable');
+    const encounterId=er.data.id;
+    const [gr,ir]=await Promise.all([
+      supa.from('battle_grids').select('id,encounter_id,cell_ft').eq('campaign_id',campaign.id).eq('group_no',terminalGroupForUi()).eq('encounter_id',encounterId).eq('active',true).maybeSingle(),
+      supa.from('initiative_entries').select('encounter_id,character_id,display_name,side,is_active,conditions').eq('encounter_id',encounterId).eq('side','party').eq('is_active',true)
+    ]);
+    if(gr.error||!gr.data||gr.data.encounter_id!==encounterId||ir.error||!Array.isArray(ir.data)) throw new Error('combat grid unavailable');
+    const tk=await supa.from('grid_tokens').select('grid_id,label,col,row,kind,flags,ref_char_id,ref_combat_state_id').eq('grid_id',gr.data.id);
+    if(tk.error||!Array.isArray(tk.data)) throw new Error('tokens unavailable');
+    const toks=tk.data.filter(t=>t.grid_id===gr.data.id);
+    const present=t=>t&&['pc','ally','npc'].includes(t.kind)&&
+      Number.isInteger(t.col)&&Number.isInteger(t.row)&&t.col>=0&&t.row>=0&&
+      !(Array.isArray(t.flags)&&t.flags.some(f=>['dead','hidden','invisible'].includes(f)));
+    const myToks=toks.filter(t=>myChar&&t.ref_char_id===myChar.id);
+    ctx._myTok=myToks.length===1&&present(myToks[0])?myToks[0]:null;
+    ctx.cellFt=Number.isFinite(gr.data.cell_ft)&&gr.data.cell_ft>0?gr.data.cell_ft:5;
+    const byCs={}; toks.forEach(t=>{ if(t.ref_combat_state_id!=null) byCs[t.ref_combat_state_id]=t; });
+    ctx.enemies.forEach(e=>{ const t=byCs[e.id]; if(t){ e.col=t.col; e.row=t.row; } });
+    if(!ctx._myTok) throw new Error('caster position unavailable');
+    const seen=new Set();
+    for(const entry of ir.data){
+      if(entry.encounter_id!==encounterId||entry.side!=='party'||entry.is_active!==true||
+        !entry.character_id||entry.character_id===myChar.id||seen.has(entry.character_id)||
+        (Array.isArray(entry.conditions)&&entry.conditions.includes('dead'))) continue;
+      seen.add(entry.character_id);
+      const matches=toks.filter(t=>t.ref_char_id===entry.character_id);
+      if(matches.length!==1||!present(matches[0])||!entry.display_name) continue;
+      ctx.allies.push({id:entry.character_id,name:entry.display_name,col:matches[0].col,row:matches[0].row});
+    }
+  }catch(e){
+    ctx.allies=[];
+    if(!ctx.loadWarnings.includes('combat_targets_unavailable')) ctx.loadWarnings.push('combat_targets_unavailable');
+  }
+}
 async function prepCommandContext(){
   const ctx={enemies:[], character:null, loadError:null, loadWarnings:[], slotsKnown:false, attacks:[], inventory:[]};
   // F26: mySheet is not realtime-authoritative while this menu is open. Refresh before deriving inventory or slot quota.
@@ -13316,18 +13390,7 @@ async function prepCommandContext(){
     const _uaMod=_mod('str'); const _uaName=uiCopy('มือเปล่า','Unarmed Strike');
     ctx.attacks.push({name:_uaName,weapon:_uaName,line:`1d20${_sg(_prof+_uaMod)} atk, 1d1${_sg(_uaMod)} dmg`,range_ft:0,reach_ft:5,unarmed:true});
   }catch(e){ ctx.attacks=[]; }
-  // v295 targetReach: ตำแหน่ง token บนกริด → กรองเป้าหมายตามระยะโจมตีจริง (ผู้เล่น + ศัตรูแต่ละตัว)
-  try{
-    const gr=await supa.from('battle_grids').select('id,cell_ft').eq('campaign_id',campaign.id).eq('group_no',terminalGroupForUi()).eq('active',true).maybeSingle();
-    if(gr.data){
-      ctx.cellFt=gr.data.cell_ft||5;
-      const tk=await supa.from('grid_tokens').select('label,col,row,kind,ref_char_id,ref_combat_state_id').eq('grid_id',gr.data.id);
-      const toks=(tk.data)||[];
-      ctx._myTok=toks.find(t=>myChar&&t.ref_char_id===myChar.id)||null;
-      const byCs={}; toks.forEach(t=>{ if(t.ref_combat_state_id!=null) byCs[t.ref_combat_state_id]=t; });
-      ctx.enemies.forEach(e=>{ const t=byCs[e.id]; if(t){ e.col=+t.col; e.row=+t.row; } });   // enemy.id = combat_state.id ↔ token.ref_combat_state_id
-    }
-  }catch(e){}
+  await ccLoadGridTargets(ctx);
   try{ ctx.interactables=(typeof curRound!=='undefined'&&curRound&&curRound.meta&&Array.isArray(curRound.meta.interactables))?curRound.meta.interactables:[]; }catch(e){ ctx.interactables=[]; }
   window.__ccCtx=ctx;
   if(ctx.loadWarnings.length) reportBattleCommandContextWarnings(ctx.loadWarnings);
@@ -13356,16 +13419,8 @@ window.cc = (function(){
     return [];
   }
   function getAllies(){
-    var out = [];
-    try{
-      if (typeof characters !== 'undefined' && Array.isArray(characters)) {
-        characters.forEach(function(c){
-          if (typeof myChar !== 'undefined' && myChar && c.id === myChar.id) return;
-          if (c && c.name) out.push({ id: c.id, name: c.name });
-        });
-      }
-    } catch(e){}
-    return out;
+    try{ if(window.__ccCtx && Array.isArray(window.__ccCtx.allies)) return window.__ccCtx.allies; }catch(e){}
+    return [];
   }
 
   /* ---------- RANGE (v295 targetReach): กรองเป้าหมายตามระยะโจมตีจริงบนกริด (logic เดียวกับ server combat-logic.ts) ---------- */
@@ -13577,7 +13632,11 @@ window.cc = (function(){
           else { opts.push({ label:e.name, meta:uiCopy('⚠ ไกลเกินระยะเวท ('+rr.dist+' ช่อง · ถึง '+rr.max+')','⚠ Out of spell range ('+rr.dist+' squares · reach '+rr.max+')'), dim:true }); }
         });
         opts.push({ label:uiCopy('ตัวเอง','Self'), meta:uiCopy('พันธมิตร','Allied'), commit:{slot:slotName, label: spell.name+' ▸ ตัวเอง', displayLabel:uiCopy(spell.name+' ▸ ตัวเอง',spell.name+' ▸ Self'), dice: spell.dice, skillId: spell._skillId||null} });
-        allies.forEach(function(a){ opts.push({ label:a.name, meta:uiCopy('พันธมิตร','Allied'), commit:{slot:slotName, label: spell.name+' ▸ '+a.name, dice: spell.dice, skillId: spell._skillId||null} }); });
+        allies.forEach(function(a){
+          var rr=ccTargetReach(a, _spRangeFt);
+          if(rr.ok){ opts.push({ label:a.name, meta:uiCopy('พันธมิตร','Allied'), commit:{slot:slotName, label: spell.name+' ▸ '+a.name, dice: spell.dice, skillId: spell._skillId||null} }); }
+          else { opts.push({ label:a.name, meta:uiCopy('⚠ ไกลเกินระยะเวท ('+rr.dist+' ช่อง · ถึง '+rr.max+')','⚠ Out of spell range ('+rr.dist+' squares · reach '+rr.max+')'), dim:true }); }
+        });
       }
       return { items: opts };
     }
