@@ -154,6 +154,9 @@
       if(row.mitigation!=='immune'&&row.save_outcome!=='success_zero') return null;
     }
     if(row.kind!=='damage'&&parts.length) return null;
+    if(row.delivery_key!=null&&(row.delivery_key!=='projectile'||
+      !['damage','miss'].includes(row.kind)||
+      (row.kind==='damage'&&parts.some(p=>p.type!=='fire')))) return null;
     let keys=[],strength=1,blocked=false;
     if(row.kind==='damage'){
       blocked=row.mitigation==='immune'||row.save_outcome==='success_zero'||Number(row.amount_applied)===0;
@@ -166,6 +169,7 @@
       }
     } else {keys=[row.kind];if(row.kind==='miss') strength=0.45;}
     if(!keys.length) return null;
+    if(row.delivery_key==='projectile') keys=['projectile',...keys];
     return {key:row.event_key+'|'+row.target_token_id+'|'+row.kind,
       cursor:Number(row.cursor_id),target:row.target_token_id,actor:row.actor_token_id,
       grid:row.grid_id,targetRefKind:row.target_ref_kind,targetRef:row.target_ref_id,
@@ -347,6 +351,14 @@
       }
     }
     layer.appendChild(node);active++;
+    if(effect.kind==='delivery'&&cue.keys.length>1){
+      const nextKeys=cue.keys.slice(1);
+      const delay=reduced?0:duration-120;
+      const follow=setTimeout(()=>{timers.delete(follow);
+        play({...cue,keys:nextKeys,canNudge:false},board,layer);
+      },delay);
+      timers.add(follow);
+    }
     if(effect.kind==='delivery'&&!reduced&&node.animate){
       const travel=node.animate([{left:origin.x+'px',top:origin.y+'px'},
         {left:center.x+'px',top:center.y+'px'}],{duration:duration,iterations:1});
