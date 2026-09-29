@@ -154,9 +154,10 @@
       if(row.mitigation!=='immune'&&row.save_outcome!=='success_zero') return null;
     }
     if(row.kind!=='damage'&&parts.length) return null;
-    if(row.delivery_key!=null&&(row.delivery_key!=='projectile'||
+    if(row.delivery_key!=null&&(!['projectile','beam'].includes(row.delivery_key)||
       !['damage','miss'].includes(row.kind)||
-      (row.kind==='damage'&&parts.some(p=>p.type!=='fire')))) return null;
+      (row.delivery_key==='beam'&&(row.kind!=='damage'||parts.some(p=>p.type!=='fire')))||
+      (row.kind==='damage'&&parts.some(p=>p.type!=='fire'&&p.type!=='force')))) return null;
     let keys=[],strength=1,blocked=false;
     if(row.kind==='damage'){
       blocked=row.mitigation==='immune'||row.save_outcome==='success_zero'||Number(row.amount_applied)===0;
@@ -169,7 +170,7 @@
       }
     } else {keys=[row.kind];if(row.kind==='miss') strength=0.45;}
     if(!keys.length) return null;
-    if(row.delivery_key==='projectile') keys=['projectile',...keys];
+    if(row.delivery_key==='projectile'||row.delivery_key==='beam') keys=[row.delivery_key,...keys];
     return {key:row.event_key+'|'+row.target_token_id+'|'+row.kind,
       cursor:Number(row.cursor_id),target:row.target_token_id,actor:row.actor_token_id,
       grid:row.grid_id,targetRefKind:row.target_ref_kind,targetRef:row.target_ref_id,
