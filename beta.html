@@ -35,7 +35,7 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./music-playback-owner.js?v=847"></script>
 <script src="./music-v2-dark-launch.js?v=0825"></script>
 <script src="./npc-codex-reader.js?v=0826r14"></script>
-<script src="./grid-touch-telemetry.js?v=20260926w276"></script>
+<script src="./grid-touch-telemetry.js?v=20260930result77"></script>
 <style>
 /* ============================================================
    TTRPG CAMPAIGN — Dragon Quest (NES) monochrome re-skin (เฟส 5)
@@ -2249,7 +2249,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202609300054;
+const FRONTEND_BUILD = 202609301112;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -3704,7 +3704,22 @@ function createGridPickLeaseHost(deps){
 
 function gridBoardLeaseIdentity(){ try{ return gridCommandAdapter&&gridCommandAdapter.readIdentity?gridCommandAdapter.readIdentity():null; }catch(error){ return null; } }
 const gridTouchTelemetry=window.TTRPG_GRID_TOUCH_TELEMETRY?.create?.({
-  context:()=>campaign&&curRound&&myChar?{campaign_id:campaign.id,group_no:terminalGroupForUi(),round_id:curRound.id,character_id:myChar.id}:null,
+  context:()=>campaign&&curRound&&myChar?{campaign_id:campaign.id,group_no:terminalGroupForUi(),round_id:curRound.id,character_id:myChar.id,encounter_id:window.gEncId||null}:null,
+  resolvedAction:async(x)=>{
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),2500);
+    try{
+      const [action,round]=await Promise.all([
+        supa.from('actions').select('id,campaign_id,encounter_id,round_id,character_id,lifecycle_state').eq('id',x.action_id).eq('campaign_id',x.campaign_id).abortSignal(controller.signal).maybeSingle(),
+        supa.from('rounds').select('id,phase,group_no').eq('id',x.round_id).eq('campaign_id',x.campaign_id).abortSignal(controller.signal).maybeSingle()
+      ]);
+      if(action.error||round.error) throw new Error('result_resolution_unavailable');
+      const a=action.data,r=round.data;
+      return !!(a&&r&&a.id===x.action_id&&a.campaign_id===x.campaign_id&&a.encounter_id===x.encounter_id&&
+        a.round_id===x.round_id&&a.character_id===x.character_id&&a.lifecycle_state==='consumed'&&
+        r.id===x.round_id&&r.group_no===x.group_no&&r.phase==='done');
+    }finally{clearTimeout(timer);}
+  },
+  onResolved:()=>{if(_bsShown)scheduleBattleScene('poll');},
   onFailure:(reason)=>gridCommandNote('telemetry',reason),
   send:async(item)=>{
     const token=(await supa.auth.getSession()).data.session?.access_token;
@@ -3713,7 +3728,7 @@ const gridTouchTelemetry=window.TTRPG_GRID_TOUCH_TELEMETRY?.create?.({
     try{ const response=await fetch(SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/grid-touch',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(item),signal:controller.signal}); return {ok:response.ok,retryable:response.status>=500}; }
     finally{ clearTimeout(timer); }
   }
-})||{note:()=>{},leaseReenter:()=>{},submittedAction:()=>{},feedbackVisible:()=>{}};
+})||{note:()=>{},leaseReenter:()=>{},submittedAction:()=>{},feedbackVisible:()=>{},renderStarted:()=>[],rendered:()=>false};
 function gridCommandFlowState(){ try{ return gridCommandFlow?gridCommandFlow.state():null; }catch(error){ return null; } }
 // diag ถาวรแบบเงียบ (ring 20 · ไม่มี console) — ใบวัดบนอุปกรณ์จริงอ่าน reason ที่ยิงจริงผ่าน window.gridCommandDiag()
 const gridCommandDiagRing=[];
@@ -10869,11 +10884,13 @@ function exitBattleScene(){
   try{ curMood=null; _moodNow(); }catch(e){}   // ออกจากฉากรบ → กลับเพลงตามบรรยากาศฉาก (reset กันค้างเพลง battle)
   try{ renderStory(); }catch(e){}
 }
-async function renderBattleScene(trigger){
+async function renderBattleScene(trigger,optimistic){
   if(!_bsShown) return;
   if(_bsRendering) return;   // กันเรนเดอร์ซ้อน (ต้นเหตุภาพกระพริบ)
   _bsRendering=true;
+  var _gridTouchReady=null,_gridTouchPaint=null;
   try{
+    try{if(!optimistic)_gridTouchReady=gridTouchTelemetry.renderStarted();}catch(error){gridCommandNote('telemetry','result_render_probe_failed');}
     ensureBattleScene();
     // นาฬิกาโลกลงกล่องลูก #bsHudClock (ไม่ทับเมนูย่อย DM TOOLS ที่ต่อท้ายในกล่องเดียวกัน)
     try{ renderClock(); var wc=document.getElementById('worldClock'), hud=document.getElementById('bsHud');
@@ -10893,7 +10910,7 @@ async function renderBattleScene(trigger){
     }catch(e){}
     // เรนเดอร์ grid ลงกล่องชั่วคราวก่อน แล้วค่อยสลับทีเดียว (ไม่ให้จอว่างระหว่างโหลด = ไม่กระพริบ)
     var board=document.getElementById('bsBoard');
-    if(board){ await gridBoardRequestRender(trigger||'poll',async function(){ var _tmp=document.createElement('div'); try{ await renderBattleGrid(_tmp); }catch(e){} if(!_tmp.children.length){ _tmp.innerHTML=uiCopy('<div class="note" style="text-align:center;padding:16px;color:#9a9a9a">— ยังไม่มีสนามรบ —</div>','<div class="note" style="text-align:center;padding:16px;color:#9a9a9a">— No battle map yet —</div>'); } var _bsig=_tmp.innerHTML; if(board.getAttribute('data-sig')!==_bsig){ board.setAttribute('data-sig',_bsig); board.replaceChildren.apply(board, Array.prototype.slice.call(_tmp.childNodes)); } }); }
+    if(board){ await gridBoardRequestRender(trigger||'poll',async function(){ var _tmp=document.createElement('div'); try{ await renderBattleGrid(_tmp); }catch(e){} if(!_tmp.children.length){ _tmp.innerHTML=uiCopy('<div class="note" style="text-align:center;padding:16px;color:#9a9a9a">— ยังไม่มีสนามรบ —</div>','<div class="note" style="text-align:center;padding:16px;color:#9a9a9a">— No battle map yet —</div>'); } var _bsig=_tmp.innerHTML; if(board.getAttribute('data-sig')!==_bsig){ board.setAttribute('data-sig',_bsig); board.replaceChildren.apply(board, Array.prototype.slice.call(_tmp.childNodes)); } _gridTouchPaint=_tmp._gridTouchPaint||null; }); }
     const _vfxScope={encounterId:null};
     try{ await renderBattleInitLog(document.getElementById('bsInit'), document.getElementById('bsLog'),_vfxScope); }catch(e){}
     if(window._pcFacingV1===true) window.BattleFacingMotion?.sync(board,{campaignId:campaign.id,groupNo:terminalGroupForUi(),encounterId:_vfxScope.encounterId});
@@ -10940,6 +10957,7 @@ async function renderBattleScene(trigger){
     var _cmdSheet=(function(){ var c=document.getElementById('bsCmdWrap'); return c && c.classList.contains('bs-sheet-open'); })();
     if(!_cmdSheet && _aid!=='ccNarr' && _aid!=='actInput' && _aid!=='petActInput'){ try{ await renderRoundbar(); }catch(e){} }
     try{ var _cb=document.querySelector('#bsMobBar button[data-sheet="cmd"]'); if(_cb){ var _canAct=playerCombatUiState()==='act'; _cb.classList.toggle('bs-myturn',_canAct); _cb.disabled=!!(gCombat&&gCombat.active&&!_canAct); } }catch(e){}
+    try{if(_gridTouchReady)gridTouchTelemetry.rendered(board,_gridTouchPaint,_gridTouchReady);}catch(error){gridCommandNote('telemetry','result_render_probe_failed');}
   } finally { _bsRendering=false; }
 }
 // INITIATIVE-PRESS-W31 copy surface 1 start
@@ -11771,7 +11789,8 @@ async function renderBattleGrid(p){
     const _vri=t.ref_char_id||t.ref_combat_state_id||(_vrk==='object'?t.id:'');
     const _vattr=_vOn&&t.id&&_vrk?` data-token-id="${escapeHtml(String(t.id))}" data-grid-id="${escapeHtml(String(grid.id))}" data-ref-kind="${_vrk}" data-ref-id="${escapeHtml(String(_vri))}" data-col="${+t.col}" data-row="${+t.row}" data-size="${+t.size||1}" data-vfx-visible="${!(Array.isArray(t.flags)&&t.flags.some(f=>f==='hidden'||f==='invisible'))}"`:'';
     const _fattr=window._pcFacingV1===true&&t.kind==='pc'&&t.id?` data-face-token-id="${escapeHtml(String(t.id))}" data-face-grid-id="${escapeHtml(String(grid.id))}" data-face-col="${+t.col}" data-face-row="${+t.row}" data-face-x="${fx.toFixed(1)}" data-face-y="${fy.toFixed(1)}"`:'';
-    let s=`<g class="gtok"${_vattr}${_fattr}${t._deco?' style="pointer-events:none"':''} onclick="this.classList.toggle('lblon')"><title>${escapeHtml(t.label||'')}</title>`+(_vattr?`<circle data-vfx-anchor="1" cx="${fx.toFixed(1)}" cy="${(fy-(_vrk==='object'?2:20)).toFixed(1)}" r="0" style="pointer-events:none"/>`:'');
+    const _gtattr=window.TTRPG_GRID_TOUCH_TELEMETRY?.tokenAttributes?.(grid,t,escapeHtml)||'';
+    let s=`<g class="gtok"${_vattr}${_fattr}${_gtattr}${t._deco?' style="pointer-events:none"':''} onclick="this.classList.toggle('lblon')"><title>${escapeHtml(t.label||'')}</title>`+(_vattr?`<circle data-vfx-anchor="1" cx="${fx.toFixed(1)}" cy="${(fy-(_vrk==='object'?2:20)).toFixed(1)}" r="0" style="pointer-events:none"/>`:'');
     if(t.ref_char_id && typeof myChar!=='undefined' && myChar && t.ref_char_id===myChar.id){ s+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy-1).toFixed(1)}" rx="14" ry="6.5" fill="none" stroke="#FAC775" stroke-width="2" opacity="0.5" style="pointer-events:none"/>`; }   // v560: มาร์คตัวเรา = วงเหลืองจางที่เท้า
     if(t.kind==='object'&&Array.isArray(t.flags)&&t.flags.includes('hazard')){ s+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy-2).toFixed(1)}" rx="14" ry="7" fill="#ff6a2b" opacity="0.32" style="pointer-events:none"><animate attributeName="opacity" values="0.18;0.5;0.18" dur="0.9s" repeatCount="indefinite"/><animate attributeName="rx" values="12;15;12" dur="0.9s" repeatCount="indefinite"/></ellipse>`; }   /* v482 P5: hazard (ไฟ/กรดบนพื้น) = วงเรืองส้มเต้น แยกจากไฟตกแต่ง */
     if(Array.isArray(t.flags)&&t.flags.includes('trap')&&t.flags.includes('revealed')){ s+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy-2).toFixed(1)}" rx="15" ry="8" fill="#ff2d2d" opacity="0.28" style="pointer-events:none"><animate attributeName="opacity" values="0.14;0.55;0.14" dur="0.85s" repeatCount="indefinite"/><animate attributeName="rx" values="12;16;12" dur="0.85s" repeatCount="indefinite"/></ellipse>`; }   /* v486 REQ3: กับดักเปิดเผย = พื้นแดงจางกระพริบ */
@@ -11876,7 +11895,8 @@ async function renderBattleGrid(p){
     const _vri=t.ref_char_id||t.ref_combat_state_id||(_vrk==='object'?t.id:'');
     const _vattr=_vOn&&t.id&&_vrk?` data-token-id="${escapeHtml(String(t.id))}" data-grid-id="${escapeHtml(String(grid.id))}" data-ref-kind="${_vrk}" data-ref-id="${escapeHtml(String(_vri))}" data-col="${+t.col}" data-row="${+t.row}" data-size="${+t.size||1}" data-vfx-visible="${!(Array.isArray(t.flags)&&t.flags.some(f=>f==='hidden'||f==='invisible'))}"`:'';
     const _fattr=window._pcFacingV1===true&&t.kind==='pc'&&t.id?` data-face-token-id="${escapeHtml(String(t.id))}" data-face-grid-id="${escapeHtml(String(grid.id))}" data-face-col="${+t.col}" data-face-row="${+t.row}" data-face-x="${fx.toFixed(1)}" data-face-y="${fy.toFixed(1)}"`:'';
-    svg+=`<g class="gtok"${_vattr}${_fattr}${t._deco?' style="pointer-events:none"':''} onclick="this.classList.toggle('lblon')"><title>${escapeHtml(t.label||'')}</title>`+(_vattr?`<circle data-vfx-anchor="1" cx="${fx.toFixed(1)}" cy="${(fy-(_vrk==='object'?2:20)).toFixed(1)}" r="0" style="pointer-events:none"/>`:'');
+    const _gtattr=window.TTRPG_GRID_TOUCH_TELEMETRY?.tokenAttributes?.(grid,t,escapeHtml)||'';
+    svg+=`<g class="gtok"${_vattr}${_fattr}${_gtattr}${t._deco?' style="pointer-events:none"':''} onclick="this.classList.toggle('lblon')"><title>${escapeHtml(t.label||'')}</title>`+(_vattr?`<circle data-vfx-anchor="1" cx="${fx.toFixed(1)}" cy="${(fy-(_vrk==='object'?2:20)).toFixed(1)}" r="0" style="pointer-events:none"/>`:'');
     // เงา (HD2D มีฐานในตัว — ข้ามเงาซ้ำ)
     if(!_hdOk) svg+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy+5).toFixed(1)}" rx="${t._deco?9:13}" ry="${t._deco?3.2:4.5}" fill="rgba(0,0,0,${t._deco?0.3:0.45})"/>`;
     const _spr=(t.kind==='object')?spriteFn(t):null;
@@ -12064,6 +12084,7 @@ async function renderBattleGrid(p){
     }
   }catch(_gridPrimeError){}
   p.appendChild(box);
+  p._gridTouchPaint={fresh:!_useCache&&tokensRead,campaign_id:grid.campaign_id,group_no:grid.group_no,encounter_id:grid.encounter_id,grid_id:grid.id};
 }
 
 // ───────── render: map (campaign_state) ─────────
@@ -14088,7 +14109,7 @@ window.cc = (function(){
       if (typeof toast==='function') toast(uiCopy('ส่งการกระทำแล้ว ✓','Action submitted ✓'));
       if(typeof gridTouchTelemetry!=='undefined') gridTouchTelemetry.feedbackVisible();
       // ข้อ 3 (06-08): optimistic — อัปเดตฉากรบทันทีหลังส่ง (มาร์คเดิน/สถานะ) ไม่รอ realtime เด้งกลับ
-      try{ if(typeof _bsShown!=='undefined' && _bsShown && typeof renderBattleScene==='function') renderBattleScene('manual'); }catch(e){}
+      try{ if(typeof _bsShown!=='undefined' && _bsShown && typeof renderBattleScene==='function') renderBattleScene('manual',true); }catch(e){}
       // ── B (review-r1 F15): การหัก skills.used max_uses ย้ายไป server แล้ว (structured block-and-strip · server-authoritative · กัน double-charge ที่เดิม client+server หักซ้ำ) — client ไม่หักเอง · UI รีเฟรชหลัง resolve ผ่าน loadRound ──
       try{ if (typeof loadRound==='function') await loadRound(); if (typeof renderRoundbar==='function') renderRoundbar(); }catch(e){}
       try{

@@ -2,9 +2,18 @@
 // language-impact: none — network diagnostics are machine-only.
 (function(root){
   'use strict';
+  function tokenAttributes(grid,t,escape){
+    if(!grid||!grid.id||!grid.encounter_id||!t||!t.id||!t.ref_char_id||
+       !['pc','ally','npc'].includes(t.kind)||!Number.isInteger(t.col)||!Number.isInteger(t.row)||
+       t.col<0||t.col>=20||t.row<0||t.row>=20||typeof escape!=='function'||
+       (Array.isArray(t.flags)&&t.flags.some(function(f){return f==='hidden'||f==='invisible';}))) return '';
+    return ' data-grid-touch-character="'+escape(String(t.ref_char_id))+'" data-grid-touch-token="'+escape(String(t.id))+
+      '" data-grid-touch-grid="'+escape(String(grid.id))+'" data-grid-touch-encounter="'+escape(String(grid.encounter_id))+
+      '" data-grid-touch-cell="'+String.fromCharCode(65+t.col)+(t.row+1)+'"';
+  }
   function create(host){
     host=host||{};
-    var sessions=new Map(), queue=[], busy=false, draft=null, submitted=null;
+    var sessions=new Map(), queue=[], busy=false, draft=null, submitted=null, results=new Map();
     function token(){
       var c=root.crypto;
       if(!c||typeof c.getRandomValues!=='function') return null;
@@ -47,7 +56,7 @@
         var ctx=typeof host.context==='function'?host.context():null;
         var opaque=token();
         if(!opaque||!validContext(ctx)||!['move','aoe'].includes(event.kind)) return false;
-        s={token:opaque,kind:event.kind,context:ctx,openedAt:at,selectedCell:null,sent:new Set()};
+        s={token:opaque,kind:event.kind,context:Object.assign({},ctx),openedAt:at,selectedCell:null,sent:new Set()};
         sessions.set(id,s);
         if(sessions.size>8) sessions.delete(sessions.keys().next().value);
         return enqueue(s,'picker_open',null,at);
@@ -71,15 +80,58 @@
       if(kind==='move'&&!sameCell(structured.move_to??turn.movement?.moveTo,draft.selectedCell)) return false;
       if(kind==='aoe'&&![turn.action,turn.bonus].some(function(slot){return slot&&sameCell(slot.mapTarget,draft.selectedCell)&&Array.isArray(slot.area)&&slot.area.length>0;})) return false;
       submitted={session:draft,actionId:actionId}; draft=null;
-      return enqueue(submitted.session,'command_submitted',actionId,Date.now());
+      var accepted=enqueue(submitted.session,'command_submitted',actionId,Date.now());
+      if(accepted&&kind==='move'&&submitted.session.context.encounter_id){
+        results.set(actionId,{session:submitted.session,actionId:actionId,resolved:false,checking:false,nextCheckAt:0});
+        if(results.size>8) results.delete(results.keys().next().value);
+      }
+      return accepted;
     }
     function feedbackVisible(){
       if(!submitted) return false;
       var s=submitted; submitted=null;
       return enqueue(s.session,'feedback_visible',s.actionId,Date.now());
     }
+    function renderStarted(){
+      var c=typeof host.context==='function'?host.context():null, ready=[];
+      results.forEach(function(r,id){
+        var x=r.session.context;
+        if(!validContext(c)||c.campaign_id!==x.campaign_id||c.group_no!==x.group_no||c.character_id!==x.character_id||Date.now()-r.session.openedAt>600000){results.delete(id);return;}
+        if(r.resolved) ready.push(id);
+      });
+      return ready; // Only proofs observed BEFORE this render may certify its fresh token read.
+    }
+    function rendered(board,paint,ready){
+      if(!paint||paint.fresh!==true||!Array.isArray(ready)||!board||board.isConnected!==true||
+         (root.document&&root.document.visibilityState!=='visible')||typeof board.querySelectorAll!=='function') return false;
+      var sent=false,c=typeof host.context==='function'?host.context():null;
+      results.forEach(function(r,id){
+        var x=r.session.context;
+        if(!validContext(c)||c.campaign_id!==x.campaign_id||c.group_no!==x.group_no||c.character_id!==x.character_id||Date.now()-r.session.openedAt>600000) return;
+        if(paint.campaign_id!==x.campaign_id||paint.group_no!==x.group_no||paint.encounter_id!==x.encounter_id) return;
+        if(r.resolved&&ready.includes(id)){
+          var matches=Array.from(board.querySelectorAll('[data-grid-touch-character]')).filter(function(node){
+            return node.getAttribute('data-grid-touch-character')===x.character_id&&
+              node.getAttribute('data-grid-touch-grid')===paint.grid_id&&node.getAttribute('data-grid-touch-encounter')===x.encounter_id;
+          });
+          if(matches.length!==1) return;
+          var node=matches[0],rect=typeof node.getBoundingClientRect==='function'?node.getBoundingClientRect():null;
+          var style=typeof root.getComputedStyle==='function'?root.getComputedStyle(node):null;
+          if(!node.getAttribute('data-grid-touch-token')||node.getAttribute('data-grid-touch-cell')!==r.session.selectedCell||
+             !rect||rect.width<=0||rect.height<=0||style&&(style.display==='none'||style.visibility==='hidden'||Number(style.opacity)===0)) return;
+          if(enqueue(r.session,'result_visible',id,Date.now())){results.delete(id);sent=true;}
+          return;
+        }
+        if(r.resolved||r.checking||Date.now()<r.nextCheckAt||typeof host.resolvedAction!=='function') return;
+        r.checking=true;r.nextCheckAt=Date.now()+3000;
+        Promise.resolve().then(function(){return host.resolvedAction(Object.assign({},x,{action_id:id}));}).then(function(ok){
+          if(ok===true&&results.get(id)===r){r.resolved=true;if(typeof host.onResolved==='function')host.onResolved();}
+        }).catch(function(){fail('result_resolution_unavailable');}).finally(function(){r.checking=false;});
+      });
+      return sent;
+    }
     return Object.freeze({note:note,leaseReenter:leaseReenter,submittedAction:submittedAction,
-      feedbackVisible:feedbackVisible,pending:function(){return queue.length;}});
+      feedbackVisible:feedbackVisible,renderStarted:renderStarted,rendered:rendered,pending:function(){return queue.length;}});
   }
-  root.TTRPG_GRID_TOUCH_TELEMETRY=Object.freeze({create:create});
+  root.TTRPG_GRID_TOUCH_TELEMETRY=Object.freeze({create:create,tokenAttributes:tokenAttributes});
 })(typeof window!=='undefined'?window:globalThis);
