@@ -2249,7 +2249,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202609301112;
+const FRONTEND_BUILD = 202610010117;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -6845,21 +6845,51 @@ function tick(){ try{ _actx=_actx||new (window.AudioContext||window.webkitAudioC
 // ───────── v2: combat turn state (ถึงตาใคร) + แจ้งเตือนรายคน ─────────
 let _combatRenderT=null;
 function scheduleCombatRender(){ clearTimeout(_combatRenderT); _combatRenderT=setTimeout(()=>{ if(activeTab()==='mon') renderCombat(); }, 200); }   // รวมการ re-render หลายครั้งจาก combat_log/initiative ที่มารัวๆ ให้เหลือครั้งเดียว
+function roundRequestContext(){
+  return {campaignId:campaign&&campaign.id,sourceRoundId:curRound&&curRound.id,groupNo:terminalGroupForUi()};
+}
+function roundRequestContextMatches(target){
+  const current=roundRequestContext();
+  return !!target&&!!target.campaignId&&target.campaignId===current.campaignId&&target.sourceRoundId===current.sourceRoundId&&target.groupNo===current.groupNo;
+}
+function currentCombatForceTarget(){
+  const target=gCombat&&gCombat.forceTarget;
+  return gCombat&&gCombat.active&&target&&target.entryId&&target.sourceRoundId&&roundRequestContextMatches(target)?{...target}:null;
+}
+function combatForceTargetMatches(target){
+  const current=currentCombatForceTarget();
+  return !!current&&roundRequestContextMatches(target)&&target.entryId===current.entryId;
+}
+function combatForceUnavailable(){
+  toast(uiCopy('เทิร์นเปลี่ยนหรือยังอ่านข้อมูลไม่ครบ โปรดตรวจชื่อผู้เล่นแล้วลองอีกครั้ง','The turn changed or is not fully loaded. Check the player name and try again.'));
+}
 async function refreshCombatTurn(){
+  const context=roundRequestContext(),run=refreshCombatTurn.sequence=(refreshCombatTurn.sequence||0)+1;
+  const current=()=>run===refreshCombatTurn.sequence&&roundRequestContextMatches(context);
   try{
     if(durableRoundCombatTruth(curRound)==='inactive'){ const _turnReset=reconcileCombatUiFromRound(curRound); if(_turnReset.reset) return; }
-    const er=await supa.from('combat_encounters').select('id,active_entry_id,status,combat_round').eq('campaign_id',campaign.id).eq('group_no',terminalGroupForUi()).eq('status','active').maybeSingle();   // v739 FZ-2 group-scoped
+    const er=await supa.from('combat_encounters').select('id,active_entry_id,status,combat_round').eq('campaign_id',context.campaignId).eq('group_no',context.groupNo).eq('status','active').maybeSingle();
+    if(!current()) return;
+    if(er.error) throw er.error;
     if(!er.data){ gCombat={active:false,activeCharId:null,activeName:null,activeEntry:null}; window._combatRound=null; return; }
-    window._combatRound=er.data.combat_round;   // ใช้ล็อกปุ่ม death save ตามรอบ
     let charId=null,name=null,activeEntry=null;
-    if(er.data.active_entry_id){ const e2=await supa.from('initiative_entries').select('character_id,display_name,is_active,conditions').eq('id',er.data.active_entry_id).maybeSingle(); if(e2.data){ activeEntry=e2.data; charId=e2.data.character_id; name=e2.data.display_name; } }
+    if(er.data.active_entry_id){
+      const e2=await supa.from('initiative_entries').select('id,character_id,display_name,is_active,conditions').eq('id',er.data.active_entry_id).maybeSingle();
+      if(!current()) return;
+      if(e2.error) throw e2.error;
+      if(e2.data){ activeEntry=e2.data; charId=e2.data.character_id; name=e2.data.display_name; }
+    }
     const wasAct=playerCombatUiState()==='act';
-    gCombat={active:true,activeCharId:charId,activeName:name,activeEntry};
+    window._combatRound=er.data.combat_round;
+    const forceTarget=activeEntry&&activeEntry.id===er.data.active_entry_id?{...context,entryId:activeEntry.id,displayName:name}:null;
+    gCombat={active:true,activeCharId:charId,activeName:name,activeEntry,forceTarget};
+    const waitKey=JSON.stringify([context.campaignId,context.groupNo,context.sourceRoundId,er.data.active_entry_id]);
+    if(waitKey!==window._turnWaitKey){ window._turnWaitKey=waitKey; window._turnWaitSince=Date.now(); }
     if(charId&&myChar&&String(charId)===String(myChar.id)) await reloadMySheet();
-    if(charId!==window._turnWaitChar){ window._turnWaitChar=charId; window._turnWaitSince=Date.now(); }   // จับเวลาเทิร์นนี้เริ่มรอเมื่อไหร่ (ใช้คุมปุ่ม skip)
+    if(!current()) return;
     const nowAct=playerCombatUiState()==='act';
     if(nowAct&&!wasAct) notifyMyTurn();
-  }catch(e){}
+  }catch(e){ if(current()&&gCombat) gCombat.forceTarget=null; console.warn('[combat turn] snapshot unavailable',e); }
 }
 function notifyMyTurn(){
   toast(uiCopy('⚔️ ถึงตาคุณแล้ว!','⚔️ It is your turn!'));
@@ -7051,15 +7081,22 @@ function downedTurnControlPlan(isHost,activeCharId,ownCharId,deathSaveActionAvai
 function makeSkipBtn(){
   const fmt=(ms)=>{ const s=Math.max(0,Math.floor(ms/1000)); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
   const sk=document.createElement('button'); sk.className='btn warn sm'; sk.style.cssText='margin-top:8px;display:block;width:100%';
+  let shownTarget=null;
   const label=()=>{
+    shownTarget=currentCombatForceTarget();
     const w=Date.now()-(window._turnWaitSince||Date.now());
     const ready=w>60000;
-    sk.disabled=!ready||resolving;
-    sk.textContent=uiCopy('⏭ ข้ามเทิร์นของ ','⏭ Skip turn for ')+(gCombat.activeName||'?')+uiCopy(' — รอมาแล้ว ',' — waiting for ')+fmt(w)+(ready?'':uiCopy(' (กดได้เมื่อครบ 1:00)',' (available after 1:00)'));
+    sk.disabled=!ready||resolving||!shownTarget;
+    sk.textContent=uiCopy('⏭ ข้ามเทิร์นของ ','⏭ Skip turn for ')+(shownTarget&&shownTarget.displayName||'?')+uiCopy(' — รอมาแล้ว ',' — waiting for ')+fmt(w)+(ready?'':uiCopy(' (กดได้เมื่อครบ 1:00)',' (available after 1:00)'));
   };
   label();
   const iv=setInterval(()=>{ if(!document.body.contains(sk)){ clearInterval(iv); return; } label(); },1000);
-  sk.onclick=async()=>{ if(await uiConfirmText(uiCopy('ข้ามเทิร์นของ ','Skip the turn for ')+(gCombat.activeName||uiCopy('ผู้เล่นนี้','this player'))+uiCopy('?\n(เทิร์นนี้จะถือว่าตั้งรับ/Dodge — ใช้เมื่อผู้เล่น/บอทไม่ตอบสนองเท่านั้น)','?\n(This turn will count as defending/Dodge — use only when the player or bot is unresponsive.)'),'combat-skip-turn')) resolveRound(true,undefined,false,true); };
+  sk.onclick=async()=>{
+    if(resolving) return resolveRound(true,undefined,false,true);
+    const target=shownTarget;
+    if(!combatForceTargetMatches(target)){ combatForceUnavailable(); return; }
+    if(await uiConfirmText(uiCopy('ข้ามเทิร์นของ ','Skip the turn for ')+(target.displayName||uiCopy('ผู้เล่นนี้','this player'))+uiCopy('?\n(เทิร์นนี้จะถือว่าตั้งรับ/Dodge — ใช้เมื่อผู้เล่น/บอทไม่ตอบสนองเท่านั้น)','?\n(This turn will count as defending/Dodge — use only when the player or bot is unresponsive.)'),'combat-skip-turn')) return resolveRound(true,undefined,false,true,target);
+  };
   return sk;
 }
 // DM Options v704: flat envelope renderer + suggestion-only draft. Canonical block is mirrored in beta.html.
@@ -8293,11 +8330,15 @@ function setMyThinking(on){
   try { if (typeof rtChannel !== 'undefined' && rtChannel && typeof rtChannel.track === 'function') rtChannel.track({ thinking: !!on, uid: (me && me.id) || 'anon', at: Date.now() }); } catch(e){}
 }
 var _autoChain=0, _waitRetryChain=0;
-async function resolveRound(force, mode, recover, fromClick){
+async function resolveRound(force, mode, recover, fromClick, forceTarget){
   if(gateBeforePlay()) return;
   if(slowlifeState&&slowlifeState.active){ toast(uiCopy('(แก้: ปิด Slowlife และรวมปาร์ตี้ก่อนดำเนินรอบหลัก)','(Fixed: close Slowlife and regroup before continuing the main round)'),true); switchTab('companion'); return; }
   const recovery=recover===true&&force===true&&campaign.host_id===me.id&&resolvingStallAge(curRound)>180000;
   if(recover===true&&!recovery||resolving&&!recovery){ if(fromClick) toast(resolving?uiCopy('กำลังดำเนินเรื่องอยู่ รอสักครู่','The story is being processed. Please wait.'):uiCopy('การกู้รอบค้างยังไม่พร้อม โปรดรอให้ครบเวลาหรือรีเฟรชสถานะ','Recovery is not available yet. Wait for the time limit or refresh the round status.')); return; }
+  const requestContext=roundRequestContext();
+  const requestGroup=Math.max(1,Math.min(2,Math.floor(Number((myChar&&myChar.group_no)||(curRound&&curRound.group_no))||1)));
+  const combatForce=!!force&&(!!forceTarget||gCombat&&gCombat.active||document.body.classList.contains('in-battle')||!!window._combatActive);
+  if(combatForce&&!combatForceTargetMatches(forceTarget)){ combatForceUnavailable(); return; }
   const previous=resolveRound.controller, run=resolveRound.sequence=(resolveRound.sequence||0)+1, controller=new AbortController();
   resolveRound.controller=controller; resolveRound.startedAt=Date.now(); if(recovery&&previous) previous.abort();
   resolving=true; renderRoundbar();
@@ -8307,7 +8348,9 @@ async function resolveRound(force, mode, recover, fromClick){
   setMyThinking(true);
   try{
     const token=(await supa.auth.getSession()).data.session?.access_token;
-    const body={campaign_id:campaign.id, force:!!force, group_no:Math.max(1,Math.min(2,Math.floor(Number((myChar&&myChar.group_no)||(curRound&&curRound.group_no))||1)))}; if(mode) body.mode=mode;   // v738: resolver/scene directives must bind to this player's split group
+    if(!roundRequestContextMatches(requestContext)||combatForce&&!combatForceTargetMatches(forceTarget)){ if(fromClick) combatForceUnavailable(); return; }
+    const body={campaign_id:requestContext.campaignId,force:!!force,group_no:combatForce?forceTarget.groupNo:requestGroup}; if(mode) body.mode=mode;
+    if(combatForce){ body.force_target_entry_id=forceTarget.entryId; body.force_source_round_id=forceTarget.sourceRoundId; }
     if(mode==='intro'){ const ck=document.getElementById('loreFirstCk'); if(ck) body.lore_first=!!ck.checked; }   // v198
     const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
       body:JSON.stringify(body),signal:controller.signal});
@@ -10453,20 +10496,21 @@ function resolvingStallAge(round,now=Date.now()){
 function renderResolvingStall(bar,round,host){
   if(resolvingStallAge(round)<=180000) return;
   const note=document.createElement('div'); note.className='note'; note.setAttribute('data-resolving-stall','1');
-  note.textContent=host
-    ?uiCopy('⏳ การดำเนินเรื่องใช้เวลานานกว่าปกติ กดดำเนินเรื่องต่อเพื่อลองกู้รอบนี้','⏳ This scene is taking longer than usual. Press Continue story to recover this round.')
-    :uiCopy('⏳ การดำเนินเรื่องใช้เวลานานกว่าปกติ ให้เจ้าของโลกกดดำเนินเรื่องต่อ','⏳ This scene is taking longer than usual. Ask the host to press Continue story.');
+  note.textContent=uiCopy('⏳ ฉากนี้หยุดรอนานกว่าปกติ กำลังลองให้เรื่องราวดำเนินต่อ…','⏳ This scene has paused longer than usual. Trying to continue the story…');
   bar.appendChild(note);
   if(host){ const b=document.createElement('button'); b.className='btn warn'; b.textContent=uiCopy('⚡ ดำเนินเรื่องต่อ','⚡ Continue story'); b.onclick=()=>forceResolveConfirm(true); bar.appendChild(b); }
 }
 // W120 resolving stall copy surface end
 async function forceResolveConfirm(recover){
-  try{
-    const inB=document.body.classList.contains('in-battle')||!!window._combatActive;
-    const an=(typeof gCombat!=='undefined'&&gCombat&&gCombat.active)?gCombat.activeName:null;
-    if(inB&&an&&!await uiConfirmText(uiCopy('ตอนนี้รอเทิร์นของ "'+an+'" อยู่\nหากดำเนินเรื่องต่อ '+an+' จะตั้งรับ (Dodge) ในรอบนี้\n(บอทอาจกำลังคิด — รอสักครู่ก่อนได้)\n\nยืนยันหรือไม่?','The party is waiting for "'+an+'".\nContinuing now makes '+an+' take the Dodge action this round.\n(The bot may still be thinking; you can wait a moment.)\n\nContinue?'),'combat-force-resolve')) return;
-  }catch(e){}
-  return resolveRound(true,undefined,recover===true,true);
+  if(resolving&&recover!==true) return resolveRound(true,undefined,false,true);
+  const inB=gCombat&&gCombat.active||document.body.classList.contains('in-battle')||!!window._combatActive;
+  const target=inB?currentCombatForceTarget():null;
+  if(inB&&!target){ combatForceUnavailable(); return; }
+  if(target){
+    const an=target.displayName||uiCopy('ผู้เล่นนี้','this player');
+    if(!await uiConfirmText(uiCopy('ตอนนี้รอเทิร์นของ "'+an+'" อยู่\nหากดำเนินเรื่องต่อ '+an+' จะตั้งรับ (Dodge) ในรอบนี้\n(บอทอาจกำลังคิด — รอสักครู่ก่อนได้)\n\nยืนยันหรือไม่?','The party is waiting for "'+an+'".\nContinuing now makes '+an+' take the Dodge action this round.\n(The bot may still be thinking; you can wait a moment.)\n\nContinue?'),'combat-force-resolve')) return;
+  }
+  return resolveRound(true,undefined,recover===true,true,target);
 }
 // ── v816: per-slot Gemini tier + deterministic cooldown recovery (masked status only) ──
 function appendGeminiKeyTierControls(tools, styleCtl, DMF){
@@ -13007,8 +13051,76 @@ function exportChronicle(){
 }
 
 // ───────── realtime ─────────
+// B-260930-6: source-bound recovery only; the server owns liveness and recovery CAS.
+async function pollResolvingRecovery(){
+  if(!campaign||document.hidden||window.frontendWriteBlocked||slowlifeState&&slowlifeState.active||pollResolvingRecovery.controller) return;
+  const cid=campaign.id,grp=terminalGroupForUi(),controller=new AbortController();
+  const current=()=>!controller.signal.aborted&&campaign&&campaign.id===cid&&terminalGroupForUi()===grp&&!document.hidden&&!window.frontendWriteBlocked&&!(slowlifeState&&slowlifeState.active);
+  const leaseKey='ttrpg_wd_leader_'+cid+'_g'+grp,now=Date.now();
+  let lease=null; try{ lease=JSON.parse(localStorage.getItem(leaseKey)||'null'); }catch(e){}
+  if(lease&&lease.id!==window._wdTabId&&Number(lease.until)>now) return;
+  try{ localStorage.setItem(leaseKey,JSON.stringify({id:window._wdTabId,until:now+45000})); }catch(e){}
+  pollResolvingRecovery.controller=controller;
+  const timeout=setTimeout(()=>controller.abort(),30000);
+  try{
+    const r=await supa.from('rounds').select('id,phase,resolve_claimed_at').eq('campaign_id',cid).eq('group_no',grp).order('round_number',{ascending:false}).limit(1).abortSignal(controller.signal).maybeSingle();
+    if(!current()) return;
+    if(r.error) throw r.error;
+    if(!r.data||r.data.phase!=='resolving'){ pollResolvingRecovery.state=null; return; }
+    const sourceRoundId=r.data.id,sourceScope=JSON.stringify([cid,grp,sourceRoundId]);
+    const sourceCurrent=()=>!!sourceRoundId&&curRound&&curRound.id===sourceRoundId&&curRound.phase==='resolving';
+    if(!sourceCurrent()||pollResolvingRecovery.stoppedScope===sourceScope) return;
+    const key=JSON.stringify([cid,grp,sourceRoundId,r.data.resolve_claimed_at||null]);
+    let state=pollResolvingRecovery.state;
+    if(!state||state.key!==key) state=pollResolvingRecovery.state={key,seenAt:now,attempts:0,nextAt:0};
+    const backoffKey=leaseKey+'_recovery';
+    let shared=null; try{ shared=JSON.parse(localStorage.getItem(backoffKey)||'null'); }catch(e){}
+    if(shared&&shared.skippedRoundId===sourceRoundId) return;
+    if(shared&&shared.key===key){
+      state.attempts=Math.max(state.attempts,Math.min(5,Math.max(0,Number(shared.attempts)||0)));
+      state.nextAt=Math.max(state.nextAt,Math.min(now+300000,Number(shared.nextAt)||0));
+    }
+    if(now<state.nextAt) return;
+    const pp=await supa.from('narrative').select('created_at').eq('round_id',sourceRoundId).eq('status','placeholder').order('created_at',{ascending:false}).limit(1).abortSignal(controller.signal).maybeSingle();
+    if(!current()||!sourceCurrent()) return;
+    if(pp.error) throw pp.error;
+    const claim=Date.parse(String(r.data.resolve_claimed_at||''));
+    let age=Math.max(0,now-(Number.isFinite(claim)?claim:state.seenAt));
+    if(pp.data){ const at=Date.parse(String(pp.data.created_at||'')); age=Math.min(age,Number.isFinite(at)?Math.max(0,now-at):0); }
+    if(resolving) age=Math.min(age,Number(resolveRound.startedAt)?Math.max(0,now-resolveRound.startedAt):0);
+    if(age<=180000) return;
+    const token=(await supa.auth.getSession()).data.session?.access_token;
+    if(!current()||!sourceCurrent()||!token) return;
+    // Share the cooldown before sending, including failed/aborted attempts.
+    state.attempts=Math.min(5,state.attempts+1);
+    state.nextAt=Date.now()+Math.min(300000,30000*Math.pow(2,state.attempts-1));
+    try{ localStorage.setItem(backoffKey,JSON.stringify({key,attempts:state.attempts,nextAt:state.nextAt})); }catch(e){}
+    const run=resolveRound.sequence,localController=resolveRound.controller;
+    const response=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({campaign_id:cid,group_no:grp,force:false,recovery_source_round_id:sourceRoundId}),signal:controller.signal});
+    const result=await response.json();
+    if(!current()) return;
+    if(!response.ok) throw new Error('Recovery poll HTTP '+response.status);
+    if(result.status==='recovery_skipped'){
+      pollResolvingRecovery.stoppedScope=sourceScope;
+      try{ localStorage.setItem(backoffKey,JSON.stringify({key,skippedRoundId:sourceRoundId,attempts:state.attempts,nextAt:state.nextAt})); }catch(e){}
+      await resyncAll(true); return;
+    }
+    if(result.status==='recovered'){
+      // A completed server recovery supersedes only the same old local request.
+      if(resolving&&resolveRound.sequence===run&&resolveRound.controller===localController){
+        resolveRound.sequence=(resolveRound.sequence||0)+1;
+        if(localController) localController.abort();
+        resolveRound.controller=null; resolving=false; setMyThinking(false);
+      }
+    }
+    if(result.status!=='busy') await resyncAll(true);
+  }catch(e){ if(!controller.signal.aborted) console.warn('[round recovery] poll deferred',e); }
+  finally{ clearTimeout(timeout); if(pollResolvingRecovery.controller===controller) pollResolvingRecovery.controller=null; }
+}
 async function teardownRealtimeForWorldSwitch(){
   gridPickLeaseDisconnect();
+  if(pollResolvingRecovery.controller) pollResolvingRecovery.controller.abort();
+  pollResolvingRecovery.state=null;
   if(window._rtReconnT){clearTimeout(window._rtReconnT);window._rtReconnT=null;}
   if(_rtPoll){clearInterval(_rtPoll);_rtPoll=null;}
   if(window._combatWatchdog){clearInterval(window._combatWatchdog);window._combatWatchdog=null;}
@@ -13018,35 +13130,10 @@ async function teardownRealtimeForWorldSwitch(){
 function subscribeRealtime(){
   if(worldSwitchReloading)return;
   if(rtChannel) return;
-  // v744 FIX-0 watchdog: bounded typed-recovery trigger. One visible/current tab
-  // owns a short lease; stale builds stop; retries back off and circuit-break.
+  // One visible tab per group polls; retry cooldown also survives leader changes.
   if(!window._combatWatchdog){
     try{ window._wdTabId=sessionStorage.getItem('ttrpg_wd_tab')||crypto.randomUUID(); sessionStorage.setItem('ttrpg_wd_tab',window._wdTabId); }catch(e){ window._wdTabId=window._wdTabId||String(Math.random()); }
-    window._combatWatchdog = setInterval(async function(){
-      try{
-        if(typeof campaign==='undefined'||!campaign||document.hidden||window.frontendWriteBlocked) return;
-        if(typeof resolving!=='undefined' && resolving) return;
-        const grp=terminalGroupForUi(), leaseKey='ttrpg_wd_leader_'+campaign.id+'_g'+grp, now=Date.now();
-        let lease=null; try{ lease=JSON.parse(localStorage.getItem(leaseKey)||'null'); }catch(e){}
-        if(lease&&lease.id!==window._wdTabId&&Number(lease.until)>now) return;
-        try{ localStorage.setItem(leaseKey,JSON.stringify({id:window._wdTabId,until:now+45000})); }catch(e){}
-        const r=await supa.from('rounds').select('id,phase').eq('campaign_id',campaign.id).eq('group_no',grp).order('round_number',{ascending:false}).limit(1).maybeSingle();
-        if(!r.data || r.data.phase!=='resolving'){ window._wdNoPh=0; window._wdRound=''; window._wdAttempts=0; window._wdNextAt=0; return; }
-        if(window._wdRound!==r.data.id){ window._wdRound=r.data.id; window._wdNoPh=0; window._wdAttempts=0; window._wdNextAt=0; }
-        const pp=await supa.from('narrative').select('created_at').eq('round_id',r.data.id).eq('status','placeholder').order('created_at',{ascending:false}).limit(1).maybeSingle();
-        /* v663 X4-08 (BUGROOTS 07-18): ไม่มี placeholder ≠ ค้างแน่นอน (อาจ promote เป็น final แล้ว/postDM ยังทำงาน/realtime คนละเฟส) — ต้องเห็นต่อเนื่อง ≥3 tick (~90s) ก่อนถือว่า stale (เดิม age=999999 ทันที → recovery ยิงซ้ำ = เคสสด 08:53-08:59 tail 381s) */
-        let age;
-        if(pp.data){ age=Date.now()-new Date(pp.data.created_at).getTime(); window._wdNoPh=0; }
-        else { window._wdNoPh=(window._wdNoPh||0)+1; age=(window._wdNoPh>=3)?999999:0; }
-        if(age>100000 && now>=Number(window._wdNextAt||0)){
-          if(Number(window._wdAttempts||0)>=3){ window._wdNextAt=now+600000; console.warn('[watchdog] recovery circuit open for 10m'); return; }
-          window._wdAttempts=Number(window._wdAttempts||0)+1;
-          window._wdNextAt=now+90000*Math.pow(2,window._wdAttempts-1);
-          console.log('[watchdog] typed recovery attempt '+window._wdAttempts+'/3');
-          if(typeof resolveRound==='function') await resolveRound(false);
-        }
-      }catch(e){}
-    }, 30000);
+    window._combatWatchdog=setInterval(pollResolvingRecovery,30000);
   }
   var _rtCh = supa.channel('camp-'+campaign.id)
     .on('postgres_changes',{event:'*',schema:'public',table:'narrative',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ rtLastSyncTs=Date.now(); if(payload&&payload.new&&payload.eventType!=='DELETE'){ await mergeNarrativeOrdered(payload.new); } else { await loadNarrative(); }
