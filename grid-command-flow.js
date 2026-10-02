@@ -44,7 +44,7 @@
       chooseAoe:'Choose a center cell first.',
       invalidMove:'That cell is outside the displayed movement area.',
       invalidAoe:'That cell cannot be used as the area center.',
-      stale:'Combat state changed — the old position was cancelled. Choose again.',
+      stale:'The battle changed — the previous position was cancelled. Choose again.',
       snapshotMissing:'Opening the standard map because the prepared grid data is not ready.',
       pickerUnavailable:'Opening the standard map because the position picker is not ready.',
       paintFailed:'Opening the standard map because the instant position update failed.',

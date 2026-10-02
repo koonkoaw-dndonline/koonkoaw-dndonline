@@ -10,8 +10,8 @@
       en: '🔊 Tap once to enable background music.',
     }),
     degraded: Object.freeze({
-      th: '(แก้: เพลงใหม่เล่นไม่ได้ชั่วคราว ระบบจึงใช้เพลงบรรยากาศเดิมในอุปกรณ์นี้)',
-      en: '(Fixed: new music is temporarily unavailable, so this device is using the legacy ambience.)',
+      th: 'เพลงใหม่เล่นไม่ได้ชั่วคราว ระบบจึงใช้เพลงบรรยากาศเดิมในอุปกรณ์นี้',
+      en: 'New music is temporarily unavailable, so this device is using the legacy ambience.',
     }),
   });
 

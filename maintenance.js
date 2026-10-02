@@ -1,4 +1,4 @@
-// SEQ130. Paired server copy only; readiness never replays a gameplay request.
+// Paired refusal copy; readiness never replays a gameplay request.
 (function(root){
   'use strict';
   function refusal(value){
@@ -10,6 +10,21 @@
   function ready(value){
     return !!value&&value.ready===true&&(value.phase==='legacy'||value.phase==='split')&&
       Number.isSafeInteger(value.epoch)&&value.epoch>0;
+  }
+  function rpcRefusal(value){
+    if(refusal(value))return value;
+    if(!value||typeof value!=='object'||Array.isArray(value))return null;
+    const reason=value.reason_code||value.code;
+    if(typeof reason==='string'&&/^(?:round_split_|split_)/.test(reason)){
+      const normalized=Object.assign({},value,{error:reason});
+      if(refusal(normalized))return normalized;
+    }
+    if(value.code==='P0001'&&/^round_split_writer_wall_denied(?:\s*:|$)/.test(String(value.message||''))){
+      return {error:'round_split_writer_wall_denied',retryable:true,
+        note_th:'ระบบพักรับการเปลี่ยนแปลงชั่วคราวและกำลังตรวจสอบความพร้อม โปรดส่งคำสั่งอีกครั้งเมื่อระบบพร้อม',
+        note_en:'Changes are temporarily paused while the game checks readiness. Submit your request again when it is ready.'};
+    }
+    return null;
   }
   function create(ports){
     let generation=0,state=null,timer=null,probe=null,attempt=0;
@@ -64,25 +79,41 @@
       const rpc=url.pathname.match(/^\/rest\/v1\/rpc\/([^/]+)$/);
       if(rpc&&rpc[1]==='round_split_readiness_v1')return null;
       if(rpc&&rpc[1]==='round_split_report_direct_denial_v1'&&method==='POST')return null;
-      const actionRpc=rpc&&['submit_action_v2','retract_action_v2'].includes(rpc[1]);
+      if(rpc&&rpc[1]==='round_split_report_direct_rpc_denial_v2'&&method==='POST')return null;
+      const stateRpc=rpc&&['submit_action_v2','retract_action_v2','levelup_submit','respond_npc_offer_consent_v1','set_combat_effect_enabled_v1','upsert_dm_option_candidate_review_v1','end_campaign','leave_campaign'].includes(rpc[1]);
       const edge=/^\/functions\/v1\/(?:resolve-round|resolve-story-round|resolve-combat-round|aux-endpoints)(?:\/|$)/.test(url.pathname);
       const write=/^\/rest\/v1\//.test(url.pathname)&&!['GET','HEAD','OPTIONS'].includes(method);
-      return edge||write?{actionRpc:!!actionRpc,edge}:null;
+      return edge||write?{stateRpc:!!stateRpc,edge}:null;
     }
     async function send(fetcher,input,options){
       const target=route(input,options);
       if(!target)return fetcher(input,options);
       if(blocked())throw failure();
       const stamp=capture(),response=await fetcher(input,options);
-      if(target.edge&&response.status===503||target.actionRpc&&response.ok){
+      if(target.edge&&response.status===503||target.stateRpc){
         let data=null;try{data=await response.clone().json();}catch(_error){}
+        if(target.stateRpc)data=rpcRefusal(data);
         if(enter(data,stamp))throw failure();
       }
       return response;
     }
-    return Object.freeze({blocked,note,capture,current,enter,reset,render:notify,send});
+    async function rpc(call){
+      if(blocked())throw failure();
+      const stamp=capture(),language=ports.language();
+      const result=await call();
+      // Supabase can convert the fetch wrapper's MaintenanceError to result.error.
+      if(blocked()&&stamp.context===context())throw failure();
+      const value=rpcRefusal(result&&result.data)||rpcRefusal(result&&result.error);
+      if(value){
+        if(enter(value,stamp))throw failure();
+        // A stale world's refusal must not become a false success at its caller.
+        throw Object.assign(new Error(language==='en'?value.note_en:value.note_th),{name:'MaintenanceError'});
+      }
+      return result;
+    }
+    return Object.freeze({blocked,note,capture,current,enter,reset,render:notify,send,rpc});
   }
-  // SEQ138: report only an explicit failed table write, in a separate transaction.
+  // SEQ138/180: report an explicit table/RPC denial in a separate transaction.
   // The original actor's headers and world are captured before either request awaits.
   function createDirectDenial(ports){
     const later=ports.setTimeout||setTimeout,cancel=ports.clearTimeout||clearTimeout;
@@ -91,8 +122,15 @@
       try{url=new URL(typeof input==='string'?input:input.url||String(input));}catch(_error){return null;}
       const method=String(options&&options.method||input&&input.method||'GET').toUpperCase();
       const table=url.pathname.match(/^\/rest\/v1\/([a-z_][a-z0-9_]*)$/);
-      if(url.origin!==ports.origin||!table||!['POST','PATCH','DELETE'].includes(method))return null;
+      const rpc=url.pathname.match(/^\/rest\/v1\/rpc\/(end_campaign|leave_campaign|set_combat_effect_enabled_v1)$/);
+      if(url.origin!==ports.origin||(!table&&!rpc)||!['POST','PATCH','DELETE'].includes(method)||rpc&&method!=='POST')return null;
       const context=ports.context(),headers=new Headers(options&&options.headers||input&&input.headers);
+      if(rpc){
+        let request=null;try{if(!options?.body&&input&&typeof input.clone==='function')request=input.clone();}catch(_error){}
+        return Object.freeze({campaignId:context.campaignId||null,actorId:context.actorId||null,rpc:rpc[1],
+          body:typeof options?.body==='string'?options.body:null,request,
+          authorization:headers.get('authorization')||'',apikey:headers.get('apikey')||''});
+      }
       return Object.freeze({campaignId:context.campaignId||null,actorId:context.actorId||null,
         relation:table[1],operation:method==='PATCH'?'update':method==='DELETE'?'delete':
           /resolution=merge-duplicates/i.test(headers.get('prefer')||'')?'upsert':'insert',
@@ -110,30 +148,36 @@
       const response=await fetcher(input,options);
       if(!stamp||response.ok)return response;
       let error=null;try{error=await response.clone().json();}catch(_error){}
-      if(error&&error.code==='P0001'&&/^round_split_writer_wall_denied(?:\s*:|$)/.test(String(error.message||''))){
-        notice(stamp,false);
+      if(error&&error.code==='P0001'&&(stamp.rpc?/^round_split_writer_wall_denied:/:/^round_split_writer_wall_denied(?:\s*:|$)/).test(String(error.message||''))){
+        if(!stamp.rpc)notice(stamp,false);
         let timer,controller;
         try{
-          if(!stamp.campaignId&&stamp.relation!=='profiles')throw new Error('direct_denial_context_missing');
+          let campaignId=stamp.campaignId;
+          if(stamp.rpc){
+            const payload=JSON.parse(stamp.body!==null?stamp.body:stamp.request?await stamp.request.text():'null');
+            campaignId=payload&&payload.p_campaign;
+            if(typeof campaignId!=='string'||!/^[-0-9a-f]{36}$/i.test(campaignId))throw new Error('direct_rpc_denial_context_missing');
+          }
+          if(!campaignId&&stamp.relation!=='profiles')throw new Error('direct_denial_context_missing');
           if(!stamp.authorization||!stamp.apikey)throw new Error('direct_denial_actor_missing');
           controller=new AbortController();
           const timeout=new Promise((_,reject)=>{timer=later(()=>{controller.abort();reject(new Error('direct_denial_audit_timeout'));},8000);});
-          const audit=ports.report(fetcher,new URL('/rest/v1/rpc/round_split_report_direct_denial_v1',ports.origin).href,{
+          const audit=ports.report(fetcher,new URL('/rest/v1/rpc/'+(stamp.rpc?'round_split_report_direct_rpc_denial_v2':'round_split_report_direct_denial_v1'),ports.origin).href,{
             method:'POST',headers:{'content-type':'application/json',authorization:stamp.authorization,apikey:stamp.apikey},
-            body:JSON.stringify({p_campaign_id:stamp.campaignId,p_relation:stamp.relation,p_operation:stamp.operation}),signal:controller.signal,
+            body:JSON.stringify(stamp.rpc?{p_cid:campaignId,p_rpc:stamp.rpc}:{p_campaign_id:campaignId,p_relation:stamp.relation,p_operation:stamp.operation}),signal:controller.signal,
           }).then(async reported=>{
             const receipt=await reported.json().catch(()=>null);
-            if(!reported.ok||!receipt||receipt.ok!==true||receipt.code!=='direct_denial_logged')throw new Error('direct_denial_audit_unconfirmed');
+            if(!reported.ok||!receipt||receipt.ok!==true||receipt.code!==(stamp.rpc?'direct_rpc_denial_logged':'direct_denial_logged'))throw new Error('direct_denial_audit_unconfirmed');
           });
           await Promise.race([audit,timeout]);
         }catch(failure){
-          ports.failure(String(failure&&failure.message||'direct_denial_audit_failed'));
-          notice(stamp,true);
+          ports.failure((stamp.rpc?'direct_rpc_denial_audit_failed:'+stamp.rpc+':':'')+String(failure&&failure.message||'direct_denial_audit_failed'));
+          if(!stamp.rpc)notice(stamp,true);
         }finally{if(timer!==undefined)cancel(timer);}
       }
       return response;
     }
     return Object.freeze({capture,send});
   }
-  root.EverRollMaintenance=Object.freeze({create,refusal,ready,createDirectDenial});
+  root.EverRollMaintenance=Object.freeze({create,refusal,ready,rpcRefusal,createDirectDenial});
 })(typeof window!=='undefined'?window:globalThis);
