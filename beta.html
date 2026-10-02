@@ -36,7 +36,7 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./music-v2-dark-launch.js?v=20261002q174"></script>
 <script src="./npc-codex-reader.js?v=0826r14"></script>
 <script src="./grid-touch-telemetry.js?v=20260930result77"></script>
-<script src="./maintenance.js?v=20261002q180"></script>
+<script src="./maintenance.js?v=20261003q199"></script>
 <style>
 /* ============================================================
    TTRPG CAMPAIGN — Dragon Quest (NES) monochrome re-skin (เฟส 5)
@@ -2250,7 +2250,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202610021184;
+const FRONTEND_BUILD = 202610031199;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2566,11 +2566,15 @@ window.gameMaintenance=window.EverRollMaintenance.create({
     if(!scope)return {error:'maintenance_context_missing'};
     return await supa.rpc('round_split_readiness_v1',{p_cid:JSON.parse(scope)[0]}).abortSignal(signal);
   },
-  render:message=>{
+  render:(message,refusal)=>{
     let el=document.getElementById('maintenanceBanner');
     if(message===null){if(el)el.remove();return;}
     if(!el){el=document.createElement('div');el.id='maintenanceBanner';el.setAttribute('role','status');el.setAttribute('aria-live','polite');el.style.cssText='position:fixed;left:10px;right:10px;bottom:10px;z-index:99999;box-sizing:border-box;max-height:30vh;overflow:auto;border:2px solid currentColor;background:#111;color:#fff;padding:12px 16px;font:600 16px/1.6 "IBM Plex Sans Thai",sans-serif;overflow-wrap:anywhere';document.body.prepend(el);}
     el.textContent=message;
+    if(refusal&&refusal.kind!=='maintenance'){
+      const reload=document.createElement('button');reload.type='button';reload.className='btn sm';reload.style.cssText='display:block;margin-top:10px';
+      reload.textContent=uiCopy('โหลดหน้าใหม่','Reload page');reload.onclick=()=>location.reload();el.appendChild(reload);
+    }
   },
   pause:()=>{
     resolveRound.sequence=(resolveRound.sequence||0)+1;
@@ -2993,6 +2997,7 @@ function applyWorldChromeCopy(lang){
     const label=btn.querySelector('.tlab'), pair=WORLD_TAB_COPY[btn.dataset.tab];
     if(label&&pair) label.textContent=uiCopy(pair[0],pair[1],lang);
   });
+  const inviteCode=$('hdCode'); if(inviteCode) inviteCode.title=uiCopy('คลิกเพื่อคัดลอกรหัสเชิญ','Click to copy invite code',lang);
   const worldId=$('hdWorld');
   if(worldId) worldId.title=uiCopy('คลิกเพื่อคัดลอก World ID สำหรับ ingest ลอร์','Click to copy World ID for lore ingest',lang);
   const ingestToken=$('hdToken');
@@ -3005,7 +3010,9 @@ function applyWorldChromeCopy(lang){
   const scrollLatest=$('scrollLatest'), scrollLatestLabel=uiCopy('ไปข้อความล่าสุด','Go to latest story',lang);
   if(scrollLatest){ scrollLatest.title=scrollLatestLabel; scrollLatest.setAttribute('aria-label',scrollLatestLabel); }
   const skin=$('hdSkin'); if(skin) skin.title=uiCopy('สลับสกิน: กระดาษนิยาย / คลาสสิก (พิกเซล)','Switch theme: story paper / classic (pixel)',lang);
-  const musicMood=$('hdMusicSel'); if(musicMood) musicMood.title=uiCopy('เลือกหมวดเพลง (Auto = เปลี่ยนตามฉาก)','Choose music mood (Auto follows the scene)',lang);
+  const musicMood=$('hdMusicSel'); if(musicMood) musicMood.title=uiCopy('เลือกหมวดเพลง (อัตโนมัติ = เปลี่ยนตามฉาก)','Choose music mood (Auto follows the scene)',lang);
+  const moodCopy={'':['🎵 อัตโนมัติ','🎵 Auto'],battle:['ต่อสู้','Battle'],boss:['บอส','Boss'],capital:['เมืองหลวง','Capital'],dungeon:['ดันเจี้ยน','Dungeon'],forest:['ป่า/เดินทาง','Forest / travel'],rest:['พักแรม','Camp'],tavern:['โรงเตี๊ยม','Tavern'],town:['เมือง','Town'],village:['หมู่บ้าน','Village']};
+  if(musicMood) Array.from(musicMood.options||[]).forEach(option=>{const pair=moodCopy[option.value];if(pair)option.textContent=uiCopy(pair[0],pair[1],lang);});
   const musicVol=$('hdMusicVol'); if(musicVol) musicVol.title=uiCopy('ระดับเสียงดนตรี (ค่าเริ่มต้น 50%)','Music volume (default 50%)',lang);
   updateMusicBtn(lang); updateSkinBtn(lang); updateDicePreferenceControls(lang);
 }
@@ -4453,7 +4460,7 @@ async function createCampaign(){
   try{
     const manual=(_oneshot?$('osPremise'):$('newRules')).value.trim();
     const combined=[rulesFromFiles, manual].filter(Boolean).join('\n\n').trim();
-    const { data, error } = await supa.rpc('create_campaign_language_v2',{p_name:name,p_rules:combined,p_beta_code:(BETA&&betaCode())?betaCode():null,p_game_language:lang,p_client_build:FRONTEND_BUILD,p_i18n_asset_build:englishAssetBuildProof()});
+    const { data, error } = await maintenanceRpc('create_campaign_language_v2',{p_name:name,p_rules:combined,p_beta_code:(BETA&&betaCode())?betaCode():null,p_game_language:lang,p_client_build:FRONTEND_BUILD,p_i18n_asset_build:englishAssetBuildProof()});
     if(error) throw error;
     const created=Array.isArray(data)?data[0]:data;
     if(!created||created.ok!==true){
@@ -4549,7 +4556,7 @@ async function joinCampaign(){
   const code=$('joinCode').value.trim().toUpperCase(); if(!code){toast(UI18N.text(lang,'join.codeRequired'),true);return;}
   $('joinBtn').disabled=true;
   try{
-    const { data:joined, error } = await supa.rpc('join_campaign_language_v2',{p_code:code,p_game_language:lang,p_client_build:FRONTEND_BUILD,p_i18n_asset_build:englishAssetBuildProof()});
+    const { data:joined, error } = await maintenanceRpc('join_campaign_language_v2',{p_code:code,p_game_language:lang,p_client_build:FRONTEND_BUILD,p_i18n_asset_build:englishAssetBuildProof()});
     if(error) throw error;
     const result=Array.isArray(joined)?joined[0]:joined;
     if(!result||result.ok!==true) throw new Error((result&&result.error)||'join-failed');
@@ -4570,11 +4577,11 @@ async function enterCampaign(){
   hydrateQuestAffordancesFromCache();   // v858: คืนปุ่มรับ/ส่งเควสจาก resolve ล่าสุดของโลกนี้ก่อน render แรก (ราก R7 — refresh แล้วปุ่มหาย)
   $('hdTitle').textContent = campaign.name;
   if(campaign.host_id===me.id && campaign.join_code){
-    $('hdCode').textContent='Code: '+campaign.join_code; $('hdCode').classList.remove('hidden');
+    $('hdCode').textContent=uiCopy('รหัสเชิญ: ','Code: ')+campaign.join_code; $('hdCode').classList.remove('hidden');
     $('hdCode').onclick=()=>{navigator.clipboard?.writeText(campaign.join_code);toast(uiText('world.codeCopied'));};
   }
   if(campaign.host_id===me.id){   // World ID + ปุ่ม Ingest token เฉพาะ host — ก๊อปไปใช้ ingest ลอร์ได้ง่าย
-    const wid=$('hdWorld'); if(wid){ wid.textContent='World: '+campaign.id; wid.classList.remove('hidden');
+    const wid=$('hdWorld'); if(wid){ wid.textContent=uiCopy('รหัสโลก: ','World: ')+campaign.id; wid.classList.remove('hidden');
       wid.onclick=()=>{navigator.clipboard?.writeText(campaign.id);toast(uiText('world.idCopied'));}; }
     const tb=$('hdToken'); if(tb){ tb.classList.remove('hidden');
       tb.onclick=async()=>{ try{ const t=(await supa.auth.getSession()).data.session?.access_token||''; if(!t){toast(uiCopy('ไม่พบเซสชัน — ลองรีเฟรช','Session not found — try reloading'),true);return;}

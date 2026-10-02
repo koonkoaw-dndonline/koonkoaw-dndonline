@@ -11,6 +11,22 @@
     return !!value&&value.ready===true&&(value.phase==='legacy'||value.phase==='split')&&
       Number.isSafeInteger(value.epoch)&&value.epoch>0;
   }
+  // SEQ199: preserve refusal semantics independently of HTTP status/retryability.
+  function projection(value,status){
+    if(!value||typeof value!=='object'||Array.isArray(value)||value.ok===true)return null;
+    const reason=value.error||value.reason_code;
+    const paired=typeof value.note_th==='string'&&value.note_th.trim()&&typeof value.note_en==='string'&&value.note_en.trim();
+    const modern=typeof reason==='string'&&(/^(?:split_|round_split_|combat_force_)/.test(reason)||value.ok===false||value.status==='uncertain'||typeof value.retryable==='boolean'&&(status===403||status===409));
+    if(!paired||typeof reason!=='string'||!reason.trim()||!(modern||refusal(value)&&(status===undefined||status===503)))return null;
+    const closed=reason==='split_campaign_closed'||value.reason_code==='split_campaign_closed';
+    const refresh=value.retryable===false||value.status==='uncertain'||/^combat_force_/.test(reason)||status===400||status===403||status===409;
+    return {error:reason,retryable:value.retryable===true,kind:closed?'terminal':refresh?'refresh':'maintenance',
+      note_th:closed?'โลกนี้ปิดแล้ว กรุณาโหลดหน้าใหม่เพื่อเลือกโลกอื่น':value.note_th,
+      note_en:closed?'This world has closed. Reload the page to choose another world.':value.note_en};
+  }
+  function closedReadiness(){return {error:'split_campaign_closed',retryable:false,
+    note_th:'คุณไม่ได้อยู่ในโลกนี้แล้ว กรุณาโหลดหน้าใหม่เพื่อเลือกโลกอื่น',
+    note_en:'You are no longer in this world. Reload the page to choose another world.',kind:'terminal'};}
   function rpcRefusal(value){
     if(refusal(value))return value;
     if(!value||typeof value!=='object'||Array.isArray(value))return null;
@@ -19,7 +35,12 @@
       const normalized=Object.assign({},value,{error:reason});
       if(refusal(normalized))return normalized;
     }
+    if(value.retryable===false||value.status==='uncertain'){
+      const projected=projection(value);if(projected)return projected;
+    }
     if(value.code==='P0001'&&/^round_split_writer_wall_denied(?:\s*:|$)/.test(String(value.message||''))){
+      let detail=value.details||value.detail;try{if(typeof detail==='string')detail=JSON.parse(detail);}catch(_error){}
+      const projected=projection(detail);if(projected)return projected;
       return {error:'round_split_writer_wall_denied',retryable:true,
         note_th:'ระบบพักรับการเปลี่ยนแปลงชั่วคราวและกำลังตรวจสอบความพร้อม โปรดส่งคำสั่งอีกครั้งเมื่อระบบพร้อม',
         note_en:'Changes are temporarily paused while the game checks readiness. Submit your request again when it is ready.'};
@@ -35,27 +56,30 @@
     const blocked=()=>!!state;
     const note=()=>state?(ports.language()==='en'?state.note_en:state.note_th):'';
     const failure=()=>Object.assign(new Error(note()),{name:'MaintenanceError'});
-    function notify(){ ports.render(state?note():null); }
+    function notify(){ ports.render(state?note():null,state?{kind:state.kind}:null); }
     function reset(){
       generation++; state=null; attempt=0;
       if(timer!==null)cancel(timer); timer=null;
       if(probe)probe.abort(); probe=null; notify();
     }
     function schedule(){
-      if(!state||timer!==null||probe)return;
+      if(!state||state.kind!=='maintenance'||timer!==null||probe)return;
       timer=later(()=>{timer=null;void check();},Math.min(60000,5000*Math.pow(2,attempt)));
     }
     async function check(){
-      if(!state||probe)return;
+      if(!state||state.kind!=='maintenance'||probe)return;
       const stamp=capture(),controller=new AbortController(); probe=controller;
       let deadline;
       try{
         const timeout=new Promise((_,reject)=>{deadline=later(()=>{controller.abort();reject(new Error('maintenance_probe_timeout'));},8000);});
         const result=await Promise.race([ports.probe(stamp.context,controller.signal),timeout]);
         if(!current(stamp)||!state||controller.signal.aborted)return;
+        if(result&&!result.error&&result.data&&result.data.ready===false&&result.data.error==='not_member'){
+          state=closedReadiness();notify();return;
+        }
         if(result&&!result.error&&ready(result.data)){ reset(); return; }
         if(result&&!result.error&&refusal(result.data)){
-          state={error:result.data.error,retryable:true,note_th:result.data.note_th,note_en:result.data.note_en}; notify();
+          state=projection(result.data);notify();
         }
       }catch(_error){ /* Remain paused; the next read-only probe uses bounded backoff. */ }
       finally{
@@ -64,10 +88,17 @@
         if(current(stamp)&&state){attempt=Math.min(4,attempt+1);schedule();}
       }
     }
-    function enter(value,stamp){
-      if(!refusal(value)||stamp&&!current(stamp))return false;
+    function enter(value,stamp,status){
+      const projected=projection(value,status);
+      if(!projected||stamp&&!current(stamp))return false;
       const first=!state;
-      state={error:value.error,retryable:true,note_th:value.note_th,note_en:value.note_en};
+      state=projected;
+      // A lobby has no world readiness endpoint; its next action is explicit reload.
+      if(!context()&&state.kind==='maintenance')state.kind='refresh';
+      if(state.kind!=='maintenance'){
+        if(timer!==null)cancel(timer);timer=null;
+        if(probe)probe.abort();probe=null;
+      }
       if(first){generation++;attempt=0;ports.pause();}
       notify(); schedule(); return true;
     }
@@ -80,7 +111,7 @@
       if(rpc&&rpc[1]==='round_split_readiness_v1')return null;
       if(rpc&&rpc[1]==='round_split_report_direct_denial_v1'&&method==='POST')return null;
       if(rpc&&rpc[1]==='round_split_report_direct_rpc_denial_v2'&&method==='POST')return null;
-      const stateRpc=rpc&&['submit_action_v2','retract_action_v2','levelup_submit','respond_npc_offer_consent_v1','set_combat_effect_enabled_v1','upsert_dm_option_candidate_review_v1','end_campaign','leave_campaign'].includes(rpc[1]);
+      const stateRpc=rpc&&['submit_action_v2','retract_action_v2','levelup_submit','respond_npc_offer_consent_v1','set_combat_effect_enabled_v1','upsert_dm_option_candidate_review_v1','end_campaign','leave_campaign','create_campaign_language_v2','join_campaign_language_v2'].includes(rpc[1]);
       const edge=/^\/functions\/v1\/(?:resolve-round|resolve-story-round|resolve-combat-round|aux-endpoints)(?:\/|$)/.test(url.pathname);
       const write=/^\/rest\/v1\//.test(url.pathname)&&!['GET','HEAD','OPTIONS'].includes(method);
       return edge||write?{stateRpc:!!stateRpc,edge}:null;
@@ -90,10 +121,10 @@
       if(!target)return fetcher(input,options);
       if(blocked())throw failure();
       const stamp=capture(),response=await fetcher(input,options);
-      if(target.edge&&response.status===503||target.stateRpc){
+      if(target.edge||target.stateRpc){
         let data=null;try{data=await response.clone().json();}catch(_error){}
         if(target.stateRpc)data=rpcRefusal(data);
-        if(enter(data,stamp))throw failure();
+        if(enter(data,stamp,target.stateRpc?undefined:response.status))throw failure();
       }
       return response;
     }
@@ -179,5 +210,5 @@
     }
     return Object.freeze({capture,send});
   }
-  root.EverRollMaintenance=Object.freeze({create,refusal,ready,rpcRefusal,createDirectDenial});
+  root.EverRollMaintenance=Object.freeze({create,refusal,ready,rpcRefusal,projection,createDirectDenial});
 })(typeof window!=='undefined'?window:globalThis);
