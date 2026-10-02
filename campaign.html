@@ -2250,7 +2250,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202610010138;
+const FRONTEND_BUILD = 202610020167;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -4654,12 +4654,14 @@ async function updateCombatBadge(){
   let active=false, _ok=false;
   const _prev = window._combatActive;   // v638 BUG2: จับค่าเดิม → re-render roundbar เมื่อสถานะเปลี่ยน (แก้ branch ค้างสาขาผิด)
   let _badgeEncounter=null;
-  try{ const r=await uiActiveEncounter('id,status'); if(!r.error){ _badgeEncounter=r.data; active=!!r.data; _ok=true; } }catch(e){}
+  const _badgeContext=roundRequestContext(),_badgeRun=updateCombatBadge.sequence=(updateCombatBadge.sequence||0)+1;
+  try{ const r=await uiActiveEncounter('id,status,created_at'); if(!r.error){ _badgeEncounter=r.data; active=!!r.data; _ok=true; } }catch(e){}
+  if(_badgeRun!==updateCombatBadge.sequence||!roundRequestContextMatches(_badgeContext))return;
   if(!_ok && window._combatActive!==undefined) active=window._combatActive;   // คงสถานะเดิมเมื่อ query ล้ม
   const _badgeDerivedActive=active, _badgeTerminalActive=!!(currentTerminalGate()&&currentTerminalGate().active);
-  active=durableRoundCombatActive(curRound,active,_badgeTerminalActive);   // G2 B-R94-4: explicit latest-round false vetoes stale encounter/client flags after terminal acknowledgement
+  active=durableRoundCombatActive(curRound,active,_badgeTerminalActive,_ok?_badgeEncounter:currentCombatEncounter());   // G2 + late-start: only a newer DB encounter can supersede this round's inactive stamp.
   if(!active&&initiativePressTransitionObserved(_badgeEncounter,window._initiativePressRollingEncounterId))active=true;   // W31-S1b: only this tab's observed rolling→active transition can bridge stale pre-combat round meta
-  if(durableRoundCombatTruth(curRound)==='inactive') reconcileCombatUiFromRound(curRound,_badgeDerivedActive);
+  if(_ok&&durableRoundCombatTruth(curRound,_badgeEncounter)==='inactive') reconcileCombatUiFromRound(curRound,_badgeDerivedActive,_badgeEncounter);
   window._combatActive = active;   // server-truth: มีศัตรู active ไหม (ใช้เปิดเมนูคอมแบตโดยไม่พึ่ง DM flag)
   const t=document.querySelector('.tab[data-tab="mon"]'); if(t) t.classList.toggle('combat',active);
   // v638 BUG2: _combatActive เปลี่ยน → roundbar อาจถูก render ด้วยสาขาผิดไปแล้ว (rounds/actions realtime ไม่ refresh badge ก่อน render)
@@ -5020,12 +5022,25 @@ function diceRoundHasOwnPlayback(round,character){
   if(story.some(receipt=>receipt&&typeof receipt==='object'&&Number.isInteger(receipt.roll)&&receipt.roll>=1&&receipt.roll<=20&&Number.isFinite(receipt.total)))return true;
   try{return combatDiceUnionFromMeta(round&&round.meta).receipts.length>0;}catch(_diceRoundCombatProbeError){return false;}
 }
-function durableRoundCombatTruth(round){ try{ const cb=round&&round.meta&&round.meta.combat; return cb&&cb.active===false?'inactive':cb&&cb.active===true?'active':'unknown'; }catch(e){ return 'unknown'; } }
-function durableRoundCombatActive(round,derivedActive,terminalGateActive){ return durableRoundCombatTruth(round)==='inactive'&&!terminalGateActive?false:!!derivedActive; }
-function combatUiResetPlan(round,current){ const before=Object.assign({combatActive:false,gCombatActive:false,battleShown:false,commandOpen:false,movePicking:false,aoePicking:false,terminalGateActive:false},current||{}), truth=durableRoundCombatTruth(round), state={combatActive:!!before.combatActive,gCombatActive:!!before.gCombatActive,battleShown:!!before.battleShown,commandOpen:!!before.commandOpen,movePicking:!!before.movePicking,aoePicking:!!before.aoePicking}, hadStaleUi=Object.values(state).some(Boolean); return truth!=='inactive'||!!before.terminalGateActive?Object.assign({truth,reset:false,hadStaleUi:false},state):{truth,reset:true,hadStaleUi,combatActive:false,gCombatActive:false,battleShown:false,commandOpen:false,movePicking:false,aoePicking:false}; }
-function reconcileCombatUiFromRound(round,derivedActive){
+function currentCombatEncounter(){
+  return typeof gCombat!=='undefined'&&gCombat&&gCombat.encounter&&typeof roundRequestContextMatches==='function'&&roundRequestContextMatches(gCombat.encounterContext)?gCombat.encounter:null;
+}
+function durableRoundCombatTruth(round,encounter){
+  try{
+    const cb=round&&round.meta&&round.meta.combat;
+    if(cb&&cb.active===false){
+      const roundAt=Date.parse(round.created_at),encounterAt=Date.parse(encounter&&encounter.created_at);
+      const newer=!!(encounter&&encounter.id&&typeof encounter.status==='string'&&encounter.status&&encounter.status!=='ended'&&Number.isFinite(roundAt)&&Number.isFinite(encounterAt)&&encounterAt>roundAt);
+      return newer?'active':'inactive';
+    }
+    return cb&&cb.active===true?'active':'unknown';
+  }catch(e){ return 'unknown'; }
+}
+function durableRoundCombatActive(round,derivedActive,terminalGateActive,encounter){ return durableRoundCombatTruth(round,encounter)==='inactive'&&!terminalGateActive?false:!!derivedActive; }
+function combatUiResetPlan(round,current,encounter){ const before=Object.assign({combatActive:false,gCombatActive:false,battleShown:false,commandOpen:false,movePicking:false,aoePicking:false,terminalGateActive:false},current||{}), truth=durableRoundCombatTruth(round,encounter), state={combatActive:!!before.combatActive,gCombatActive:!!before.gCombatActive,battleShown:!!before.battleShown,commandOpen:!!before.commandOpen,movePicking:!!before.movePicking,aoePicking:!!before.aoePicking}, hadStaleUi=Object.values(state).some(Boolean); return truth!=='inactive'||!!before.terminalGateActive?Object.assign({truth,reset:false,hadStaleUi:false},state):{truth,reset:true,hadStaleUi,combatActive:false,gCombatActive:false,battleShown:false,commandOpen:false,movePicking:false,aoePicking:false}; }
+function reconcileCombatUiFromRound(round,derivedActive,encounter=typeof currentCombatEncounter==='function'?currentCombatEncounter():null){
   const _doc=typeof document!=='undefined'?document:null, _root=_doc&&_doc.getElementById?_doc.getElementById('combatCommandPanel'):null, _gate=typeof currentTerminalGate==='function'?currentTerminalGate():null;
-  const plan=combatUiResetPlan(round,{combatActive:!!window._combatActive||!!derivedActive,gCombatActive:!!(typeof gCombat!=='undefined'&&gCombat&&gCombat.active),battleShown:!!(typeof _bsShown!=='undefined'&&_bsShown),commandOpen:!!(_root&&_root.classList.contains('cc-show')),movePicking:!!(typeof moveMode!=='undefined'&&moveMode),aoePicking:!!(typeof aoeMode!=='undefined'&&aoeMode),terminalGateActive:!!(_gate&&_gate.active)});
+  const plan=combatUiResetPlan(round,{combatActive:!!window._combatActive||!!derivedActive,gCombatActive:!!(typeof gCombat!=='undefined'&&gCombat&&gCombat.active),battleShown:!!(typeof _bsShown!=='undefined'&&_bsShown),commandOpen:!!(_root&&_root.classList.contains('cc-show')),movePicking:!!(typeof moveMode!=='undefined'&&moveMode),aoePicking:!!(typeof aoeMode!=='undefined'&&aoeMode),terminalGateActive:!!(_gate&&_gate.active)},encounter);
   if(!plan.reset) return plan;
   window._combatActive=false; window.gEncId=null; window._combatRound=null; window._bcOpen=false; window.__ccRound=null; window._pendingMove=null;
   if(typeof gCombat!=='undefined') gCombat={active:false,activeCharId:null,activeName:null,activeEntry:null}; if(typeof moveMode!=='undefined') moveMode=null; if(typeof moveSel!=='undefined') moveSel=null; if(typeof aoeMode!=='undefined') aoeMode=null; if(typeof aoeCenter!=='undefined') aoeCenter=null; if(typeof pendingAoE!=='undefined') pendingAoE=null; if(typeof aoePickOpen!=='undefined') aoePickOpen=false;
@@ -6907,12 +6922,14 @@ function combatForceUnavailable(){
 async function refreshCombatTurn(){
   const context=roundRequestContext(),run=refreshCombatTurn.sequence=(refreshCombatTurn.sequence||0)+1;
   const current=()=>run===refreshCombatTurn.sequence&&roundRequestContextMatches(context);
+  if(gCombat)gCombat.forceTarget=null;
   try{
-    if(durableRoundCombatTruth(curRound)==='inactive'){ const _turnReset=reconcileCombatUiFromRound(curRound); if(_turnReset.reset) return; }
-    const er=await supa.from('combat_encounters').select('id,active_entry_id,status,combat_round').eq('campaign_id',context.campaignId).eq('group_no',context.groupNo).eq('status','active').maybeSingle();
+    const er=await supa.from('combat_encounters').select('id,active_entry_id,status,combat_round,created_at').eq('campaign_id',context.campaignId).eq('group_no',context.groupNo).neq('status','ended').maybeSingle();
     if(!current()) return;
     if(er.error) throw er.error;
+    if(durableRoundCombatTruth(curRound,er.data)==='inactive'){ const _turnReset=reconcileCombatUiFromRound(curRound,false,er.data); if(_turnReset.reset) return; }
     if(!er.data){ gCombat={active:false,activeCharId:null,activeName:null,activeEntry:null}; window._combatRound=null; return; }
+    if(er.data.status!=='active'){ gCombat={active:false,activeCharId:null,activeName:null,activeEntry:null,encounter:er.data,encounterContext:context}; window._combatRound=null; return; }
     let charId=null,name=null,activeEntry=null;
     if(er.data.active_entry_id){
       const e2=await supa.from('initiative_entries').select('id,character_id,display_name,is_active,conditions').eq('id',er.data.active_entry_id).maybeSingle();
@@ -6923,7 +6940,7 @@ async function refreshCombatTurn(){
     const wasAct=playerCombatUiState()==='act';
     window._combatRound=er.data.combat_round;
     const forceTarget=activeEntry&&activeEntry.id===er.data.active_entry_id?{...context,entryId:activeEntry.id,displayName:name}:null;
-    gCombat={active:true,activeCharId:charId,activeName:name,activeEntry,forceTarget};
+    gCombat={active:true,activeCharId:charId,activeName:name,activeEntry,forceTarget,encounter:er.data,encounterContext:context};
     const waitKey=JSON.stringify([context.campaignId,context.groupNo,context.sourceRoundId,er.data.active_entry_id]);
     if(waitKey!==window._turnWaitKey){ window._turnWaitKey=waitKey; window._turnWaitSince=Date.now(); }
     if(charId&&myChar&&String(charId)===String(myChar.id)) await reloadMySheet();
@@ -7751,7 +7768,7 @@ async function renderRoundbar(){
     // v252: โหมด UI (คำสั่งคอมแบต vs ช่องเนื้อเรื่อง) ผูกกับ 'encounter active จริง' (_combatActive จาก combat_state) เท่านั้น —
     //   เดิมใช้ cb.active (meta จาก DM) เป็น fallback → ฉาก offer ที่ DM ตั้ง active แต่ encGuard บล็อกเปิดจริง = โชว์คำสั่งคอมแบตในฉาก story (ราก desync Cockatrice)
     //   ราก: combat command ต้องไม่โผล่ในเนื้อเรื่อง + ไม่ถามเนื้อเรื่องในศึก → ความจริงเดียว = มีศัตรู active จริงไหม
-    const inCombat = durableRoundCombatActive(curRound,window._combatActive);
+    const inCombat = durableRoundCombatActive(curRound,window._combatActive,false,currentCombatEncounter());
     // v752 B7: safe-forward old rounds (including r135) without a DB rewrite.
     // Initiative/attack/damage requests are invalid when no authoritative encounter
     // is active; ordinary story skill/check/save requests remain untouched.
@@ -10880,20 +10897,23 @@ function refreshBattleVfxGate(){
 }
 async function syncBattleScene(trigger){
   if(typeof campaign==='undefined' || !campaign) return;
+  const _sceneContext=roundRequestContext(),_sceneRun=syncBattleScene.sequence=(syncBattleScene.sequence||0)+1;
   // v739 FZ-2: scope enemy truth through this viewer's encounter group
   let enc=null, livingEnemies=0, _queryFailed=false;
   try{
     const r2=await uiCombatStateRows('cur_hp',true), r={data:r2.enc,error:r2.error};
     // v467 B6: query ล้ม (token refresh 401/เน็ตหลุด) = 'ไม่รู้สถานะ' ไม่ใช่ 'ไม่มีศึก' — กันเด้งออก VICTORY ปลอม
     if(r.error||r2.error){ _queryFailed=true; }
-    else { enc=r.data; if(enc){ window.gEncId=enc.id; livingEnemies=((r2&&r2.data)||[]).filter(x=>x.cur_hp==null||x.cur_hp>0).length; } }   // encounter active แต่ไม่มีศัตรูมีชีวิต = คอมแบตจบ/ค้าง → ถือว่าไม่ใช่คอมแบต
+    else { enc=r.data; if(enc){ livingEnemies=((r2&&r2.data)||[]).filter(x=>x.cur_hp==null||x.cur_hp>0).length; } }   // encounter active แต่ไม่มีศัตรูมีชีวิต = คอมแบตจบ/ค้าง → ถือว่าไม่ใช่คอมแบต
   }catch(e){ _queryFailed=true; }
+  if(_sceneRun!==syncBattleScene.sequence||!roundRequestContextMatches(_sceneContext))return;
+  if(enc)window.gEncId=enc.id;
   var _vaActive = !!(currentTerminalGate()&&currentTerminalGate().active);   // v739 FZ-2 group-scoped
   const _initiativeTransitionActive=!!(livingEnemies>0&&initiativePressTransitionObserved(enc,window._initiativePressRollingEncounterId));
   const _derivedBattleActive=(!!enc && livingEnemies>0) || !!window._combatActive || !!moveMode || _vaActive;
-  let active = durableRoundCombatActive(curRound,_derivedBattleActive,_vaActive);   // G2: durable latest-round false closes stale battle UI after terminal acknowledgement
+  let active = durableRoundCombatActive(curRound,_derivedBattleActive,_vaActive,_queryFailed?currentCombatEncounter():enc);   // G2 + late-start encounter ordering from DB.
   if(!active&&_initiativeTransitionActive)active=true;   // W31-S1b: bridge only the exact rolling encounter this tab displayed to the player
-  if(!active&&_derivedBattleActive&&durableRoundCombatTruth(curRound)==='inactive') reconcileCombatUiFromRound(curRound,true);
+  if(!_queryFailed&&!active&&_derivedBattleActive&&durableRoundCombatTruth(curRound,enc)==='inactive') reconcileCombatUiFromRound(curRound,true,enc);
   // ผู้เล่นใหม่ที่ยังไม่มีตัวละคร: ห้ามดูดเข้าฉากรบ — ให้อยู่หน้าสร้างตัวละครก่อน (ระบบไม่รอเทิร์นเขาอยู่แล้ว)
   if(typeof myChar==='undefined' || !myChar) active=false;
   if(active){
