@@ -36,6 +36,7 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./music-v2-dark-launch.js?v=0825"></script>
 <script src="./npc-codex-reader.js?v=0826r14"></script>
 <script src="./grid-touch-telemetry.js?v=20260930result77"></script>
+<script src="./maintenance.js?v=20261001q138"></script>
 <style>
 /* ============================================================
    TTRPG CAMPAIGN — Dragon Quest (NES) monochrome re-skin (เฟส 5)
@@ -2249,7 +2250,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202610010117;
+const FRONTEND_BUILD = 202610010138;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2276,10 +2277,13 @@ function actionIngressError(code, detail){
   return map[code]||detail||uiCopy('(แก้: บันทึกการกระทำไม่สำเร็จ — ลองอีกครั้ง)','(Fixed: the action could not be saved — try again.)');
 }
 async function submitActionV2(round, characterId, text, structured){
+  if(window.gameMaintenance&&window.gameMaintenance.blocked()) throw new Error(window.gameMaintenance.note());
+  const maintenanceStamp=window.gameMaintenance&&window.gameMaintenance.capture();
   if(!round||!round.id) throw new Error(actionIngressError('stale_round'));
   var req=actionIngressKey(round.id,characterId,text,structured);
   var payload={p_cid:campaign.id,p_round:round.id,p_group:actionIngressGroup(round,characterId),p_char:characterId||null,p_action:String(text||''),p_structured:structured||null,p_client_build:FRONTEND_BUILD,p_client_epoch:FRONTEND_COMPAT_EPOCH,p_request_key:req.key};
   var rpc=await supa.rpc('submit_action_v2',payload);
+  if(!rpc.error&&window.gameMaintenance&&window.gameMaintenance.enter(rpc.data,maintenanceStamp)) throw new Error(window.gameMaintenance.note());
   if(rpc.error) throw new Error(actionIngressError('',rpc.error.message));
   if(!rpc.data||rpc.data.ok!==true) throw new Error(actionIngressError(rpc.data&&rpc.data.error,rpc.data&&rpc.data.detail));
   try{ sessionStorage.removeItem(req.slot); }catch(e){}
@@ -2403,9 +2407,12 @@ async function submitQuestAffordance(affordance){
   finally{ window._questAffordanceSubmitting=false; actionSubmitFeedback(); try{ if(activeTab()==='quest') renderQuest(); else if(activeTab()==='story') renderStory(); }catch(e){} }
 }
 async function retractActionForEdit(actionId, draftText){
+  if(window.gameMaintenance&&window.gameMaintenance.blocked()){toast(window.gameMaintenance.note(),true);return false;}
+  const maintenanceStamp=window.gameMaintenance&&window.gameMaintenance.capture();
   if(!curRound||!actionId){ toast(uiCopy('ยังแก้คำสั่งไม่ได้ — ไม่พบรอบหรือคำสั่งนี้','Cannot edit yet — the round or action is missing'),true); return; }
   try{
     var rpc=await supa.rpc('retract_action_v2',{p_cid:campaign.id,p_round:curRound.id,p_group:actionIngressGroup(curRound,myChar&&myChar.id),p_action:actionId});
+    if(!rpc.error&&window.gameMaintenance&&window.gameMaintenance.enter(rpc.data,maintenanceStamp)) throw new Error(window.gameMaintenance.note());
     if(rpc.error||!rpc.data||rpc.data.ok!==true) throw new Error(actionIngressError(rpc.data&&rpc.data.error,rpc.error&&rpc.error.message));
     if(rpc.data.status==='not_found') throw new Error(uiCopy('(แก้: ไม่พบการกระทำนี้ในรอบปัจจุบัน — ฉบับร่างยังอยู่ครบ กรุณาโหลดรอบล่าสุด)','(Fixed: that action was not found in the current round. Your draft is preserved; load the latest round.)'));
     window._actionEditDraft=String(draftText||''); window._actionRepair=null;
@@ -2542,9 +2549,43 @@ if(BETA){
   try{ const _uc=new URLSearchParams(location.search).get('code'); if(_uc&&_uc.trim()) localStorage.setItem('betaCode',_uc.trim()); }catch(e){}
   if(!betaCode()) _betaCodeReady=uiPromptText(uiCopy('🔑 ช่วงเบต้าเทส — ใส่รหัสเบต้าที่ได้รับจากผู้ดูแลโดยตรง:','🔑 Beta test — enter the beta code received directly from the administrator:'),'','beta-code-start').then(c=>{ if(c&&c.trim()){ try{ localStorage.setItem('betaCode',c.trim()); }catch(e){} } });
 }
+// SEQ138: scoped audit of a rejected direct write; no retry of the original write.
+window.gameDirectDenial=window.EverRollMaintenance.createDirectDenial({
+  origin:new URL(SUPA_URL).origin,
+  context:()=>({campaignId:campaign&&campaign.id,actorId:me&&me.id,language:campaign&&campaign.game_language||uiLanguage()}),
+  report:(fetcher,input,options)=>window.gameMaintenance.send(fetcher,input,options),
+  notice:message=>toast(message,true),
+  failure:reason=>console.error('writer_wall_audit_failed',reason)
+});
+// SEQ130: maintenance is independent of the permanent frontend-update wall.
+window.gameMaintenance=window.EverRollMaintenance.create({
+  origin:new URL(SUPA_URL).origin,
+  context:()=>campaign&&me?JSON.stringify([campaign.id,me.id]):'',
+  language:()=>campaign&&campaign.game_language||uiLanguage(),
+  probe:async(scope,signal)=>{
+    if(!scope)return {error:'maintenance_context_missing'};
+    return await supa.rpc('round_split_readiness_v1',{p_cid:JSON.parse(scope)[0]}).abortSignal(signal);
+  },
+  render:message=>{
+    let el=document.getElementById('maintenanceBanner');
+    if(message===null){if(el)el.remove();return;}
+    if(!el){el=document.createElement('div');el.id='maintenanceBanner';el.setAttribute('role','status');el.setAttribute('aria-live','polite');el.style.cssText='position:fixed;left:10px;right:10px;bottom:10px;z-index:99999;box-sizing:border-box;max-height:30vh;overflow:auto;border:2px solid currentColor;background:#111;color:#fff;padding:12px 16px;font:600 16px/1.6 "IBM Plex Sans Thai",sans-serif;overflow-wrap:anywhere';document.body.prepend(el);}
+    el.textContent=message;
+  },
+  pause:()=>{
+    resolveRound.sequence=(resolveRound.sequence||0)+1;
+    if(resolveRound.controller)resolveRound.controller.abort();
+    resolveRound.controller=null;resolving=false;window._afterSubmit=false;_autoChain=0;_waitRetryChain=0;setMyThinking(false);
+    if(pollResolvingRecovery.controller)pollResolvingRecovery.controller.abort();
+    pollResolvingRecovery.controller=null;
+    renderRoundbar();
+  }
+});
 // แนบ beta_code เข้า resolver ทุก call (จุดเดียวครอบทุก call site) + จัดการ 403 ของระบบเบต้า
 { const _F=window.fetch.bind(window);
   window.fetch=function(u,opt){
+    const _denialStamp=window.gameDirectDenial.capture(u,opt);
+    const _denyFetch=(input,options)=>window.gameDirectDenial.send(_F,input,options,_denialStamp);
     const invoke=()=>{
     try{
       if(typeof u==='string'&&u.indexOf(RESOLVE_FN)===0&&opt&&typeof opt.body==='string'){
@@ -2554,7 +2595,7 @@ if(BETA){
         opt=Object.assign({},opt,{body:JSON.stringify(b)});
       }
     }catch(e){}
-    const p=_F(u,opt);
+    const p=window.gameMaintenance.send(_denyFetch,u,opt);
     try{
       if(typeof u==='string'&&u.indexOf(RESOLVE_FN)===0){
         p.then(r=>{ try{ frontendRequirementSeen(r.headers.get('X-Min-Frontend-Build'),r.headers.get('X-Min-Frontend-Epoch')); }catch(e){}
@@ -3523,7 +3564,7 @@ function levelUpUiState(){
   const total=activeIds.size||1, done=doneIds.size;
   return {pending:done<total,done,total,mineDone:!!(myChar&&doneIds.has(String(myChar.id)))};
 }
-function applyUiLanguage(lang){ const normalized=UI18N.language(lang); UI18N.translateDom(document,normalized); applyWorldChromeCopy(normalized); if(campaign){ UI18N.installDisplayWall(document,()=>uiLanguage()); UI18N.installDialogWall(()=>uiLanguage()); } document.documentElement.lang=normalized==='en'?'en':'th'; }
+function applyUiLanguage(lang){ const normalized=UI18N.language(lang); UI18N.translateDom(document,normalized); applyWorldChromeCopy(normalized); if(campaign){ UI18N.installDisplayWall(document,()=>uiLanguage()); UI18N.installDialogWall(()=>uiLanguage()); } document.documentElement.lang=normalized==='en'?'en':'th'; if(window.gameMaintenance)window.gameMaintenance.render(); }
 let _i18nAssetReportSent=false;
 function englishAssetBuildProof(){return _I18N_ASSETS_OK?ENGLISH_ASSET_BUILD:null;}
 async function reportI18nAssetFailure(surface){
@@ -3950,7 +3991,7 @@ function gridCommandDelegate(kind,action,arg){
 
 function $(id){return document.getElementById(id);}
 let _toastWriteSeq=0;
-function toast(msg,isErr){const t=$('toast'),seq=++_toastWriteSeq;t.removeAttribute('data-language-wall');t.textContent=msg;t.className='toast show'+(isErr?' err':'');setTimeout(()=>{if(seq!==_toastWriteSeq)return;t.className='toast';t.textContent='';t.removeAttribute('data-language-wall');},2600);}
+function toast(msg,isErr){if(typeof window!=='undefined'&&window.gameMaintenance&&window.gameMaintenance.blocked())msg=window.gameMaintenance.note();const t=$('toast'),seq=++_toastWriteSeq;t.removeAttribute('data-language-wall');t.textContent=msg;t.className='toast show'+(isErr?' err':'');setTimeout(()=>{if(seq!==_toastWriteSeq)return;t.className='toast';t.textContent='';t.removeAttribute('data-language-wall');},2600);}
 // W63 terminal error card copy surface start
 function terminalCardModel(body){
   if(!body||typeof body!=='object'||body.action_preserved!==true)return null;
@@ -4244,9 +4285,9 @@ function _loginPersistHints(){
 }
 
 function initClient(anon){
-  try{ supa = window.supabase.createClient(SUPA_URL, anon, {auth:{detectSessionInUrl:true,persistSession:true,autoRefreshToken:true,flowType:'implicit'}});   /* v276: flowType implicit — magic-link token มาใน URL hash ตรงๆ (ไม่ต้องใช้ PKCE code-verifier ในเบราเซอร์เดียวกัน) → มือถือคลิกลิงก์จากแอปเมล/เบราเซอร์อื่นแล้ว session ติด+persist (กันบังคับ login ใหม่ทุกครั้ง ช่วงใช้ publishable key + supabase-js v2 ใหม่ที่ default PKCE) */
+  try{ supa = window.supabase.createClient(SUPA_URL, anon, {global:{fetch:(input,options)=>window.fetch(input,options)},auth:{detectSessionInUrl:true,persistSession:true,autoRefreshToken:true,flowType:'implicit'}});   /* v276: flowType implicit — magic-link token มาใน URL hash ตรงๆ (ไม่ต้องใช้ PKCE code-verifier ในเบราเซอร์เดียวกัน) → มือถือคลิกลิงก์จากแอปเมล/เบราเซอร์อื่นแล้ว session ติด+persist (กันบังคับ login ใหม่ทุกครั้ง ช่วงใช้ publishable key + supabase-js v2 ใหม่ที่ default PKCE) */
     localStorage.setItem('gSupaUrl',SUPA_URL); localStorage.setItem('gSupaAnon',anon);
-    supa.auth.onAuthStateChange((_e,s)=>{ session=s; });
+    supa.auth.onAuthStateChange((_e,s)=>{ if(window.gameMaintenance&&(!s||session&&session.user&&session.user.id!==s.user.id))window.gameMaintenance.reset(); session=s; });
     return true;
   }catch(e){ toast('Could not connect to Supabase',true); return false; }
 }
@@ -4313,7 +4354,7 @@ async function verifyCode(){
   }catch(e){ toast(e.message||'Invalid or expired code — you can request a new one',true); }
   finally{ if(vb) vb.disabled=false; }
 }
-async function doLogout(){ await supa.auth.signOut(); location.reload(); }
+async function doLogout(){ if(window.gameMaintenance)window.gameMaintenance.reset(); await supa.auth.signOut(); location.reload(); }
 async function endCampaign(){
   if(!await uiConfirmText(uiCopy('ลบแคมเปญนี้ถาวร? โลกทั้งหมด (เนื้อเรื่อง/ตัวละคร/ทุกอย่าง) จะหายไปกู้คืนไม่ได้','Permanently delete this campaign? The entire world (story, characters, and everything else) will be lost and cannot be recovered.'),'campaign-end')) return;
   try{ const { error } = await supa.rpc('end_campaign',{ p_campaign:campaign.id }); if(error) throw error; toast(uiCopy('ลบแคมเปญแล้ว','Campaign deleted')); setTimeout(()=>location.reload(),500); }
@@ -8268,6 +8309,7 @@ function refreshSelectionGate(){
   }catch(e){}
 }
 function gateBeforePlay(){
+  if(window.gameMaintenance&&window.gameMaintenance.blocked()){toast(window.gameMaintenance.note(),true);return true;}
   // v737 P0-A: build เก่ากว่า min ของ server = write-block ทั้งหน้า (server มี 426 wall จริงคู่กัน — นี่คือ UX ชั้นแรก ไม่ใช่กำแพง)
   if(window.frontendWriteBlocked){ toast(uiCopy('(แก้: หน้าเกมรุ่นเก่าถูกหยุดก่อนระบบเกมเปลี่ยนสถานะหลักของโลก — รีเฟรชหน้าเพื่อใช้รุ่นล่าสุด)','(Fixed: this older game page was stopped before the resolver changed canonical world state — reload to get the latest version.)'),true); renderFrontendRefreshBanner(); return true; }
   const pend=selectionPending(); if(!pend) return false;
@@ -8348,7 +8390,7 @@ async function resolveRound(force, mode, recover, fromClick, forceTarget){
   setMyThinking(true);
   try{
     const token=(await supa.auth.getSession()).data.session?.access_token;
-    if(!roundRequestContextMatches(requestContext)||combatForce&&!combatForceTargetMatches(forceTarget)){ if(fromClick) combatForceUnavailable(); return; }
+    if(run!==resolveRound.sequence||!roundRequestContextMatches(requestContext)||combatForce&&!combatForceTargetMatches(forceTarget)){ if(fromClick) combatForceUnavailable(); return; }
     const body={campaign_id:requestContext.campaignId,force:!!force,group_no:combatForce?forceTarget.groupNo:requestGroup}; if(mode) body.mode=mode;
     if(combatForce){ body.force_target_entry_id=forceTarget.entryId; body.force_source_round_id=forceTarget.sourceRoundId; }
     if(mode==='intro'){ const ck=document.getElementById('loreFirstCk'); if(ck) body.lore_first=!!ck.checked; }   // v198
@@ -13053,9 +13095,9 @@ function exportChronicle(){
 // ───────── realtime ─────────
 // B-260930-6: source-bound recovery only; the server owns liveness and recovery CAS.
 async function pollResolvingRecovery(){
-  if(!campaign||document.hidden||window.frontendWriteBlocked||slowlifeState&&slowlifeState.active||pollResolvingRecovery.controller) return;
+  if(!campaign||document.hidden||window.frontendWriteBlocked||window.gameMaintenance&&window.gameMaintenance.blocked()||slowlifeState&&slowlifeState.active||pollResolvingRecovery.controller) return;
   const cid=campaign.id,grp=terminalGroupForUi(),controller=new AbortController();
-  const current=()=>!controller.signal.aborted&&campaign&&campaign.id===cid&&terminalGroupForUi()===grp&&!document.hidden&&!window.frontendWriteBlocked&&!(slowlifeState&&slowlifeState.active);
+  const current=()=>!controller.signal.aborted&&campaign&&campaign.id===cid&&terminalGroupForUi()===grp&&!document.hidden&&!window.frontendWriteBlocked&&!(window.gameMaintenance&&window.gameMaintenance.blocked())&&!(slowlifeState&&slowlifeState.active);
   const leaseKey='ttrpg_wd_leader_'+cid+'_g'+grp,now=Date.now();
   let lease=null; try{ lease=JSON.parse(localStorage.getItem(leaseKey)||'null'); }catch(e){}
   if(lease&&lease.id!==window._wdTabId&&Number(lease.until)>now) return;
@@ -13118,6 +13160,7 @@ async function pollResolvingRecovery(){
   finally{ clearTimeout(timeout); if(pollResolvingRecovery.controller===controller) pollResolvingRecovery.controller=null; }
 }
 async function teardownRealtimeForWorldSwitch(){
+  if(window.gameMaintenance)window.gameMaintenance.reset();
   gridPickLeaseDisconnect();
   if(pollResolvingRecovery.controller) pollResolvingRecovery.controller.abort();
   pollResolvingRecovery.state=null;
