@@ -16,7 +16,7 @@
     if(!value||typeof value!=='object'||Array.isArray(value)||value.ok===true)return null;
     const reason=value.error||value.reason_code;
     const paired=typeof value.note_th==='string'&&value.note_th.trim()&&typeof value.note_en==='string'&&value.note_en.trim();
-    const modern=typeof reason==='string'&&(/^(?:split_|round_split_|combat_force_)/.test(reason)||value.ok===false||value.status==='uncertain'||typeof value.retryable==='boolean'&&(status===403||status===409));
+    const modern=typeof reason==='string'&&(/^(?:split_|round_split_|combat_force_)/.test(reason)||value.ok===false||value.status==='uncertain'||value.status==='retry'&&reason==='force_claim_rolled_back'&&value.retryable===true||typeof value.retryable==='boolean'&&(status===403||status===409));
     if(!paired||typeof reason!=='string'||!reason.trim()||!(modern||refusal(value)&&(status===undefined||status===503)))return null;
     const closed=reason==='split_campaign_closed'||value.reason_code==='split_campaign_closed';
     const refresh=value.retryable===false||value.status==='uncertain'||/^combat_force_/.test(reason)||status===400||status===403||status===409;

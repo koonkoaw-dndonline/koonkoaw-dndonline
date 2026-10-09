@@ -23,7 +23,7 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./grid-command-flow.js?v=20261002q176"></script>
 <script src="./grid-command-adapter.js?v=20260928move08"></script>
 <script src="./grid-board-replacement-lease.js?v=202608110249"></script>
-<script src="./battle-vfx.js?v=20260929vfxsp2"></script>
+<script src="./battle-vfx.js?v=20261002vfxsp3b"></script>
 <script src="./battle-facing-manifest.js?v=20260927face01"></script>
 <script src="./battle-facing.js?v=20260928turn10"></script>
 <script src="./battle-facing-motion.js?v=20260927face01"></script>
@@ -35,8 +35,10 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./music-playback-owner.js?v=847"></script>
 <script src="./music-v2-dark-launch.js?v=20261002q174"></script>
 <script src="./npc-codex-reader.js?v=0826r14"></script>
-<script src="./grid-touch-telemetry.js?v=20260930result77"></script>
-<script src="./maintenance.js?v=20261003q199"></script>
+<script src="./grid-touch-telemetry.js?v=20261001grid144"></script>
+<script src="./maintenance.js?v=20261004q220"></script>
+<script src="./spell-area-geometry.js?v=20261002sp3a"></script>
+<script src="./spell-area-picker.js?v=20261002sp3a"></script>
 <style>
 /* ============================================================
    TTRPG CAMPAIGN — Dragon Quest (NES) monochrome re-skin (เฟส 5)
@@ -2250,7 +2252,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202610031199;
+const FRONTEND_BUILD = 202610041232;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -5264,6 +5266,18 @@ async function loadRound(source){
     if(error) throw error; setVisibleRound(data||null,myChar,visibleSource); cacheSave('round_g'+terminalGroupForUi(),curRound); resumeDiceRollGate();
   }catch(e){ const c=cacheLoad('round_g'+terminalGroupForUi()); if(c) setVisibleRound(c,myChar,'catch'); }
   try{if(typeof triggerPostFlipRoundRefetchFromRows==='function')triggerPostFlipRoundRefetchFromRows(narrative);}catch(_postFlipLoadRoundTriggerError){}
+}
+// SEQ232: publication can be the first visible event for an RLS-hidden encounter.
+async function refreshPublishedCombatUi(){
+  if(!curRound||!curRound.meta||!curRound.meta.combat||curRound.meta.combat.active!==true)return;
+  const context=roundRequestContext();
+  if(gCombat&&gCombat.encounter&&roundRequestContextMatches(gCombat.encounterContext))return;
+  await refreshCombatTurn();
+  if(!roundRequestContextMatches(context))return;
+  await updateCombatBadge();
+  if(!roundRequestContextMatches(context))return;
+  await refreshInitiativePressPrompt();
+  if(roundRequestContextMatches(context))scheduleBattleScene('publication');
 }
 const NARR_WINDOW=50; let narrMore=false, _skipAutoScroll=false;
 // v699: content remains the backward-compatible corrected rendering. Raw forensic
@@ -13242,14 +13256,14 @@ function subscribeRealtime(){
     window._combatWatchdog=setInterval(pollResolvingRecovery,30000);
   }
   var _rtCh = supa.channel('camp-'+campaign.id)
-    .on('postgres_changes',{event:'*',schema:'public',table:'narrative',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ rtLastSyncTs=Date.now(); if(payload&&payload.new&&payload.eventType!=='DELETE'){ await mergeNarrativeOrdered(payload.new); } else { await loadNarrative(); }
+    .on('postgres_changes',{event:'*',schema:'public',table:'narrative',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ rtLastSyncTs=Date.now(); if(payload&&payload.new&&payload.eventType!=='DELETE'){ await mergeNarrativeOrdered(payload.new); } else { await loadNarrative(); } if(payload&&payload.new&&payload.new.author==='dm'&&payload.new.status==='final'&&Number(payload.new.group_no||1)===terminalGroupForUi()){ await loadRound('realtime'); await refreshPublishedCombatUi(); }
       /* v634ui DYN-29: บรรทัดระบบที่บอกว่าชีทเปลี่ยน (พัก/เงิน/ฟื้น/แพ้/ตื่น) → reload ชีท+สมาชิก (เดิม mySheet ไม่มี realtime — แท็บ Stat ค้าง HP/เงินเก่าจน reload หน้า · throttle 15s) */
       try{ var _c634=String((payload&&payload.new&&payload.new.content)||''),_fe16Exact=freshnessReconcileEvidence({kind:'narrative_receipt',row:payload&&payload.new,campaign_id:String(campaign&&campaign.id||''),group_no:terminalGroupForUi()}); if(!_fe16Exact&&/^(🛏|💰|⚠️|💀|💤)/.test(_c634) && (!window._shReloadTs || Date.now()-window._shReloadTs>15000)){ window._shReloadTs=Date.now(); refreshAll().then(function(){ if(activeTab()==='me') renderMe(); if(activeTab()==='party') renderParty(); }).catch(function(e){}); } }catch(e){}
       if(activeTab()==='story') renderStory(); if(activeTab()==='quest') renderQuest(); if(typeof scheduleBattleScene==='function') scheduleBattleScene(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'npcs',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ rtLastSyncTs=Date.now(); await triggerFreshnessReconcile({kind:'npcs_realtime',payload:payload,campaign_id:String(campaign&&campaign.id||'')}); })
     .on('postgres_changes',{event:'*',schema:'public',table:'quests',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='quest') renderQuest(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'quest_reward_jobs',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='quest') renderQuest(); })
-    .on('postgres_changes',{event:'*',schema:'public',table:'rounds',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ rtLastSyncTs=Date.now(); try{const row=payload&&payload.new,receipts=row&&row.meta&&Array.isArray(row.meta.dice)?row.meta.dice:[];dicePlaybackLog('rounds_realtime_event',{roundId:String(row&&row.id||''),receiptCount:receipts.length,campaignId:String(campaign&&campaign.id||''),source:String(payload&&payload.eventType||'unknown').toLowerCase()});}catch(_roundsRealtimeLogError){} await loadRound('realtime'); const _narrTailChanged=await reconcileNarrativeTail(); if(activeTab()==='story'&&!_narrTailChanged) renderStory(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'rounds',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ rtLastSyncTs=Date.now(); try{const row=payload&&payload.new,receipts=row&&row.meta&&Array.isArray(row.meta.dice)?row.meta.dice:[];dicePlaybackLog('rounds_realtime_event',{roundId:String(row&&row.id||''),receiptCount:receipts.length,campaignId:String(campaign&&campaign.id||''),source:String(payload&&payload.eventType||'unknown').toLowerCase()});}catch(_roundsRealtimeLogError){} await loadRound('realtime'); await refreshPublishedCombatUi(); const _narrTailChanged=await reconcileNarrativeTail(); if(activeTab()==='story'&&!_narrTailChanged) renderStory(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'actions',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); await loadNarrativeActionStates(narrative); if(activeTab()==='story'){ renderRoundbar(); renderStory(); } })
     .on('postgres_changes',{event:'*',schema:'public',table:'character_sheets',filter:'character_id=eq.'+((myChar&&myChar.id)||'00000000-0000-0000-0000-000000000000')}, async()=>{ rtLastSyncTs=Date.now(); await reloadMySheet(); await refreshCombatTurn(); if(activeTab()==='story') renderRoundbar(); if(activeTab()==='me') renderMe(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'characters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ var _oldGroup=terminalGroupForUi(); await loadCharacters(); myChar=characters.find(c=>c.user_id===me.id)||null; if(_oldGroup!==terminalGroupForUi()){ window._combatActive=undefined; window.gEncId=null; await Promise.all([loadRound(),loadNarrative(),updateCombatBadge(),refreshCombatTurn()]); } partyDecisionHintRefresh('characters-realtime'); if(activeTab()==='party') renderParty(); if(typeof scheduleBattleScene==='function') scheduleBattleScene(); })   // v739 FZ-2: group move rebinds scoped round/story/combat before render
@@ -13457,7 +13471,8 @@ function prettyCond(c){
      targetDecision.ritualAvailable=castDecision.ritualAvailable;
      return targetDecision;
    }
-   const targetToken=targetDecision.target.kind==='discrete_multi'&&window._spellPickMultiV1===true?'multi':_ccLegacyTargetToken(targetDecision.target);
+   const areaReady=inCombat&&castDecision.menuSlot==='1A'&&typeof window!=='undefined'&&window._spellPickAreaV1===true&&window.SpellAreaPicker&&window.SpellAreaPicker.supported(sp.slug,targetDecision.target);
+   const targetToken=areaReady?'area':targetDecision.target.kind==='discrete_multi'&&window._spellPickMultiV1===true?'multi':_ccLegacyTargetToken(targetDecision.target);
    if(!targetToken){
      const unsupportedReason=targetDecision.target.kind==='discrete_multi'
        ?'multi_target_picker+exact_cardinality+server_target_legality'
@@ -13494,6 +13509,35 @@ function ccSlotLedgerState(ledger,sheetRefreshOk){
   const slotsKnown=loaded||sheetRefreshOk===true;
   if(slotsKnown){ for(let L=1;L<=9;L++){ slots[L]=[Math.max(0,Math.floor(+lvUsed[String(L)]||0)),Math.max(0,Math.floor(+lvMax[L]||0))]; } }
   return {slots:slots,slotsKnown:slotsKnown,slotQuotaState:loaded?'loaded':(sheetRefreshOk===true?'none':'loading')};
+}
+// SP-3 capability is read from the combat deployment, never inferred from the story ping.
+let _ccAreaCapabilityRequest=0;
+function ccSetAreaCapability(value){window._spellPickAreaV1=value===true;window.dispatchEvent(new Event('spell-area-capability'));}
+async function ccCheckAreaCapability(){
+  const request=++_ccAreaCapabilityRequest; ccSetAreaCapability(false);
+  try{
+    const token=(await supa.auth.getSession()).data.session?.access_token;
+    if(!token) return false;
+    const url=new URL(RESOLVE_FN);url.pathname=url.pathname.replace(/\/resolve-round$/, '/resolve-combat-round');
+    if(!url.pathname.endsWith('/resolve-combat-round')) return false;
+    const response=await fetch(url.href,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({ping:true,client_build:FRONTEND_BUILD,client_epoch:FRONTEND_COMPAT_EPOCH}),signal:AbortSignal.timeout(10000)});
+    const data=await response.json();
+    if(request===_ccAreaCapabilityRequest) ccSetAreaCapability(response.ok&&data?.features?.spell_pick_area_v1===true);
+  }catch(_error){if(request===_ccAreaCapabilityRequest)ccSetAreaCapability(false);}
+  return request===_ccAreaCapabilityRequest&&window._spellPickAreaV1===true;
+}
+async function ccLoadAreaGrid(){
+  const encounter=await uiActiveEncounter('id,status');
+  if(encounter.error||!encounter.data||encounter.data.status==='ended'||!myChar) return null;
+  const [grid,entries]=await Promise.all([
+    supa.from('battle_grids').select('id,encounter_id,cols,rows,cell_ft').eq('campaign_id',campaign.id).eq('group_no',terminalGroupForUi()).eq('encounter_id',encounter.data.id).eq('active',true).maybeSingle(),
+    supa.from('initiative_entries').select('encounter_id,character_id,combat_state_id,display_name,side,is_active').eq('encounter_id',encounter.data.id)
+  ]);
+  if(grid.error||!grid.data||grid.data.encounter_id!==encounter.data.id||entries.error||!Array.isArray(entries.data)) return null;
+  if(![grid.data.cols,grid.data.rows,grid.data.cell_ft].every(Number.isSafeInteger)||grid.data.cols<1||grid.data.cols>128||grid.data.rows<1||grid.data.rows>128||grid.data.cell_ft<1) return null;
+  const tokens=await supa.from('grid_tokens').select('id,grid_id,col,row,size,kind,flags,ref_char_id,ref_combat_state_id').eq('grid_id',grid.data.id);
+  if(tokens.error||!Array.isArray(tokens.data)||tokens.data.some(t=>t.grid_id!==grid.data.id)||entries.data.some(e=>e.encounter_id!==encounter.data.id)) return null;
+  return {g:grid.data,toks:tokens.data,entries:entries.data,casterId:myChar.id};
 }
 // C0928-3: identities must be active party entries AND present on the current encounter grid.
 async function ccLoadGridTargets(ctx){
@@ -13541,6 +13585,7 @@ async function ccLoadGridTargets(ctx){
 }
 async function prepCommandContext(){
   const ctx={enemies:[], character:null, loadError:null, loadWarnings:[], slotsKnown:false, attacks:[], inventory:[]};
+  if(window._combatActive) await ccCheckAreaCapability();else window._spellPickAreaV1=false;
   // F26: mySheet is not realtime-authoritative while this menu is open. Refresh before deriving inventory or slot quota.
   let sheetRefreshOk=false;
   try{ sheetRefreshOk=await reloadMySheet(); }catch(e){ sheetRefreshOk=false; }
@@ -13842,7 +13887,9 @@ window.cc = (function(){
       for(var i=0;i<character.spells.length;i++) if(character.spells[i].id===id) spell = character.spells[i];
       if(!spell) return { items:[] };
       var opts = [];
-      if(spell.target==='multi'){
+      if(spell.target==='area'){
+        opts.push({label:uiCopy('ดูระยะและเลือกพื้นที่','Preview range and choose area'),areaPick:{spell:spell,slot:slotName}});
+      } else if(spell.target==='multi'){
         opts.push({label:uiCopy('เลือกเป้าหมายหลายตัว','Choose multiple targets'),multiPick:{spell:spell,slot:slotName}});
       } else if(spell.target==='self'){
         opts.push({ label:uiCopy('ร่ายใส่ตัวเอง','Cast on self'), commit:{slot:slotName, label: spell.name+' ▸ ตัวเอง', displayLabel:uiCopy(spell.name+' ▸ ตัวเอง',spell.name+' ▸ Self'), dice: spell.dice, skillId: spell._skillId||null} });
@@ -14158,8 +14205,25 @@ window.cc = (function(){
     draw();
   }
 
+  async function ccAreaTargetPicker(spell,slot){
+    if(slot!=='action'||!window.SpellAreaPicker) return;
+    try{
+      if(!await ccCheckAreaCapability()) return toast(uiCopy('ยังไม่เปิดการยืนยันพื้นที่เวท','Area confirmation is unavailable'),true);
+      const snapshot=await ccLoadAreaGrid();
+      if(!snapshot) return toast(uiCopy('ยังตรวจกริดปัจจุบันไม่ได้ กรุณาเปิดเมนูอีกครั้ง','Cannot verify the current grid. Reopen the menu.'),true);
+      window.SpellAreaPicker.open({spell:spell,snapshot:snapshot,document:document,copy:uiCopy,
+        capability:()=>window._spellPickAreaV1===true,slotsLeft:slotsLeft,notice:message=>toast(message,true),
+        subscribeCapability:handler=>{window.addEventListener('spell-area-capability',handler);return ()=>window.removeEventListener('spell-area-capability',handler);},
+        refresh:async()=>{if(!await ccCheckAreaCapability()||!await reloadMySheet())return null;const ledger=ccSlotLedgerState(mySheet&&mySheet.slots,true);character.slots=ledger.slots;character.slotsKnown=ledger.slotsKnown;return ccLoadAreaGrid();},
+        onClose:ccReturnToMenu,onCommit:(pick,signature)=>{
+          turn[slot]={label:spell.name+' ▸ '+uiCopy('พื้นที่ ','Area ')+(pick.area.origin_cell.col+1)+','+(pick.area.origin_cell.row+1)+(pick.area.direction?' '+pick.area.direction:''),dice:spell.dice,skillId:spell._skillId||null,spell_target_v1:pick,_areaPreviewSig:signature};
+          window._spellAreaReturnedSelection=null;seqAdd(slot);stack=['root'];renderAll();
+        }});
+    }catch(_error){toast(uiCopy('เปิดตัวเลือกพื้นที่ไม่สำเร็จ ยังไม่ได้ส่งเวท','Could not open area selection. The spell was not submitted.'),true);}
+  }
   function handleClick(it){
     try{ if(typeof tick==='function') tick(); }catch(e){}
+    if(it.areaPick){ ccAreaTargetPicker(it.areaPick.spell,it.areaPick.slot); return; }
     if(it.multiPick){ ccMultiTargetPicker(it.multiPick.spell,it.multiPick.slot); return; }
     if(it.editSlot){
       var slot = it.editSlot;
@@ -14250,6 +14314,16 @@ window.cc = (function(){
   async function sendToBackend(results){
     if(submitting) return; submitting=true;
     try{
+      if(turn.action&&turn.action.spell_target_v1&&turn.action.spell_target_v1.mode==='area'){
+        const pick=turn.action.spell_target_v1,spell=character.spells.find(s=>s.id===pick.spell_slug);
+        const enabled=await ccCheckAreaCapability(),sheetOk=enabled&&await reloadMySheet();
+        const ledger=ccSlotLedgerState(mySheet&&mySheet.slots,sheetOk);character.slots=ledger.slots;character.slotsKnown=ledger.slotsKnown;
+        const fresh=sheetOk?await ccLoadAreaGrid():null;
+        const model=spell&&window.SpellAreaPicker&&window.SpellAreaPicker.project(spell,fresh,{level:pick.slot_level,point:pick.point,direction:pick.area.direction});
+        if(!enabled||!sheetOk||!character.slotsKnown||slotsLeft(pick.slot_level)<1||!model||!model.ready||model.signature!==turn.action._areaPreviewSig||(model.allies.length&&pick.confirm_allies!==true)){
+          toast(uiCopy('ยังส่งไม่ได้ กรุณาแก้คำสั่งและตรวจพื้นที่เวทอีกครั้ง','Not submitted. Edit the command and review the spell area again.'),true);return false;
+        }
+      }
       var narrative = compileNarrative(results);
       // Mark the action_text so the DM/log can tell this came from the structured menu
       var narrativeTagged = '[CMD] '+narrative;
@@ -14257,6 +14331,7 @@ window.cc = (function(){
         if(!slot) return null;
         var payload=Object.assign({},slot);
         delete payload.displayLabel;
+        delete payload._areaPreviewSig;
         return payload;
       }
       var structured = {

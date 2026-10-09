@@ -2,6 +2,31 @@
 // language-impact: none — network diagnostics are machine-only.
 (function(root){
   'use strict';
+  // A measurable SVG token can still be outside a panned board or mobile viewport.
+  // This observation is conservative; it never substitutes for the server Move receipt.
+  function onScreen(node,board){
+    if(!node||typeof node.getBoundingClientRect!=='function'||typeof root.getComputedStyle!=='function') return false;
+    var v=root.visualViewport, left=v?v.offsetLeft:0, top=v?v.offsetTop:0;
+    var width=v?v.width:root.innerWidth, height=v?v.height:root.innerHeight;
+    if(![left,top,width,height].every(Number.isFinite)||width<=0||height<=0) return false;
+    var r=node.getBoundingClientRect();
+    if(!r||![r.left,r.top,r.right,r.bottom].every(Number.isFinite)) return false;
+    var x0=Math.max(left,r.left),y0=Math.max(top,r.top),x1=Math.min(left+width,r.right),y1=Math.min(top+height,r.bottom);
+    var owns=false;
+    for(var p=node;p;p=p.parentElement){
+      var s=root.getComputedStyle(p);if(!s||s.display==='none'||s.visibility==='hidden'||s.visibility==='collapse'||s.contentVisibility==='hidden'||Number(s.opacity)===0) return false;
+      if(p===board) owns=true;
+      var clipX=p!==node&&/^(auto|scroll|hidden|clip)$/.test(s.overflowX),clipY=p!==node&&/^(auto|scroll|hidden|clip)$/.test(s.overflowY);
+      if(clipX||clipY){
+        var b=typeof p.getBoundingClientRect==='function'?p.getBoundingClientRect():null;
+        if(!b||![b.left,b.top,b.right,b.bottom].every(Number.isFinite)) return false;
+        if(clipX){x0=Math.max(x0,b.left);x1=Math.min(x1,b.right);}
+        if(clipY){y0=Math.max(y0,b.top);y1=Math.min(y1,b.bottom);}
+      }
+      if(x1<=x0||y1<=y0) return false;
+    }
+    return owns;
+  }
   function tokenAttributes(grid,t,escape){
     if(!grid||!grid.id||!grid.encounter_id||!t||!t.id||!t.ref_char_id||
        !['pc','ally','npc'].includes(t.kind)||!Number.isInteger(t.col)||!Number.isInteger(t.row)||
@@ -118,7 +143,7 @@
           var node=matches[0],rect=typeof node.getBoundingClientRect==='function'?node.getBoundingClientRect():null;
           var style=typeof root.getComputedStyle==='function'?root.getComputedStyle(node):null;
           if(!node.getAttribute('data-grid-touch-token')||node.getAttribute('data-grid-touch-cell')!==r.session.selectedCell||
-             !rect||rect.width<=0||rect.height<=0||style&&(style.display==='none'||style.visibility==='hidden'||Number(style.opacity)===0)) return;
+             !rect||rect.width<=0||rect.height<=0||style&&(style.display==='none'||style.visibility==='hidden'||Number(style.opacity)===0)||!onScreen(node,board)) return;
           if(enqueue(r.session,'result_visible',id,Date.now())){results.delete(id);sent=true;}
           return;
         }

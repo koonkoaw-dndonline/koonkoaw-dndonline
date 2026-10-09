@@ -27,7 +27,7 @@
     restrained:['RE','ถูกตรึง','Restrained'],stunned:['ST','มึนงง','Stunned'],
     unconscious:['UN','หมดสติ','Unconscious']};
   const ZONES={fire:['F','ไฟ','Fire'],acid:['A','กรด','Acid'],
-    oil:['O','น้ำมัน','Oil'],trap:['T','กับดักที่เปิดเผย','Revealed trap']};
+    oil:['O','น้ำมัน','Oil'],ice:['I','พื้นน้ำแข็ง','Icy terrain'],trap:['T','กับดักที่เปิดเผย','Revealed trap']};
   const manifest=Object.create(null);
   const statusIcons=Object.create(null);
   let manifestFlight=null,manifestReady=false;
@@ -393,7 +393,7 @@
     const kind=row.kind,slug=row.slug;
     if(kind==='status'&&(!Object.hasOwn(STATUS,slug)||
       !['character','combat_state'].includes(row.ref_kind)||row.expires_round!==null)) return null;
-    if(kind==='hazard'&&(!['fire','acid','oil'].includes(slug)||
+    if(kind==='hazard'&&(!['fire','acid','oil','ice'].includes(slug)||
       row.ref_kind!=='object'||row.ref_id!==row.token_id||
       row.expires_round===null||!whole(row.expires_round))) return null;
     if(kind==='trap'&&(slug!=='trap'||row.ref_kind!=='object'||
