@@ -1901,6 +1901,92 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
 .partygrid>div{display:flex;flex-direction:column;gap:12px;}
 /* v610 (คำสั่งข้อ 5): กล่องคนสนิท top-5 ใต้ LOCATION — เดสก์ทอปเท่านั้น มือถือตัดออก */
 @media (max-width:1023px){ #relTopBox{display:none!important;} }
+/* UIFIX01 (2026-10-06): five layout bugs found while building the EverRoll type mock-up (2026-10-05), fixed for
+   both skins. Selectors carry :root so they weigh what the mock-up's rules weighed and beat the skin rules they meet.
+   1. .muted is the empty-state block (24px padding); used inline as span.muted it laid a note over its neighbours.
+      A small left gap stays, because a language wall can swap the note's text (and its leading space) for a dash.
+   2. Names in the turn order wrap instead of being cut with an ellipsis, with room between lines for Thai marks
+      (1.5, or the EverRoll UI line height when ERBLEND01 is on).
+   3. The side tags of a folding heading stay whole and drop to the next line; an NPC key label keeps its word.
+   4. Desktop battle: the sheet button floats over the top of the left column, so that column starts below it.
+   5. Phone and tablet header: the floating menu button (#uiToggle) covered the invite code and the status dot,
+      so the first header row stops short of it, the status dot sits just left of it, and the row of controls
+      below keeps the full width. At tablet widths that row may wrap, as it already does on phones (v272),
+      instead of pushing its last button past the edge. */
+:root body span.muted{padding:0 0 0 .3em}
+:root body .bs-initrow .bs-iname{white-space:normal;overflow:visible;text-overflow:clip;line-height:var(--er-lh-ui,1.5)}
+:root body .sk-fold>summary .sk-head{flex-wrap:wrap}
+:root body .sk-head :is(.en,.sk-cnt,.sk-due){white-space:nowrap}
+:root body .npc-detail .kv2 b{flex:none}
+@media (min-width:1024px){ :root body .bs-left{padding-top:56px} }
+@media (max-width:600px){ :root body .hd{padding-right:62px} :root body .hd .dot{position:absolute;right:46px;top:17px} :root body .hd-actions{width:calc(100% + 54px);margin-right:-54px} }
+@media (min-width:601px) and (max-width:1023px){ :root body .hd{padding-right:46px} :root body .hd-actions{flex-wrap:wrap;justify-content:flex-end;row-gap:4px;flex-shrink:1;max-width:100%} }
+/* ERBLEND01 (2026-10-06): the EverRoll header and type over the game's own UI, in both skins: the "blend" mock-up of
+   2026-10-05 (docs/everroll/typography/mockup.html). Colours, frames, layout and behaviour below the header stay the
+   game's own. Every selector carries :root so it weighs exactly what the mock-up's body[data-mode=blend] rule
+   weighed, and the block sits last, so it meets the skin rules the way the mock-up's stylesheet did.
+   Type scale: xs 12 micro, sm 14 meta, md 16 body, lg 18 prose and subheading, xl 20 heading, 2xl 24 title,
+   3xl 30 and 4xl 36 display. Thai never runs below line height 1.5; display is for the Latin wordmark only. */
+:root{--er-fs-xs:12px;--er-fs-sm:14px;--er-fs-md:16px;--er-fs-lg:18px;--er-fs-xl:20px;--er-fs-2xl:24px;--er-fs-3xl:30px;--er-fs-4xl:36px;--er-lh-display:1.2;--er-lh-heading:1.6;--er-lh-ui:1.6;--er-lh-prose:1.8}
+:root:lang(en){--er-lh-heading:1.5;--er-lh-prose:1.7}
+body{--er-type-micro:var(--er-fs-xs);--er-type-meta:var(--er-fs-sm);--er-type-body:var(--er-fs-md);--er-type-prose:var(--er-fs-lg);--er-type-subheading:var(--er-fs-lg);--er-type-heading:var(--er-fs-xl);--er-type-title:var(--er-fs-2xl);--er-type-display:var(--er-fs-4xl)}
+@media (max-width:1023px){ body{--er-type-display:var(--er-fs-3xl)} }
+:root body{--er-body:'IBM Plex Sans Thai',Tahoma,sans-serif;--er-heading:'Trirong',Georgia,serif;--er-band:#073f35;--er-gold:#dbb66f;--er-cream:#ece2c8;--er-rule:#b99b62}
+:root:lang(en) body{--er-heading:'Cinzel',Georgia,serif}
+:root:not(.skin-paper) body{--er-heading:var(--er-body)}
+/* Type roles. The game's own ladder is pointed at scale steps, so a leftover that still reads it lands on the scale. */
+:root body{--fs-xs:var(--er-type-micro);--fs-sm:var(--er-type-micro);--fs-base:var(--er-type-meta);--fs-md:var(--er-type-body);--fs-lg:var(--er-type-heading);--fs-xl:var(--er-type-title);--fs-display:var(--er-fs-3xl);font:400 var(--er-type-body)/var(--er-lh-ui) var(--er-body)}
+:root body :is(.er-prose,.narr,.chron-text,.actionlog,.npc5-detail,.chatbody){font:400 var(--er-type-prose)/var(--er-lh-prose) var(--er-body);letter-spacing:normal}
+:root body #bsNarrWrap{font:400 var(--er-type-prose)/var(--er-lh-prose) var(--er-body);letter-spacing:normal}
+:root body :is(button,textarea,input,select,.cc-item,.fld,.bs-log-list,.bs-chat-msg,.bs-iname,.albumcap){font:400 var(--er-type-body)/var(--er-lh-ui) var(--er-body);letter-spacing:normal}
+:root body :is(.kv .k,.bs-chat-list .er-prose,.bs-log-list .er-prose){font:400 var(--er-type-body)/var(--er-lh-ui) var(--er-body);letter-spacing:normal}
+:root body :is(h2,.sectitle,.sk-head,.bs-panelttl){font:600 var(--er-type-heading)/var(--er-lh-heading) var(--er-body);letter-spacing:normal;overflow-wrap:break-word}
+:root body .card>h2{font-size:var(--er-type-title)}
+:root body h3{font:600 var(--er-type-subheading)/var(--er-lh-heading) var(--er-body);letter-spacing:normal;overflow-wrap:break-word}
+:root body .fld b{font:600 var(--er-type-body)/var(--er-lh-ui) var(--er-body);letter-spacing:normal}
+:root body :is(.note,.muted,.sub,.meta,.meta-inline,.cc-meta,.er-meta,.sk-cnt){font:400 var(--er-type-meta)/var(--er-lh-ui) var(--er-body);letter-spacing:normal}
+:root body .sk-head :is(.en,.sk-arw){font:400 var(--er-type-meta)/var(--er-lh-ui) var(--er-body)}
+:root body :is(.btn.sm,summary.btn,.bs-sheet-close,.bs-chat-clear,.bs-mobbar button,.cc-crumb a){font-size:var(--er-type-meta);line-height:var(--er-lh-ui)}
+:root body label.fld:has(>:is(input:not([type=checkbox],[type=radio]),select,textarea)){font:600 var(--er-type-meta)/var(--er-lh-ui) var(--er-body)}
+:root body .fld .muted{font-size:var(--er-type-meta)!important;line-height:var(--er-lh-ui)!important}
+/* One body face and one heading face, no pixel faces, no tracking on Thai. */
+:root body :not(svg,svg *){font-family:var(--er-face,var(--er-body))!important;letter-spacing:normal!important;-webkit-font-smoothing:antialiased!important}
+:root body :is(h1,h2,.sectitle,.sk-head,.bs-panelttl){--er-face:var(--er-heading)}
+:root body :is(h1,h2,.sectitle,.sk-head,.bs-panelttl) :is(.en,.muted,.note,.meta-inline,.sk-cnt,.sk-arw,.sk-due,button,select,input){--er-face:var(--er-body)}
+:root body :is(.er-brand,.hd .ttl){--er-face:'Cinzel',Georgia,serif}
+:root body :is(.num,.slotpill,.me-name,.item .nm,.cletter,.coin .v,.lvbadge,.wh b){font:600 var(--er-type-body)/var(--er-lh-ui) var(--er-body)}
+:root body :is(.chip,.pill,.tab .tlab,.barlabel,.skbtn,.cbtag,.statusline){font:600 var(--er-type-meta)/var(--er-lh-ui) var(--er-body)}
+:root body :is(.whlabel,.whtxt,.chron-meta,.fx .dur,.skill .rech,.cs,.sk-due){font:400 var(--er-type-micro)/var(--er-lh-ui) var(--er-body)}
+:root body :is(#uiToggle,#joinCode){font-size:var(--er-type-body);line-height:var(--er-lh-ui)}
+:root body .mobileclock :is(.mcv,.mcloc){font-size:var(--er-type-meta);line-height:var(--er-lh-ui)}
+/* Leftovers the game pins with an id, an inline style or its own !important. Markup the game sizes inline keeps its
+   step; a note inside it follows that step instead of jumping back up. */
+:root body .sub-desc{line-height:var(--er-lh-ui)!important}
+:root body .cs{line-height:var(--er-lh-ui)}
+:root body :is([style*="--fs-sm"],[style*="--fs-xs"]) :is(.muted,.note,.sub,.meta){font-size:inherit}
+:root body #battleScene .cc-item{font-size:var(--er-type-body)}
+:root body .hd-actions select{font-size:var(--er-type-meta)}
+:root body input::file-selector-button{font:inherit}
+/* Header: the brand lockup on the green band, kept to the height the game's header already has. The wordmark is
+   its own element beside the world name, so the name the game writes into #hdTitle never replaces it. */
+:root body .hd{background:var(--er-band);color:var(--er-cream);border-bottom-color:var(--er-rule)}
+:root body .hd .logo{display:none}
+:root body .er-lockup{display:flex;align-items:center;gap:10px;flex:none;margin-right:6px;color:var(--er-gold)}
+:root body .er-brand{font-size:var(--er-type-title);line-height:var(--er-lh-display);font-weight:600}
+:root body .hd .ttl{--er-face:var(--er-heading);font-size:var(--er-type-subheading);line-height:var(--er-lh-heading);font-weight:600;color:var(--er-cream);text-shadow:none;white-space:normal;overflow:visible;overflow-wrap:break-word;min-width:0}
+:root body .hd .code{background:transparent;color:var(--er-gold);border-color:var(--er-gold);font-size:var(--er-type-meta);line-height:var(--er-lh-ui)}
+:root body .hd .who{color:var(--er-cream)}
+:root body .hd .dot{background:transparent;border-color:var(--er-cream)}
+:root body .hd .dot.ok{background:var(--er-gold);border-color:var(--er-gold);box-shadow:0 0 7px var(--er-gold)}
+:root body .hd :is(.btn,select){background:var(--er-band)!important;color:var(--er-gold)!important;border-color:var(--er-gold)!important}
+:root body .hd :is(.btn,.code):hover{background:var(--er-gold)!important;color:var(--er-band)!important}
+:root body .hd :is(.btn,.code,select,summary):focus-visible{outline:2px solid var(--er-gold);outline-offset:2px}
+:root body .hd-actions .btn{padding-block:2px}
+@media (max-width:600px){ :root body .hd-actions :is(.btn,select),:root body .hd .code{font-size:var(--er-type-micro)} }
+@media (min-width:601px){ :root body .hd{padding-block:7px} :root body .er-lockup{margin-right:12px} :root body .er-brand{font-size:var(--er-fs-3xl)} :root body .hd .ttl{flex:1 1 12em} }
+/* Text flow under the header: long words wrap, figures line up. */
+:root body :is(.narr,.chron-text,.actionlog,.npc5-detail,.chatbody,.muted,.note,.sub,.meta,.meta-inline,.cc-meta,.bs-log-list,.bs-chat-msg,.bs-iname,.albumcap){overflow-wrap:break-word}
+:root body :is(.kv,.cc-tag,.bs-ihp){font-variant-numeric:tabular-nums}
 </style>
 </head>
 <body>
@@ -1911,7 +1997,8 @@ html.skin-paper .mobileclock .mc svg,html.skin-paper .cico svg,html.skin-paper .
 <div id="topbar">
 <div class="hd">
   <div class="logo"><svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="7" y="5" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/><rect x="2" y="7" width="1" height="1"/><rect x="5" y="7" width="1" height="1"/></svg></div>
-  <div class="ttl" id="hdTitle" onclick="gridDiagHatchClick()">EverRoll</div>
+  <div class="er-lockup"><strong class="er-brand">EverRoll</strong></div>
+  <div class="ttl" id="hdTitle" onclick="gridDiagHatchClick()"></div>
   <span class="code hidden" id="hdCode" title="Click to copy invite code"></span>
   <span class="code hidden" id="hdWorld" title="World ID"></span>
   <span class="who" id="hdWho"></span>
@@ -2252,7 +2339,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202610041232;
+const FRONTEND_BUILD = 202610091233;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -8601,7 +8688,7 @@ function companionSpriteImg(c){
 function companionFaceSvg(c){
   const n=String(c&&c.name||''), k=String(c&&c.class||'');
   const hay=(n+' '+k).toLowerCase();
-  const beastish=/wolf|หมาป่า|bear|หมี|hawk|eagle|owl|raven|falcon|นก|อินทรี|เหยี่ยว|cat|แมว|panther|tiger|lion|เสือ|สิงโต|snake|งู|spider|แมงมุม|boar|หมูป่า|horse|pony|ม้า|rat|mouse|หนู|dog|hound|mastiff|หมา|สุนัข|จิ้งจอก|fox|ape|ลิง|crocodile|จระเข้|fish|ปลา|beast|สัตว์/.test(hay);
+  const beastish=companionIsBeast(c);   // AVATAR01: one beast test, shared with the companions section
   if(!beastish){ const spr=companionSpriteImg(c); if(spr) return spr; }   // v551: companion คน → HD2D sprite ตัวคน (fallback วงสี+อักษรย่อด้านล่างถ้า class ไม่รู้จัก)
   let inner;
   if(beastish){ inner=beastIconSvg(hay); }
@@ -8613,6 +8700,43 @@ function companionFaceSvg(c){
   }
   return '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:15%;box-sizing:border-box">'+inner.replace('<svg ','<svg style="width:100%;height:100%;image-rendering:pixelated" ')+'</div>';
 }
+// AVATAR01 DEFAULT PORTRAIT START
+// Default portraits for characters and companions with no uploaded avatar (owner rules 2026-10-06).
+//   - The uploaded avatar always wins; the default also stands in when the upload fails to load.
+//   - A default needs a class and a known sex (male or female). Unknown or other sex keeps today's look: the client
+//     reads only its own sheet, so other players' characters wait until the server publishes sex and race.
+//   - Class and race go through the board's sprite keys, so the face matches the token (an unknown race draws as human).
+//   - Companions get a 56 px face in the companions section; beasts keep the beast icon; a battle ally with no
+//     character row gets no face. Board tokens never use these portraits.
+//   Art: character-avatars/v1/<portraits-240|party-56>/<class>_<sex>_<race>.png (13 classes x 2 sexes x 13 races).
+function defaultAvatarSrc(size,cls,sex,race){
+  try{
+    if(typeof HD2D==='undefined'||!String(cls||'').trim()) return null;
+    const sexKey=HD2D.normalizeSex(sex); if(sexKey!=='male'&&sexKey!=='female') return null;
+    const classKey=String(HD2D.normalizeClass(cls)).toLowerCase().replace(/[^a-z]/g,''); if(!classKey) return null;
+    return 'character-avatars/v1/'+(size===56?'party-56':'portraits-240')+'/'+classKey+'_'+sexKey+'_'+_spriteRaceKey(race)+'.png';
+  }catch(e){ return null; }
+}
+function showDefaultAvatar(box,size,cls,info){   // swaps the box's current placeholder for the default; a failed load puts it back
+  const src=defaultAvatarSrc(size,cls,info&&info.sex,info&&info.race); if(!src||!box) return false;
+  const placeholder=box.innerHTML, im=document.createElement('img');
+  im.src=src; im.alt=size===56?'':uiCopy('ภาพเริ่มต้นของตัวละคร','Default character portrait'); im.setAttribute('data-default-avatar',String(size));
+  im.onerror=()=>{ box.innerHTML=placeholder; };
+  box.replaceChildren(im); return true;
+}
+function companionIsBeast(c){
+  const hay=(String(c&&c.name||'')+' '+String(c&&c.class||'')).toLowerCase();
+  return /wolf|หมาป่า|bear|หมี|hawk|eagle|owl|raven|falcon|นก|อินทรี|เหยี่ยว|cat|แมว|panther|tiger|lion|เสือ|สิงโต|snake|งู|spider|แมงมุม|boar|หมูป่า|horse|pony|ม้า|rat|mouse|หนู|dog|hound|mastiff|หมา|สุนัข|จิ้งจอก|fox|ape|ลิง|crocodile|จระเข้|fish|ปลา|beast|สัตว์/.test(hay);
+}
+function allyFaceBox(ally){   // face for one row of the companions section, or null to keep the row as it was
+  const ch=(Array.isArray(characters)?characters:[]).find(x=>String(x&&x.id||'')===String(ally&&ally.characterId||'')); if(!ch) return null;
+  const cls=[ally&&ally.className,ch.class].find(v=>v&&v!=='-')||'', who={name:(ally&&ally.name)||ch.name||'',class:cls};
+  const face=document.createElement('div'); face.className='facebox';
+  if(companionIsBeast(who)){ face.innerHTML=companionFaceSvg(who); return face; }
+  if(ch.avatar_path){ const im=document.createElement('img'); im.src=PUBLIC_URL+'avatars/'+ch.avatar_path; im.alt=''; im.onerror=()=>{ face.innerHTML=''; showDefaultAvatar(face,56,cls,ch.public_status); }; face.appendChild(im); return face; }
+  return showDefaultAvatar(face,56,cls,ch.public_status)?face:null;
+}
+// AVATAR01 DEFAULT PORTRAIT END
 // v180: สล็อตเวทแยกระดับ (PHB) จาก sheet.slots — แสดงในการ์ด COMBAT
 function slotPillsHtml(sheet){
   try{
@@ -9158,8 +9282,8 @@ async function _renderMeInner(){
   const av=document.createElement('div'); av.className='item avatarwin';
   av.innerHTML='<div class="sectitle">PORTRAIT</div>';
   const imgwrap=document.createElement('div'); imgwrap.className='avatarbox';
-  if(myChar.avatar_path){ const im=document.createElement('img'); im.src=PUBLIC_URL+'avatars/'+myChar.avatar_path; im.onerror=()=>{imgwrap.innerHTML=uiCopy('<div class="avatarph">ไม่มีภาพตัวละคร</div>','<div class="avatarph">No portrait</div>');}; imgwrap.appendChild(im); }
-  else imgwrap.innerHTML=uiCopy('<div class="avatarph">ไม่มีภาพตัวละคร</div>','<div class="avatarph">No portrait</div>');
+  if(myChar.avatar_path){ const im=document.createElement('img'); im.src=PUBLIC_URL+'avatars/'+myChar.avatar_path; im.onerror=()=>{imgwrap.innerHTML=uiCopy('<div class="avatarph">ไม่มีภาพตัวละคร</div>','<div class="avatarph">No portrait</div>');showDefaultAvatar(imgwrap,240,myChar.class,mySheet);}; imgwrap.appendChild(im); }
+  else { imgwrap.innerHTML=uiCopy('<div class="avatarph">ไม่มีภาพตัวละคร</div>','<div class="avatarph">No portrait</div>'); showDefaultAvatar(imgwrap,240,myChar.class,mySheet); }   // AVATAR01: default portrait until one is uploaded
   av.appendChild(imgwrap);
   const arow=document.createElement('div'); arow.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center';
   const afi=document.createElement('input'); afi.type='file'; afi.accept='image/*'; afi.style.cssText='color:#fff;font-size:var(--fs-base);max-width:150px';
@@ -9224,8 +9348,10 @@ async function _renderPartyInner(){
     const it=document.createElement('div'); it.className='item';
     const row=document.createElement('div'); row.style.cssText='display:flex;gap:12px;align-items:center';
     const face=document.createElement('div'); face.className='facebox';
-    if(c.avatar_path){ const im=document.createElement('img'); im.src=PUBLIC_URL+'avatars/'+c.avatar_path; im.onerror=()=>{face.innerHTML=c.is_companion?companionFaceSvg(c):'';}; face.appendChild(im); }
+    const _faceInfo=mine?mySheet:c.public_status;   // AVATAR01: own sex/race from the sheet; other players' only once the server publishes them
+    if(c.avatar_path){ const im=document.createElement('img'); im.src=PUBLIC_URL+'avatars/'+c.avatar_path; im.onerror=()=>{face.innerHTML=c.is_companion?companionFaceSvg(c):'';if(!c.is_companion)showDefaultAvatar(face,56,c.class,_faceInfo);}; face.appendChild(im); }
     else if(c.is_companion){ face.innerHTML=companionFaceSvg(c); }   // v499: companion ไร้รูป → sprite แบบ battle scene แทนช่องว่าง
+    else showDefaultAvatar(face,56,c.class,_faceInfo);
     const ps=c.public_status||{};
     const hp=ps.hp?` · HP ${escapeHtml(String(ps.hp))}`:'';
     const conds=Array.isArray(ps.conditions)?ps.conditions:[];
@@ -9245,7 +9371,7 @@ async function _renderPartyInner(){
   // W31-S2 ALLY PARTY RENDER START
   if(_allyPartyRows.length){
     const allyHead=document.createElement('div'); allyHead.className='item'; allyHead.innerHTML='<div class="sectitle">'+uiCopy('🤝 เพื่อนร่วมทาง/ร่วมรบ','🤝 Companions / Battle Allies')+'</div>'; left.appendChild(allyHead);
-    _allyPartyRows.forEach(ally=>{ const it=document.createElement('div'); it.className='item'; const name=document.createElement('div'); name.className='nm'; name.textContent=ally.name; const sub=document.createElement('div'); sub.className='sub'; const states=[]; if(ally.rosterStatus==='active')states.push(uiCopy('ร่วมทาง','Traveling')); if(ally.rosterStatus==='reserve')states.push(uiCopy('กองสำรอง','Reserve')); if(ally.inBattle)states.push(uiCopy('ร่วมรบ','In battle')); sub.textContent=(ally.className||'-')+' · '+states.join(' · '); it.append(name,sub); left.appendChild(it); });
+    _allyPartyRows.forEach(ally=>{ const it=document.createElement('div'); it.className='item'; const name=document.createElement('div'); name.className='nm'; name.textContent=ally.name; const sub=document.createElement('div'); sub.className='sub'; const states=[]; if(ally.rosterStatus==='active')states.push(uiCopy('ร่วมทาง','Traveling')); if(ally.rosterStatus==='reserve')states.push(uiCopy('กองสำรอง','Reserve')); if(ally.inBattle)states.push(uiCopy('ร่วมรบ','In battle')); sub.textContent=(ally.className||'-')+' · '+states.join(' · '); const face=allyFaceBox(ally); if(face){ const row=document.createElement('div'); row.style.cssText='display:flex;gap:12px;align-items:center'; const info=document.createElement('div'); info.style.flex='1'; info.append(name,sub); row.append(face,info); it.appendChild(row); } else it.append(name,sub); left.appendChild(it); });
   }
   // W31-S2 ALLY PARTY RENDER END
   const noChar=members.filter(m=>!characters.find(c=>c.user_id===m.user_id));
@@ -11645,6 +11771,18 @@ function _spriteRaceKey(raw){ const r=String(HD2D.normalizeRace(raw)).toLowerCas
   if(r.includes('tiefling')) return 'tiefling'; if(r==='orc') return 'orc'; if(r.includes('elf')) return 'elf'; return 'human'; }
 function tokenSpriteSet(t){ if(!t||!Array.isArray(t.flags)) return 'v2'; for(const _f of t.flags){ const _m=/^sprite_set:(v1|v2)$/i.exec(String(_f||'')); if(_m) return _m[1].toLowerCase(); } return 'v2'; }
 function tokenIsNpcV1(t){ return !!(t&&t.kind==='monster'&&typeof t.ref_npc_id==='string'&&t.ref_npc_id.trim()&&tokenSpriteSet(t)==='v1'); }
+// TOKENSIZE-01: the one place that sizes battle-board art, relative to the original size (1).
+//   v2            - V2 character art (PC and ally tokens).
+//   v1            - V1 character art of every race (registered NPCs, or a PC/ally flagged sprite_set:v1).
+//   mediumMonster - monster art of every Medium-size creature, whatever its type; the keys are listed below.
+// Small, Tiny and Large-or-bigger monsters, objects, vector pawns, labels, tiles and the backdrop never read it.
+// Owner's choice 2026-10-05: V2 stays at 1; every V1 character and every Medium monster at 1.15.
+const BATTLE_TOKEN_SCALE=Object.freeze({v2:1,v1:1.15,mediumMonster:1.15});
+const _MON_MEDIUM=new Set(['acolyte','animated_armor','ape','archmage','assassin','azer','bandit','bandit_captain','banshee','barbed_devil','basilisk','bearded_devil','berserker','black_bear','black_dragon_wyrmling','blink_dog','blue_dragon_wyrmling','boar','brass_dragon_wyrmling','bronze_dragon_wyrmling','bugbear','chain_devil','commoner','copper_dragon_wyrmling','couatl','cult_fanatic','cultist','death_dog','deer','deva','doppelganger','drow','druid','dryad','duergar','erinyes','ettercap','flesh_golem','gargoyle','ghast','ghost','ghoul','giant_badger','giant_crab','giant_frog','giant_poisonous_snake','giant_wasp','giant_weasel','giant_wolf_spider','gibbering_mouther','gladiator','gnoll','goat','gold_dragon_wyrmling','gray_ooze','green_dragon_wyrmling','green_hag','grick','grimlock','guard','half_red_dragon_veteran','harpy','hell_hound','hobgoblin','hyena','invisible_stalker','knight','lemure','lich','lizardfolk','mage','mastiff','medusa','merfolk','mimic','mule','mummy','mummy_lord','night_hag','noble','orc','panther','pony','priest','rakshasa','red_dragon_wyrmling','reef_shark','rust_monster','sahuagin','satyr','scout','sea_hag','shadow','shrieker','silver_dragon_wyrmling','skeleton','specter','spy','succubus_incubus','swarm_of_bats','swarm_of_beetles','swarm_of_centipedes','swarm_of_insects','swarm_of_poisonous_snakes','swarm_of_quippers','swarm_of_rats','swarm_of_ravens','swarm_of_spiders','swarm_of_wasps','thug','tribal_warrior','vampire_bat_form','vampire_mist_form','vampire_spawn','vampire_vampire_form','veteran','violet_fungus','vulture','werebear_bear_form','werebear_human_form','werebear_hybrid_form','wereboar_boar_form','wereboar_human_form','wereboar_hybrid_form','wererat_human_form','wererat_hybrid_form','wererat_rat_form','weretiger_human_form','weretiger_hybrid_form','weretiger_tiger_form','werewolf_human_form','werewolf_hybrid_form','werewolf_wolf_form','white_dragon_wyrmling','wight','wolf','wraith','xorn','zombie']);   // catalog rows with size Medium, plus banshee (Medium undead that has art but no catalog row)
+function battleTokenScale(t){ if(!t) return 1;
+  if(t.kind==='pc'||t.kind==='ally') return tokenSpriteSet(t)==='v1'?BATTLE_TOKEN_SCALE.v1:BATTLE_TOKEN_SCALE.v2;
+  if(t.kind!=='monster') return 1;
+  return tokenIsNpcV1(t)?BATTLE_TOKEN_SCALE.v1:(_MON_MEDIUM.has(_monId(t))?BATTLE_TOKEN_SCALE.mediumMonster:1); }
 function hd2dCharHref(t){
   try{
     if(!t) return null;
@@ -11922,7 +12060,7 @@ async function renderBattleGrid(p){
     for(const c of (list||[])){ if(!c) continue; const k=c.kind; if(k!=='pc'&&k!=='ally'&&k!=='npc'&&k!=='monster') continue;
       if(ISO ? ((+c.col)+(+c.row))>=od : (+c.row)>=(+t.row)) continue;   // ตัวละครอยู่หน้า/ลึกเท่าวัตถุ = ไม่ถูกบัง
       const _b=footXY(+c.col,+c.row), cx=_b[0], cy=_b[1];
-      const cw=64*1.3*0.7, chh=64*1.3;   // กรอบลำตัว (แคบกว่ารูปเต็ม — ตัวยืนกลางภาพ)
+      const _cs=battleTokenScale(c), cw=64*1.3*0.7*_cs, chh=64*1.3*_cs;   // กรอบลำตัว (แคบกว่ารูปเต็ม — ตัวยืนกลางภาพ)
       const cL=cx-cw/2, cR=cx+cw/2, cT=cy-chh*0.875, cB=cy;
       if(Math.min(oR,cR)-Math.max(oL,cL)>10 && Math.min(oB,cB)-Math.max(oT,cT)>10) return true;
     }
@@ -11935,7 +12073,7 @@ async function renderBattleGrid(p){
     for(const c of (list||[])){ if(!c) continue; const k=c.kind; if(k!=='pc'&&k!=='ally'&&k!=='npc') continue;
       if(ISO ? ((+c.col)+(+c.row))>=md : (+c.row)>=(+t.row)) continue;   // ตัวละครอยู่หน้า/ลึกเท่ามอน = ไม่ถูกบัง
       const _b=footXY(+c.col,+c.row), cx=_b[0], cy=_b[1];
-      const cw=64*1.3*0.7, chh=64*1.3;
+      const _cs=battleTokenScale(c), cw=64*1.3*0.7*_cs, chh=64*1.3*_cs;
       const cL=cx-cw/2, cR=cx+cw/2, cT=cy-chh*0.875, cB=cy;
       if(Math.min(mR,cR)-Math.max(mL,cL)>10 && Math.min(mB,cB)-Math.max(mT,cT)>10) return true;
     }
@@ -11954,12 +12092,12 @@ async function renderBattleGrid(p){
     const _fattr=window._pcFacingV1===true&&t.kind==='pc'&&t.id?` data-face-token-id="${escapeHtml(String(t.id))}" data-face-grid-id="${escapeHtml(String(grid.id))}" data-face-col="${+t.col}" data-face-row="${+t.row}" data-face-x="${fx.toFixed(1)}" data-face-y="${fy.toFixed(1)}"`:'';
     const _gtattr=window.TTRPG_GRID_TOUCH_TELEMETRY?.tokenAttributes?.(grid,t,escapeHtml)||'';
     let s=`<g class="gtok"${_vattr}${_fattr}${_gtattr}${t._deco?' style="pointer-events:none"':''} onclick="this.classList.toggle('lblon')"><title>${escapeHtml(t.label||'')}</title>`+(_vattr?`<circle data-vfx-anchor="1" cx="${fx.toFixed(1)}" cy="${(fy-(_vrk==='object'?2:20)).toFixed(1)}" r="0" style="pointer-events:none"/>`:'');
-    if(t.ref_char_id && typeof myChar!=='undefined' && myChar && t.ref_char_id===myChar.id){ s+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy-1).toFixed(1)}" rx="14" ry="6.5" fill="none" stroke="#FAC775" stroke-width="2" opacity="0.5" style="pointer-events:none"/>`; }   // v560: มาร์คตัวเรา = วงเหลืองจางที่เท้า
+    if(t.ref_char_id && typeof myChar!=='undefined' && myChar && t.ref_char_id===myChar.id){ s+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy-1).toFixed(1)}" rx="${+(14*battleTokenScale(t)).toFixed(2)}" ry="${+(6.5*battleTokenScale(t)).toFixed(2)}" fill="none" stroke="#FAC775" stroke-width="2" opacity="0.5" style="pointer-events:none"/>`; }   // v560: มาร์คตัวเรา = วงเหลืองจางที่เท้า
     if(t.kind==='object'&&Array.isArray(t.flags)&&t.flags.includes('hazard')){ s+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy-2).toFixed(1)}" rx="14" ry="7" fill="#ff6a2b" opacity="0.32" style="pointer-events:none"><animate attributeName="opacity" values="0.18;0.5;0.18" dur="0.9s" repeatCount="indefinite"/><animate attributeName="rx" values="12;15;12" dur="0.9s" repeatCount="indefinite"/></ellipse>`; }   /* v482 P5: hazard (ไฟ/กรดบนพื้น) = วงเรืองส้มเต้น แยกจากไฟตกแต่ง */
     if(Array.isArray(t.flags)&&t.flags.includes('trap')&&t.flags.includes('revealed')){ s+=`<ellipse cx="${fx.toFixed(1)}" cy="${(fy-2).toFixed(1)}" rx="15" ry="8" fill="#ff2d2d" opacity="0.28" style="pointer-events:none"><animate attributeName="opacity" values="0.14;0.55;0.14" dur="0.85s" repeatCount="indefinite"/><animate attributeName="rx" values="12;16;12" dur="0.85s" repeatCount="indefinite"/></ellipse>`; }   /* v486 REQ3: กับดักเปิดเผย = พื้นแดงจางกระพริบ */
     // v420: ตัดเงากลม renderer ออก (ผู้ใช้ขอ — แอสเซ็ทไม่มีฐานในตัว ยืนบน tile โดยตรง) · ขยาย sprite + anchor เท้าตามชนิด (char/obj/mon เท้าคนละแถว 0.875/0.855/0.905)
     const _DETAIL=1.3;   // v422: ขยาย sprite +30% (เห็นรายละเอียดงานศิลป์ชัดขึ้น) — ปรับค่านี้ตัวเดียว
-    const _FR={ch:0.875,ob:0.855,mo:0.905}, _SZ={ch:64*_DETAIL*_ACTOR_SCALE,mo:64*_DETAIL*_ACTOR_SCALE,ob:64*_DETAIL*_ACTOR_SCALE};   // v561: สเกล 'แอสเซ็ททั้งหมด' (คน/มอน/วัตถุ) ×_ACTOR_SCALE เท่ากัน — สัดส่วนคงเดิม (แก้ v560 ที่วัตถุไม่โต = เกวียนเล็ก/มอนดูใหญ่เกิน) · base 64px × _DETAIL
+    const _FR={ch:0.875,ob:0.855,mo:0.905}, _SZ={ch:64*_DETAIL*_ACTOR_SCALE*battleTokenScale(t),mo:64*_DETAIL*_ACTOR_SCALE*battleTokenScale(t),ob:64*_DETAIL*_ACTOR_SCALE};   // v561: สเกล 'แอสเซ็ททั้งหมด' (คน/มอน/วัตถุ) ×_ACTOR_SCALE เท่ากัน — สัดส่วนคงเดิม (แก้ v560 ที่วัตถุไม่โต = เกวียนเล็ก/มอนดูใหญ่เกิน) · base 64px × _DETAIL
     const _imgTok=(href,fr,px,bl,sm)=>{ const z=px; const _rd=down?` transform="${proneTransform({x:fx-z/2,y:fy-z*fr,width:z,height:z},t,_lieDeg)}"`:''; const _st=sm?'image-rendering:auto':`image-rendering:pixelated${bl?';filter:blur('+bl+'px)':''}`; return `<image href="${href}" x="${(fx-z/2).toFixed(1)}" y="${(fy-z*fr).toFixed(1)}" width="${z.toFixed(1)}" height="${z.toFixed(1)}" style="${_st}" opacity="${op}"${_rd}/>`; };   // C0928-8: center and contain the fallen image in its own grid footprint.
     const _oimg=(t.kind==='object')?tokImgHref(t):null;
     const _oimgOk=!!(_oimg&&_oimg.url&&monSpriteOk(_oimg.url));   /* v899fe: วัตถุใช้ load-check เดียวกับมอน (v638) — storage ล้มชั่วขณะเคยค้างเป็นไอคอนรูปแตกถาวร (เคสจริง Koon 08-12) · ล้ม = ตกไป vector sprite/glyph แล้ว re-render เมื่อรู้ผล */
