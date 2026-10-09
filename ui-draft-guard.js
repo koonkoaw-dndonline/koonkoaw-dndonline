@@ -16,7 +16,7 @@
   function capture(doc){
     const d=doc||root.document,el=d&&d.activeElement;
     if(!editable(el)) return null;
-    return {element:el,locator:locator(el),value:String(el.value==null?'':el.value),start:Number.isInteger(el.selectionStart)?el.selectionStart:null,end:Number.isInteger(el.selectionEnd)?el.selectionEnd:null,direction:String(el.selectionDirection||'none'),scrollTop:Number(el.scrollTop)||0};
+    return {element:el,locator:locator(el),scope:el.getAttribute?el.getAttribute('data-action-draft-scope'):null,value:String(el.value==null?'':el.value),start:Number.isInteger(el.selectionStart)?el.selectionStart:null,end:Number.isInteger(el.selectionEnd)?el.selectionEnd:null,direction:String(el.selectionDirection||'none'),scrollTop:Number(el.scrollTop)||0};
   }
   function locate(snapshot,doc){
     const d=doc||root.document;
@@ -33,6 +33,7 @@
   function restore(snapshot,doc){
     const el=locate(snapshot,doc);
     if(!editable(el)) return false;
+    if(snapshot.scope!=null&&(!el.getAttribute||el.getAttribute('data-action-draft-scope')!==snapshot.scope))return false;
     if(String(el.value==null?'':el.value)!==snapshot.value) el.value=snapshot.value;
     try{ el.focus({preventScroll:true}); }catch(_e){ try{ el.focus(); }catch(_e2){} }
     if(snapshot.start!==null&&typeof el.setSelectionRange==='function'){
@@ -69,7 +70,8 @@
     const Observer=(d.defaultView&&d.defaultView.MutationObserver)||root.MutationObserver;
     if(Observer&&d.documentElement){ observer=new Observer(()=>schedule(d)); observer.observe(d.documentElement,{childList:true,subtree:true}); }
   }
-  const api={capture,restore,repair,protectLayer,install};
+  function forget(id){ if(activeDraft&&activeDraft.locator&&activeDraft.locator.kind==='id'&&activeDraft.locator.value===id)activeDraft=null; }
+  const api={capture,restore,repair,protectLayer,install,forget};
   root.UiDraftGuard=api;
   if(root.document){ if(root.document.readyState==='loading') root.document.addEventListener('DOMContentLoaded',()=>install(root.document),{once:true}); else install(root.document); }
 })(typeof window!=='undefined'?window:globalThis);

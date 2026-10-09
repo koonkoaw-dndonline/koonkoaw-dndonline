@@ -49,7 +49,7 @@
 (function attachDiceStage(){
   'use strict';
 
-  const BUILD='20260905-w112-card-typography';
+  const BUILD='20261009-er375-all-dice';
   const DICE_PREROLL_AUTO_MS=20000;   // no press → the stage rolls on its own
   const DICE_HOLD_MAX_MS=8000;        // content that arrives before the dice batch waits at most this long
   const DICE_STAGE_TOTAL_MS=35000;    // whole freeze budget with zero input (preroll + roll + result)
@@ -61,7 +61,6 @@
   const DICE_STAGE_MAX_OPENS_PER_KEY=2;              // W111: a round key mounts the overlay at most this many times per tab session
   const DICE_STAGE_KEY_MEMORY_MAX=20;                // W111: bounded key memory (finished keys + open counts)
   const DICE_STAGE_STORE_KEY='dice_stage_keys_v1';   // W111: sessionStorage mirror of the per-key open counts
-  const MAX_GLYPHS=6;
   const STAGE_Z_INDEX='2147482040';
   // W112 (owner feedback 2026-09-05, styling only): the result card's footer — the auto-continue hint the page mounts
   // and the "เล่นต่อ" escape directly under it — used to disagree (hint 16px/650 in a dark pill above a 14px/700
@@ -105,7 +104,7 @@
     if(event&&Array.isArray(event.dice)&&event.dice.length) kinds=event.dice.map(function(die){ return dieKind(die&&die.die); });
     else if(event&&Array.isArray(event.rawValues)&&event.rawValues.length) kinds=event.rawValues.map(function(){ return 'raw'; });
     else kinds=['d20'];
-    return Object.freeze({kinds:Object.freeze(kinds.slice(0,MAX_GLYPHS)),collapsed:Math.max(0,kinds.length-MAX_GLYPHS),count:kinds.length});
+    return Object.freeze({kinds:Object.freeze(kinds),collapsed:0,count:kinds.length});
   }
   // W110: own = the page marked the receipt pressToRoll (its actor key equals the logged-in player's character key —
   // diceMetaOwnerKey in campaign.html). Anything else, including a batch that cannot name its owner, is somebody else's
@@ -169,13 +168,14 @@
     const list=Array.isArray(events)?events.filter(isEventObject):[];
     const own=list.filter(function(event){ return event.pressToRoll===true&&!initiativeServerRolled(event); });
     const first=own[0]||list[0]||null;                              // W110: the stage describes the player's own die, never somebody else's
+    const kinds=own.flatMap(function(event){ return stageGlyphs(event).kinds; });
     return Object.freeze({
       arm:own.length>0,
       ownCount:own.length,
       total:list.length,
       queueTotal:own.length,
       label:String(first&&first.label||'').slice(0,320),
-      glyphs:stageGlyphs(first)
+      glyphs:Object.freeze({kinds:Object.freeze(kinds),collapsed:0,count:kinds.length})
     });
   }
   function ackBudgetMs(armedAt,now){
@@ -318,7 +318,7 @@
       '.dstage-title{margin-top:2px;font-size:var(--fs-lg,18px);font-weight:800;line-height:1.4}\n'+
       '.dstage-label{max-width:100%;font-size:var(--fs-base,14px);line-height:1.45;opacity:.85;overflow-wrap:anywhere}\n'+
       '.dstage-dice{position:relative;width:min(92vw,520px);max-width:100%;min-height:330px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;background:transparent;border:0;outline:0;box-shadow:none}\n'+
-      '.dstage-glyphs{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:10px 14px;padding:12px}\n'+
+      '.dstage-glyphs{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:10px 14px;padding:12px;max-height:34vh;overflow-y:auto;box-sizing:border-box}\n'+
       '.dstage-glyph{width:clamp(56px,16vw,88px);height:clamp(56px,16vw,88px);color:#f8edce;animation:dstage-idle 1.6s ease-in-out infinite}\n'+
       '.dstage-glyph:nth-child(2n){animation-delay:-.5s}.dstage-glyph:nth-child(3n){animation-delay:-1s}\n'+
       '.dstage-glyph svg{display:block;width:100%;height:100%;overflow:visible}\n'+
@@ -357,9 +357,9 @@
       const points=glyphPoints(kind), shell=documentRef.createElementNS(svgNs,points?'polygon':'rect'); shell.setAttribute('class','dstage-shell');
       if(points) shell.setAttribute('points',points);
       else { shell.setAttribute('x','8'); shell.setAttribute('y','8'); shell.setAttribute('width','84'); shell.setAttribute('height','84'); shell.setAttribute('rx','10'); }
-      const text=documentRef.createElementNS(svgNs,'text'); text.setAttribute('x','50'); text.setAttribute('y','54'); text.textContent='?';
+      const text=documentRef.createElementNS(svgNs,'text'); text.setAttribute('x','50'); text.setAttribute('y','54'); text.textContent=kind==='raw'?'•':kind;
       svg.appendChild(shell); svg.appendChild(text); holder.appendChild(svg);
-    } else holder.textContent='?';
+    } else holder.textContent=kind==='raw'?'•':kind;
     return holder;
   }
   // W111: does the dice host hold a rendered die (an idle glyph while armed, the canvas job once rolling)?
@@ -596,7 +596,7 @@
         title:copy('ถึงตาคุณทอย','Your roll'),
         label:plan.label+(plan.queueTotal>1?' · 1/'+String(plan.queueTotal):''),
         glyphs:plan.glyphs,
-        buttonLabel:copy('🎲 ทอยเต๋า','🎲 Roll the dice'),
+        buttonLabel:copy('🎲 ทอยเต๋าทั้งหมด','🎲 Roll all dice'),
         hint:hintText(DICE_PREROLL_AUTO_MS/1000),
         escapeLabel:copy('เล่นต่อ','Play on'),
         onPress:function(){ try{ if(machine)machine.press('player',REASONS.pressed); }catch(error){ failOpen(error); } },
@@ -714,7 +714,7 @@
     resultAckAutoMs:resultAckAutoMs,holdsRound:holdsRound,holdsBattleLog:holdsBattleLog,sequenceDone:sequenceDone,
     preHoldNarration:preHoldNarration,postFlipSignal:postFlipSignal,noteBattleLogRow:noteBattleLogRow,release:release,state:state,
     _pure:Object.freeze({
-      DICE_PREROLL_AUTO_MS:DICE_PREROLL_AUTO_MS,DICE_HOLD_MAX_MS:DICE_HOLD_MAX_MS,DICE_STAGE_TOTAL_MS:DICE_STAGE_TOTAL_MS,DICE_STAGE_ACK_MIN_MS:DICE_STAGE_ACK_MIN_MS,DICE_STAGE_ACK_MAX_MS:DICE_STAGE_ACK_MAX_MS,DICE_STAGE_INITIATIVE_NOTE_TTL_MS:DICE_STAGE_INITIATIVE_NOTE_TTL_MS,MAX_GLYPHS:MAX_GLYPHS,STAGE_Z_INDEX:STAGE_Z_INDEX,REASONS:REASONS,
+      DICE_PREROLL_AUTO_MS:DICE_PREROLL_AUTO_MS,DICE_HOLD_MAX_MS:DICE_HOLD_MAX_MS,DICE_STAGE_TOTAL_MS:DICE_STAGE_TOTAL_MS,DICE_STAGE_ACK_MIN_MS:DICE_STAGE_ACK_MIN_MS,DICE_STAGE_ACK_MAX_MS:DICE_STAGE_ACK_MAX_MS,DICE_STAGE_INITIATIVE_NOTE_TTL_MS:DICE_STAGE_INITIATIVE_NOTE_TTL_MS,STAGE_Z_INDEX:STAGE_Z_INDEX,REASONS:REASONS,
       DICE_STAGE_RENDER_WATCH_MS:DICE_STAGE_RENDER_WATCH_MS,DICE_STAGE_MAX_OPENS_PER_KEY:DICE_STAGE_MAX_OPENS_PER_KEY,DICE_STAGE_KEY_MEMORY_MAX:DICE_STAGE_KEY_MEMORY_MAX,DICE_STAGE_STORE_KEY:DICE_STAGE_STORE_KEY,SERVER_INITIATIVE_SOURCES:SERVER_INITIATIVE_SOURCES,
       OVERLAY_INLINE_STYLE:OVERLAY_INLINE_STYLE,PANEL_INLINE_STYLE:PANEL_INLINE_STYLE,
       FOOTER_W:FOOTER_W,FOOTER_GAP:FOOTER_GAP,FOOTER_CTRL_H:FOOTER_CTRL_H,FOOTER_HINT_PX:FOOTER_HINT_PX,FOOTER_BTN_PX:FOOTER_BTN_PX,FOOTER_HINT_FONT:FOOTER_HINT_FONT,FOOTER_BTN_FONT:FOOTER_BTN_FONT,

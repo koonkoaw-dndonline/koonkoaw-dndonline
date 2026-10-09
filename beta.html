@@ -30,8 +30,8 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./dice-roll-sound.js?v=0823"></script>
 <script src="./dice-fx.js?v=0903"></script>
 <script src="./dice-canvas.js?v=20260927dicelive01"></script>
-<script src="./dice-stage.js?v=0907"></script>
-<script src="./ui-draft-guard.js?v=0831"></script>
+<script src="./dice-stage.js?v=20261009f375"></script>
+<script src="./ui-draft-guard.js?v=20261009f375"></script>
 <script src="./music-playback-owner.js?v=847"></script>
 <script src="./music-v2-dark-launch.js?v=20261002q174"></script>
 <script src="./npc-codex-reader.js?v=0826r14"></script>
@@ -392,6 +392,10 @@ html.skin-paper .terminal-error-close:hover,html.skin-paper .terminal-error-clos
 #topbar{flex-shrink:0;}
 body.ui-min #topbar{display:none!important;}
 body.ui-min #worldClock{display:none!important;}
+@media(max-width:1023px){
+  body.ui-min #worldClock.quest-alert-active{display:flex!important;}
+  body.ui-min #worldClock.quest-alert-active>.whbox:not(.quest-location):not(.quest-affordance-story-signal){display:none!important;}
+}
 /* มือถือ: แถบ clock ใน topbar (ใต้แท็บ) — โผล่พร้อมแท็บเมื่อกดลูกศรขยายเมนู · เดสก์ทอปใช้ #worldClock ลอยซ้ายแทน */
 .mobileclock{display:none;}
 @media (max-width:1023px){
@@ -1987,6 +1991,31 @@ body{--er-type-micro:var(--er-fs-xs);--er-type-meta:var(--er-fs-sm);--er-type-bo
 /* Text flow under the header: long words wrap, figures line up. */
 :root body :is(.narr,.chron-text,.actionlog,.npc5-detail,.chatbody,.muted,.note,.sub,.meta,.meta-inline,.cc-meta,.bs-log-list,.bs-chat-msg,.bs-iname,.albumcap){overflow-wrap:break-word}
 :root body :is(.kv,.cc-tag,.bs-ihp){font-variant-numeric:tabular-nums}
+/* D1-384: inline receipt stage; stays in the existing receipt-first slot, never overlays prose. */
+#inventoryReceiptFirst{min-width:0;}
+#inventoryReceiptFirst .story-roll-banner{min-width:0;border:1px solid var(--dice-summary-border);border-radius:10px;background:var(--dice-summary-bg);color:var(--dice-summary-ink);font:400 var(--er-type-body)/1.65 var(--er-body);overflow-wrap:anywhere;}
+#inventoryReceiptFirst .story-roll-head{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;padding:10px 14px;}
+#inventoryReceiptFirst .story-roll-title{flex:1 1 130px;font-size:var(--er-type-body);font-weight:700;line-height:1.6;margin:0;}
+#inventoryReceiptFirst .story-roll-controls{display:flex;gap:6px;flex-wrap:wrap;}
+#inventoryReceiptFirst .story-roll-control{min-height:44px;padding:6px 10px;border:1px solid currentColor;border-radius:5px;background:transparent;color:inherit;font:600 var(--er-type-meta)/1.5 var(--er-body);cursor:pointer;}
+#inventoryReceiptFirst .story-roll-control:focus-visible{outline:3px solid currentColor;outline-offset:3px;}
+#inventoryReceiptFirst .story-roll-body[hidden],#inventoryReceiptFirst .story-roll-banner[hidden]{display:none;}
+#inventoryReceiptFirst .story-roll-card{display:grid;grid-template-columns:90px minmax(0,1fr);gap:14px;padding:16px;border-top:1px solid var(--dice-summary-border);align-items:center;min-width:0;}
+#inventoryReceiptFirst .story-roll-die{position:relative;display:grid;place-items:center;width:88px;height:96px;color:var(--dice-summary-border);flex:none;}
+#inventoryReceiptFirst .story-roll-die svg{position:absolute;inset:0;width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:2;}
+#inventoryReceiptFirst .story-roll-face{font:800 32px/1.2 var(--er-body);color:var(--dice-summary-ink);font-variant-numeric:tabular-nums;}
+#inventoryReceiptFirst .story-roll-kind{position:absolute;bottom:5px;font:600 12px/1.5 var(--er-body);color:var(--dice-summary-ink);}
+#inventoryReceiptFirst .story-roll-info{min-width:0;}
+#inventoryReceiptFirst .story-roll-actor{font-weight:600;line-height:1.65;margin-bottom:4px;}
+#inventoryReceiptFirst .story-roll-equation{font-size:var(--er-type-meta);font-variant-numeric:tabular-nums;line-height:1.65;}
+#inventoryReceiptFirst .story-roll-total{font-size:var(--er-type-title);font-weight:800;}
+#inventoryReceiptFirst .story-roll-outcome{display:block;width:fit-content;max-width:100%;margin-top:8px;padding:5px 10px;border:1px solid currentColor;border-radius:5px;background:var(--dice-neutral-bg);color:var(--dice-neutral-ink);font-weight:700;line-height:1.6;}
+#inventoryReceiptFirst [data-story-roll-tone="success"] .story-roll-outcome{background:var(--dice-success-bg);color:var(--dice-success-ink);}
+#inventoryReceiptFirst [data-story-roll-tone="failure"] .story-roll-outcome{background:var(--dice-failure-bg);color:var(--dice-failure-ink);}
+#inventoryReceiptFirst [data-story-roll-tone="critical"] .story-roll-outcome{background:var(--dice-critical-bg);color:var(--dice-critical-ink);}
+#inventoryReceiptFirst .story-roll-plain{white-space:pre-wrap;padding:10px 0;}
+:root:not(.skin-paper) #inventoryReceiptFirst .story-roll-banner{border-radius:2px;}
+@media(max-width:480px){#inventoryReceiptFirst .story-roll-card{grid-template-columns:68px minmax(0,1fr);gap:10px;padding:12px;}#inventoryReceiptFirst .story-roll-die{width:68px;height:80px;}#inventoryReceiptFirst .story-roll-face{font-size:var(--er-fs-3xl);}#inventoryReceiptFirst .story-roll-head{padding:8px 12px;}}
 </style>
 </head>
 <body>
@@ -2087,6 +2116,8 @@ body{--er-type-micro:var(--er-fs-xs);--er-type-meta:var(--er-fs-sm);--er-type-bo
       </div>
       <p class="note hidden" id="englishLanguageDisabled" data-i18n="language.enDisabled">English mode ยังไม่เปิดใช้งาน / English mode is not enabled yet.</p>
       <p class="note hidden" id="englishAssetUnavailable" style="color:#a11;white-space:pre-line"></p>
+      <p class="note hidden" id="englishAvailabilityStatus" role="status" aria-live="polite"></p>
+      <button type="button" class="btn ghost sm hidden" id="englishAvailabilityRetry" onclick="refreshEnglishModeAvailability()"></button>
     </div>
   </div>
   <div id="englishAssetBlockScreen" class="hidden">
@@ -2339,7 +2370,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202610091233;
+const FRONTEND_BUILD = 202610101235;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2491,9 +2522,8 @@ async function submitQuestAffordance(affordance){
     window._actionEditDraft=''; window._actionRepair=null;
     toast(uiCopy('ส่งตัวเลือกเควสแล้ว ✓','Quest choice submitted ✓'));
     await loadRound(); renderRoundbar(); window._afterSubmit=true; await resolveRound(false);
-    if(activeTab()==='quest') await renderQuest();
-  }catch(e){ toast(e.message||uiCopy('ส่งตัวเลือกเควสไม่สำเร็จ — ยังไม่มีสถานะเควสถูกเปลี่ยน','Could not send this quest choice. Your quest progress is unchanged.'),true); }
-  finally{ window._questAffordanceSubmitting=false; actionSubmitFeedback(); try{ if(activeTab()==='quest') renderQuest(); else if(activeTab()==='story') renderStory(); }catch(e){} }
+  }catch(e){ toast(e.message||uiCopy('ยังยืนยันผลตัวเลือกเควสไม่ได้ โปรดตรวจสถานะล่าสุดก่อนส่งอีกครั้ง','Could not confirm the quest choice. Check the latest status before submitting again.'),true); }
+  finally{ window._questAffordanceSubmitting=false; actionSubmitFeedback(); try{ if(activeTab()==='quest') await renderQuest(); else if(activeTab()==='story') renderStory(); }catch(e){} }
 }
 async function retractActionForEdit(actionId, draftText){
   if(window.gameMaintenance&&window.gameMaintenance.blocked()){toast(window.gameMaintenance.note(),true);return false;}
@@ -2505,6 +2535,7 @@ async function retractActionForEdit(actionId, draftText){
     if(rpc.error||!rpc.data||rpc.data.ok!==true) throw new Error(actionIngressError(rpc.data&&rpc.data.error,rpc.error&&rpc.error.message));
     if(rpc.data.status==='not_found') throw new Error(uiCopy('ไม่พบการกระทำนี้ในรอบปัจจุบัน — ฉบับร่างยังอยู่ครบ กรุณาโหลดรอบล่าสุด','That action was not found in the current round. Your draft is preserved; load the latest round.'));
     window._actionEditDraft=String(draftText||''); window._actionRepair=null;
+    setActionDraftText(myChar&&myChar.id,window._actionEditDraft);
     toast(uiCopy('ปลดคำสั่งที่ค้างแล้ว — แก้ข้อความและส่งใหม่ได้','The stuck action was released — edit it and submit again.'));
     await loadRound(); renderRoundbar();
     return true;
@@ -2598,6 +2629,7 @@ function renderCampaignCreateAccess(){
   note.style.display=allowed?'none':'';
 }
 function openHostLobby(){
+  if(!['th','en'].includes(pendingGameLanguage)){showLanguagePicker(true);return;}
   if(!(campaignCreateAccess&&campaignCreateAccess.allowed===true)){
     toast(campaignCreateAccessMessage(campaignCreateAccess),true); return;
   }
@@ -3684,6 +3716,11 @@ function showEnglishAssetBlock(surface){
   show('lobbyScreen'); lobbyGo('englishAssetBlockScreen');
 }
 function syncEnglishLanguageUi(){
+  const state=typeof englishAvailabilityStatus==='string'?englishAvailabilityStatus:'idle';
+  const status=$('englishAvailabilityStatus'),retry=$('englishAvailabilityRetry'),disabled=$('englishLanguageDisabled');
+  if(status){status.textContent=state==='loading'?uiCopy('กำลังตรวจสอบภาษาที่เปิดให้เล่น…','Checking available world languages…'):state==='failed'?uiCopy('ยังตรวจสอบภาษาไม่สำเร็จ ลองอีกครั้งได้','Could not check world languages. You can try again.') : '';status.classList.toggle('hidden',!status.textContent);}
+  if(retry){retry.textContent=uiCopy('ตรวจสอบภาษาอีกครั้ง','Check languages again');retry.classList.toggle('hidden',state!=='failed');}
+  if(disabled)disabled.classList.toggle('hidden',state!=='ready'||englishModeServerEnabled);
   const eb=$('englishLanguageBtn'); if(eb)eb.classList.toggle('hidden',!englishModeAvailable);
   const note=$('englishAssetUnavailable'); if(note){const show=ENGLISH_UI_ENABLED&&englishModeServerEnabled&&!_I18N_ASSETS_OK;note.textContent=show?_I18N_ASSET_VETO_NOTE:'';note.classList.toggle('hidden',!show);}
 }
@@ -3694,13 +3731,20 @@ function showLanguagePicker(clearPending){
   ['worldSwitcherScreen','englishAssetBlockScreen','roleScreen','joinScreen','hostModeScreen','hostCreateScreen','hostOneshotScreen'].forEach(s=>{const el=$(s);if(el)el.classList.add('hidden');});
   const ls=$('languageScreen'); if(ls) ls.classList.remove('hidden');
   syncEnglishLanguageUi();
+  if(englishAvailabilityStatus!=='ready')void refreshEnglishModeAvailability();
 }
-async function refreshEnglishModeAvailability(){
-  englishModeAvailable=false; englishModeServerEnabled=false;
-  try{const r=await supa.rpc('english_mode_enabled'); englishModeServerEnabled=!r.error&&r.data===true;}catch(e){}
-  englishModeAvailable=ENGLISH_UI_ENABLED&&englishModeServerEnabled&&_I18N_ASSETS_OK;
-  syncEnglishLanguageUi();
-  if(englishModeServerEnabled&&!_I18N_ASSETS_OK)void reportI18nAssetFailure('language-availability');
+let englishAvailabilityFlight=null,englishAvailabilityStatus='idle';
+function refreshEnglishModeAvailability(){
+  if(englishAvailabilityFlight)return englishAvailabilityFlight;
+  englishModeAvailable=false; englishModeServerEnabled=false; englishAvailabilityStatus='loading';syncEnglishLanguageUi();
+  englishAvailabilityFlight=(async()=>{
+    try{const r=await supa.rpc('english_mode_enabled');if(r.error)throw r.error;englishModeServerEnabled=r.data===true;englishAvailabilityStatus='ready';}
+    catch(e){englishAvailabilityStatus='failed';}
+    englishModeAvailable=ENGLISH_UI_ENABLED&&englishModeServerEnabled&&_I18N_ASSETS_OK;
+    syncEnglishLanguageUi();
+    if(englishModeServerEnabled&&!_I18N_ASSETS_OK)void reportI18nAssetFailure('language-availability');
+  })().finally(()=>{englishAvailabilityFlight=null;});
+  return englishAvailabilityFlight;
 }
 function chooseGameLanguage(lang){
   const requested=String(lang||'').toLowerCase();
@@ -4295,9 +4339,9 @@ function renderWorldSwitcher(){
   const list=$('worldSwitcherList'); if(!list)return;
   const title=$('worldSwitcherTitle'), sub=$('worldSwitcherSub'), th=$('worldSwitcherTh'), en=$('worldSwitcherEn');
   if(title)title.textContent=uiCopy('เลือกโลก','Choose a world');
-  if(sub)sub.textContent=uiCopy('เลือกโลกที่ต้องการเข้า การสลับโลกจะไม่ออกจากกลุ่มและไม่ลบข้อมูลใด ๆ','Choose the world to enter. Switching does not leave a group or delete any data.');
-  if(th){th.textContent=uiCopy('ไทย','Thai');th.style.outline=worldSwitcherLanguage==='th'?'2px solid currentColor':'';}
-  if(en){en.textContent=uiCopy('อังกฤษ','English');en.style.outline=worldSwitcherLanguage==='en'?'2px solid currentColor':'';}
+  if(sub)sub.textContent=uiCopy('เลือกโลกที่ต้องการเข้า ภาษาของแต่ละโลกระบุไว้บนการ์ด ปุ่มภาษาเมนูไม่เปลี่ยนภาษาของโลก','Choose a world to enter. Each card shows its world language. The interface buttons do not change world language.');
+  if(th){th.textContent=uiCopy('ภาษาเมนู: ไทย','Interface: Thai');th.style.outline=worldSwitcherLanguage==='th'?'2px solid currentColor':'';}
+  if(en){en.textContent=uiCopy('ภาษาเมนู: อังกฤษ','Interface: English');en.style.outline=worldSwitcherLanguage==='en'?'2px solid currentColor':'';}
   list.replaceChildren();
   worldChoices.forEach(choice=>{
     const c=choice.campaign||{}, ended=c.status==='ended', host=(choice.role==='host'||(me&&c.host_id===me.id));
@@ -4537,6 +4581,7 @@ function modeNext(){
 function pickStyle(el,s,scope){ pendingStyle=s; document.querySelectorAll('#'+scope+' .stylepick').forEach(x=>x.style.outline=''); el.style.outline='2px solid currentColor'; }
 function pickLevel(el,n){ pendingLevel=n; document.querySelectorAll('#hostOneshotScreen .lvlpick').forEach(x=>x.style.outline=''); el.style.outline='2px solid currentColor'; }
 async function createCampaign(){
+  if(!['th','en'].includes(pendingGameLanguage)){showLanguagePicker(true);return;}
   const requested=String(pendingGameLanguage||'th').toLowerCase();
   if(requested==='en'&&englishAssetVeto('create-campaign'))return;
   const lang=UI18N.language(requested);
@@ -4638,6 +4683,7 @@ async function createCampaign(){
   finally{ $('createBtn').disabled=false; $('createBtn').textContent=UI18N.text(lang,'create.button'); if($('createOsBtn')){ $('createOsBtn').disabled=false; $('createOsBtn').textContent=UI18N.text(lang,'oneshot.button'); } }
 }
 async function joinCampaign(){
+  if(!['th','en'].includes(pendingGameLanguage)){showLanguagePicker(true);return;}
   const requested=String(pendingGameLanguage||'th').toLowerCase();
   if(requested==='en'&&englishAssetVeto('join-campaign'))return;
   const lang=UI18N.language(requested);
@@ -5356,9 +5402,9 @@ async function loadRound(source){
 }
 // SEQ232: publication can be the first visible event for an RLS-hidden encounter.
 async function refreshPublishedCombatUi(){
-  if(!curRound||!curRound.meta||!curRound.meta.combat||curRound.meta.combat.active!==true)return;
+  if(!curRound)return;   // F1-375: a published DM row may precede the combat stamp; read the scoped encounter.
   const context=roundRequestContext();
-  if(gCombat&&gCombat.encounter&&roundRequestContextMatches(gCombat.encounterContext))return;
+  if(curRound.meta&&curRound.meta.combat&&curRound.meta.combat.active===true&&gCombat&&gCombat.encounter&&roundRequestContextMatches(gCombat.encounterContext))return;
   await refreshCombatTurn();
   if(!roundRequestContextMatches(context))return;
   await updateCombatBadge();
@@ -5408,7 +5454,7 @@ function narrText(n){
   const value=narrativeProjectionMode(n)==='enforce'&&p?p:(legacy||String(n.content||''));
   if(!/^(dm|system)$/i.test(String(n.author||'dm'))) return value;
   const languageClean=stripLanguageRepairMetaText(value);
-  return narrativeKeepsAuthoritativeCorrectionReceipt(n,languageClean)?languageClean:stripNarrativeEditorialMeta(languageClean);
+  return narrativeKeepsAuthoritativeCorrectionReceipt(n,languageClean)?languageClean.replace(/([（(])\s*(?:แก้|fixed)\s*:\s*/giu,'$1'):stripNarrativeEditorialMeta(languageClean);
 }
 function narrProjectionNote(n){
   return narrativeProjectionMode(n)==='enforce'&&n&&n.projection_status==='corrected'?stripNarrativeEditorialMeta(String(n.projection_note||'')):'';
@@ -5458,7 +5504,7 @@ async function loadNarrative(){
     .eq('group_no',terminalGroupForUi())
     .order('created_at',{ascending:false}).limit(NARR_WINDOW);
     if(error) throw error; const rows=(data||[]); narrMore = rows.length>=NARR_WINDOW; narrative = narrativeChronologicalRows(rows); cacheSave('narrative_g'+terminalGroupForUi(),narrative);
-  }catch(e){ const c=cacheLoad('narrative_g'+terminalGroupForUi()); if(c) narrative=narrativeChronologicalRows(c); }
+  }catch(e){ const c=cacheLoad('narrative_g'+terminalGroupForUi()); if(c&&!narrativeLastSeenForScope(narrative,campaign&&campaign.id,terminalGroupForUi())) narrative=narrativeChronologicalRows(c); }
   await loadNarrativeActionStates(narrative);
   _cacheSet('ttrpg_chron_'+campaign.id, JSON.stringify(narrative.map(n=>narrText(n))));   // v680: canonical projection ผ่านงบ cache
   try{if(typeof triggerPostFlipRoundRefetchFromRows==='function')triggerPostFlipRoundRefetchFromRows(narrative);}catch(_postFlipLoadNarrativeTriggerError){}
@@ -5610,15 +5656,17 @@ async function reconcileNarrativeAfter(lastSeenAt){
   }catch(e){ return false; }
 }
 async function reconcileNarrativeTail(){
-  if(!Array.isArray(narrative)||!narrative.length) return false;
-  const cursor=narrativeLastSeenAt(narrative);
-  if(!cursor||!campaign||!campaign.id) return false;
+  if(!campaign||!campaign.id) return false;
+  const context=roundRequestContext();
+  const cursor=narrativeLastSeenForScope(narrative,campaign.id,terminalGroupForUi());
   try{
     const groupNo=terminalGroupForUi();
     const windowStart=narrativeReconcileWindowStart(cursor);
-    const {data,error}=await supa.from('narrative').select('*').eq('campaign_id',campaign.id)
-      .eq('group_no',groupNo).gte('created_at',windowStart).order('created_at',{ascending:false}).limit(NARR_RECONCILE_LIMIT);
+    let query=supa.from('narrative').select('*').eq('campaign_id',campaign.id).eq('group_no',groupNo);
+    if(cursor)query=query.gte('created_at',windowStart);
+    const {data,error}=await query.order('created_at',{ascending:false}).limit(NARR_RECONCILE_LIMIT);
     if(error) throw error;
+    if(!roundRequestContextMatches(context))return false;
     return await applyNarrativeReconcileRows(data);
   }catch(e){ return false; }
 }
@@ -5937,7 +5985,7 @@ function renderClock(){
   const st=worldState||{}; const c=st.clock||{}; const L=st.location||{};
   const hasClock=c&&Object.keys(c).length;
   const locParts=[L.site,L.settlement,L.region,L.kingdom].filter(Boolean);
-  if(!hasClock && !locParts.length){ el.classList.add('hidden'); return; }
+  if(!hasClock && !locParts.length){ el.replaceChildren(); el.classList.add('hidden'); $('mobileClock')?.classList.add('hidden'); renderQuestAffordanceStorySignal(); return; }
   const E=escapeHtml; let h='';
   if(hasClock){
     h+='<div class="whbox"><span class="whlabel">WORLD</span>';
@@ -5949,7 +5997,7 @@ function renderClock(){
     h+='</div>';
   }
   if(locParts.length){
-    h+=`<div class="whbox"><span class="whlabel">LOCATION</span><span class="wh"><span class="whico">📍</span><b>${locParts.map(E).join(' · ')}</b></span></div>`;
+    h+=`<div class="whbox quest-location"><span class="whlabel">LOCATION</span><span class="wh"><span class="whico">📍</span><b>${locParts.map(E).join(' · ')}</b></span></div>`;
   }
   h+='<div class="whbox" id="relTopBox" style="display:none"></div>';   // v610: คนสนิท top-5 ใต้ LOCATION (เดสก์ทอปเท่านั้น — มือถือซ่อนด้วย CSS)
   el.innerHTML=h; el.classList.remove('hidden');
@@ -5971,6 +6019,7 @@ function renderClock(){
       mc.innerHTML=m; mc.classList.remove('hidden');
     }
   }
+  renderQuestAffordanceStorySignal();
 }
 
 // ── v610: คนสนิท top-5 ใต้ LOCATION (ความสัมพันธ์ส่วนตัวของผู้เล่นคนนี้ — RLS คืนเฉพาะของตัวเอง) ──
@@ -6091,7 +6140,7 @@ function fillJoinBriefing(){
   if(!summary && !lastDM){ box.classList.add('hidden'); return; }   // ยังไม่มีเรื่อง = ปาร์ตี้เริ่มต้น ไม่ต้องโชว์
   let h='<div class="sectitle" style="margin:0 0 6px">'+escapeHtml(uiText('builder.briefTitle'))+'</div>';
   if(summary) h+=`<div style="line-height:1.6;font-size:var(--fs-base);white-space:pre-wrap">${escapeHtml(plainNarr(summary))}</div>`;
-  if(lastDM) h+=`<div class="sectitle" style="margin:10px 0 4px">${escapeHtml(uiText('builder.currentScene'))}</div><div style="line-height:1.6;font-size:var(--fs-base);white-space:pre-wrap">${escapeHtml(plainNarr(narrText(lastDM)).slice(0,800))}</div>`;
+  if(lastDM) h+=`<div class="sectitle" style="margin:10px 0 4px">${escapeHtml(uiText('builder.currentScene'))}</div><div style="line-height:1.6;font-size:var(--fs-base);white-space:pre-wrap">${escapeHtml(plainNarr(narrText(lastDM)))}</div>`;
   h+='<div class="note" style="margin-top:8px">'+escapeHtml(uiText('builder.briefNote'))+'</div>';
   box.innerHTML=h; box.classList.remove('hidden');
 }
@@ -7168,16 +7217,82 @@ function applyNarrativeFoldElement(element,n){
   element.setAttribute('role','button');element.setAttribute('tabindex','0');element.setAttribute('aria-expanded',element.classList.contains('narrc-fold-open')?'true':'false');
   const toggle=()=>{const open=element.classList.toggle('narrc-fold-open');element.setAttribute('aria-expanded',open?'true':'false');};element.onclick=toggle;element.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();toggle();}};
 }
+// D1-384 pure start — present only the server's exact committed receipt format.
+function storyReceiptBannerModels(n,text){
+  if(!String(n&&n.source_content||'').startsWith('system:story-check:'))return null;
+  const src=String(text||'').trim(),prefix=/^📜 (?:สิ่งที่เกิดขึ้น|What happened) — /;
+  if(!prefix.test(src))return null;
+  const parts=src.replace(prefix,'').split(/ +· +(?=[🎯🛡])/u);if(!parts.length||parts.length>8)return null;
+  const outcomes=[
+    ['success','ความพยายามสำเร็จ','the attempt succeeds','ยืนหยัดต้านผลกระทบไว้ได้','holds firm against the effect'],
+    ['critical','ความพยายามสำเร็จเกินคาด','the attempt succeeds beyond expectation'],
+    ['failure','ความพยายามยังไม่สำเร็จ','the attempt does not succeed','ความพยายามพลาดอย่างหนัก','the attempt goes badly awry','ความพยายามเกือบสำเร็จ แต่ยังขาดอีกนิด','the attempt comes close, but falls just short','ความพยายามไม่สำเร็จ และสถานการณ์ย้อนกลับมากดดัน','the attempt fails, and the situation presses back','cannot withstand the effect','ต้านผลกระทบไว้ไม่ไหว']
+  ];
+  const out=[];
+  for(const part of parts){
+    const m=part.match(/^(?:🎯|🛡)\s+(.+?)\s+\(d20 (\d{1,2}) ([+−-]) (\d{1,2}) = (-?\d{1,3}) vs DC (\d{1,2})\) — (.+)$/u);
+    if(!m)return null;
+    const face=Number(m[2]),bonus=Number(m[4])*(m[3]==='+'?1:-1),total=Number(m[5]),dc=Number(m[6]),outcome=m[7].trim();
+    const classification=outcomes.find(row=>row.slice(1).includes(outcome));
+    if(face<1||face>20||dc<1||dc>99||face+bonus!==total||!classification)return null;
+    out.push({actor:m[1],face:face,bonus:bonus,total:total,dc:dc,outcome:outcome,tone:classification[0]});
+  }
+  return out;
+}
+// D1-384 pure end
+const _storyReceiptBannerViews=new Map();
+function renderStoryReceiptBanner(rows,box){
+  const selected=rows.map(n=>({n:n,text:narrText(n)})).filter(row=>String(row.n&&row.n.source_content||'').startsWith('system:story-check:')&&row.text);
+  if(!selected.length)return;
+  const key=String(campaign&&campaign.id||'')+':'+String(curRound&&curRound.id||''),signature=JSON.stringify(selected.map(row=>[row.n.id,row.text]));
+  let state=_storyReceiptBannerViews.get(key);if(!state||state.signature!==signature){state={signature:signature,mode:'open'};_storyReceiptBannerViews.set(key,state);}
+  while(_storyReceiptBannerViews.size>20)_storyReceiptBannerViews.delete(_storyReceiptBannerViews.keys().next().value);
+  const banner=document.createElement('section');banner.className='story-roll-banner';banner.setAttribute('aria-label',uiCopy('ผลทอยนอกศึก','Story roll results'));
+  const head=document.createElement('div');head.className='story-roll-head';
+  const title=document.createElement('h3');title.className='story-roll-title';title.textContent=uiCopy('ผลทอยนอกศึก','Story roll results');head.appendChild(title);
+  const controls=document.createElement('div');controls.className='story-roll-controls';
+  const toggle=document.createElement('button');toggle.type='button';toggle.className='story-roll-control';toggle.dataset.storyReceiptControl='toggle';toggle.setAttribute('aria-controls','storyReceiptBannerBody');
+  const close=document.createElement('button');close.type='button';close.className='story-roll-control';close.dataset.storyReceiptControl='close';close.textContent=uiCopy('ปิด','Close');close.setAttribute('aria-label',uiCopy('ปิดผลทอยนอกศึก','Close story roll results'));
+  controls.appendChild(toggle);controls.appendChild(close);head.appendChild(controls);banner.appendChild(head);
+  const body=document.createElement('div');body.className='story-roll-body';body.id='storyReceiptBannerBody';banner.appendChild(body);
+  selected.forEach(row=>{
+    const models=storyReceiptBannerModels(row.n,row.text);
+    if(!models){const plain=document.createElement('div');plain.className='story-roll-card story-roll-plain';plain.style.display='block';plain.textContent=row.text;body.appendChild(plain);return;}
+    models.forEach(model=>{
+      const card=document.createElement('article');card.className='story-roll-card';card.dataset.nid=String(row.n.id||'');card.dataset.storyRollTone=model.tone;
+      const die=document.createElement('div');die.className='story-roll-die';die.setAttribute('aria-label',uiCopy('ผลลูกเต๋า','Die result')+' d20: '+model.face);
+      die.innerHTML='<svg viewBox="0 0 90 100" aria-hidden="true"><path d="M45 3 85 26 85 73 45 96 5 73 5 26Z M45 3 21 31 69 31 45 3 M5 26 21 31 5 73 45 81 85 73 69 31 85 26 M21 31 45 81 69 31 M45 81 45 96"/></svg>';
+      const face=document.createElement('span');face.className='story-roll-face';face.textContent=String(model.face);face.setAttribute('aria-hidden','true');die.appendChild(face);
+      const kind=document.createElement('span');kind.className='story-roll-kind';kind.textContent='d20';kind.setAttribute('aria-hidden','true');die.appendChild(kind);card.appendChild(die);
+      const info=document.createElement('div');info.className='story-roll-info';
+      const actor=document.createElement('div');actor.className='story-roll-actor';actor.textContent=model.actor;info.appendChild(actor);
+      const equation=document.createElement('div');equation.className='story-roll-equation';equation.appendChild(document.createTextNode('d20 '+model.face+' '+(model.bonus<0?'−':'+')+' '+Math.abs(model.bonus)+' = '));
+      const total=document.createElement('strong');total.className='story-roll-total';total.textContent=String(model.total);equation.appendChild(total);equation.appendChild(document.createTextNode(' · DC '+model.dc));info.appendChild(equation);
+      const outcome=document.createElement('div');outcome.className='story-roll-outcome';outcome.textContent=model.outcome;info.appendChild(outcome);card.appendChild(info);body.appendChild(card);
+    });
+  });
+  const reopen=document.createElement('button');reopen.type='button';reopen.className='story-roll-control';reopen.dataset.storyReceiptControl='reopen';reopen.textContent=uiCopy('แสดงผลทอยนอกศึก','Show story roll results');
+  const refresh=()=>{banner.hidden=state.mode==='closed';reopen.hidden=state.mode!=='closed';body.hidden=state.mode!=='open';toggle.setAttribute('aria-expanded',state.mode==='open'?'true':'false');toggle.textContent=state.mode==='open'?uiCopy('ย่อ','Collapse'):uiCopy('ขยาย','Expand');};
+  toggle.onclick=()=>{state.mode=state.mode==='open'?'collapsed':'open';refresh();};
+  close.onclick=()=>{state.mode='closed';refresh();reopen.focus();};
+  reopen.onclick=()=>{state.mode='open';refresh();toggle.focus();};
+  refresh();box.appendChild(banner);box.appendChild(reopen);
+}
 function renderProgressiveReceipts(rows){
   const box=$('inventoryReceiptFirst'); if(!box) return;
+  const focus=box.contains(document.activeElement)&&document.activeElement.dataset.storyReceiptControl;
   box.innerHTML='';
-  if(!rows.length){ box.style.display='none'; return; }
-  box.style.cssText='display:grid;gap:7px;margin:0 0 10px;padding:10px;border:1px solid rgba(250,199,117,.55);border-radius:10px;background:rgba(250,199,117,.08)';
-  const title=document.createElement('div'); title.className='sectitle'; title.textContent=uiCopy('สิ่งที่เกิดขึ้นแล้ว','What has happened'); box.appendChild(title);
-  rows.forEach(n=>{
+  const visible=rows.filter(n=>!!narrText(n));
+  if(!visible.length){ box.style.display='none'; return; }
+  box.style.cssText='display:grid;gap:7px;margin:0 0 10px';
+  renderStoryReceiptBanner(visible,box);
+  const inventory=visible.filter(n=>!String(n&&n.source_content||'').startsWith('system:story-check:'));
+  if(inventory.length){const title=document.createElement('div');title.className='sectitle';title.textContent=uiCopy('สิ่งที่เกิดขึ้นแล้ว','What has happened');box.appendChild(title);}
+  inventory.forEach(n=>{
     const item=document.createElement('div'); item.className='note narrc'; item.dataset.nid=String(n.id||'');
     const text=narrText(n);item.innerHTML=narrDraw(n);decorateDiceResultElement(item,text,n&&n.pass,n&&n.tier);applyNarrativeFoldElement(item,n);box.appendChild(item);
   });
+  if(focus){const target=box.querySelector('[data-story-receipt-control="'+focus+'"]');if(target&&!target.hidden)target.focus({preventScroll:true});}
 }
 function pendingRecruitmentNames(rows){
   const out=[], seen=new Set();
@@ -7214,16 +7329,20 @@ function renderRecruitmentAffordance(feed,rows){
   });
 }
 function renderQuestAffordanceStorySignal(feed){
-  if(!feed) return;
-  feed.querySelectorAll('.quest-affordance-story-signal').forEach(node=>node.remove());
-  const affordances=questAffordancesForUi(); if(!affordances.length) return;
+  feed?.querySelectorAll('.quest-affordance-story-signal').forEach(node=>node.remove());
+  const hud=$('worldClock'); if(!hud) return;
+  hud.querySelectorAll('.quest-affordance-story-signal').forEach(node=>node.remove());
+  const affordances=questAffordancesForUi();
+  hud.classList.toggle('quest-alert-active',affordances.length>0);
+  if(!affordances.length) return;
+  hud.classList.remove('hidden');
   const acceptCount=affordances.filter(aff=>aff.operation==='accept').length, turnInCount=affordances.length-acceptCount;
-  const card=document.createElement('div'); card.className='item quest-affordance-story-signal'; card.style.cssText='width:100%;box-sizing:border-box;border-color:#FAC775;text-align:left';
-  const title=document.createElement('div'); title.style.cssText='font-weight:700;color:#FAC775;margin-bottom:4px'; title.textContent=uiCopy('📜 มีงานรอการตัดสินใจในแท็บ Quest','📜 Quest choices are waiting in the Quest tab'); card.appendChild(title);
+  const card=document.createElement('div'); card.className='whbox quest-affordance-story-signal'; card.style.cssText='width:100%;box-sizing:border-box;text-align:left;overflow-wrap:anywhere';
+  const title=document.createElement('div'); title.style.cssText='font-weight:700;margin-bottom:4px'; title.textContent=uiCopy('📜 มีงานรอการตัดสินใจในแท็บ Quest','📜 Quest choices are waiting in the Quest tab'); card.appendChild(title);
   const detail=document.createElement('div'); detail.className='note'; detail.style.cssText='text-align:left;padding:0 0 7px';
   detail.textContent=uiCopy('รับได้ '+acceptCount+' · พร้อมส่ง '+turnInCount,'Available '+acceptCount+' · ready to turn in '+turnInCount); card.appendChild(detail);
-  const button=document.createElement('button'); button.type='button'; button.className='btn sm'; button.textContent=uiCopy('เปิดแท็บ Quest','Open Quest tab'); button.onclick=()=>switchTab('quest'); card.appendChild(button);
-  feed.appendChild(card);
+  const button=document.createElement('button'); button.type='button'; button.className='btn sm'; button.textContent=uiCopy('เปิดแท็บ Quest','Open Quest tab'); button.setAttribute('onclick',"switchTab('quest')"); card.appendChild(button);
+  hud.insertBefore(card,hud.querySelector('#relTopBox'));
 }
 async function renderStory(){
   renderClock();
@@ -7234,7 +7353,7 @@ async function renderStory(){
   const receiptIds=new Set(receiptRows.map(n=>String(n.id)));
   const shown = narrative.filter(n => (n.status !== 'placeholder' || isStreaming(n))&&!receiptIds.has(String(n.id))&&(isStreaming(n)||!!narrText(n))).filter(n=>!diceNarrationRowHeld(n));
   const feed=$('narrFeed');
-  const isig = n => (n.status||'')+':'+(n.author||'')+':'+narrText(n).length+':'+(n.projection_status||'')+':'+(n.projection_note||'')+':'+narrativeActionFoldDecision(n,_narrativeActionStates).lifecycleState;
+  const isig = n => JSON.stringify([n.status,n.author,narrText(n),n.projection_status,n.projection_note,narrativeActionFoldDecision(n,_narrativeActionStates).lifecycleState]);
   const cdraw = n => isStreaming(n) ? (colorizeNarr(n.content)+'<span class="dots">▌</span>') : narrDraw(n);
   const existing=[...feed.querySelectorAll('.narr')];
   const sameStruct = shown.length>0 && existing.length===shown.length && shown.every((n,i)=> existing[i] && existing[i].dataset.nid===String(n.id));
@@ -7645,7 +7764,37 @@ function renderNpcCombatAidOfferCard(bar){
   const latest=Object.entries(local).reverse().find(([key])=>key.startsWith(ownPrefix)&&key.split(':')[2]===String(myChar.id));
   if(latest){ const note=document.createElement('div'); note.className='note npc-combat-aid-response'; note.style.cssText='text-align:left;padding:8px 7px;color:#FAC775'; note.textContent=latest[1]==='accepted'?uiCopy('คำตอบรับของเจ้าถูกส่งถึงผู้ยื่นข้อเสนอแล้ว เขาจะเข้าประจำที่เมื่อแนวรบเปิดทาง','Your acceptance has reached the one who made the offer; they will take their place when the battle line opens'):latest[1]==='expired'?uiCopy('ข้อเสนอนั้นถูกเก็บไว้ก่อนคำตอบจะไปถึง และไม่มีผู้ใดถือความเงียบเป็นคำยินยอม','The offer was set aside before the answer arrived, and no one treated silence as consent'):uiCopy('คำปฏิเสธของเจ้าถูกส่งถึงผู้ยื่นข้อเสนอแล้ว และข้อเสนอนั้นถูกเก็บไว้','Your refusal has reached the one who made the offer, and the offer has been set aside'); bar.appendChild(note); }
 }
+// F1/F2-375: drafts belong to the account, world, group and actor, never a render frame.
+const actionDrafts=new Map();
+function actionDraftScope(actorId){ return campaign&&me&&actorId?JSON.stringify([me.id,campaign.id,terminalGroupForUi(),actorId]):''; }
+function rememberActionDrafts(){
+  ['actInput','petActInput'].forEach(id=>{
+    const el=$(id),key=el&&el.dataset.actionDraftScope;
+    if(!key)return;
+    const prior=actionDrafts.get(key),value=String(el.value||'');
+    if(!prior||prior.value!==value)actionDrafts.set(key,{value,revision:(prior&&prior.revision||0)+1});
+  });
+}
+function setActionDraftText(actorId,value){
+  const key=actionDraftScope(actorId),prior=actionDrafts.get(key);if(!key)return;
+  actionDrafts.set(key,{value:String(value||''),revision:(prior&&prior.revision||0)+1});
+  ['actInput','petActInput'].forEach(id=>{const el=$(id);if(el&&el.dataset.actionDraftScope===key){el.value=String(value||'');if(window.UiDraftGuard&&window.UiDraftGuard.forget)window.UiDraftGuard.forget(id);}});
+}
+function bindActionDraft(el,actorId){
+  const key=actionDraftScope(actorId);el.dataset.actionDraftScope=key;
+  if(actionDrafts.has(key))el.value=actionDrafts.get(key).value;
+  el.addEventListener('input',rememberActionDrafts);
+}
+function acknowledgeActionDraft(snapshot){
+  rememberActionDrafts();
+  const current=snapshot&&actionDrafts.get(snapshot.key);
+  if(!current||current.revision!==snapshot.revision||current.value!==snapshot.value)return;
+  actionDrafts.set(snapshot.key,{value:'',revision:current.revision+1});
+  ['actInput','petActInput'].forEach(id=>{const el=$(id);if(el&&el.dataset.actionDraftScope===snapshot.key){el.value='';if(window.UiDraftGuard&&window.UiDraftGuard.forget)window.UiDraftGuard.forget(id);}});
+}
+// /F1/F2-375 drafts
 async function renderRoundbar(){
+  rememberActionDrafts();
   resolvingStallAge(curRound);
   const myseq=++roundbarSeq;            // กัน render ซ้อน (ต้นเหตุกล่องตอบซ้ำ)
   const bar=$('roundbar');
@@ -7756,7 +7905,7 @@ async function renderRoundbar(){
     return;
   }
   _lastRoundbarKey=rbKey;
-  const keepAct=(document.getElementById('actInput')||{}).value||window._actionEditDraft||'';   // v741: restore exact draft after scoped retract
+  const keepAct=(actionDrafts.get(actionDraftScope(myChar&&myChar.id))||{}).value||'';
   const _cbS=(curRound.meta||{}).combat||{}; const _incS=_cbS.active||!!window._combatActive; const _rng=_incS?`<span class="cs">${escapeHtml(combatRangeUi(_cbS.range,_cbS.range_source))}</span>`:'';
   let html=uiCopy(`<div class="cstat"><span class="cs">รอบ ${curRound.round_number}</span><span class="cs ${submitted>=total?'done':'wait'}">ส่งแล้ว ${submitted}/${total}</span>${_rng}</div>`,`<div class="cstat"><span class="cs">Round ${curRound.round_number}</span><span class="cs ${submitted>=total?'done':'wait'}">Submitted ${submitted}/${total}</span>${_rng}</div>`);
   list.forEach(a=>{ html+=`<div class="actionlog"><b>${escapeHtml(nameFor(a))}</b> <span data-runtime-origin="user-source">${escapeHtml(a.action_text)}</span></div>`; });
@@ -7837,7 +7986,7 @@ async function renderRoundbar(){
     const done=list.find(a=>a.character_id===myPet.id);
     if(done){ const w=document.createElement('div'); w.className='note'; w.style.cssText='text-align:left;padding:6px 2px'; w.innerHTML=uiCopy('✓ สั่ง '+escapeHtml(myPet.name)+' แล้ว — รอ DM ดำเนินเรื่อง','✓ '+escapeHtml(myPet.name)+' ordered — waiting for the DM to continue'); bar.appendChild(w); }
     else {
-      const pta=document.createElement('textarea'); pta.id='petActInput'; pta.placeholder=uiCopy('จะให้ '+myPet.name+' ทำอะไร?','What should '+myPet.name+' do?'); bar.appendChild(pta);
+      const pta=document.createElement('textarea'); pta.id='petActInput'; bindActionDraft(pta,myPet.id); pta.placeholder=uiCopy('จะให้ '+myPet.name+' ทำอะไร?','What should '+myPet.name+' do?'); bar.appendChild(pta);
       const pb=document.createElement('button'); pb.className='btn'; pb.textContent=uiCopy('ส่งคำสั่ง ('+myPet.name+')','Submit ('+myPet.name+')'); pb.onclick=()=>submitAction(myPet.id); bar.appendChild(actionSubmitButton(pb,'action'));
     }
     if(isHost){ const f=document.createElement('button'); f.className='btn warn sm'; f.textContent=resolving?uiCopy('กำลังดำเนินเรื่อง…','Continuing…'):uiCopy('⚡ ดำเนินเรื่องต่อ','⚡ Continue Scene'); f.disabled=resolving; f.onclick=()=>forceResolveConfirm(); bar.appendChild(f); }
@@ -7951,7 +8100,7 @@ async function renderRoundbar(){
       }
       // One free-text draft in combat, deliberately separate from BATTLE COMMAND.
       const draft=document.createElement('div'); draft.className='copt';
-      const taC=document.createElement('textarea'); taC.id='actInput'; taC.placeholder=uiCopy('พิมพ์หรือแก้การกระทำได้อิสระ — ตัวเลือกของ DM เป็นเพียงคำแนะนำ','Type or edit any action — DM options are suggestions only'); if(keepAct) taC.value=keepAct; draft.appendChild(taC);
+      const taC=document.createElement('textarea'); taC.id='actInput'; taC.placeholder=uiCopy('พิมพ์หรือแก้การกระทำได้อิสระ — ตัวเลือกของ DM เป็นเพียงคำแนะนำ','Type or edit any action — DM options are suggestions only'); if(keepAct) taC.value=keepAct; bindActionDraft(taC,myChar&&myChar.id); draft.appendChild(taC);
       const sbC=document.createElement('button'); sbC.type='button'; sbC.className='btn'; sbC.textContent=primaryActionLabel(); sbC.onclick=()=>submitAction(); draft.appendChild(actionSubmitButton(sbC,'action')); bar.appendChild(draft);
       if(window._dmOptionStale&&Array.isArray(cb.options)&&cb.options.length) bar.appendChild(persOptsWidget());
       // เมนู COMBAT COMMAND — ย่อเหลือปุ่มบรรทัดเดียว (ทั้ง desktop+mobile) กดแล้วขยาย: desktop=หน้าต่างลอยเยื้องซ้าย · mobile=กางในแผงเดิม
@@ -8001,7 +8150,7 @@ async function renderRoundbar(){
         _inventoryMineS.slice(0,8).forEach(aff=>{ const ib=document.createElement('button'); ib.type='button'; ib.className='btn ghost sm'; ib.textContent=uiCopy(String(aff.label_th||'เลือกของ'),String(aff.label_en||'Choose item')); ib.disabled=!!resolving; ib.onclick=()=>submitInventoryAffordance(aff); invOpts.appendChild(ib); });
         bar.appendChild(invOpts);
       }
-      const ta=document.createElement('textarea'); ta.id='actInput'; ta.placeholder=uiCopy('จะให้ตัวละครทำอะไร? พิมพ์ได้อิสระ เช่น  •เดินไปคุยกับพ่อค้าเรื่องข่าวลือ  •ตรวจหากับดักรอบประตู  •โจมตีกอบลินตัวซ้ายด้วยดาบ  •ลองโน้มน้าวยามให้ปล่อยผ่าน  •ค้นหีบในมุมห้อง (ใส่เป้าหมาย/รายละเอียดยิ่งเยอะ DM ยิ่งบรรยายตรงใจ)','What does your character do? Describe any action freely; include a target and useful detail so the DM can resolve it accurately.'); if(keepAct) ta.value=keepAct; bar.appendChild(ta);
+      const ta=document.createElement('textarea'); ta.id='actInput'; ta.placeholder=uiCopy('จะให้ตัวละครทำอะไร? พิมพ์ได้อิสระ เช่น  •เดินไปคุยกับพ่อค้าเรื่องข่าวลือ  •ตรวจหากับดักรอบประตู  •โจมตีกอบลินตัวซ้ายด้วยดาบ  •ลองโน้มน้าวยามให้ปล่อยผ่าน  •ค้นหีบในมุมห้อง (ใส่เป้าหมาย/รายละเอียดยิ่งเยอะ DM ยิ่งบรรยายตรงใจ)','What does your character do? Describe any action freely; include a target and useful detail so the DM can resolve it accurately.'); if(keepAct) ta.value=keepAct; bindActionDraft(ta,myChar&&myChar.id); bar.appendChild(ta);
     }
     // เต๋า + ปุ่มส่ง (เฉพาะนอกคอมแบต — ในคอมแบตใช้ SUBMIT ในเมนู)
     if(!inCombat){
@@ -8485,6 +8634,8 @@ async function submitAction(charIdOverride){
   if(window._actSubmitting){ toast(uiCopy('กำลังส่ง… กรุณารอสักครู่','Sending… please wait')); return; }   // v538: keep the duplicate-submit fence.
   const isPet=(typeof charIdOverride==='string');
   const cid=isPet?charIdOverride:(myChar?.id||null);
+  rememberActionDrafts();
+  const draftKey=actionDraftScope(cid),submittedDraft={key:draftKey,...actionDrafts.get(draftKey)};
   let txt=$(isPet?'petActInput':'actInput')?.value.trim(); if(!txt){toast(uiCopy('พิมพ์การกระทำก่อน','Type your action first'),true);return;}
   if(!isPet && pendingAoE){ txt+=`\n[เป้าหมายพื้นที่: ศูนย์กลาง ${pendingAoE.centerCell} ${pendingAoE.radiusFt?('รัศมี '+pendingAoE.radiusFt+' ฟุต'):'(จุดเดียว)'} ครอบคลุม ${pendingAoE.cells.join(', ')}]`; }
   window._actSubmitting=true; actionSubmitFeedback(); toast(uiCopy('กำลังส่ง… กรุณารอสักครู่','Sending… please wait'));
@@ -8502,6 +8653,7 @@ async function submitAction(charIdOverride){
     }else{
       await submitActionV2(curRound,cid,txt,null);
     }
+    acknowledgeActionDraft(submittedDraft);
     if(!isPet) pendingAoE=null;
     if(!isPet){ window._actionEditDraft=''; window._actionRepair=null; }
     toast(uiCopy('ส่งการกระทำแล้ว ✓','Action submitted ✓'));
@@ -8572,7 +8724,7 @@ async function resolveRound(force, mode, recover, fromClick, forceTarget){
         window._actionRepair=null; window._actionEditDraft=''; toast(j.note||uiCopy('ระบบปลดคำสั่งที่ค้างแล้ว กรุณาส่งคำสั่งใหม่','The stuck action was released; submit a new action.'),true);
       }else if(!_terminalCardShown)toast((j.error||uiCopy('ประมวลผลรอบไม่สำเร็จ','Resolve failed'))+(j.detail?(' — '+String(j.detail).slice(0,220)):''),true);
     }
-    else if(j.status==='waiting'){ if(j.spell_selection&&typeof j.draft_text==='string'){ window._actionEditDraft=j.draft_text; var _spellDraft=document.getElementById('actInput'); if(_spellDraft)_spellDraft.value=j.draft_text; toast(j.message||uiCopy('เวทถูกพัก กรุณาเลือกใหม่','Spell paused; choose again'),true); }else{ if(afterSubmit) _waitRetry=true; var _wS=(j.submitted!=null?j.submitted:0), _wT=(j.total!=null?j.total:(members&&members.length)||'?'); toast(j.turn?uiCopy('ถึงตา ','Turn: ')+j.turn:uiCopy(`กำลังรอทุกคน (${_wS}/${_wT})`,`Waiting for everyone (${_wS}/${_wT})`)); } }   /* v634ui DYN-20: rejected spell keeps an editable draft; ordinary waiting retains retry */
+    else if(j.status==='waiting'){ if(j.spell_selection&&typeof j.draft_text==='string'){ window._actionEditDraft=j.draft_text; setActionDraftText(myChar&&myChar.id,j.draft_text); var _spellDraft=document.getElementById('actInput'); if(_spellDraft)_spellDraft.value=j.draft_text; toast(j.message||uiCopy('เวทถูกพัก กรุณาเลือกใหม่','Spell paused; choose again'),true); }else{ if(afterSubmit) _waitRetry=true; var _wS=(j.submitted!=null?j.submitted:0), _wT=(j.total!=null?j.total:(members&&members.length)||'?'); toast(j.turn?uiCopy('ถึงตา ','Turn: ')+j.turn:uiCopy(`กำลังรอทุกคน (${_wS}/${_wT})`,`Waiting for everyone (${_wS}/${_wT})`)); } }   /* v634ui DYN-20: rejected spell keeps an editable draft; ordinary waiting retains retry */
     else if(j.status==='busy'){ /* someone else is resolving */ }
     else if(j.status==='intro'){ toast(uiCopy('โลกถูกสร้างแล้ว — สร้างตัวละครได้เลย!','World created — you can now create a character!')); }
     else if(j.status==='opened'||j.status==='resolved'){ if(j.auto_next){ _again=true; } else { toast(j.status==='opened'?uiCopy('เปิดฉากแล้ว!','Scene opened!'):uiCopy('DM ดำเนินเรื่องต่อแล้ว!','The DM continued the story!')); } }
@@ -9449,7 +9601,8 @@ function questFactionRowsForUi(factions,notoriety){
 }
 async function renderQuest(){
   // v87: แท็บ Quest ใช้งานจริง — เควส active พร้อม hint ที่ทยอยได้ (จาก clues ผูกชื่อเควส) + เควสที่จบแล้ว + เบาะแสอื่น
-  const _hostQ=$('panel-quest'); _hostQ.innerHTML='<div class="sk-cols"></div>'; const p=_hostQ.firstElementChild;   /* v531c: multicol บน wrapper (มิเรอร์ skills) */
+  const _hostQ=$('panel-quest'),questContext=roundRequestContext();
+  const p=document.createElement('div');p.className='sk-cols';   // F1-375: retain the readable panel until its replacement is complete.
   const FONT="font-family:inherit";   /* v610f: inherit — classic ได้ IBM Plex จาก body เท่าเดิม · สกิน paper cascade Trirong ได้ (เดิม inline ทับทุกสกิน) */
   let quests=[], cls=[], rewardJobs=[];
   try{ const r=await supa.from('quests').select('*').eq('campaign_id',campaign.id).order('created_at',{ascending:false}); quests=r.data||[]; }catch(e){}
@@ -9649,7 +9802,9 @@ async function renderQuest(){
     }
     clueFold.appendChild(foldBody); p.appendChild(clueFold);
   }catch(e){}
+  if(String(campaign&&campaign.id||'')===questContext.campaignId&&terminalGroupForUi()===questContext.groupNo)_hostQ.replaceChildren(p);
 }
+renderQuest=createCoalescedUiRender(renderQuest);
 
 // ───────── render: items (อิง sheet) ─────────
 async function renderItems(){
@@ -10654,7 +10809,7 @@ async function renderInitiativeTracker(p){
     const lc=document.createElement('div'); lc.className='item';
     lc.innerHTML='<div class="sectitle">COMBAT LOG</div>';
     const feed=document.createElement('div'); feed.style.cssText='display:flex;flex-direction:column;gap:3px;margin-top:6px;max-height:260px;overflow:auto;font-size:var(--fs-base);line-height:1.5';
-    logs.forEach(l=>{ if(l.entry_type==='note'&&/^\s*(⚔️|✦|✕|⚠|💢|🛡|💀)|^\s*\(แก้|ยังไม่(ล้ม|ตาย|ฟื้น)|ถูกกำจัดไปแล้ว|ไม่มี(บาดแผล|การรักษา|การโจมตีจาก)|รอดบาดแผล|การโจมตี(พลาด|ไม่เข้า)|ระบบ:/.test(String(l.summary||''))) return;   /* v459: ซ่อน note ของ guard/ระบบ (สับสนกับบทบรรยาย) */ if(!battleLogPublicVisible(l)) return;   /* v899fe: ใช้ filter กลางเดียวกับ battle scene — placeholder จากกำแพงภาษา + แถวไทย legacy ในโลก EN */ const d=document.createElement('div'); d.style.color=l.entry_type==='round_advance'?'#9a9a9a':'#fff'; d.innerHTML=(ICON[l.entry_type]||'•')+' '+escapeHtml(playerCombatSummary(l)); feed.appendChild(d); });
+    logs.forEach(l=>{ if(!battleLogPublicVisible(l)) return; const d=document.createElement('div'); d.style.color=l.entry_type==='round_advance'?'#9a9a9a':'#fff'; d.innerHTML=(ICON[l.entry_type]||'•')+' '+escapeHtml(playerCombatSummary(l)); feed.appendChild(d); });
     lc.appendChild(feed); p.appendChild(lc);
     setTimeout(()=>{ feed.scrollTop=feed.scrollHeight; },0);
   }
@@ -10704,7 +10859,7 @@ document.addEventListener('keydown', function(e){
   try{ var _bs=document.getElementById('battleScene'); if(_bs && _bs.classList.contains('bs-has-sheet')){ bsCloseSheets(); e.preventDefault(); return; } }catch(_e){}
   try{ var _rt=document.getElementById('combatCommandPanel'); if(_rt && _rt.classList.contains('cc-show')){ window.cc.close(); e.preventDefault(); } }catch(_e){}
 });
-function bsToggleSheet(key){ var map={cmd:'bsCmdWrap',init:'bsInitBox',log:'bsLogBox',hud:'bsHud',chat:'bsChatBox'}; var id=map[key]; if(!id){ toast(uiCopy('ไม่พบแผงนี้ในฉากต่อสู้','This panel is not available in the battle scene'),true); return; } var el=document.getElementById(id); if(!el){ toast(uiCopy('แผงนี้ยังไม่พร้อม — เปิดฉากต่อสู้แล้วลองอีกครั้ง','This panel is not ready — open the battle scene and try again'),true); return; } var willOpen=!el.classList.contains('bs-sheet-open'); bsCloseSheets(); if(willOpen){ var scene=document.getElementById('battleScene'); if(scene && el.parentNode!==scene && window.matchMedia && window.matchMedia('(max-width:1023px)').matches){ el._homeParent=el.parentNode; el._homeNext=el.nextSibling; scene.appendChild(el); } el.classList.add('bs-sheet-open'); var bd=document.getElementById('bsSheetBackdrop'); if(bd) bd.classList.add('on'); if(scene) scene.classList.add('bs-has-sheet'); } try{ tick(); }catch(e){} }
+function bsToggleSheet(key){ var map={cmd:'bsCmdWrap',init:'bsInitBox',log:'bsLogBox',hud:'bsHud',chat:'bsChatBox'}; var id=map[key]; if(!id){ toast(uiCopy('ไม่พบแผงนี้ในฉากต่อสู้','This panel is not available in the battle scene'),true); return; } var el=document.getElementById(id); if(!el){ toast(uiCopy('แผงนี้ยังไม่พร้อม — เปิดฉากต่อสู้แล้วลองอีกครั้ง','This panel is not ready — open the battle scene and try again'),true); return; } var willOpen=!el.classList.contains('bs-sheet-open'); bsCloseSheets(); if(willOpen){ var scene=document.getElementById('battleScene'); if(scene && el.parentNode!==scene && window.matchMedia && window.matchMedia('(max-width:1023px)').matches){ el._homeParent=el.parentNode; el._homeNext=el.nextSibling; scene.appendChild(el); } el.classList.add('bs-sheet-open'); var bd=document.getElementById('bsSheetBackdrop'); if(bd) bd.classList.add('on'); if(scene) scene.classList.add('bs-has-sheet'); if(key==='log')requestAnimationFrame(()=>{if(el.classList.contains('bs-sheet-open'))el.scrollTop=el.scrollHeight;}); } try{ tick(); }catch(e){} }
 // C: เปิด/ปิดชีทตัวละคร (โคลนจาก panel-me แบบอ่านอย่างเดียว — ไม่หลุดจากฉากรบ)
 function bsToggleCharSheet(){
   var ov=document.getElementById('bsCharSheet');
@@ -11363,9 +11518,10 @@ async function renderBattleInitLog(initEl, logEl, vfxScope){
       var _lastSeq=logs.length?String(logs[logs.length-1].seq??logs[logs.length-1].id??logs.length):'';
       var _newLog=logEl.getAttribute('data-last')!==_lastSeq;
       logEl.setAttribute('data-sig',_lg.innerHTML); logEl.setAttribute('data-last',_lastSeq);
-      var _lnear=(logEl.scrollHeight-logEl.scrollTop-logEl.clientHeight)<80, _lprev=logEl.scrollTop;
+      const scrollBox=logEl.closest('.bs-log')||logEl;
+      var _lnear=(scrollBox.scrollHeight-scrollBox.scrollTop-scrollBox.clientHeight)<80, _lprev=scrollBox.scrollTop;
       logEl.replaceChildren(_lfrag);
-      setTimeout(function(){ logEl.scrollTop=(_newLog||_lnear)?logEl.scrollHeight:_lprev; },0);
+      setTimeout(function(){ scrollBox.scrollTop=(_newLog||_lnear)?scrollBox.scrollHeight:_lprev; },0);
       bsAnimateDice(logEl);   // v623 B (DG-6): แอนิเมตเลขทอยจริงบนแถวใหม่
     }
   }
