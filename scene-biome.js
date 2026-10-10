@@ -84,6 +84,7 @@ function namedSite(site, desc){
   if(match(s,'(?:prison|jail|gaol|oubliette|cells?)', 'คุก','เรือนจำ','ห้องขัง','ที่คุมขัง')) return 'prison_dungeon';
   if(match(s,'(?:wizard.?s? tower|mage tower|dark tower|spire|tower dungeon)', 'หอคอยพ่อมด','หอคอยเวท','หอคอยมืด')) return 'tower_dungeon';
   if(match(s,'(?:market hall)', 'หอตลาด','โถงตลาด')) return 'market';
+  if(match(s,'(?:innermost chamber|deep chamber)', 'ห้องชั้นใน','ห้องลึกสุด')) return 'dungeon';
   if(match(s,'(?:warehouse|storehouse|guild|hq|shop|store|room|office|hall|library)', 'โกดัง','กิลด์','ร้าน','ห้อง','โถง')) return 'interior';
   if(match(s,'(?:dwarf|dwarves|dwarven|dwarvish)', 'คนแคระ','ดวาร์ฟ','ดวาฟ') && match(s,'(?:delve|hold|mine|underground)', 'เหมือง','โพรง','ใต้ดิน','ป้อม')) return 'dwarven_hold';
   if(match(s,'(?:market|markets|bazaar|marketplace|fair|souk)', 'ตลาด','ตลาดนัด','บาซาร์')) return 'market';
@@ -181,7 +182,7 @@ function inheritedDungeonFamily(key,label,...lowerFamilies){
   const raw=String(label??'').trim().toLowerCase();
   return raw==='dungeon' || raw==='ดันเจี้ยน' ? child || key : key;
 }
-export function classifySceneBiome({site='',settlement='',region='',description='',parent='',anchor='',narration=''}={}){
+export function classifySceneBiome({site='',settlement='',region='',description='',parent='',anchor='',narration='',boundSite='',boundDescription='',placeDescription=''}={}){
   const siteKey=namedSite(site,description);
   const descKey=describedSite(description);
   const parentVenue=namedSite(parent,'');
@@ -191,12 +192,18 @@ export function classifySceneBiome({site='',settlement='',region='',description=
   const parentFamily=dungeonFamilyEvidence(parentKey,parent);
   const siteFamily=dungeonFamilyEvidence(siteKey,site);
   const descFamily=dungeonFamilyEvidence(descKey,description);
+  // SPLIT159: these fields are supplied only after an exact campaign/source-ID read.
+  // Generic room labels inherit an authored underground parent; a recorded venue
+  // or description is a world fact and cannot be overwritten by the current name.
+  const boundKey=describedSite(boundDescription) || namedSite(boundSite,'');
+  if(boundKey && !(['interior','dungeon'].includes(boundKey) && parentKey && ['cave','dungeon','graveyard','sewer',...SCENE_DUNGEON_FAMILIES].includes(parentKey))) return {key:boundKey,source:'node',reason_code:'s159_bound_node'};
   if(anchorKey && ['cave','dungeon','graveyard','sewer',...SCENE_DUNGEON_FAMILIES].includes(anchorKey)){ const family=inheritedDungeonFamily(anchorKey,anchor,parentFamily,siteFamily,descFamily); return {key:family,source:'anchor',reason_code:'s1_anchor'}; }
   if(parentKey && ['cave','dungeon','graveyard','sewer',...SCENE_DUNGEON_FAMILIES].includes(parentKey)){ const family=inheritedDungeonFamily(parentKey,parent,siteFamily,descFamily); return {key:family,source:'parent',reason_code:'s1_parent'}; }
-  if(siteKey){ const cityUpgrade=siteKey==='town' && (namedSite(settlement,'')==='city' || descKey==='city'); const family=siteKey==='dungeon' ? inheritedDungeonFamily(siteKey,site,descFamily) : siteKey; return {key:cityUpgrade?'city':family,source:'site',reason_code:cityUpgrade?'s1_site_city':'s1_site'}; }
+  const persistedKey=describedSite(placeDescription);
+  if(persistedKey) return {key:persistedKey,source:'places',reason_code:'s159_place_description'};
+  if(siteKey){ const cityUpgrade=siteKey==='town' && descKey==='city'; const family=siteKey==='dungeon' ? inheritedDungeonFamily(siteKey,site,descFamily) : siteKey; return {key:cityUpgrade?'city':family,source:'site',reason_code:cityUpgrade?'s1_site_city':'s1_site'}; }
   if(descKey) return {key:descKey,source:'places',reason_code:'s1_places'};
-  const settlementKey=namedSite(settlement,'') || namedSite(region,'');
-  if(settlementKey && ['forest','canyon','cave','wetland','desert','mountain','snow'].includes(settlementKey)) return {key:settlementKey,source:'settlement',reason_code:'s1_settlement_nature'};
+  if(String(settlement).trim()) return {key:'town',source:'default',reason_code:'s159_settlement_safe'};
   const narrKey=describedSite(narration);
   return {key:narrKey || 'plain',source:narrKey?'narration':'default',reason_code:narrKey?'s1_narration':'s1_plain'};
 }

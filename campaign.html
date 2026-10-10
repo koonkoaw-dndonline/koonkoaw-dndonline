@@ -46,7 +46,7 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./maintenance.js?v=20261004q220"></script>
 <script src="./spell-area-geometry.js?v=20261002sp3a"></script>
 <script src="./spell-area-picker.js?v=20261010s276flame"></script>
-<script type="module" src="./scene-biome.js?v=20261010s277er1"></script>
+<script type="module" src="./scene-biome.js?v=20261010split159"></script>
 <!-- ER400_COMPOSITION_START: accepted scene/picker hunks over HUD + stinger -->
 <style>
 /* ============================================================
@@ -1092,6 +1092,8 @@ body.in-battle .bs-cs-btn{display:block;}
   .bs-left{flex:0 0 322px;}
   .bs-center{flex:1;min-width:0;position:relative;z-index:0;}
   .bs-right{flex:0 0 360px;position:relative;z-index:2;isolation:isolate;}   /* CC12: command column owns a higher stacking context than overflowing board SVG */
+  .bscene:has(.cc-frame.cc-windowed) .bs-right{z-index:auto;isolation:auto;}   /* C1010-14: fixed command window must escape the column's stacking context */
+  .bscene:has(.cc-frame.cc-windowed) .bs-cmd{z-index:auto;}
 }
 @media (max-width:1023px){
   /* มือถือ: เรียงทุกส่วนต่อกันตามความสูงจริง แล้วเลื่อนทั้งฉากได้ (กันถูกบีบจนหาย) */
@@ -2421,7 +2423,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202610101242;
+const FRONTEND_BUILD = 202610101244;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2848,8 +2850,9 @@ setInterval(frontendRestoreDrafts,1000);
 async function checkFrontendBuild(){
   if(_frontendBuildCheckBusy) return; _frontendBuildCheckBusy=true;
   window._spellPickMultiV1=false;
+  window._spellPickUtilityV1=false;
   window._diceGravityV2=false; window._musicV2AudioIdentityReceiptCap=false; window._musicV2AudioIdentitySelectedReceiptCap=false; window._musicV2AudioIdentityCapabilityChecked=false;
-  try{ const tok=(await supa.auth.getSession()).data.session?.access_token; if(!tok){if(window._pcFacingV1===true&&window._bsShown)scheduleBattleScene('face-gate');window._pcFacingV1=false;window._diceGravityV2=false;window._musicV2AudioIdentityCapabilityChecked=true;window._musicV2PendingHeardReceipt=null;return;} const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({ping:true,client_build:FRONTEND_BUILD,client_epoch:FRONTEND_COMPAT_EPOCH})}); const j=await r.json(); window._spellPickMultiV1=!!(r.ok&&j?.features?.spell_pick_multi_v1===true); const _priorFacing=window._pcFacingV1===true; window._pcFacingV1=!!(r.ok&&j?.features?.pc_facing_v1===true); window._diceGravityV2=!!(r.ok&&j?.features?.dice_gravity_v2===true); if(_priorFacing!==window._pcFacingV1&&window._bsShown)scheduleBattleScene('face-gate'); window._musicV2AudioIdentityReceiptCap=!!(r.ok&&j&&j.features&&j.features.music_v2_audio_identity_receipt_v1===true); window._musicV2AudioIdentitySelectedReceiptCap=!!(r.ok&&j&&j.features&&j.features.music_v2_audio_identity_selected_receipt_v1===true); window._musicV2AudioIdentityCapabilityChecked=true; if(window._musicV2AudioIdentityReceiptCap)_flushPendingMusicHeardReceipt();else window._musicV2PendingHeardReceipt=null; frontendRequirementSeen(j.min_frontend_build,j.min_frontend_epoch); }catch(e){window._spellPickMultiV1=false;if(window._pcFacingV1===true&&window._bsShown)scheduleBattleScene('face-gate');window._pcFacingV1=false;window._diceGravityV2=false;window._musicV2AudioIdentityReceiptCap=false;window._musicV2AudioIdentitySelectedReceiptCap=false;window._musicV2AudioIdentityCapabilityChecked=true;window._musicV2PendingHeardReceipt=null;} finally{_frontendBuildCheckBusy=false;}
+  try{ const tok=(await supa.auth.getSession()).data.session?.access_token; if(!tok){if(window._pcFacingV1===true&&window._bsShown)scheduleBattleScene('face-gate');window._pcFacingV1=false;window._diceGravityV2=false;window._musicV2AudioIdentityCapabilityChecked=true;window._musicV2PendingHeardReceipt=null;return;} const r=await fetch(RESOLVE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({ping:true,client_build:FRONTEND_BUILD,client_epoch:FRONTEND_COMPAT_EPOCH})}); const j=await r.json(); window._spellPickMultiV1=!!(r.ok&&j?.features?.spell_pick_multi_v1===true); window._spellPickUtilityV1=!!(r.ok&&j?.features?.spell_pick_utility_v1===true); const _priorFacing=window._pcFacingV1===true; window._pcFacingV1=!!(r.ok&&j?.features?.pc_facing_v1===true); window._diceGravityV2=!!(r.ok&&j?.features?.dice_gravity_v2===true); if(_priorFacing!==window._pcFacingV1&&window._bsShown)scheduleBattleScene('face-gate'); window._musicV2AudioIdentityReceiptCap=!!(r.ok&&j&&j.features&&j.features.music_v2_audio_identity_receipt_v1===true); window._musicV2AudioIdentitySelectedReceiptCap=!!(r.ok&&j&&j.features&&j.features.music_v2_audio_identity_selected_receipt_v1===true); window._musicV2AudioIdentityCapabilityChecked=true; if(window._musicV2AudioIdentityReceiptCap)_flushPendingMusicHeardReceipt();else window._musicV2PendingHeardReceipt=null; frontendRequirementSeen(j.min_frontend_build,j.min_frontend_epoch); }catch(e){window._spellPickMultiV1=false;window._spellPickUtilityV1=false;if(window._pcFacingV1===true&&window._bsShown)scheduleBattleScene('face-gate');window._pcFacingV1=false;window._diceGravityV2=false;window._musicV2AudioIdentityReceiptCap=false;window._musicV2AudioIdentitySelectedReceiptCap=false;window._musicV2AudioIdentityCapabilityChecked=true;window._musicV2PendingHeardReceipt=null;} finally{_frontendBuildCheckBusy=false;}
 }
 // host ใส่/แก้ Gemini key ของโลก (เรียกเองหรือเด้งอัตโนมัติเมื่อ server บอกว่ายังไม่มี key)
 async function betaAskKey(){
@@ -11938,7 +11941,7 @@ function gridPickPaint(kind,c,r){
 function aoePickCell(c,r){ if(gridCommandDelegate('aoe','select',{c:c,r:r})) return; if(!aoeMode) return toast(uiCopy('ไม่ได้อยู่ในโหมดเลือกพื้นที่แล้ว โปรดเลือกความสามารถอีกครั้ง','Area targeting is no longer active. Select the ability again.')); gridPickLeaseActivity('select'); aoeCenter={c:c,r:r}; if(!gridPickPaint('aoe',c,r)) gridFastRefresh(); }
 // เปิดตัวเลือกพื้นที่บน Map ให้ Command Menu (คืนผลผ่าน callback) — รัศมีจาก target เช่น sphere_20/cone_15/line_30
 function ccGridPick(target, cb){
-  if(gridCommandAdapter&&gridCommandFlow){
+  if(target!=='minor_illusion_0'&&gridCommandAdapter&&gridCommandFlow){
     const bound=gridCommandAdapter.bindCommand({
       kind:'aoe',
       callback:cb,
@@ -11964,23 +11967,23 @@ function ccGridPick(target, cb){
     }
   }
   // KEEP: legacy ccGridPick body is the soak fallback when instant open is unavailable.
-  const m=/^(?:sphere|cone|line|cube|square|cylinder)_?(\d+)/.exec(String(target||'')); const ft=m?parseInt(m[1]):20;
+  const m=/^(?:sphere|cone|line|cube|square|cylinder)_?(\d+)/.exec(String(target||'')); const ft=target==='minor_illusion_0'?0:m?parseInt(m[1]):20;
   aoeMode={radiusFt:ft, cb:cb}; aoeCenter=null;
   // v524 (เคสจริง Thunderwave): ต้องปิดชีตคำสั่ง + เข้าฉากรบก่อน — เดิมชีตคำสั่ง (mobile) บังกระดาน = แตะเลือกพื้นที่ไม่ติด (มิเรอร์ ccMovePick ที่ทำถูกอยู่แล้ว)
   try{ if(typeof bsCloseSheets==='function') bsCloseSheets(); }catch(e){}
   if(!_bsShown && typeof enterBattleScene==='function'){ try{ enterBattleScene(); }catch(e){} }
   if(_bsShown){ Promise.resolve(renderBattleScene('manual')).catch(()=>false).then(()=>gridPickLeaseEnter('legacy-aoe',gridBoardLeaseIdentity())); } else { switchTab('mon'); setTimeout(()=>gridPickLeaseEnter('legacy-aoe',gridBoardLeaseIdentity()),0); }
-  toast(uiCopy('แตะช่องศูนย์กลางบน Map แล้วกด ✓ ยืนยันพื้นที่','Tap the center tile on the Map, then select ✓ to confirm the area'));
+  toast(target==='minor_illusion_0'?uiCopy('แตะช่องร่ายภาพลวงตาบน Map แล้วกด ✓ ยืนยัน','Tap the illusion point on the Map, then select ✓ to confirm'):uiCopy('แตะช่องศูนย์กลางบน Map แล้วกด ✓ ยืนยันพื้นที่','Tap the center tile on the Map, then select ✓ to confirm the area'));
 }
 function aoeConfirm(){
   if(gridCommandDelegate('aoe','confirm')) return;
   gridPickLeaseActivity('confirm_attempt');
   if(!aoeMode||!aoeCenter){ toast(uiCopy('แตะช่องศูนย์กลางก่อน','Tap the center tile first'),true); return; }
   const L="ABCDEFGHIJKLMNOPQRST"; const center=(L[aoeCenter.c]||'?')+(aoeCenter.r+1);
-  const cells=aoeCellsFor(aoeCenter.c,aoeCenter.r); const ft=aoeMode.radiusFt; const cb=aoeMode.cb;
+  const pickedCol=aoeCenter.c,pickedRow=aoeCenter.r; const cells=aoeCellsFor(pickedCol,pickedRow); const ft=aoeMode.radiusFt; const cb=aoeMode.cb;
   aoeMode=null; aoeCenter=null;
   void gridPickLeaseExit('confirmed');
-  if(cb){ if(!_bsShown) switchTab('story'); try{ cb({center:center, cells:cells, radiusFt:ft}); }catch(e){} if(_bsShown) gridFastRefresh(); return; }   // เส้นทาง Command Menu
+  if(cb){ if(!_bsShown) switchTab('story'); try{ cb({center:center, col:pickedCol, row:pickedRow, cells:cells, radiusFt:ft}); }catch(e){} if(_bsShown) gridFastRefresh(); return; }   // เส้นทาง Command Menu
   pendingAoE={centerCell:center, cells:cells, radiusFt:ft};
   switchTab('story'); toast(uiCopy('ปักพื้นที่แล้ว ✓ — พิมพ์คำสั่งแล้วกด Submit','Area marked ✓ — enter the action and select Submit'));
 }
@@ -12265,7 +12268,7 @@ function gridProneTransform(box,center,halfWidth,halfHeight,iso,degrees){
   return 'matrix('+[a,b,c,d,center[0]-a*cx-c*cy,center[1]-b*cx-d*cy].map(v=>v.toFixed(6)).join(' ')+')';
 }
 function boundedCanvasSampleSize(width,height,maxSide){ const w=Math.max(1,Math.floor(+width||1)),h=Math.max(1,Math.floor(+height||1)),cap=Math.max(16,Math.floor(+maxSide||96)),scale=Math.min(1,cap/Math.max(w,h)); return {width:Math.max(1,Math.round(w*scale)),height:Math.max(1,Math.round(h*scale))}; }
-async function renderBattleGrid(p){
+async function renderBattleGrid(p){ try{ await import('./scene-biome.js?v=20261010split159'); }catch(e){ console.warn('scene_module_load_failed',String(e).slice(0,160)); }
   // Scene art data is shared with the server classifier; no second key table here.
   for(const [biome,objects] of Object.entries(window.SceneBiome?.SCENE_OBJECTS||{})){ OBJ_INDEX[biome]=new Set(objects); for(const key of objects) _OBJ_KEYS.add(key); }
   // ── (06-10) cache: แตะเลือกช่อง/ยืนยันเดิน = วาดจากข้อมูลล่าสุดทันที (0 query) — full fetch เฉพาะ render ปกติ ──
@@ -12583,7 +12586,7 @@ async function renderBattleGrid(p){
   if(ISO){
     // iso: tile + token interleave ตาม depth (c+r) — กำแพง/ช่องหน้าบัง token หลัง
     let _bg='', _fg='';   // v560 DoF: bg (backdrop+พื้น+วัตถุ/decor) หรี่รวมกลุ่มเดียว · fg (ตัวละคร/ศัตรู) ไม่หรี่
-    if(window._charSprites===true){ const scene=window.SceneBiome, _bk=_biomeKey(grid.background);
+    if(window._charSprites===true){ const scene=window.SceneBiome, _bk=scene?.sceneBackgroundKey(grid.terrain?.scene_biome_key || grid.background);
       if(scene?.SCENE_KEYS.includes(_bk)){ const _bh=scene.sceneBackdropHref(_bk,grid,_ASSET.bg,Object.assign(Object.create(null),window._bgFail||{}));
         if(_bh) _bg+=`<image href="${_bh}" x="0" y="0" width="${IVW}" height="${IVH}" preserveAspectRatio="xMidYMid slice" opacity="1" onerror="window._bgFail=window._bgFail||{};window._bgFail[this.getAttribute('href')]=1;this.onerror=function(){window._bgFail[this.getAttribute('href')]=1;this.remove()};var u=window.SceneBiome.sceneBackdropHref('${_bk}',{id:'${String(grid.id||'').replace(/[^a-zA-Z0-9-]/g,'')}',terrain:{bg_variant:${Number.isInteger(Number(grid?.terrain?.bg_variant))&&Number(grid?.terrain?.bg_variant)>=1&&Number(grid?.terrain?.bg_variant)<=6?Number(grid.terrain.bg_variant):0},dungeon_role:'${['guardian','puzzle','trick','reward','climax'].includes(grid?.terrain?.dungeon_role)?grid.terrain.dungeon_role:''}'}},'${_ASSET.bg}',Object.assign(Object.create(null),window._bgFail));if(u)this.setAttribute('href',u);else this.remove()"/>`;
       }
@@ -14057,6 +14060,21 @@ function prettyCond(c){
  function _ccSpellMenuDecision(sp,inCombat){
    const castDecision=_ccCastAbbr(sp,inCombat);
    if(castDecision.availability==='blocked') return castDecision;
+  const utilitySlug=String(sp&&sp.slug||'');
+  if(utilitySlug==='minor-illusion'){
+    if(!inCombat||window._spellPickMinorIllusionV1!==true||Number(sp.level)!==0||castDecision.menuSlot!=='1A'||sp.menu_target_kind!=='point'||sp.menu_target_filter!=='illusion_point'||sp.menu_target_status!=='binding') return _ccBlockedDecision('minor_illusion_combat_point_unavailable','target');
+    return {availability:'available',cast:castDecision.cast,castAbbr:castDecision.castAbbr,menuSlot:'1A',ritualAvailable:false,target:{kind:'point',filter:'illusion_point'},targetToken:'minor_illusion'};
+  }
+  if(utilitySlug==='mage-hand'||utilitySlug==='mending') return _ccBlockedDecision('point_object_or_hybrid_picker+server_target_legality','target');
+   if(window._spellPickUtilityV1===true&&utilitySlug==='dancing-lights')
+     return _ccBlockedDecision('utility_point_picker_unavailable','target');
+   if(window._spellPickUtilityV1===true&&['light','thaumaturgy','prestidigitation','druidcraft'].includes(utilitySlug)){
+     if(inCombat||Number(sp.level)!==0||castDecision.menuSlot!=='1A')
+       return _ccBlockedDecision('utility_noncombat_only','target');
+     return {availability:'available',cast:castDecision.cast,castAbbr:castDecision.castAbbr,
+       menuSlot:castDecision.menuSlot,ritualAvailable:false,
+       target:{kind:'utility'},targetToken:'utility'};
+   }
    const targetDecision=_ccTarget(sp);
    if(targetDecision.availability==='blocked'){
      targetDecision.cast=castDecision.cast;
@@ -14090,6 +14108,9 @@ function prettyCond(c){
      'shape_aware_grid+area_origin+server_aoe_authority':['ยังเล็งพื้นที่จากเมนูไม่ได้: กริดยังไม่รองรับรูปทรง จุดกำเนิด และอำนาจตัดสินพื้นที่อย่างถูกต้อง','Area targeting is not yet available: the grid does not support this shape, origin, and authoritative area resolution correctly.'],
      'reviewed_area_geometry+shape_aware_grid+server_aoe_authority':['ยังเล็งพื้นที่จากเมนูไม่ได้: catalog ยังขาด geometry ที่ตรวจแล้ว และกริดยังไม่รองรับรูปทรงนี้','Area targeting is not yet available: reviewed geometry is missing and the grid does not support this shape.'],
      'point_object_or_hybrid_picker+server_target_legality':['ยังใช้เวทนี้จากเมนูไม่ได้: ต้องมีตัวเลือกจุด วัตถุ หรือเป้าผสมพร้อมตรวจว่าเลือกเป้าหมายได้ถูกต้องก่อน','This spell is not yet available in the menu: it needs a point, object, or hybrid picker with complete target validation.'],
+     utility_point_picker_unavailable:['ยังเลือกจุดร่าย Dancing Lights ไม่ได้','Dancing Lights point targeting is not available yet.'],
+    utility_noncombat_only:['รูปแบบเวทนี้ใช้ได้เฉพาะนอกศึก','This utility form is available only outside combat.'],
+    minor_illusion_combat_point_unavailable:['เวทภาพลวงตานี้เลือกได้เฉพาะช่องในศึกเมื่อระบบยืนยันกริดแล้ว','This illusion can be selected only on a verified combat grid.'],
      'multi_target_picker+exact_cardinality+server_target_legality':['ยังใช้เวทนี้จากเมนูไม่ได้: ต้องมีตัวเลือกหลายเป้าหมาย จำนวนที่แน่นอน และตรวจว่าเลือกเป้าหมายได้ถูกต้องก่อน','This spell is not yet available in the menu: it needs multi-target selection, exact cardinality, and complete target validation.'],
      catalog_target_review:['ยังใช้เวทนี้จากเมนูไม่ได้: catalog ยังไม่ยืนยันชนิดเป้าหมาย','This spell is not yet available in the menu: its catalog target contract is not confirmed.']
    };
@@ -14106,7 +14127,7 @@ function ccSlotLedgerState(ledger,sheetRefreshOk){
 }
 // SP-3 capability is read from the combat deployment, never inferred from the story ping.
 let _ccAreaCapabilityRequest=0;
-function ccSetAreaCapability(value){window._spellPickAreaV1=value===true;window.dispatchEvent(new Event('spell-area-capability'));}
+function ccSetAreaCapability(value,illusion){window._spellPickAreaV1=value===true;window._spellPickMinorIllusionV1=illusion===true;window.dispatchEvent(new Event('spell-area-capability'));}
 async function ccCheckAreaCapability(){
   const request=++_ccAreaCapabilityRequest; ccSetAreaCapability(false);
   try{
@@ -14116,7 +14137,7 @@ async function ccCheckAreaCapability(){
     if(!url.pathname.endsWith('/resolve-combat-round')) return false;
     const response=await fetch(url.href,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({ping:true,client_build:FRONTEND_BUILD,client_epoch:FRONTEND_COMPAT_EPOCH}),signal:AbortSignal.timeout(10000)});
     const data=await response.json();
-    if(request===_ccAreaCapabilityRequest) ccSetAreaCapability(response.ok&&data?.features?.spell_pick_area_v1===true);
+    if(request===_ccAreaCapabilityRequest) ccSetAreaCapability(response.ok&&data?.features?.spell_pick_area_v1===true,response.ok&&data?.features?.spell_pick_minor_illusion_v1===true);
   }catch(_error){if(request===_ccAreaCapabilityRequest)ccSetAreaCapability(false);}
   return request===_ccAreaCapabilityRequest&&window._spellPickAreaV1===true;
 }
@@ -14178,8 +14199,8 @@ async function ccLoadGridTargets(ctx){
   }
 }
 async function prepCommandContext(){
-  const ctx={enemies:[], character:null, loadError:null, loadWarnings:[], slotsKnown:false, attacks:[], inventory:[]};
-  if(window._combatActive) await ccCheckAreaCapability();else window._spellPickAreaV1=false;
+  const ctx={enemies:[], character:null, loadError:null, loadWarnings:[], slotsKnown:false, attacks:[], inventory:[], utilityItems:[]};
+  if(window._combatActive) await ccCheckAreaCapability();else ccSetAreaCapability(false,false);
   // F26: mySheet is not realtime-authoritative while this menu is open. Refresh before deriving inventory or slot quota.
   let sheetRefreshOk=false;
   try{ sheetRefreshOk=await reloadMySheet(); }catch(e){ sheetRefreshOk=false; }
@@ -14208,6 +14229,14 @@ async function prepCommandContext(){
     ctx.slotQuotaState=_slotState.slotQuotaState;
     ctx.character={ speed_ft:(mySheet&&mySheet.combat&&mySheet.combat.speed)||30, slots:_slotState.slots, slotsKnown:ctx.slotsKnown, slotQuotaState:ctx.slotQuotaState, spells:[], features:{bonus:[], reaction:[]} };
   }else ctx.loadError={kind:'character',detail:'character_unavailable'};
+  if(window._spellPickUtilityV1===true&&!window._combatActive&&campaign?.id&&myChar?.id){
+    try{
+      const result=await supa.rpc('list_spell_light_targets_v1',
+        {p_campaign_id:campaign.id,p_character_id:myChar.id});
+      if(result.error||result.data?.ok!==true||!Array.isArray(result.data.items)) throw result.error||new Error('utility_items_unproven');
+      ctx.utilityItems=result.data.items.filter(row=>row&&typeof row.id==='string'&&typeof row.label_th==='string'&&typeof row.label_en==='string');
+    }catch(e){ctx.utilityItems=[];ctx.loadWarnings.push('utility_items_unavailable');}
+  }
   // เวท/สกิลจริงของผู้เล่น (skills ∩ SPELL_CAT) — dependency ล้มให้ซ่อนเฉพาะคำสั่งเสริม
   try{
     if(!ctx.character) throw new Error('character_unavailable');
@@ -14481,7 +14510,29 @@ window.cc = (function(){
       for(var i=0;i<character.spells.length;i++) if(character.spells[i].id===id) spell = character.spells[i];
       if(!spell) return { items:[] };
       var opts = [];
-      if(spell.target==='area'){
+      if(spell.target==='utility'&&window._spellPickUtilityV1===true&&!window._combatActive){
+        if(turn.movement||turn.bonus||turn.reaction||turn.free||turn.narrate) return {items:[{label:uiCopy('ร่ายเวทนี้เป็นคำสั่งเดี่ยวในรอบนี้','Cast this utility spell as the only command this round.'),dim:true}]};
+        var utilityForms={
+          light:[['object_glow','item_instance','ทำให้ของเรืองแสง','Make held object glow']],
+          thaumaturgy:[['booming_voice','self','เสียงดังขึ้นสามเท่า','Triple voice volume'],['altered_eyes','self','เปลี่ยนดวงตา','Alter eyes']],
+          prestidigitation:[['clean','item_instance','ทำความสะอาดของ','Clean held object'],['soil','item_instance','ทำของเปื้อน','Soil held object'],['warm','item_instance','อุ่นของ','Warm held object'],['chill','item_instance','ทำของเย็น','Chill held object'],['flavor','item_instance','ปรุงรสของ','Flavor held object'],['mark','item_instance','ทำสัญลักษณ์บนของ','Mark held object'],['sensory','self','ผลรับสัมผัสชั่วขณะ','Brief sensory effect']],
+          druidcraft:[['weather_forecast','self','พยากรณ์อากาศวันนี้',"Forecast today's weather"],['sensory','self','ผลรับสัมผัสชั่วขณะ','Brief sensory effect']]
+        };
+        (utilityForms[spell.id]||[]).forEach(function(form){
+          var targets=form[1]==='self'?[{id:myChar&&myChar.id,label_th:'ตัวเอง',label_en:'Self'}]:
+            ((window.__ccCtx&&window.__ccCtx.utilityItems)||[]);
+          targets.forEach(function(target){
+            var shown=uiCopy(form[2]+' · '+target.label_th,form[3]+' · '+target.label_en);
+            opts.push({label:shown,commit:{slot:slotName,label:spell.name+' ▸ '+shown,
+              displayLabel:spell.name+' ▸ '+shown,dice:null,skillId:spell._skillId||null,
+              spell_target_v1:{mode:'utility',spell_slug:spell.id,variant:form[0],
+                target_kind:form[1],target_id:target.id}}});
+          });
+        });
+      } else if(spell.target==='minor_illusion'){
+        if(turn.movement||turn.bonus||turn.reaction||turn.free||turn.narrate) return {items:[{label:uiCopy('ร่ายเวทนี้เป็นคำสั่งเดี่ยวในรอบนี้','Cast this spell as the only command this round.'),dim:true}]};
+        [['image','crate','ภาพหีบไม้','Image: small wooden crate'],['image','footprints','ภาพรอยเท้า','Image: footprints'],['sound','knock','เสียงเคาะ','Sound: knock'],['sound','bells','เสียงกระดิ่ง','Sound: bells']].forEach(function(form){opts.push({label:uiCopy(form[2],form[3]),illusionPick:{spell:spell,slot:slotName,variant:form[0],depiction:form[1]}});});
+      } else if(spell.target==='area'){
         opts.push({label:uiCopy('ดูระยะและเลือกพื้นที่','Preview range and choose area'),areaPick:{spell:spell,slot:slotName}});
       } else if(spell.target==='multi'){
         opts.push({label:uiCopy('เลือกเป้าหมายหลายตัว','Choose multiple targets'),multiPick:{spell:spell,slot:slotName}});
@@ -14712,7 +14763,7 @@ window.cc = (function(){
     try{
       window._bcOpen = true;
       var f=document.getElementById('ccFrame'); if(f) f.classList.remove('cc-hide');
-      if(window.innerWidth<1024 && typeof bsToggleSheet==='function'){ bsToggleSheet('cmd'); }
+      if(window.innerWidth<1024 && typeof bsToggleSheet==='function' && !document.getElementById('bsCmdWrap')?.classList.contains('bs-sheet-open')){ bsToggleSheet('cmd'); }
     }catch(e){}
   }
   function ccMultiTargetPicker(spell, slot){
@@ -14799,6 +14850,37 @@ window.cc = (function(){
     draw();
   }
 
+  var ccIllusionPointPicking=false;
+  async function ccMinorIllusionPicker(choice){
+    if(choice.slot!=='action'||!window._combatActive||!choice.spell?._skillId||turn.movement||turn.bonus||turn.reaction||turn.free||turn.narrate) return;
+    await ccCheckAreaCapability();
+    if(window._spellPickMinorIllusionV1!==true) return toast(uiCopy('ยังไม่เปิดการเลือกช่องภาพลวงตา','Illusion point selection is unavailable.'),true);
+    const initial=await ccLoadAreaGrid();
+    if(!initial) return toast(uiCopy('ยังตรวจกริดปัจจุบันไม่ได้','The current grid could not be verified.'),true);
+    if(choice.variant==='image'&&initial.g.cell_ft>5) return toast(uiCopy('ภาพลวงตาต้องอยู่ในช่องกว้างไม่เกิน 5 ฟุต','An illusion image needs a cell no wider than 5 feet.'),true);
+    var finished=false;
+    function restoreCommand(){
+      if(finished) return;
+      finished=true;ccIllusionPointPicking=false;ccReturnToMenu();renderAll();
+    }
+    try{
+      ccIllusionPointPicking=true;
+      var frame=document.getElementById('ccFrame'); if(frame) frame.classList.add('cc-hide');
+      ccApplyWindow();
+    ccGridPick('minor_illusion_0',async function(picked){
+        if(!picked){restoreCommand();return;}
+        try{
+        await ccCheckAreaCapability();
+        const fresh=window._spellPickMinorIllusionV1===true?await ccLoadAreaGrid():null;
+        const casters=fresh?.toks?.filter(t=>t.ref_char_id===fresh.casterId&&(t.kind==='pc'||t.kind==='ally'))||[];
+        const c=casters[0],col=picked.col,row=picked.row,g=fresh?.g;
+        if(!fresh||fresh.g.id!==initial.g.id||fresh.g.encounter_id!==initial.g.encounter_id||casters.length!==1||!Number.isInteger(col)||!Number.isInteger(row)||col<0||row<0||col>=g.cols||row>=g.rows||!Number.isInteger(c.col)||!Number.isInteger(c.row)||Math.max(Math.abs(c.col-col),Math.abs(c.row-row))*g.cell_ft>30||(choice.variant==='image'&&g.cell_ft>5)||turn.movement||turn.bonus||turn.reaction||turn.free||turn.narrate) throw new Error('minor_illusion_grid_unproven');
+        turn.action={label:choice.spell.name+' ▸ '+picked.center,displayLabel:uiCopy(choice.spell.name+' ▸ ช่อง '+picked.center,choice.spell.name+' ▸ cell '+picked.center),dice:null,skillId:choice.spell._skillId,spell_target_v1:{mode:'minor_illusion',spell_slug:'minor-illusion',variant:choice.variant,depiction:choice.depiction,col:col,row:row}};
+          seqAdd('action');stack=['root'];restoreCommand();
+        }catch(_error){toast(uiCopy('ตำแหน่งภาพลวงตาเปลี่ยนไป กรุณาเลือกใหม่','The illusion point changed. Please select it again.'),true);restoreCommand();}
+      });
+    }catch(_error){restoreCommand();toast(uiCopy('เปิดการเลือกช่องภาพลวงตาไม่สำเร็จ','Could not open illusion point selection.'),true);}
+  }
   async function ccAreaTargetPicker(spell,slot){
     if(slot!=='action'||!window.SpellAreaPicker) return;
     try{
@@ -14817,6 +14899,7 @@ window.cc = (function(){
   }
   function handleClick(it){
     try{ if(typeof tick==='function') tick(); }catch(e){}
+    if(it.illusionPick){ ccMinorIllusionPicker(it.illusionPick); return; }
     if(it.areaPick){ ccAreaTargetPicker(it.areaPick.spell,it.areaPick.slot); return; }
     if(it.multiPick){ ccMultiTargetPicker(it.multiPick.spell,it.multiPick.slot); return; }
     if(it.editSlot){
@@ -14876,7 +14959,7 @@ window.cc = (function(){
     }
     if(it.drill){ stack.push(it.drill); renderAll(); return; }
     if(it.commit){
-      turn[it.commit.slot] = { label: it.commit.label, displayLabel:it.commit.displayLabel||null, dice: it.commit.dice || null, skillId: it.commit.skillId || null, weapon:it.commit.weapon||null };
+      turn[it.commit.slot] = { label: it.commit.label, displayLabel:it.commit.displayLabel||null, dice: it.commit.dice || null, skillId: it.commit.skillId || null, weapon:it.commit.weapon||null, ...(it.commit.spell_target_v1?{spell_target_v1:it.commit.spell_target_v1}:{}) };
       seqAdd(it.commit.slot);
       stack = ['root']; renderAll(); return;
     }
@@ -14884,6 +14967,10 @@ window.cc = (function(){
   }
 
   async function onSubmit(){
+    if(['utility','minor_illusion'].includes(turn?.action?.spell_target_v1?.mode)&&(turn.movement||turn.bonus||turn.reaction||turn.free||turn.narrate)){
+      toast(uiCopy('เวทนี้ต้องเป็นคำสั่งเดี่ยวในรอบนี้ กรุณาลบการเดินหรือคำสั่งอื่นก่อนส่ง','This spell must be the only command this round. Remove movement or other commands before submitting.'),true);
+      return;
+    }
     // v215: เลือกแต่ Move โดยไม่มี Action ในคอมแบต → ถามยืนยันก่อนส่ง (เคสเบรฟ: กดตามคำแนะนำ 'วิ่งเข้าโจมตี' แต่ส่งจริงแค่เดิน เลยทั้งไม่ถึงทั้งไม่ได้ตี)
     if(turn && turn.movement && !turn.action){
       if(!await uiConfirmText(uiCopy('ยังไม่ได้เลือก Action (เช่น โจมตี / Dash) — จะเดินอย่างเดียวแล้วจบเทิร์นเลยใช่ไหม?\n\nเป้าอยู่ไกล: เลือก Action ▸ Dash จะวิ่งได้ไกลขึ้นสองเท่า','No Action is selected (such as Attack / Dash) — move only and end the turn?\n\nThe target is far away: choose Action ▸ Dash to move twice as far.'),'command-move-only')) return;
@@ -15251,7 +15338,7 @@ window.cc = (function(){
   }
   function ccApplyWindow(){
     var fr=document.getElementById('ccFrame'); if(!fr) return;
-    var win = (phase==='building' && window.matchMedia && window.matchMedia('(min-width:1024px)').matches && (stack.length>1 || !!window._bcOpen));
+    var win = (!ccIllusionPointPicking && phase==='building' && window.matchMedia && window.matchMedia('(min-width:1024px)').matches && (stack.length>1 || !!window._bcOpen));
     fr.classList.toggle('cc-windowed', win);
     var host=document.getElementById('battleScene')||document.body;
     var bd=document.getElementById('ccBackdrop');
