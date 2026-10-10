@@ -1,0 +1,2563 @@
+{
+  "schema": "battle-vfx-pack/v1",
+  "version": "2026-10-10",
+  "extends": "2026-09-27",
+  "selection": {
+    "ref": "a61dcecff",
+    "owner_sha256": "618a68dcbf04ccba0933ae6aba955c489a7c55dc9a1b8ae13c6975a6928626e3",
+    "area_owner_sha256": "cf439d834156fb31fef33c0b53936fe65da529067efe9cd0d346e07c314ee663",
+    "original_manifest_sha256": "6161b39e358873e485d50a4c0da11c1176e775fa031b974bb3d59a4ca917c6d6",
+    "area_manifest_sha256": "a1aea148d627e62e5be21199a977f8c7659ca5f81f7fc59c5a9191b41c3ce908"
+  },
+  "counts": {
+    "selected_non_area": 42,
+    "selected_areas": 21,
+    "new_png": 531,
+    "inherited_stills": 9
+  },
+  "effects": {
+    "buff_up": {
+      "kind": "impact",
+      "still": {
+        "url": "./battle-vfx/2026-10-10/effects/buff_up.png",
+        "sha256": "BEB6979401CE25DEB26FB54A225FAF5879C91697BDDEAFE555E36EEEE0EB726B"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/frames/buff_up/frame-00.png",
+          "sha256": "C3A5EFD27C00679B0184BD257C19E4402B72CDEEF7B8D9996521BF72E7F87EE4"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/buff_up/frame-01.png",
+          "sha256": "6B0E53CCA77CA7DCC03DF615A2437EE39AAA3FABF90AC84307286147AF0B1CAC"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/buff_up/frame-02.png",
+          "sha256": "DABBCA6ED1776DD64FB027A0B297E60798C325884AE3F60D7082B28DBEA8F24C"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/buff_up/frame-03.png",
+          "sha256": "F146921C64E096B3FC1A1285EB97C96409FB84D11E5EB1619BA08E52E11BFA62"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/buff_up/frame-04.png",
+          "sha256": "951075D39414014CD8849B5F66CC6C390D256C84DCDD0605AF4FE5A978903CC4"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/buff_up/frame-05.png",
+          "sha256": "27A72BD9CBA2ED75275D5C69576A5086407E6463B9BF16D3D0E7B952ECEA31E0"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/buff_up/frame-06.png",
+          "sha256": "2B353EA9190346E38E70AC28DF0E89478A2F512BC9553CAF011F96F403A440DB"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/buff_up/frame-07.png",
+          "sha256": "7A2FC4F50F0D462F9901DDA2458AED0FA0A05E6B7DE9AE16A45EF3AAF309BE3F"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/buff_up/frame-08.png",
+          "sha256": "052C48AA8B5E4F2C40BCD0D1BB7A4B93276276285DFA3E8A971B435DC88FDFEE"
+        }
+      ],
+      "presentation": "impact"
+    },
+    "debuff_down": {
+      "kind": "impact",
+      "still": {
+        "url": "./battle-vfx/2026-10-10/effects/debuff_down.png",
+        "sha256": "F33FA22D1325610296640B8FC7B392A4971272B16F82CC5D5AB4D93E77F16EEF"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/frames/debuff_down/frame-00.png",
+          "sha256": "B40F30688139C8782128216CAC8DF9AACA8C4C31297BB6F3390A53EFA640FFF0"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/debuff_down/frame-01.png",
+          "sha256": "40A5BB4E0A6D112993D0CBE1C77B5033AFDE69EE390BE9A3EE06687DEC6A6FF5"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/debuff_down/frame-02.png",
+          "sha256": "EABC94DDD03928496761FE0D78F08BF2390B886243AAEE32DFBE19DB7AC5189A"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/debuff_down/frame-03.png",
+          "sha256": "B1C457D5E75E1187824CA8CEC43836CF24EE9022517702058C7984242C6588C9"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/debuff_down/frame-04.png",
+          "sha256": "6B8C35F8B8402EA980F2AE5503CDB47D9512DB85BC65CB41D8A65F852D7494F2"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/debuff_down/frame-05.png",
+          "sha256": "F9D50665EC03A099CCA2C916092A11D65E59826A2DC59B7051E19511AE5A9467"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/debuff_down/frame-06.png",
+          "sha256": "4040751EE8904E1FAE45279FC1BB18F6EC4034FC5D3471403707656C2FCCA9BE"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/debuff_down/frame-07.png",
+          "sha256": "5835DD7DFA7DADAA4CF2FE8082AC2C1E99FF45EA9019EF0417D923A51A1DA035"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/debuff_down/frame-08.png",
+          "sha256": "052C48AA8B5E4F2C40BCD0D1BB7A4B93276276285DFA3E8A971B435DC88FDFEE"
+        }
+      ],
+      "presentation": "impact"
+    },
+    "teleport_mist": {
+      "kind": "impact",
+      "still": {
+        "url": "./battle-vfx/2026-10-10/effects/teleport_mist.png",
+        "sha256": "892584114CB7180400ADF8984F14B80075976C528A0DFF60FF85B11A31F5E574"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/frames/teleport_mist/frame-00.png",
+          "sha256": "C96D5DFF503FF11F053A740EA1D5644DA946F05A8EC521A603347BAC80FEDA05"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/teleport_mist/frame-01.png",
+          "sha256": "C96D5DFF503FF11F053A740EA1D5644DA946F05A8EC521A603347BAC80FEDA05"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/teleport_mist/frame-02.png",
+          "sha256": "08B3265373AB0A1950243938F78EA97CC0AA168925F1A05D9B550D7F29F624AB"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/teleport_mist/frame-03.png",
+          "sha256": "A3D4897E380575DAB7B5A1A96689A8EE00FC038CE1A794D0727ECC97F76F916E"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/teleport_mist/frame-04.png",
+          "sha256": "894D96529359C8774BD0504ED57714E13FD3CB6319D8E0EE84171CD62C73C102"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/teleport_mist/frame-05.png",
+          "sha256": "6FEB57C41C20411F6C6E9AFDD9CB536A97430F7C4B4AC07853A5FF72FB272AB8"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/teleport_mist/frame-06.png",
+          "sha256": "208DCC653BFC7B6E02ACBB360BD6FB004F26966EADB85999CFD5A210CA3B203A"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/teleport_mist/frame-07.png",
+          "sha256": "78A80A77F1268537A419DACA51418154B627E977061C1CCC84CD5D299CDEE717"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/teleport_mist/frame-08.png",
+          "sha256": "052C48AA8B5E4F2C40BCD0D1BB7A4B93276276285DFA3E8A971B435DC88FDFEE"
+        }
+      ],
+      "presentation": "impact"
+    },
+    "dispel": {
+      "kind": "impact",
+      "still": {
+        "url": "./battle-vfx/2026-10-10/effects/dispel.png",
+        "sha256": "9B5BBDB363213D6731283C451757528C3CA5B42892FA379CFCF8947C8C496FCC"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/frames/dispel/frame-00.png",
+          "sha256": "AC7DA1E58BD5C9FF6E9F2030BB28B0FA0BCA585AD05AF7F9B59B19AE9064CBB3"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/dispel/frame-01.png",
+          "sha256": "AC7DA1E58BD5C9FF6E9F2030BB28B0FA0BCA585AD05AF7F9B59B19AE9064CBB3"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/dispel/frame-02.png",
+          "sha256": "EC8BB390F88EBF665D562A1D060B12A61FCE6DDAD1351F4E999B2CAA4BB64900"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/dispel/frame-03.png",
+          "sha256": "F3F708075949CA1FD7FE536247BFC7439F71A9A6617B96C2AC2116B71BBCA9D1"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/dispel/frame-04.png",
+          "sha256": "6BE9F806E1C864A918EE46ABF06FD395F3E22C3CB498A59D6EE16E74129E7F92"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/dispel/frame-05.png",
+          "sha256": "BAA2875D51FFE743B9C7AA1E44B8265AE2F4DD337638966DFF4126E7DFB45153"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/dispel/frame-06.png",
+          "sha256": "1A0D01C575A5635B2BEE8D168347E72FAD8977D55FF972716522165C505348F6"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/dispel/frame-07.png",
+          "sha256": "4278F16CCFA74D24696A7148B2CC5679F96718604F9488D1597C84C665FD3DE6"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/dispel/frame-08.png",
+          "sha256": "052C48AA8B5E4F2C40BCD0D1BB7A4B93276276285DFA3E8A971B435DC88FDFEE"
+        }
+      ],
+      "presentation": "impact"
+    },
+    "summon_necrotic": {
+      "kind": "impact",
+      "still": {
+        "url": "./battle-vfx/2026-10-10/effects/summon_necrotic.png",
+        "sha256": "445EA59F9B56B9558EA8A32DAD1E3D9650E343BA17F60EA12741C6CBC19ECEA2"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/frames/summon_necrotic/frame-00.png",
+          "sha256": "32267746D3E33F7CCE7CEEA2183E000EA8FBDFFCBE40309AC465D72264B19CB4"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/summon_necrotic/frame-01.png",
+          "sha256": "32267746D3E33F7CCE7CEEA2183E000EA8FBDFFCBE40309AC465D72264B19CB4"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/summon_necrotic/frame-02.png",
+          "sha256": "4E5D604122D412508A7A2F57B4EE19F65D897515AA8F3FCD9FFA695FCD4E434E"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/summon_necrotic/frame-03.png",
+          "sha256": "BFF1A60792AFAB22FEF768F8D5A3B3163ACEA9135E63769CA38CF50DC16CBDEB"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/summon_necrotic/frame-04.png",
+          "sha256": "D53454DCEE810A4BEA1D96F40FC53EA2BFADD90438A2F6A070E12E813686D11A"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/summon_necrotic/frame-05.png",
+          "sha256": "FE5BA04BD63F62A24CAED6DE2D862D16498CEF59AB4D90410324CA29826B34FE"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/summon_necrotic/frame-06.png",
+          "sha256": "FA52DBA9ACAB74980B3B88D96627949B9F62F02CBB72869EC33B285ED083D52D"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/summon_necrotic/frame-07.png",
+          "sha256": "67F01218718B9E3AA6BEADA096F4602DAFE86498F9E78187FFD92C8F50A7B4A7"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/summon_necrotic/frame-08.png",
+          "sha256": "052C48AA8B5E4F2C40BCD0D1BB7A4B93276276285DFA3E8A971B435DC88FDFEE"
+        }
+      ],
+      "presentation": "impact"
+    },
+    "radiant": {
+      "kind": "impact",
+      "still": {
+        "url": "./battle-vfx/2026-09-27/effects/radiant.png",
+        "sha256": "71F43C4664307C6C6458FEBC9440CA06CA9669C3F39750147136EE51F2F782A9"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/frames/radiant/frame-00.png",
+          "sha256": "DD955F0BF14D0139D5BF5C0268F4019A094D66A29A412DDF19ADEC5445CA1840"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/radiant/frame-01.png",
+          "sha256": "DD955F0BF14D0139D5BF5C0268F4019A094D66A29A412DDF19ADEC5445CA1840"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/radiant/frame-02.png",
+          "sha256": "CB6D6EA51D9AE2FC76B7B5926AEBE96CD87953F48046BE2155F2EE2FC31EADAB"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/radiant/frame-03.png",
+          "sha256": "198E783DE5B2CB11C6756451F956ADC6389A6753AE0112129612E9138E24ACB7"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/radiant/frame-04.png",
+          "sha256": "41CD0FCDBAFFE9F0F3F147180CE56EB795F05A04B888E8D46DB2539C6407A035"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/radiant/frame-05.png",
+          "sha256": "5C7A1AC6606AE68941A556661F855FBE7F97E2B44585F6AA6E58B7CCF2BBE376"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/radiant/frame-06.png",
+          "sha256": "DDC9237B257311285E2A47F93D1941427455D063E3DECF2A825DE21225FD5AE5"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/radiant/frame-07.png",
+          "sha256": "811BC8A81190C5E9DFABA146A26415D8118DD8990403BCA394FDFD279A918854"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/radiant/frame-08.png",
+          "sha256": "052C48AA8B5E4F2C40BCD0D1BB7A4B93276276285DFA3E8A971B435DC88FDFEE"
+        }
+      ],
+      "frames_only": true,
+      "presentation": "impact"
+    },
+    "thunder": {
+      "kind": "impact",
+      "still": {
+        "url": "./battle-vfx/2026-09-27/effects/thunder.png",
+        "sha256": "1E4C0E8132710C9D42CBA6D1D190F2425C293381F3C5ED4ABD35DCE40EEB35E9"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/frames/thunder/frame-00.png",
+          "sha256": "09041E1B22FE459EC99E1CBD75F746CEFDBA18EA4797650E41871B579C18F743"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/thunder/frame-01.png",
+          "sha256": "09041E1B22FE459EC99E1CBD75F746CEFDBA18EA4797650E41871B579C18F743"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/thunder/frame-02.png",
+          "sha256": "9A81981295D57359603D29898D9BEFE1487C6BCD461F039C356F9A8D8B884A6A"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/thunder/frame-03.png",
+          "sha256": "351061B6E591329500F53AA1C164F8442474CB9A1BAF4EA993B1C21BF662E31F"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/thunder/frame-04.png",
+          "sha256": "3D4079EFFBCD5F48C0347E813155441D451819FEFECB7D42D77AE6E75223B9AE"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/thunder/frame-05.png",
+          "sha256": "98A4AD8DB23107538714BC3D02F2595B2E1E265A6D116DA391F8E57F48553CCC"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/thunder/frame-06.png",
+          "sha256": "60D517324F464FED6267F92F3FB7F6B637B291ECB582E6D3E1496EFD95AC4DD9"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/thunder/frame-07.png",
+          "sha256": "2330AB1C66BEC1A2C816B350BD0EEE8CA18D5D1AC70DA2C9FC1B5AF7C82EA425"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/thunder/frame-08.png",
+          "sha256": "052C48AA8B5E4F2C40BCD0D1BB7A4B93276276285DFA3E8A971B435DC88FDFEE"
+        }
+      ],
+      "frames_only": true,
+      "presentation": "impact"
+    },
+    "psychic": {
+      "kind": "impact",
+      "still": {
+        "url": "./battle-vfx/2026-09-27/effects/psychic.png",
+        "sha256": "AB7F6CFEB2DDF48E4AC9C16A2B79A6477E573D93BC70651237830BDA0942853B"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/frames/psychic/frame-00.png",
+          "sha256": "FD859AC77AAFD393A1EE97487559179914D63FBAEE60DEE7DAF20E6C7A0ADBE2"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/psychic/frame-01.png",
+          "sha256": "FD859AC77AAFD393A1EE97487559179914D63FBAEE60DEE7DAF20E6C7A0ADBE2"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/psychic/frame-02.png",
+          "sha256": "86C8AABD162D3E7A2E052F282A55691C7697C65F87BA0FA13A2F2C7890D5E5C9"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/psychic/frame-03.png",
+          "sha256": "9C16A326678247187AEFFAAE9FD7E51A460845D99FC76F43A33F34FAF576979E"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/psychic/frame-04.png",
+          "sha256": "102E64D5990647CA1C733F32E34C93073D718CEB428CE8A2A7CE282C9C9C7D38"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/psychic/frame-05.png",
+          "sha256": "81FC94619FF21A6E275DE270527E01A439B583D45983B7877775FF863BED60D0"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/psychic/frame-06.png",
+          "sha256": "5A929ABC267E14A53376C3E702938EE2F708FE391793CA7DB43433D9977D6A0D"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/psychic/frame-07.png",
+          "sha256": "1154041D453F6AE903A0365200F79261371D7A19361651FD1C3ABE683DBD08F8"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/psychic/frame-08.png",
+          "sha256": "052C48AA8B5E4F2C40BCD0D1BB7A4B93276276285DFA3E8A971B435DC88FDFEE"
+        }
+      ],
+      "frames_only": true,
+      "presentation": "impact"
+    },
+    "necrotic": {
+      "kind": "impact",
+      "still": {
+        "url": "./battle-vfx/2026-09-27/effects/necrotic.png",
+        "sha256": "4FBFEE9CA0E89B78F4786CA48B92E408DB9A66120310867F03DEBB99E4934F3F"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/frames/necrotic/frame-00.png",
+          "sha256": "939CADB338A7F1E64D4C9AF511BE192649A6A4E1EAA49810BE7D5D8753387420"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/necrotic/frame-01.png",
+          "sha256": "939CADB338A7F1E64D4C9AF511BE192649A6A4E1EAA49810BE7D5D8753387420"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/necrotic/frame-02.png",
+          "sha256": "68358A0391D1D9C1F0552A0C14F1AB86EAF2FF79C96A88B4DD37D8E2808595AC"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/necrotic/frame-03.png",
+          "sha256": "E07337C05036D7F2F2B02907281E4BBA4650DD98EC3A2C0DBBD25B71C1FCF25D"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/necrotic/frame-04.png",
+          "sha256": "D20F6AA917F1620ED8665CDDDE80D78D614556916DAADCECA0D909608D00C3D4"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/necrotic/frame-05.png",
+          "sha256": "C40CE875975672CAA5A304160BC8C761CFFB13C97B1801D436DA01F904225355"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/necrotic/frame-06.png",
+          "sha256": "D588780722E6A63E04917F91799DA55E4E2058B999137A76827D01B363EB708B"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/necrotic/frame-07.png",
+          "sha256": "06CCD6C13A74BFB19B6055B7BD12D06522064B15A33BF4E06610256C53247778"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/necrotic/frame-08.png",
+          "sha256": "052C48AA8B5E4F2C40BCD0D1BB7A4B93276276285DFA3E8A971B435DC88FDFEE"
+        }
+      ],
+      "frames_only": true,
+      "presentation": "impact"
+    },
+    "bludgeoning": {
+      "kind": "impact",
+      "still": {
+        "url": "./battle-vfx/2026-09-27/effects/bludgeoning.png",
+        "sha256": "19B86B6B085FF6266CC66E8BF7E4CFEBA4D89F1CF5C39E56DE3860AB0E549D63"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/frames/bludgeoning/frame-00.png",
+          "sha256": "B5C160CA5582DD2BE24FC994BC82B7C136FA31B0DBC1070C7BB395AFAF9580C4"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/bludgeoning/frame-01.png",
+          "sha256": "B5C160CA5582DD2BE24FC994BC82B7C136FA31B0DBC1070C7BB395AFAF9580C4"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/bludgeoning/frame-02.png",
+          "sha256": "60AE65B8204768C40ECC32FD1A5C59DC09CB8754FB55568ED2A1336A63CC1413"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/bludgeoning/frame-03.png",
+          "sha256": "0378763E5A91BA02AC528D9768197BAAE8B89C419DF420A91FBDD0534B381556"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/bludgeoning/frame-04.png",
+          "sha256": "080A473E4BA16C9BAD47614D097A3AA41576DA3A6074F9C13CC707BBA9F08586"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/bludgeoning/frame-05.png",
+          "sha256": "F1531B4F2694599E341F5F505D6FA501BC114617211F413A9B39181BFFF57A05"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/bludgeoning/frame-06.png",
+          "sha256": "C1D38E9D895FD396F7F9A7F4976D49DF9AC29987211F4FE671C28BC7DC3E5716"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/bludgeoning/frame-07.png",
+          "sha256": "C09F5181B08A3EF825F4B03D9BA6957D5D584F0FD31A833A9C51FD8A69052ED2"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/bludgeoning/frame-08.png",
+          "sha256": "052C48AA8B5E4F2C40BCD0D1BB7A4B93276276285DFA3E8A971B435DC88FDFEE"
+        }
+      ],
+      "frames_only": true,
+      "presentation": "impact"
+    },
+    "piercing": {
+      "kind": "impact",
+      "still": {
+        "url": "./battle-vfx/2026-09-27/effects/piercing.png",
+        "sha256": "F2B37DACFB072F420250C91AB57BBB1642943FA0DB8B2F8B246A57D2370FF147"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/frames/piercing/frame-00.png",
+          "sha256": "0151FAEAB47B62EBDBF5F2885ECAA30262D00F29AB0C19CE7F5314249CF8C0D5"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/piercing/frame-01.png",
+          "sha256": "0151FAEAB47B62EBDBF5F2885ECAA30262D00F29AB0C19CE7F5314249CF8C0D5"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/piercing/frame-02.png",
+          "sha256": "8DF1F7B0AB82CEC7A6C82DB403248DF81B22E2FD6C246BDFCF57695BB989C1A5"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/piercing/frame-03.png",
+          "sha256": "98CEA316378CEACE2231E11D2B8CD191D07244E59CEA723F8B9D47934DA4B3A7"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/piercing/frame-04.png",
+          "sha256": "A30AE8E6C3AA08E0843C158D3C80266CE5758CAAD8FBF0BB2BA74A604D66B3F5"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/piercing/frame-05.png",
+          "sha256": "0076618D3AD43C00E0B0D41ADB006D692F63A303CFA358DB7D6D9B72905453E1"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/piercing/frame-06.png",
+          "sha256": "247AC89CC12B51EA1047DD73B18801A383BE78E92E085C7C4481F9D6A0B34368"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/piercing/frame-07.png",
+          "sha256": "B734CD3AEA80B7B020DF2BB3C8796A8291BCF4DDF1964D182595F5AB7061B67D"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/piercing/frame-08.png",
+          "sha256": "052C48AA8B5E4F2C40BCD0D1BB7A4B93276276285DFA3E8A971B435DC88FDFEE"
+        }
+      ],
+      "frames_only": true,
+      "presentation": "impact"
+    },
+    "slashing": {
+      "kind": "impact",
+      "still": {
+        "url": "./battle-vfx/2026-09-27/effects/slashing.png",
+        "sha256": "EE02F68C20E672BACB9EDE6F447779BC19954BD6CE9B0CECDDD26F37AA702EE1"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/frames/slashing/frame-00.png",
+          "sha256": "F3A51D844D2F5B392651A44139A4EAF4B0EFB797E268BF481AAF8F13827501E2"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/slashing/frame-01.png",
+          "sha256": "F3A51D844D2F5B392651A44139A4EAF4B0EFB797E268BF481AAF8F13827501E2"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/slashing/frame-02.png",
+          "sha256": "5F3BF0A678B948464B76AEAB0134F314B7A31E0066B0FAC2C8C1D59437F45955"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/slashing/frame-03.png",
+          "sha256": "D52B154871079F8D4C65F366D131A23D94065139EA777CDD12A1276553B6488F"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/slashing/frame-04.png",
+          "sha256": "D728900C156A894BA6AC4717427D6766F9345A11204DF399299EC07627598324"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/slashing/frame-05.png",
+          "sha256": "69557363A8BAFF6EB556C1D8CF40423C9F815D23397CB4AE8C5C43CAE18318E0"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/slashing/frame-06.png",
+          "sha256": "82D15C8F347715CC32886E7531E6C272DA5AD228AC377E1EF1272D9DE2780480"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/slashing/frame-07.png",
+          "sha256": "BC9C0B150643895D307C00AC896D01FED82113761A6F8EC154EAB8037294B8DC"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/slashing/frame-08.png",
+          "sha256": "052C48AA8B5E4F2C40BCD0D1BB7A4B93276276285DFA3E8A971B435DC88FDFEE"
+        }
+      ],
+      "frames_only": true,
+      "presentation": "impact"
+    },
+    "column_fire": {
+      "kind": "impact",
+      "still": {
+        "url": "./battle-vfx/2026-10-10/effects/column_fire.png",
+        "sha256": "03D0B6BCB85502EE4B91CB9C50AC91E9E0D0FBF2128AE17F98E9D161BD3E320B"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/frames/column_fire/frame-00.png",
+          "sha256": "DA6A18CBF8CFA2C7837CBB5123E9D88FF369500B9BA874F90A5598A0463F615C"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/column_fire/frame-01.png",
+          "sha256": "DA6A18CBF8CFA2C7837CBB5123E9D88FF369500B9BA874F90A5598A0463F615C"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/column_fire/frame-02.png",
+          "sha256": "B6D2BE3E68509C7408D154E87D4FD7211E1F8547F37B67E8696E0D3B97051822"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/column_fire/frame-03.png",
+          "sha256": "E65B53219773ECF5C093FE44A057642F66B763EE3B9DDC2A18CA29CB0973B94E"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/column_fire/frame-04.png",
+          "sha256": "1A890842A50D4285E3EF77D75B5779F29AA8ED4E412DC1F1F6A8CADC6436C132"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/column_fire/frame-05.png",
+          "sha256": "7CABF2F939D1B363AC4723C11E68B329672609D68E81695CA360B18EE60C2187"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/column_fire/frame-06.png",
+          "sha256": "8967220FAD0B4AE39CCFB6DAE521A9A4020520BC2B3F6400574CE9413B2679D0"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/column_fire/frame-07.png",
+          "sha256": "2F608B05B3C3D59D67088C364774FEB7382495118D1B9956D7DC82068F18F0C2"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/column_fire/frame-08.png",
+          "sha256": "052C48AA8B5E4F2C40BCD0D1BB7A4B93276276285DFA3E8A971B435DC88FDFEE"
+        }
+      ],
+      "presentation": "impact"
+    },
+    "summon_arcane": {
+      "kind": "impact",
+      "still": {
+        "url": "./battle-vfx/2026-10-10/effects/summon_arcane.png",
+        "sha256": "5E4322D0F6581417BC2DF0CE8D5D603E2903CE4EB3792A0882675EF4EDAA334A"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/frames/summon_arcane/frame-00.png",
+          "sha256": "5FC7FD2241CAEDE936A98B382CE5DF5C17853BE184613C5C091409573FA2A958"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/summon_arcane/frame-01.png",
+          "sha256": "5FC7FD2241CAEDE936A98B382CE5DF5C17853BE184613C5C091409573FA2A958"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/summon_arcane/frame-02.png",
+          "sha256": "C1DAE9A36BBA513933BDA169CAFACD77FAD866E80590557BBC6D562A2E07AF76"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/summon_arcane/frame-03.png",
+          "sha256": "8F288B788A475621A44120B4470E5C981F1F7D2D39CDFD8FA0DE569EDAC8A875"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/summon_arcane/frame-04.png",
+          "sha256": "90E4C0F04B77811DC21DCA8E4F90BFABF4C83627CC3AE4B6F7C151829EEC985A"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/summon_arcane/frame-05.png",
+          "sha256": "91B5A113F50C9C131824000889C850D4D6FCB9615C81323016AA3DF304917974"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/summon_arcane/frame-06.png",
+          "sha256": "249020F7590353613C9903D2C3011D9D0D9481C56E75E69017B411AEA7DAB8EC"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/summon_arcane/frame-07.png",
+          "sha256": "F75563B408E066E1FA5CE8D159C89B3CD47396A2FEF54D318DC0E65FE8FDB8AE"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/summon_arcane/frame-08.png",
+          "sha256": "052C48AA8B5E4F2C40BCD0D1BB7A4B93276276285DFA3E8A971B435DC88FDFEE"
+        }
+      ],
+      "presentation": "impact"
+    },
+    "minor_magic": {
+      "kind": "impact",
+      "still": {
+        "url": "./battle-vfx/2026-10-10/effects/minor_magic.png",
+        "sha256": "AA3017EC1BD5F3C9560F1BA8561CC65ACF08D123245F903C20DF137298889334"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/frames/minor_magic/frame-00.png",
+          "sha256": "B227FBC0BACB667B433C85872416699113E1045F04871F00FDD4E7D71229424C"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/minor_magic/frame-01.png",
+          "sha256": "B227FBC0BACB667B433C85872416699113E1045F04871F00FDD4E7D71229424C"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/minor_magic/frame-02.png",
+          "sha256": "C6A8C940CD096902B20F397EA294B1336B5D4DBEC57AABD89AD40C92947A9D23"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/minor_magic/frame-03.png",
+          "sha256": "03731913F05D4426A36153D70C200412E6CFEF9C5C72107C389C346BF5ECADD1"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/minor_magic/frame-04.png",
+          "sha256": "6DA2609D108AB6573FECC98BF722B4DE0DD2BDA6737EE5AED9054A5CE1BE5D62"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/minor_magic/frame-05.png",
+          "sha256": "061301A1B1D88A0E5BA08EAA39519402DFED5991B2F00CBA5F520893B1D12BBB"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/minor_magic/frame-06.png",
+          "sha256": "4E16B599EBD3690B3AA87FF2F0643607C2551C5EE987771C4B62DEA5CF6884E7"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/minor_magic/frame-07.png",
+          "sha256": "DDA68AD52B36DA3B7632D06144EBB03949855E03639E5D3AB333E88284BD765D"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/minor_magic/frame-08.png",
+          "sha256": "052C48AA8B5E4F2C40BCD0D1BB7A4B93276276285DFA3E8A971B435DC88FDFEE"
+        }
+      ],
+      "presentation": "impact"
+    },
+    "projectile_fire": {
+      "kind": "delivery",
+      "still": {
+        "url": "./battle-vfx/2026-10-10/effects/projectile_fire.png",
+        "sha256": "063F00AE39EAB6DC0BE38A8AB6539F7DDE9B382BFDA0F1B75CDC2A0099F5A577"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/frames/projectile_fire/frame-00.png",
+          "sha256": "7C9F29D4CDB2C00527B45822084A705377C527E07D909620808C6A20ADE49D44"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/projectile_fire/frame-01.png",
+          "sha256": "575752C48C00507DD8A78D92F6FA2DDB13D3267EC111CCFAF31E65B903D18039"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/projectile_fire/frame-02.png",
+          "sha256": "12A34F4B3B44963E50822906ACF23F46678F32EED8A7694FE6078D35FCCF1609"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/projectile_fire/frame-03.png",
+          "sha256": "4B96DEE09528C279C85BE644138F2049998D15AE8A552F5AF90E9738562D70BF"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/projectile_fire/frame-04.png",
+          "sha256": "17F6825313C9BD4EF30B45B34CC2FD7AD94C2D956083967EE45D2FF8E0A1B9D0"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/projectile_fire/frame-05.png",
+          "sha256": "77643BFD7ABCF809BD2106848FEA8D788E3BA14475B35FF0C4EB12CFF7FEA803"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/projectile_fire/frame-06.png",
+          "sha256": "70EE85BAF3283E423CB80FEE15592A5192FA1D0DFB83F4B6FCB06FDBD790A243"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/projectile_fire/frame-07.png",
+          "sha256": "E1E0813F9C95B43BCD1E932E2108D9412B1506111DACC66966293D0E6F30BA93"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/projectile_fire/frame-08.png",
+          "sha256": "92391C776FD7FB595CFC7168F69E43C191F84C7D0DE3EB6818F9CE569F21B55B"
+        }
+      ],
+      "presentation": "delivery"
+    },
+    "cone_fire": {
+      "kind": "delivery",
+      "still": {
+        "url": "./battle-vfx/2026-10-10/effects/cone_fire.png",
+        "sha256": "5DC4FC8124F3B63B78D471E36441AACFA9E9B6B96DFDFFEC401F21FA5832A4FD"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/frames/cone_fire/frame-00.png",
+          "sha256": "9809E967FA3157C755F72EB35A6AF2BD6F6F34A04192E579F7B045C1706F27D9"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/cone_fire/frame-01.png",
+          "sha256": "DF36ED0517E96BA498773E3B499DCD27CF711710EFBF650C3840A1EA9124C69B"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/cone_fire/frame-02.png",
+          "sha256": "AA6078D21EC7D67331E8EEF89D394AEF6A5B3B356BD7FC90AEE749B9C47FB7B3"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/cone_fire/frame-03.png",
+          "sha256": "04B20D2A349C29FFD085D9EFCF0953F4E52952E667F61243616B15EC2919D688"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/cone_fire/frame-04.png",
+          "sha256": "46E26AFBD2DE9D0B190B45EA3D23DD301C602FA91E940C5FB9B1C78868E229B6"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/cone_fire/frame-05.png",
+          "sha256": "A1380C5C03F8146E12B878D051BDEC56E78B089417CA791D3C8F37B9876356F5"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/cone_fire/frame-06.png",
+          "sha256": "E2662563E9D104671FED4012E4043DEC640B517352002B985CA1C7C7F378EFCF"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/cone_fire/frame-07.png",
+          "sha256": "2BBCA88306F16E42472DF54BBEDE3BCCA7EE2D206B462BA2A1EA1BCDA2EA3E12"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/cone_fire/frame-08.png",
+          "sha256": "DF7A3A45881FF64866553DC40B272CF5CC6409BB51DF59CF2AE546F40E283914"
+        }
+      ],
+      "presentation": "delivery"
+    },
+    "cone_prismatic": {
+      "kind": "delivery",
+      "still": {
+        "url": "./battle-vfx/2026-10-10/effects/cone_prismatic.png",
+        "sha256": "867FBC657C04682F37BFAD0B39F430695D3AE340A1491DFC8FB0665DE029CE3C"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/frames/cone_prismatic/frame-00.png",
+          "sha256": "3D32086CB86351160DF7BC60E816AF7CB5831A90F31324100D8E1B563414DD2F"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/cone_prismatic/frame-01.png",
+          "sha256": "5F38194F0F63B2FC2FD137F0513947FE06D83BD74072143D2AEECD1431D3BEB5"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/cone_prismatic/frame-02.png",
+          "sha256": "B913D761FFA39261C1A29911B54AE2542C48E77EDF3468157D80879DF604CBE6"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/cone_prismatic/frame-03.png",
+          "sha256": "7EE4E7286E255747D7BC9B3D1A177F8E6F02BC8689CC54414B036FE5DD0ECBF4"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/cone_prismatic/frame-04.png",
+          "sha256": "79309C1AA2E0AD30C95A3170FFE89EF949E57C9DCEC789C6527F3EB1F8EA4397"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/cone_prismatic/frame-05.png",
+          "sha256": "5D64CFE6D42896BD12EA381477F3A93B7013AEAA956EBB9FC42F38A3F7ABC9A8"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/cone_prismatic/frame-06.png",
+          "sha256": "FDA6204DE72DBD793CD7CDCE1D933DE39A6ED6D441D60CD405D6E769170BFAFE"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/cone_prismatic/frame-07.png",
+          "sha256": "4114558D464196E83AE46A847158C89286F1615E7A9694845BEC349FD05271BB"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/cone_prismatic/frame-08.png",
+          "sha256": "07FF7B26035D02CF33C43C972E1CE299F43CA4BCA6E73B5AFE490402B281BB89"
+        }
+      ],
+      "presentation": "delivery"
+    },
+    "ray_fire": {
+      "kind": "delivery",
+      "still": {
+        "url": "./battle-vfx/2026-10-10/effects/ray_fire.png",
+        "sha256": "D82249BA573A58BE59B8998001B05B62F3D95929FC39A25AC36ECEAE609CBDF2"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/frames/ray_fire/frame-00.png",
+          "sha256": "62944294C1FAF6B8421CDA8D9912A5BA7C741ED21A22FA0B2969A6829443A82A"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/ray_fire/frame-01.png",
+          "sha256": "5ABC636260C8CC1162A2DAC62F0F3CB325832B92E1828B091A30F9B1591AF22A"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/ray_fire/frame-02.png",
+          "sha256": "8511AE9373DA8F23C87A4AFE84616EB54026F7DFC695BCB78E8B60011F036733"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/ray_fire/frame-03.png",
+          "sha256": "3E485C0EC0DA635CA07BB44555E5D4F182094401A296D6F620EBBD20C39719C6"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/ray_fire/frame-04.png",
+          "sha256": "49923C1C5EDB12B0F4E57CBB56C04B8A5FB1E828CFB4BF00607FB7EFE7E74ACF"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/ray_fire/frame-05.png",
+          "sha256": "3E485C0EC0DA635CA07BB44555E5D4F182094401A296D6F620EBBD20C39719C6"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/ray_fire/frame-06.png",
+          "sha256": "8511AE9373DA8F23C87A4AFE84616EB54026F7DFC695BCB78E8B60011F036733"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/ray_fire/frame-07.png",
+          "sha256": "5ABC636260C8CC1162A2DAC62F0F3CB325832B92E1828B091A30F9B1591AF22A"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/ray_fire/frame-08.png",
+          "sha256": "62944294C1FAF6B8421CDA8D9912A5BA7C741ED21A22FA0B2969A6829443A82A"
+        }
+      ],
+      "presentation": "delivery"
+    },
+    "weapon_spectral": {
+      "kind": "delivery",
+      "still": {
+        "url": "./battle-vfx/2026-10-10/effects/weapon_spectral.png",
+        "sha256": "D169312275F5F457A04722E66B1A73C4529C1037EC6933C118F6EFFD23A38F8F"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/frames/weapon_spectral/frame-00.png",
+          "sha256": "81376CD0BC12901267BD7AE7E4245D131D3621F9F73462B001563F138DE6D2C7"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/weapon_spectral/frame-01.png",
+          "sha256": "27D46992AF2FDF3C4566F737D537164EB6AE8D26AD9E1444A2F75A24A6FC6C71"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/weapon_spectral/frame-02.png",
+          "sha256": "7805493B3670BBFC8C4E3C719722E8927DDE4DD7915EEB204D22F8EE561E459B"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/weapon_spectral/frame-03.png",
+          "sha256": "7F78E5CE4C7B3B1D2D47AD0FB65B01DB7AB616581CAA4972D592F8FE5E98895B"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/weapon_spectral/frame-04.png",
+          "sha256": "11964E937DA6002FCBF737BED3114600B7FA472217C502EA48F022383026AD73"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/weapon_spectral/frame-05.png",
+          "sha256": "7F78E5CE4C7B3B1D2D47AD0FB65B01DB7AB616581CAA4972D592F8FE5E98895B"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/weapon_spectral/frame-06.png",
+          "sha256": "7805493B3670BBFC8C4E3C719722E8927DDE4DD7915EEB204D22F8EE561E459B"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/weapon_spectral/frame-07.png",
+          "sha256": "27D46992AF2FDF3C4566F737D537164EB6AE8D26AD9E1444A2F75A24A6FC6C71"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/weapon_spectral/frame-08.png",
+          "sha256": "81376CD0BC12901267BD7AE7E4245D131D3621F9F73462B001563F138DE6D2C7"
+        }
+      ],
+      "presentation": "delivery"
+    },
+    "spectral_hand": {
+      "kind": "delivery",
+      "still": {
+        "url": "./battle-vfx/2026-10-10/effects/spectral_hand.png",
+        "sha256": "872F394E52D9144A71590E2FE94A2CD648621726F3B0A3575C1D81FC68B7BECB"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/frames/spectral_hand/frame-00.png",
+          "sha256": "C116356A6A5838B90E0734043660C3EEA7D0C194598E790A9F4B5B0738101522"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/spectral_hand/frame-01.png",
+          "sha256": "0247D49B30FA4D88A4634B0CD8DE0C8C4A95BCB55FDBCB30005B33B9E96E691B"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/spectral_hand/frame-02.png",
+          "sha256": "E3BA332333EF6BA822BDE48FD1D353D249A43B91D553A4BE9A21F2B166D92E5F"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/spectral_hand/frame-03.png",
+          "sha256": "9B9E1C21BBE01274506DD53F6D0CBB0AF4DFF48BA4BEF84E08C33F25652E5021"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/spectral_hand/frame-04.png",
+          "sha256": "269E02806C7428709AE4E8EF9A7CAEB8E547E4D520927D3494C6BD3425A7BFC6"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/spectral_hand/frame-05.png",
+          "sha256": "9B9E1C21BBE01274506DD53F6D0CBB0AF4DFF48BA4BEF84E08C33F25652E5021"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/spectral_hand/frame-06.png",
+          "sha256": "E3BA332333EF6BA822BDE48FD1D353D249A43B91D553A4BE9A21F2B166D92E5F"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/spectral_hand/frame-07.png",
+          "sha256": "0247D49B30FA4D88A4634B0CD8DE0C8C4A95BCB55FDBCB30005B33B9E96E691B"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/spectral_hand/frame-08.png",
+          "sha256": "C116356A6A5838B90E0734043660C3EEA7D0C194598E790A9F4B5B0738101522"
+        }
+      ],
+      "presentation": "delivery"
+    },
+    "projectile": {
+      "kind": "delivery",
+      "still": {
+        "url": "./battle-vfx/2026-09-27/effects/projectile.png",
+        "sha256": "926A4FB6A62B636944163D56F2B4BCC28ED7BC147813BA499EAFE9E0E087732D"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/frames/projectile/frame-00.png",
+          "sha256": "B597E79BDD43316CC4DA3EF1713B27209A17957215A9906C2F423F904D9F5F6F"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/projectile/frame-01.png",
+          "sha256": "76BA0386D6D36CFBB1B183CDD64E09D44CD1F23637C33AA66E2006A7DB86963E"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/projectile/frame-02.png",
+          "sha256": "1A5812FC5C219ECC3B19CF2B24FE8B6303609667A1BD5FEAFC73708065B21A9F"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/projectile/frame-03.png",
+          "sha256": "B90BA77B2A5C9031FBD6816BB5DF5D668F2B112D871FBF1103C2EB12943EABB1"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/projectile/frame-04.png",
+          "sha256": "E27DE61471237E73A008F1E315CDA045428028EAB34CDE7419BA2496392579DB"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/projectile/frame-05.png",
+          "sha256": "B90BA77B2A5C9031FBD6816BB5DF5D668F2B112D871FBF1103C2EB12943EABB1"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/projectile/frame-06.png",
+          "sha256": "1A5812FC5C219ECC3B19CF2B24FE8B6303609667A1BD5FEAFC73708065B21A9F"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/projectile/frame-07.png",
+          "sha256": "76BA0386D6D36CFBB1B183CDD64E09D44CD1F23637C33AA66E2006A7DB86963E"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/projectile/frame-08.png",
+          "sha256": "B597E79BDD43316CC4DA3EF1713B27209A17957215A9906C2F423F904D9F5F6F"
+        }
+      ],
+      "frames_only": true,
+      "presentation": "delivery"
+    },
+    "wave": {
+      "kind": "delivery",
+      "still": {
+        "url": "./battle-vfx/2026-09-27/effects/wave.png",
+        "sha256": "FE85B33075B773852B8B4D92DB36AD29500F31FE860D709C5052EED769875A1F"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/frames/wave/frame-00.png",
+          "sha256": "628BB6F4E659548C8C6237CBDD41AEC850C4B4B83DF017806B4DBA8BEBD5C114"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/wave/frame-01.png",
+          "sha256": "39E5C3B5AA31BDFAB82103CAAE567E46650D545730301BD323969768281CB318"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/wave/frame-02.png",
+          "sha256": "6391844E2CF4AA2B7185C14D43AE61B6D60B8EC6B57A02A6FFA6EEE1B77C71F3"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/wave/frame-03.png",
+          "sha256": "4D5DE065638158F6FB517269B35CAACE9C0A6423062669273C94298369A563C3"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/wave/frame-04.png",
+          "sha256": "AFF8095ECFC6ED4A5563370A72BC76E44A417DC728F40F092760EDEB311E67DC"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/wave/frame-05.png",
+          "sha256": "4D5DE065638158F6FB517269B35CAACE9C0A6423062669273C94298369A563C3"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/wave/frame-06.png",
+          "sha256": "6391844E2CF4AA2B7185C14D43AE61B6D60B8EC6B57A02A6FFA6EEE1B77C71F3"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/wave/frame-07.png",
+          "sha256": "39E5C3B5AA31BDFAB82103CAAE567E46650D545730301BD323969768281CB318"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/wave/frame-08.png",
+          "sha256": "628BB6F4E659548C8C6237CBDD41AEC850C4B4B83DF017806B4DBA8BEBD5C114"
+        }
+      ],
+      "frames_only": true,
+      "presentation": "delivery"
+    },
+    "beam_radiant": {
+      "kind": "delivery",
+      "still": {
+        "url": "./battle-vfx/2026-10-10/effects/beam_radiant.png",
+        "sha256": "97B2E96132EC652E822AAB7BA5AA9A68A4F03BB9C8B51DE6FC8A6CF9CFDB6210"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/frames/beam_radiant/frame-00.png",
+          "sha256": "33FCFEE3DFF363A97C7866BB1E121AEBFDBC441519629992DD9A17B151E90033"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/beam_radiant/frame-01.png",
+          "sha256": "D3CF085CC134ED4F32AAD580A4D8D3D94C82AE1FE6696D95A471FF35E3DC38D2"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/beam_radiant/frame-02.png",
+          "sha256": "89729DB2174E73FB87F8F1EA9786593AED4BB31C525BD8DDFD0DFD0693103C50"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/beam_radiant/frame-03.png",
+          "sha256": "18AE7563D7DD98F39B70A857BE75035D749625E0B3E0673983D1DCB7F3E527B6"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/beam_radiant/frame-04.png",
+          "sha256": "22E1C082ED08F8F090B35DA5DD8D6BDA1670858F7B5EFC80EFB07DAE145C94D7"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/beam_radiant/frame-05.png",
+          "sha256": "18AE7563D7DD98F39B70A857BE75035D749625E0B3E0673983D1DCB7F3E527B6"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/beam_radiant/frame-06.png",
+          "sha256": "89729DB2174E73FB87F8F1EA9786593AED4BB31C525BD8DDFD0DFD0693103C50"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/beam_radiant/frame-07.png",
+          "sha256": "D3CF085CC134ED4F32AAD580A4D8D3D94C82AE1FE6696D95A471FF35E3DC38D2"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/beam_radiant/frame-08.png",
+          "sha256": "33FCFEE3DFF363A97C7866BB1E121AEBFDBC441519629992DD9A17B151E90033"
+        }
+      ],
+      "presentation": "delivery"
+    },
+    "zone_fire_orb": {
+      "kind": "zone",
+      "still": {
+        "url": "./battle-vfx/2026-10-10/effects/zone_fire_orb.png",
+        "sha256": "C17F1D9BB70667582BB40115B06F0299266229799278E97E22BA37BD075AD016"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_fire_orb/frame-00.png",
+          "sha256": "B3A00F20D7620428687A0332485DDEEB17D83E66D78C128B6C414E8EF4BE463F"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_fire_orb/frame-01.png",
+          "sha256": "8047FCE6F6EEF5EB626211D0F9134525FEC8B484EBBCAD20AC0DCDEA2B2823E0"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_fire_orb/frame-02.png",
+          "sha256": "605A3A74102590FB12D6877A886C4137DF350CD8DAC82F7512CCCA5A092FE4AF"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_fire_orb/frame-03.png",
+          "sha256": "C31F444966018DFF186BF34B9E428771D00E31653F1F6F7AA78352D9949C48B3"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_fire_orb/frame-04.png",
+          "sha256": "B8812BC685401C9D6777FD19AECD82F603ED5853CBA2393C583E54C17C6BEC66"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_fire_orb/frame-05.png",
+          "sha256": "C31F444966018DFF186BF34B9E428771D00E31653F1F6F7AA78352D9949C48B3"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_fire_orb/frame-06.png",
+          "sha256": "605A3A74102590FB12D6877A886C4137DF350CD8DAC82F7512CCCA5A092FE4AF"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_fire_orb/frame-07.png",
+          "sha256": "8047FCE6F6EEF5EB626211D0F9134525FEC8B484EBBCAD20AC0DCDEA2B2823E0"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_fire_orb/frame-08.png",
+          "sha256": "B3A00F20D7620428687A0332485DDEEB17D83E66D78C128B6C414E8EF4BE463F"
+        }
+      ],
+      "presentation": "object",
+      "area_renderer": "certified-footprint"
+    },
+    "zone_light_mote": {
+      "kind": "zone",
+      "still": {
+        "url": "./battle-vfx/2026-10-10/effects/zone_light_mote.png",
+        "sha256": "0B3AC3438426764B1FA733B6069B05FB99F72F690CAF86F8F6013132DDD16260"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_light_mote/frame-00.png",
+          "sha256": "D6766AAC54681B8BC0D66A5D1E55ED74F23F1EEE2935EF3360BEB718F5C89652"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_light_mote/frame-01.png",
+          "sha256": "920E40C64C6798E79322C714CEDB17C500CBEC582513A2B9D351EF28147D1F81"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_light_mote/frame-02.png",
+          "sha256": "4A9AEE18AEE3C4A52B39E1C0B347DF1CEFEF0074B0CD1DC6A9EF25A2434EB90E"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_light_mote/frame-03.png",
+          "sha256": "FAF80D7DF7AA154437724AF9C23490518EFA75ABBD490C426BFAC5C139EDEFE9"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_light_mote/frame-04.png",
+          "sha256": "975D4BF37D11AA5AC2BDBA40F56E2FD7F8B972EB2D2B530B861CD48510090DCD"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_light_mote/frame-05.png",
+          "sha256": "FAF80D7DF7AA154437724AF9C23490518EFA75ABBD490C426BFAC5C139EDEFE9"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_light_mote/frame-06.png",
+          "sha256": "4A9AEE18AEE3C4A52B39E1C0B347DF1CEFEF0074B0CD1DC6A9EF25A2434EB90E"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_light_mote/frame-07.png",
+          "sha256": "920E40C64C6798E79322C714CEDB17C500CBEC582513A2B9D351EF28147D1F81"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_light_mote/frame-08.png",
+          "sha256": "D6766AAC54681B8BC0D66A5D1E55ED74F23F1EEE2935EF3360BEB718F5C89652"
+        }
+      ],
+      "presentation": "object",
+      "area_renderer": "certified-footprint"
+    },
+    "zone_guardian": {
+      "kind": "zone",
+      "still": {
+        "url": "./battle-vfx/2026-10-10/effects/zone_guardian.png",
+        "sha256": "B05C8F1ABF7594206D5665E74177E3C380A03F928082E6B00BAE66D08A247122"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_guardian/frame-00.png",
+          "sha256": "0A66423725D78BF68AE13849CE6A86B6EB68DC6421E93F6E1AA6A400090E02BE"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_guardian/frame-01.png",
+          "sha256": "167A7FC02A113DFE7574EDF9825DB86F68F9D581A31622AC7820B9115EC917AD"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_guardian/frame-02.png",
+          "sha256": "6334506084590C422D16B80BC9F6DE06A3EBE36552026FE46D4B62C7BD2723B8"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_guardian/frame-03.png",
+          "sha256": "F4721C5E46B8EF1A3B1E37059ADFC366B485CE899E67BA583DE37BD8E20E84B4"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_guardian/frame-04.png",
+          "sha256": "692C027B60ED4115E333FEADE0984E2D7A9B4C05B70F0BFFA612649551F31C4D"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_guardian/frame-05.png",
+          "sha256": "F4721C5E46B8EF1A3B1E37059ADFC366B485CE899E67BA583DE37BD8E20E84B4"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_guardian/frame-06.png",
+          "sha256": "6334506084590C422D16B80BC9F6DE06A3EBE36552026FE46D4B62C7BD2723B8"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_guardian/frame-07.png",
+          "sha256": "167A7FC02A113DFE7574EDF9825DB86F68F9D581A31622AC7820B9115EC917AD"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_guardian/frame-08.png",
+          "sha256": "0A66423725D78BF68AE13849CE6A86B6EB68DC6421E93F6E1AA6A400090E02BE"
+        }
+      ],
+      "presentation": "object",
+      "area_renderer": "certified-footprint"
+    },
+    "zone_portal": {
+      "kind": "zone",
+      "still": {
+        "url": "./battle-vfx/2026-10-10/effects/zone_portal.png",
+        "sha256": "9512A18C02893C98E282D87A3BAA03DC93B4BDEB7469C03DB25960AB4D708EC1"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_portal/frame-00.png",
+          "sha256": "0A6A295DE7E4159CF6E98DCE753D31A4AD236470749A4B80737A652D24C57D47"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_portal/frame-01.png",
+          "sha256": "708323DE24E33AA556836B46F66AC825CAEB5BF1E6B6CBA25CF2333C413A3B56"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_portal/frame-02.png",
+          "sha256": "0A217FE28A9363B9448B2FE91A7CAC29B976F8521D2777C1DBC03F19117A486D"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_portal/frame-03.png",
+          "sha256": "C7EEC57B7E6D73D8ECD764100C83FFED90D9EC6BB5082D8645BA6668990C4916"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_portal/frame-04.png",
+          "sha256": "8C09666C4BD581DED2BB1FC470A62A0F30FEAE68DE71C7FBDB81A37877776C49"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_portal/frame-05.png",
+          "sha256": "C7EEC57B7E6D73D8ECD764100C83FFED90D9EC6BB5082D8645BA6668990C4916"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_portal/frame-06.png",
+          "sha256": "0A217FE28A9363B9448B2FE91A7CAC29B976F8521D2777C1DBC03F19117A486D"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_portal/frame-07.png",
+          "sha256": "708323DE24E33AA556836B46F66AC825CAEB5BF1E6B6CBA25CF2333C413A3B56"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_portal/frame-08.png",
+          "sha256": "0A6A295DE7E4159CF6E98DCE753D31A4AD236470749A4B80737A652D24C57D47"
+        }
+      ],
+      "presentation": "object",
+      "area_renderer": "certified-footprint"
+    },
+    "zone_wall_fire": {
+      "kind": "zone",
+      "still": {
+        "url": "./battle-vfx/2026-10-10/effects/zone_wall_fire.png",
+        "sha256": "1EFE211C8C7E29D4554C04F373C6360A4D5B7509C5D27116F27401DAC774AAFA"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_fire/frame-00.png",
+          "sha256": "F0947FB67836B35EE3A5BF40BAEA02F75A681C1564A1CB892B25BD57D441B430"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_fire/frame-01.png",
+          "sha256": "7D5F6365BD78D40C9133326EFBABBA6EC8FD6E38C240ABF085BC3B56B1E3A786"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_fire/frame-02.png",
+          "sha256": "6F5F6801030F99EA0E9E4C0B460E66D54C17FB27DC7FE9EB18EFC2179D5FCC52"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_fire/frame-03.png",
+          "sha256": "CAAD7FC3268B3B034B07786BE0B487E1D73C57AE6E3DDFD3BD0161AF3749EAC8"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_fire/frame-04.png",
+          "sha256": "8C1DDE36D72260926154B750A6A68FBF43945E33F85EAD44C42AA0E32D66421B"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_fire/frame-05.png",
+          "sha256": "CAAD7FC3268B3B034B07786BE0B487E1D73C57AE6E3DDFD3BD0161AF3749EAC8"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_fire/frame-06.png",
+          "sha256": "6F5F6801030F99EA0E9E4C0B460E66D54C17FB27DC7FE9EB18EFC2179D5FCC52"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_fire/frame-07.png",
+          "sha256": "7D5F6365BD78D40C9133326EFBABBA6EC8FD6E38C240ABF085BC3B56B1E3A786"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_fire/frame-08.png",
+          "sha256": "F0947FB67836B35EE3A5BF40BAEA02F75A681C1564A1CB892B25BD57D441B430"
+        }
+      ],
+      "tile": "x",
+      "presentation": "wall",
+      "area_renderer": "certified-footprint"
+    },
+    "zone_wall_stone": {
+      "kind": "zone",
+      "still": {
+        "url": "./battle-vfx/2026-10-10/effects/zone_wall_stone.png",
+        "sha256": "CBD55DCC2D1F248064384F0C1342104BAA8484A122AA775C489E1407E2E49EBF"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_stone/frame-00.png",
+          "sha256": "A3C6A9F62157CA57470138C89416CDEC7CE96A8EF2F909E8627B0FDDAE92664B"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_stone/frame-01.png",
+          "sha256": "DBFEB1DFDA5B64652C701887B9094CAF326C012B09F8ED9C66B8B0AD1235A42D"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_stone/frame-02.png",
+          "sha256": "39B919B5F498F9F61A811DBC4FE8F3268EA03EF34110F608E7C5FB3497E3552E"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_stone/frame-03.png",
+          "sha256": "9333D76DC3A590CE8CFF847CBEED432D8C7F74791E224DD82224F69B50B0A568"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_stone/frame-04.png",
+          "sha256": "1400A7B52AB63DF2D5CA739E689EC31186EE819915B946D6910170324E6EB10D"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_stone/frame-05.png",
+          "sha256": "9333D76DC3A590CE8CFF847CBEED432D8C7F74791E224DD82224F69B50B0A568"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_stone/frame-06.png",
+          "sha256": "39B919B5F498F9F61A811DBC4FE8F3268EA03EF34110F608E7C5FB3497E3552E"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_stone/frame-07.png",
+          "sha256": "DBFEB1DFDA5B64652C701887B9094CAF326C012B09F8ED9C66B8B0AD1235A42D"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_stone/frame-08.png",
+          "sha256": "A3C6A9F62157CA57470138C89416CDEC7CE96A8EF2F909E8627B0FDDAE92664B"
+        }
+      ],
+      "tile": "x",
+      "presentation": "wall",
+      "area_renderer": "certified-footprint"
+    },
+    "zone_wall_force": {
+      "kind": "zone",
+      "still": {
+        "url": "./battle-vfx/2026-10-10/effects/zone_wall_force.png",
+        "sha256": "CFAABEC9A6A85EB4887C3A15B60FD6FFB4440BE8CC87354509064193C9978559"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_force/frame-00.png",
+          "sha256": "546F1A264DEF1DECA4E1083868D22CC22652668B799895D68465E2F91AA0AD90"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_force/frame-01.png",
+          "sha256": "87E1DBA035B9F2EA3309601DFAE313A3F7E96100CE203988A51603AE338B28A9"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_force/frame-02.png",
+          "sha256": "3AA25C992368E189599EA80BEC74D4B5EE97BEC5B017051BA62C63C050D551C1"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_force/frame-03.png",
+          "sha256": "D7B9CF198C4F0110838D9FE9D22872D80946478C9C5F501A00DF9C0DAF01957E"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_force/frame-04.png",
+          "sha256": "C47C141850D8D6F190DD6200982DB7D1D7CA2AE279F890BA16C41A8991995AB1"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_force/frame-05.png",
+          "sha256": "D7B9CF198C4F0110838D9FE9D22872D80946478C9C5F501A00DF9C0DAF01957E"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_force/frame-06.png",
+          "sha256": "3AA25C992368E189599EA80BEC74D4B5EE97BEC5B017051BA62C63C050D551C1"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_force/frame-07.png",
+          "sha256": "87E1DBA035B9F2EA3309601DFAE313A3F7E96100CE203988A51603AE338B28A9"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_force/frame-08.png",
+          "sha256": "546F1A264DEF1DECA4E1083868D22CC22652668B799895D68465E2F91AA0AD90"
+        }
+      ],
+      "tile": "x",
+      "presentation": "wall",
+      "area_renderer": "certified-footprint"
+    },
+    "zone_wall_ice": {
+      "kind": "zone",
+      "still": {
+        "url": "./battle-vfx/2026-10-10/effects/zone_wall_ice.png",
+        "sha256": "FB396F47D12417F2C2A9140F880C050D2303BBEBC65F06325CF6CD8092B88FD8"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_ice/frame-00.png",
+          "sha256": "073E67000691A2F643D15101D45494A465BE7C004002703296634E5AEF6068D1"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_ice/frame-01.png",
+          "sha256": "14BCA52A3FA67789DD9CF154CC79DF55C2B32ED223AD9EE78C0B6F4E37ADEA1E"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_ice/frame-02.png",
+          "sha256": "2358C08B19B0C5A3771F367746E1A3C133B0AE12E969E4E6627A1AF502918FE5"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_ice/frame-03.png",
+          "sha256": "0748D05071E80B8B255EA976F8B745A892D7BEAED5B7F87A63F9E32571898735"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_ice/frame-04.png",
+          "sha256": "F123CBF69B21B125E29D75DC9682336A075EDB7D795D6D77991B0F9BF911A5C8"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_ice/frame-05.png",
+          "sha256": "0748D05071E80B8B255EA976F8B745A892D7BEAED5B7F87A63F9E32571898735"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_ice/frame-06.png",
+          "sha256": "2358C08B19B0C5A3771F367746E1A3C133B0AE12E969E4E6627A1AF502918FE5"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_ice/frame-07.png",
+          "sha256": "14BCA52A3FA67789DD9CF154CC79DF55C2B32ED223AD9EE78C0B6F4E37ADEA1E"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/frames/zone_wall_ice/frame-08.png",
+          "sha256": "073E67000691A2F643D15101D45494A465BE7C004002703296634E5AEF6068D1"
+        }
+      ],
+      "tile": "x",
+      "presentation": "wall",
+      "area_renderer": "certified-footprint"
+    },
+    "zone_fire": {
+      "kind": "zone",
+      "presentation": "area-r4",
+      "area_renderer": "certified-footprint",
+      "loop_ms": 2460,
+      "still": {
+        "url": "./battle-vfx/2026-10-10/zone-area-r4/stills/zone_fire.png",
+        "sha256": "D31BEBC24102D02D9982852332AA54466B8E8B2C2BDFF230276E56464F72CCEC"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_fire/00.png",
+          "sha256": "D31BEBC24102D02D9982852332AA54466B8E8B2C2BDFF230276E56464F72CCEC"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_fire/01.png",
+          "sha256": "235DF5A3DBB36972BB877D586A69630939C11E7A8A416AC6DD5932F62DD3CC51"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_fire/02.png",
+          "sha256": "235DF5A3DBB36972BB877D586A69630939C11E7A8A416AC6DD5932F62DD3CC51"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_fire/03.png",
+          "sha256": "476CB1C04CA608C957BD1D2A169970F69B2613AEE34B786AFAF5DB3EBD06CD60"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_fire/04.png",
+          "sha256": "D31BEBC24102D02D9982852332AA54466B8E8B2C2BDFF230276E56464F72CCEC"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_fire/05.png",
+          "sha256": "21DAD914824BE8A3065A3D317ECB39E67BEE86F280D59C3E8A89EE6E8A0157CF"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_fire/06.png",
+          "sha256": "21DAD914824BE8A3065A3D317ECB39E67BEE86F280D59C3E8A89EE6E8A0157CF"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_fire/07.png",
+          "sha256": "476CB1C04CA608C957BD1D2A169970F69B2613AEE34B786AFAF5DB3EBD06CD60"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_fire/08.png",
+          "sha256": "D31BEBC24102D02D9982852332AA54466B8E8B2C2BDFF230276E56464F72CCEC"
+        }
+      ]
+    },
+    "zone_fog": {
+      "kind": "zone",
+      "presentation": "area-r4",
+      "area_renderer": "certified-footprint",
+      "loop_ms": 2460,
+      "still": {
+        "url": "./battle-vfx/2026-10-10/zone-area-r4/stills/zone_fog.png",
+        "sha256": "881B2FA76E6793F200D15A40D066B8B9895B55554E5100428DE3B9FF5CAAE72D"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_fog/00.png",
+          "sha256": "881B2FA76E6793F200D15A40D066B8B9895B55554E5100428DE3B9FF5CAAE72D"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_fog/01.png",
+          "sha256": "B090AC07BF14AD94D468984FA8466FE55FE7F02D3E60BF52AD045AA53BFD0F8E"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_fog/02.png",
+          "sha256": "B090AC07BF14AD94D468984FA8466FE55FE7F02D3E60BF52AD045AA53BFD0F8E"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_fog/03.png",
+          "sha256": "B090AC07BF14AD94D468984FA8466FE55FE7F02D3E60BF52AD045AA53BFD0F8E"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_fog/04.png",
+          "sha256": "881B2FA76E6793F200D15A40D066B8B9895B55554E5100428DE3B9FF5CAAE72D"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_fog/05.png",
+          "sha256": "4A9B55812AAD13330CE6B80A72200E3C4E0B90127BC4E0E3CCB197A8AFE3143D"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_fog/06.png",
+          "sha256": "4A9B55812AAD13330CE6B80A72200E3C4E0B90127BC4E0E3CCB197A8AFE3143D"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_fog/07.png",
+          "sha256": "881B2FA76E6793F200D15A40D066B8B9895B55554E5100428DE3B9FF5CAAE72D"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_fog/08.png",
+          "sha256": "881B2FA76E6793F200D15A40D066B8B9895B55554E5100428DE3B9FF5CAAE72D"
+        }
+      ]
+    },
+    "zone_web": {
+      "kind": "zone",
+      "presentation": "area-r4",
+      "area_renderer": "certified-footprint",
+      "loop_ms": 2460,
+      "still": {
+        "url": "./battle-vfx/2026-10-10/zone-area-r4/stills/zone_web.png",
+        "sha256": "BE982A6326B52646318B28A3899967CC61AA6BD7D494D42C4DF3A6645889356B"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_web/00.png",
+          "sha256": "BE982A6326B52646318B28A3899967CC61AA6BD7D494D42C4DF3A6645889356B"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_web/01.png",
+          "sha256": "33776F974F1EE59EC6F62F2404CA3277D58E0348E654343BBC914DEAEFD5DE57"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_web/02.png",
+          "sha256": "33776F974F1EE59EC6F62F2404CA3277D58E0348E654343BBC914DEAEFD5DE57"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_web/03.png",
+          "sha256": "C0B9D2DC316CF5FBBC0C13A19C87A76C96157BF33B0E371A5D2632139585C595"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_web/04.png",
+          "sha256": "BE982A6326B52646318B28A3899967CC61AA6BD7D494D42C4DF3A6645889356B"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_web/05.png",
+          "sha256": "292069C57565699705C48A727013CFE24B06DCDA07BB4E9ED170BCF14E95EC93"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_web/06.png",
+          "sha256": "292069C57565699705C48A727013CFE24B06DCDA07BB4E9ED170BCF14E95EC93"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_web/07.png",
+          "sha256": "BE982A6326B52646318B28A3899967CC61AA6BD7D494D42C4DF3A6645889356B"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_web/08.png",
+          "sha256": "BE982A6326B52646318B28A3899967CC61AA6BD7D494D42C4DF3A6645889356B"
+        }
+      ]
+    },
+    "zone_faerie": {
+      "kind": "zone",
+      "presentation": "area-r4",
+      "area_renderer": "certified-footprint",
+      "loop_ms": 2460,
+      "still": {
+        "url": "./battle-vfx/2026-10-10/zone-area-r4/stills/zone_faerie.png",
+        "sha256": "596BD2E51176068D270B19537D839B723F750942D34079F7F24EB6D84D233FF2"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_faerie/00.png",
+          "sha256": "596BD2E51176068D270B19537D839B723F750942D34079F7F24EB6D84D233FF2"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_faerie/01.png",
+          "sha256": "A6702A04EC416F1F0F3E2A1E6F306666F0CC8A9D3F7F2CF18D27889018AB1643"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_faerie/02.png",
+          "sha256": "A6702A04EC416F1F0F3E2A1E6F306666F0CC8A9D3F7F2CF18D27889018AB1643"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_faerie/03.png",
+          "sha256": "4E043A0A7FFCAA5801A24283D4874BA76F74D83E4C7CA4E79E49163164B16874"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_faerie/04.png",
+          "sha256": "596BD2E51176068D270B19537D839B723F750942D34079F7F24EB6D84D233FF2"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_faerie/05.png",
+          "sha256": "A6702A04EC416F1F0F3E2A1E6F306666F0CC8A9D3F7F2CF18D27889018AB1643"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_faerie/06.png",
+          "sha256": "B16C33852C5B0696B94C321471902E0416A2B166DF48283B76CEDD412573011A"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_faerie/07.png",
+          "sha256": "596BD2E51176068D270B19537D839B723F750942D34079F7F24EB6D84D233FF2"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_faerie/08.png",
+          "sha256": "596BD2E51176068D270B19537D839B723F750942D34079F7F24EB6D84D233FF2"
+        }
+      ]
+    },
+    "zone_darkness": {
+      "kind": "zone",
+      "presentation": "area-r4",
+      "area_renderer": "certified-footprint",
+      "loop_ms": 2460,
+      "still": {
+        "url": "./battle-vfx/2026-10-10/zone-area-r4/stills/zone_darkness.png",
+        "sha256": "6195BE805FF6FFC1971D014032CAD215E8A481CC5FE8D881C9BE0163CC0C0410"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_darkness/00.png",
+          "sha256": "6195BE805FF6FFC1971D014032CAD215E8A481CC5FE8D881C9BE0163CC0C0410"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_darkness/01.png",
+          "sha256": "363D6A651AB14C9BB6FEFB397E9AFEEBE4A979BDCDA6154A51031A100DA4B48C"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_darkness/02.png",
+          "sha256": "363D6A651AB14C9BB6FEFB397E9AFEEBE4A979BDCDA6154A51031A100DA4B48C"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_darkness/03.png",
+          "sha256": "363D6A651AB14C9BB6FEFB397E9AFEEBE4A979BDCDA6154A51031A100DA4B48C"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_darkness/04.png",
+          "sha256": "6195BE805FF6FFC1971D014032CAD215E8A481CC5FE8D881C9BE0163CC0C0410"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_darkness/05.png",
+          "sha256": "EDF766081EE7ADA1197943AE40E7482B1ABCEABE019CB2BA7B868211EA2D4406"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_darkness/06.png",
+          "sha256": "EDF766081EE7ADA1197943AE40E7482B1ABCEABE019CB2BA7B868211EA2D4406"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_darkness/07.png",
+          "sha256": "6195BE805FF6FFC1971D014032CAD215E8A481CC5FE8D881C9BE0163CC0C0410"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_darkness/08.png",
+          "sha256": "6195BE805FF6FFC1971D014032CAD215E8A481CC5FE8D881C9BE0163CC0C0410"
+        }
+      ]
+    },
+    "zone_silence": {
+      "kind": "zone",
+      "presentation": "area-r4",
+      "area_renderer": "certified-footprint",
+      "loop_ms": 2460,
+      "still": {
+        "url": "./battle-vfx/2026-10-10/zone-area-r4/stills/zone_silence.png",
+        "sha256": "8A0F6F5BB637675B5627E9C30C03441E47F13E722C9A7DAE181B2B4B5C25555B"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_silence/00.png",
+          "sha256": "8A0F6F5BB637675B5627E9C30C03441E47F13E722C9A7DAE181B2B4B5C25555B"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_silence/01.png",
+          "sha256": "C18F1F8A690DEF7D00F3816830261A5ABD7F308495EA5FF8AC13F3E57071B154"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_silence/02.png",
+          "sha256": "C18F1F8A690DEF7D00F3816830261A5ABD7F308495EA5FF8AC13F3E57071B154"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_silence/03.png",
+          "sha256": "40ED3E6FA570CA18E7D9C8B0A1188C1B59DB7E447EEFEFDA8FB40A4AD4C9F28A"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_silence/04.png",
+          "sha256": "8A0F6F5BB637675B5627E9C30C03441E47F13E722C9A7DAE181B2B4B5C25555B"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_silence/05.png",
+          "sha256": "9C6C1205F944E4DE1FB837D718A3C362A62F8A4E9EA59C106724FBBDC0FD9858"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_silence/06.png",
+          "sha256": "9C6C1205F944E4DE1FB837D718A3C362A62F8A4E9EA59C106724FBBDC0FD9858"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_silence/07.png",
+          "sha256": "8A0F6F5BB637675B5627E9C30C03441E47F13E722C9A7DAE181B2B4B5C25555B"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_silence/08.png",
+          "sha256": "8A0F6F5BB637675B5627E9C30C03441E47F13E722C9A7DAE181B2B4B5C25555B"
+        }
+      ]
+    },
+    "zone_moonbeam": {
+      "kind": "zone",
+      "presentation": "area-r4",
+      "area_renderer": "certified-footprint",
+      "loop_ms": 2460,
+      "still": {
+        "url": "./battle-vfx/2026-10-10/zone-area-r4/stills/zone_moonbeam.png",
+        "sha256": "51D94FC3071D8FC3F00A68078238692234C02FB7891886D9F84D226ABA0B12C2"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_moonbeam/00.png",
+          "sha256": "51D94FC3071D8FC3F00A68078238692234C02FB7891886D9F84D226ABA0B12C2"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_moonbeam/01.png",
+          "sha256": "6710F2B6F941A7A2A88E4C208CC9379CF09E740D29BCBFBBF80CC04A496636F4"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_moonbeam/02.png",
+          "sha256": "6710F2B6F941A7A2A88E4C208CC9379CF09E740D29BCBFBBF80CC04A496636F4"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_moonbeam/03.png",
+          "sha256": "A7DD4D049A1169341C85B03D0D8FF5FBDD0E24052F9D1AA520526634287EE4AD"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_moonbeam/04.png",
+          "sha256": "51D94FC3071D8FC3F00A68078238692234C02FB7891886D9F84D226ABA0B12C2"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_moonbeam/05.png",
+          "sha256": "6710F2B6F941A7A2A88E4C208CC9379CF09E740D29BCBFBBF80CC04A496636F4"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_moonbeam/06.png",
+          "sha256": "5694F442A592018C9163D1954A838B4D64DB3665E4BB1D44EC37A3F4E9EE594C"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_moonbeam/07.png",
+          "sha256": "51D94FC3071D8FC3F00A68078238692234C02FB7891886D9F84D226ABA0B12C2"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_moonbeam/08.png",
+          "sha256": "51D94FC3071D8FC3F00A68078238692234C02FB7891886D9F84D226ABA0B12C2"
+        }
+      ]
+    },
+    "zone_spirits": {
+      "kind": "zone",
+      "presentation": "area-r4",
+      "area_renderer": "certified-footprint",
+      "loop_ms": 2460,
+      "still": {
+        "url": "./battle-vfx/2026-10-10/zone-area-r4/stills/zone_spirits.png",
+        "sha256": "7F8696A2D0A044B86410BDB7B9F599CF9B149CB7CD9CFEC6AFE488C2CF5F4D10"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_spirits/00.png",
+          "sha256": "7F8696A2D0A044B86410BDB7B9F599CF9B149CB7CD9CFEC6AFE488C2CF5F4D10"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_spirits/01.png",
+          "sha256": "557C624A3D091888AC62F1247BD0072D8C96E06B4D4889C8C58009AB3F04E772"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_spirits/02.png",
+          "sha256": "557C624A3D091888AC62F1247BD0072D8C96E06B4D4889C8C58009AB3F04E772"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_spirits/03.png",
+          "sha256": "1519A87A6CBDC5E2DC30AAD31C73918DF80C5E0726E9248E927C2D13717032D7"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_spirits/04.png",
+          "sha256": "7F8696A2D0A044B86410BDB7B9F599CF9B149CB7CD9CFEC6AFE488C2CF5F4D10"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_spirits/05.png",
+          "sha256": "5F1D511C0F740A6F080F0051C649B7C7B337B53994EDFFCC0364B027C2D0004A"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_spirits/06.png",
+          "sha256": "5F1D511C0F740A6F080F0051C649B7C7B337B53994EDFFCC0364B027C2D0004A"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_spirits/07.png",
+          "sha256": "7F8696A2D0A044B86410BDB7B9F599CF9B149CB7CD9CFEC6AFE488C2CF5F4D10"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_spirits/08.png",
+          "sha256": "7F8696A2D0A044B86410BDB7B9F599CF9B149CB7CD9CFEC6AFE488C2CF5F4D10"
+        }
+      ]
+    },
+    "zone_storm": {
+      "kind": "zone",
+      "presentation": "area-r4",
+      "area_renderer": "certified-footprint",
+      "loop_ms": 2460,
+      "still": {
+        "url": "./battle-vfx/2026-10-10/zone-area-r4/stills/zone_storm.png",
+        "sha256": "4AB108F1E62B6C2DB7F691CBF6E10EB8F2C564044A3E533446C1DD32CCAB671C"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_storm/00.png",
+          "sha256": "4AB108F1E62B6C2DB7F691CBF6E10EB8F2C564044A3E533446C1DD32CCAB671C"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_storm/01.png",
+          "sha256": "30A9C302A1AD17651D0B2CFA3D7683C9F718B3523B3B04DE968A179AFB78EC5B"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_storm/02.png",
+          "sha256": "30A9C302A1AD17651D0B2CFA3D7683C9F718B3523B3B04DE968A179AFB78EC5B"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_storm/03.png",
+          "sha256": "CC6A00AA6559E07319E4D2CF320FECFC9892F6F4D1D9E67A50C27CD7922C5D52"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_storm/04.png",
+          "sha256": "4AB108F1E62B6C2DB7F691CBF6E10EB8F2C564044A3E533446C1DD32CCAB671C"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_storm/05.png",
+          "sha256": "6F6C20B08EFE0CBECE4371100D1A89657AA894DF41279155DD8607B5FACB8A1F"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_storm/06.png",
+          "sha256": "6F6C20B08EFE0CBECE4371100D1A89657AA894DF41279155DD8607B5FACB8A1F"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_storm/07.png",
+          "sha256": "4AB108F1E62B6C2DB7F691CBF6E10EB8F2C564044A3E533446C1DD32CCAB671C"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_storm/08.png",
+          "sha256": "4AB108F1E62B6C2DB7F691CBF6E10EB8F2C564044A3E533446C1DD32CCAB671C"
+        }
+      ]
+    },
+    "zone_aura_holy": {
+      "kind": "zone",
+      "presentation": "area-r4",
+      "area_renderer": "certified-footprint",
+      "loop_ms": 2460,
+      "still": {
+        "url": "./battle-vfx/2026-10-10/zone-area-r4/stills/zone_aura_holy.png",
+        "sha256": "FC3DC78965D3A1BE54AC0E4E52BDA2B2F161FE20F3ECD01D9AEFC0349CC7F3C3"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_aura_holy/00.png",
+          "sha256": "FC3DC78965D3A1BE54AC0E4E52BDA2B2F161FE20F3ECD01D9AEFC0349CC7F3C3"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_aura_holy/01.png",
+          "sha256": "9B597C65DC85A4CE0D5AD14A4BCDE252B590DDA6E966B9EF473AF353B325CD01"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_aura_holy/02.png",
+          "sha256": "9B597C65DC85A4CE0D5AD14A4BCDE252B590DDA6E966B9EF473AF353B325CD01"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_aura_holy/03.png",
+          "sha256": "E7A9F800BEB3188E5974EE7E544FB0F1C79073C6CAC7F80FBE4F19C06633CE6B"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_aura_holy/04.png",
+          "sha256": "FC3DC78965D3A1BE54AC0E4E52BDA2B2F161FE20F3ECD01D9AEFC0349CC7F3C3"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_aura_holy/05.png",
+          "sha256": "9B597C65DC85A4CE0D5AD14A4BCDE252B590DDA6E966B9EF473AF353B325CD01"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_aura_holy/06.png",
+          "sha256": "06768AF8F4FE627422924620CB3EC4E527BBA143BB2E649DF744AE41F9D6FF01"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_aura_holy/07.png",
+          "sha256": "FC3DC78965D3A1BE54AC0E4E52BDA2B2F161FE20F3ECD01D9AEFC0349CC7F3C3"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_aura_holy/08.png",
+          "sha256": "FC3DC78965D3A1BE54AC0E4E52BDA2B2F161FE20F3ECD01D9AEFC0349CC7F3C3"
+        }
+      ]
+    },
+    "zone_light": {
+      "kind": "zone",
+      "presentation": "area-r4",
+      "area_renderer": "certified-footprint",
+      "loop_ms": 2460,
+      "still": {
+        "url": "./battle-vfx/2026-10-10/zone-area-r4/stills/zone_light.png",
+        "sha256": "A0498FFAC2FC3C76D773417F17446719830A7D5FE007B4696372D5D436F90924"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_light/00.png",
+          "sha256": "A0498FFAC2FC3C76D773417F17446719830A7D5FE007B4696372D5D436F90924"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_light/01.png",
+          "sha256": "6A1C5CB8413C571DA8D519EC3FE4E2E9DBE57B49A88872853CC7A0EA6F1FF571"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_light/02.png",
+          "sha256": "6A1C5CB8413C571DA8D519EC3FE4E2E9DBE57B49A88872853CC7A0EA6F1FF571"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_light/03.png",
+          "sha256": "829EC98C1E7FFBFD29C724633234FFEF58147B4CB5C0A297B8D770B523777989"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_light/04.png",
+          "sha256": "A0498FFAC2FC3C76D773417F17446719830A7D5FE007B4696372D5D436F90924"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_light/05.png",
+          "sha256": "A53EECEB896BCEE939881D72707F71DF94BE354346360284B1382032556FFA5A"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_light/06.png",
+          "sha256": "A53EECEB896BCEE939881D72707F71DF94BE354346360284B1382032556FFA5A"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_light/07.png",
+          "sha256": "A0498FFAC2FC3C76D773417F17446719830A7D5FE007B4696372D5D436F90924"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_light/08.png",
+          "sha256": "A0498FFAC2FC3C76D773417F17446719830A7D5FE007B4696372D5D436F90924"
+        }
+      ]
+    },
+    "zone_ice": {
+      "kind": "zone",
+      "presentation": "area-r4",
+      "area_renderer": "certified-footprint",
+      "loop_ms": 2460,
+      "still": {
+        "url": "./battle-vfx/2026-10-10/zone-area-r4/stills/zone_ice.png",
+        "sha256": "DBC57894BB88AAF46620006DB8F637ADD33B1D087AA3669D84B02A38333D9CC0"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_ice/00.png",
+          "sha256": "DBC57894BB88AAF46620006DB8F637ADD33B1D087AA3669D84B02A38333D9CC0"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_ice/01.png",
+          "sha256": "3066243106C133CCAA5D8BF6221CC982CB4A5CD90836F4A21F544CEB3BF2FCED"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_ice/02.png",
+          "sha256": "DF377C30607B93BACC2135AE10CF913D64C4C25FC954C70CA76A470050514790"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_ice/03.png",
+          "sha256": "DBC57894BB88AAF46620006DB8F637ADD33B1D087AA3669D84B02A38333D9CC0"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_ice/04.png",
+          "sha256": "27CF88D31E8BD7A63E0889C8ACEB3EEF6DE4FA3CFCB28A6C7FBF3652C6FB1675"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_ice/05.png",
+          "sha256": "01EAF352F4830810D62AFCA8FF051E3AECBD07044B4E5B9CCC2D82009EB8811B"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_ice/06.png",
+          "sha256": "DBC57894BB88AAF46620006DB8F637ADD33B1D087AA3669D84B02A38333D9CC0"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_ice/07.png",
+          "sha256": "3066243106C133CCAA5D8BF6221CC982CB4A5CD90836F4A21F544CEB3BF2FCED"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_ice/08.png",
+          "sha256": "DBC57894BB88AAF46620006DB8F637ADD33B1D087AA3669D84B02A38333D9CC0"
+        }
+      ]
+    },
+    "zone_poison": {
+      "kind": "zone",
+      "presentation": "area-r4",
+      "area_renderer": "certified-footprint",
+      "loop_ms": 2460,
+      "still": {
+        "url": "./battle-vfx/2026-10-10/zone-area-r4/stills/zone_poison.png",
+        "sha256": "2A51BA0659D0B0B42A86EF3358DB8695876DC28FE34982FF817BC4996B960AE4"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_poison/00.png",
+          "sha256": "2A51BA0659D0B0B42A86EF3358DB8695876DC28FE34982FF817BC4996B960AE4"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_poison/01.png",
+          "sha256": "FE59C0D3FA8ADE59542A8856EFD037D5E7A110045E9F68FE547306D921C52A7A"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_poison/02.png",
+          "sha256": "FE59C0D3FA8ADE59542A8856EFD037D5E7A110045E9F68FE547306D921C52A7A"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_poison/03.png",
+          "sha256": "FE59C0D3FA8ADE59542A8856EFD037D5E7A110045E9F68FE547306D921C52A7A"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_poison/04.png",
+          "sha256": "2A51BA0659D0B0B42A86EF3358DB8695876DC28FE34982FF817BC4996B960AE4"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_poison/05.png",
+          "sha256": "D2FBB126427753678BCAD4ADE82C5E1280C424742FECC458977BEC49CF9846A0"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_poison/06.png",
+          "sha256": "D2FBB126427753678BCAD4ADE82C5E1280C424742FECC458977BEC49CF9846A0"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_poison/07.png",
+          "sha256": "2A51BA0659D0B0B42A86EF3358DB8695876DC28FE34982FF817BC4996B960AE4"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_poison/08.png",
+          "sha256": "2A51BA0659D0B0B42A86EF3358DB8695876DC28FE34982FF817BC4996B960AE4"
+        }
+      ]
+    },
+    "zone_insects": {
+      "kind": "zone",
+      "presentation": "area-r4",
+      "area_renderer": "certified-footprint",
+      "loop_ms": 2460,
+      "still": {
+        "url": "./battle-vfx/2026-10-10/zone-area-r4/stills/zone_insects.png",
+        "sha256": "8404ED787CD095200EE36AF596E834CD7312FCAEF02566CB011CB8C35B5F30B1"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_insects/00.png",
+          "sha256": "8404ED787CD095200EE36AF596E834CD7312FCAEF02566CB011CB8C35B5F30B1"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_insects/01.png",
+          "sha256": "529CA69646A93D89CC13B98314E74D3FF5AC8D9D020A21C4BBCA3E0897131B84"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_insects/02.png",
+          "sha256": "529CA69646A93D89CC13B98314E74D3FF5AC8D9D020A21C4BBCA3E0897131B84"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_insects/03.png",
+          "sha256": "E9740C492600D598DCA7F31B634E3FC25D9A2B11E490C3AB6BC89833EAE46EA2"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_insects/04.png",
+          "sha256": "8404ED787CD095200EE36AF596E834CD7312FCAEF02566CB011CB8C35B5F30B1"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_insects/05.png",
+          "sha256": "3E477970BF3F9CCA4FE6A115721A1BA4039D221950311942F9E5F0C23A976B49"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_insects/06.png",
+          "sha256": "3E477970BF3F9CCA4FE6A115721A1BA4039D221950311942F9E5F0C23A976B49"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_insects/07.png",
+          "sha256": "8404ED787CD095200EE36AF596E834CD7312FCAEF02566CB011CB8C35B5F30B1"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_insects/08.png",
+          "sha256": "8404ED787CD095200EE36AF596E834CD7312FCAEF02566CB011CB8C35B5F30B1"
+        }
+      ]
+    },
+    "zone_dome_force": {
+      "kind": "zone",
+      "presentation": "area-r4",
+      "area_renderer": "certified-footprint",
+      "loop_ms": 2460,
+      "still": {
+        "url": "./battle-vfx/2026-10-10/zone-area-r4/stills/zone_dome_force.png",
+        "sha256": "FD415D5D301C6830727A5F085149C3EB8968F906537F9D74904C7B61049F0D1E"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_dome_force/00.png",
+          "sha256": "FD415D5D301C6830727A5F085149C3EB8968F906537F9D74904C7B61049F0D1E"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_dome_force/01.png",
+          "sha256": "1D48909D63CEB637883D08F00D6E0C07D75F53BA0CBA09BC70D93A0A792062D7"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_dome_force/02.png",
+          "sha256": "1D7BBD916C280B9417C00C9AC7DB8C34B402B9D6184A439F724F6D2E04A9A3A2"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_dome_force/03.png",
+          "sha256": "FD415D5D301C6830727A5F085149C3EB8968F906537F9D74904C7B61049F0D1E"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_dome_force/04.png",
+          "sha256": "63662888591E68AF8A5DDC23971931A21327B884F08C87708EA45AF2030F6554"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_dome_force/05.png",
+          "sha256": "22CD569B5BCA0B65EF546EEF56547A0B4C8B1CCCB7804028BCED27F51088DC13"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_dome_force/06.png",
+          "sha256": "FD415D5D301C6830727A5F085149C3EB8968F906537F9D74904C7B61049F0D1E"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_dome_force/07.png",
+          "sha256": "1D48909D63CEB637883D08F00D6E0C07D75F53BA0CBA09BC70D93A0A792062D7"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_dome_force/08.png",
+          "sha256": "FD415D5D301C6830727A5F085149C3EB8968F906537F9D74904C7B61049F0D1E"
+        }
+      ]
+    },
+    "zone_gravity": {
+      "kind": "zone",
+      "presentation": "area-r4",
+      "area_renderer": "certified-footprint",
+      "loop_ms": 2460,
+      "still": {
+        "url": "./battle-vfx/2026-10-10/zone-area-r4/stills/zone_gravity.png",
+        "sha256": "3DA3E1437F6F3CDA176AB400045C84608DFBBC1863E1AC0FCA8AF9B454072691"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_gravity/00.png",
+          "sha256": "3DA3E1437F6F3CDA176AB400045C84608DFBBC1863E1AC0FCA8AF9B454072691"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_gravity/01.png",
+          "sha256": "0FE82A2B98DFD6FF03B061FE265F15BAE9C392EF73D545A697D1CB0459EDE932"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_gravity/02.png",
+          "sha256": "0FE82A2B98DFD6FF03B061FE265F15BAE9C392EF73D545A697D1CB0459EDE932"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_gravity/03.png",
+          "sha256": "EF7623989937EAC95414A9B05293C7C8680B5DC6A8214A4D0CBB5AC57141D81B"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_gravity/04.png",
+          "sha256": "3DA3E1437F6F3CDA176AB400045C84608DFBBC1863E1AC0FCA8AF9B454072691"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_gravity/05.png",
+          "sha256": "0FE82A2B98DFD6FF03B061FE265F15BAE9C392EF73D545A697D1CB0459EDE932"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_gravity/06.png",
+          "sha256": "8DBC22B0BD3B83BEBA42BE62B88D0C61EEEED095599F662F9002CEEC4F6C9952"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_gravity/07.png",
+          "sha256": "3DA3E1437F6F3CDA176AB400045C84608DFBBC1863E1AC0FCA8AF9B454072691"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_gravity/08.png",
+          "sha256": "3DA3E1437F6F3CDA176AB400045C84608DFBBC1863E1AC0FCA8AF9B454072691"
+        }
+      ]
+    },
+    "zone_antimagic": {
+      "kind": "zone",
+      "presentation": "area-r4",
+      "area_renderer": "certified-footprint",
+      "loop_ms": 2460,
+      "still": {
+        "url": "./battle-vfx/2026-10-10/zone-area-r4/stills/zone_antimagic.png",
+        "sha256": "812449D7FD6AC9B209D6FB57D8ECE8BA8C2C770C97A7AE2E196311A2E5C8497F"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_antimagic/00.png",
+          "sha256": "812449D7FD6AC9B209D6FB57D8ECE8BA8C2C770C97A7AE2E196311A2E5C8497F"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_antimagic/01.png",
+          "sha256": "0E2A2512D214A1ABF38E70748AFC54DCF46659C1DDDF0778D2502C5A5BD91622"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_antimagic/02.png",
+          "sha256": "C51FD3886715E956F86E0BDBB84D21B97C90B42561E03978770639E3E41C7D0C"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_antimagic/03.png",
+          "sha256": "812449D7FD6AC9B209D6FB57D8ECE8BA8C2C770C97A7AE2E196311A2E5C8497F"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_antimagic/04.png",
+          "sha256": "0D721861895F68ED2D363C8050650818A22ACF064D7D8406BE477A3DD2C5B42D"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_antimagic/05.png",
+          "sha256": "CBE7C8518A44B7F085E10300D7ED90CB398A1947FE9C619CF0F65FB151BABD97"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_antimagic/06.png",
+          "sha256": "812449D7FD6AC9B209D6FB57D8ECE8BA8C2C770C97A7AE2E196311A2E5C8497F"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_antimagic/07.png",
+          "sha256": "0E2A2512D214A1ABF38E70748AFC54DCF46659C1DDDF0778D2502C5A5BD91622"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_antimagic/08.png",
+          "sha256": "812449D7FD6AC9B209D6FB57D8ECE8BA8C2C770C97A7AE2E196311A2E5C8497F"
+        }
+      ]
+    },
+    "zone_quake": {
+      "kind": "zone",
+      "presentation": "area-r4",
+      "area_renderer": "certified-footprint",
+      "loop_ms": 2460,
+      "still": {
+        "url": "./battle-vfx/2026-10-10/zone-area-r4/stills/zone_quake.png",
+        "sha256": "B31FB6C345257B2961B60FD8EBEEA7AAAC9109EEC98E792ADF36CA78AFBC8D37"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_quake/00.png",
+          "sha256": "B31FB6C345257B2961B60FD8EBEEA7AAAC9109EEC98E792ADF36CA78AFBC8D37"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_quake/01.png",
+          "sha256": "B9FF7B9E4EF49F5A0196D49A5F2C2F185F3DB0DF68D3879FEF3AAE3EA15934A2"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_quake/02.png",
+          "sha256": "EA62803A1B6EC09B6132827D7E1168B65A272A566EBCA92C9FC6DB9F8E2ED7F2"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_quake/03.png",
+          "sha256": "B31FB6C345257B2961B60FD8EBEEA7AAAC9109EEC98E792ADF36CA78AFBC8D37"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_quake/04.png",
+          "sha256": "8184C8102794278200046194D0F8486C113A53E5C2227E6D8C4FC60CE9C30EDE"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_quake/05.png",
+          "sha256": "C2CECAF4A0F5BFC1F7A342DB792731025ABF6D55BCF5A19FF32562065CFFEA2C"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_quake/06.png",
+          "sha256": "B31FB6C345257B2961B60FD8EBEEA7AAAC9109EEC98E792ADF36CA78AFBC8D37"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_quake/07.png",
+          "sha256": "B9FF7B9E4EF49F5A0196D49A5F2C2F185F3DB0DF68D3879FEF3AAE3EA15934A2"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_quake/08.png",
+          "sha256": "B31FB6C345257B2961B60FD8EBEEA7AAAC9109EEC98E792ADF36CA78AFBC8D37"
+        }
+      ]
+    },
+    "zone_smoke": {
+      "kind": "zone",
+      "presentation": "area-r4",
+      "area_renderer": "certified-footprint",
+      "loop_ms": 2460,
+      "still": {
+        "url": "./battle-vfx/2026-10-10/zone-area-r4/stills/zone_smoke.png",
+        "sha256": "521123305DB390A0A4239964FD5A1B593C6B9EEA80CADD37822091EB7BB0563B"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_smoke/00.png",
+          "sha256": "521123305DB390A0A4239964FD5A1B593C6B9EEA80CADD37822091EB7BB0563B"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_smoke/01.png",
+          "sha256": "53DB680911CE4F7A663001B242E2314CB7F4706FDC4FBC413713F24941A966CB"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_smoke/02.png",
+          "sha256": "53DB680911CE4F7A663001B242E2314CB7F4706FDC4FBC413713F24941A966CB"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_smoke/03.png",
+          "sha256": "53DB680911CE4F7A663001B242E2314CB7F4706FDC4FBC413713F24941A966CB"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_smoke/04.png",
+          "sha256": "521123305DB390A0A4239964FD5A1B593C6B9EEA80CADD37822091EB7BB0563B"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_smoke/05.png",
+          "sha256": "14A873E76189D571496886B58730FC0B441B0A326380ED40012F84A3FF71D7CE"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_smoke/06.png",
+          "sha256": "14A873E76189D571496886B58730FC0B441B0A326380ED40012F84A3FF71D7CE"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_smoke/07.png",
+          "sha256": "521123305DB390A0A4239964FD5A1B593C6B9EEA80CADD37822091EB7BB0563B"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_smoke/08.png",
+          "sha256": "521123305DB390A0A4239964FD5A1B593C6B9EEA80CADD37822091EB7BB0563B"
+        }
+      ]
+    },
+    "zone_thorns": {
+      "kind": "zone",
+      "presentation": "area-r4",
+      "area_renderer": "certified-footprint",
+      "loop_ms": 2460,
+      "still": {
+        "url": "./battle-vfx/2026-10-10/zone-area-r4/stills/zone_thorns.png",
+        "sha256": "D6124C1A3C459A131B3AB2C089658EBEDDD86EB1D4A01B45F75C44BC8347A884"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_thorns/00.png",
+          "sha256": "D6124C1A3C459A131B3AB2C089658EBEDDD86EB1D4A01B45F75C44BC8347A884"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_thorns/01.png",
+          "sha256": "C3AEA8176DDF2FB8A1506CB4BB93F6C9E3D1A3D189F9D8D2DFBF47E55C9F7160"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_thorns/02.png",
+          "sha256": "C3AEA8176DDF2FB8A1506CB4BB93F6C9E3D1A3D189F9D8D2DFBF47E55C9F7160"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_thorns/03.png",
+          "sha256": "53C6A4F53BBD56C8FC7CA4655035E3E978BF5D29913EF278F0FC982591F3A95E"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_thorns/04.png",
+          "sha256": "D6124C1A3C459A131B3AB2C089658EBEDDD86EB1D4A01B45F75C44BC8347A884"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_thorns/05.png",
+          "sha256": "A818A209C17CDF3E6DF6E7855144B1EAB80C7DD7D03077BD5504EBE58408F44E"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_thorns/06.png",
+          "sha256": "A818A209C17CDF3E6DF6E7855144B1EAB80C7DD7D03077BD5504EBE58408F44E"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_thorns/07.png",
+          "sha256": "D6124C1A3C459A131B3AB2C089658EBEDDD86EB1D4A01B45F75C44BC8347A884"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_thorns/08.png",
+          "sha256": "D6124C1A3C459A131B3AB2C089658EBEDDD86EB1D4A01B45F75C44BC8347A884"
+        }
+      ]
+    },
+    "zone_vines": {
+      "kind": "zone",
+      "presentation": "area-r4",
+      "area_renderer": "certified-footprint",
+      "loop_ms": 2460,
+      "still": {
+        "url": "./battle-vfx/2026-10-10/zone-area-r4/stills/zone_vines.png",
+        "sha256": "24CFF24032364F77053DBD0423337991C267218D112ACC16877EF55B689047B6"
+      },
+      "frames": [
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_vines/00.png",
+          "sha256": "24CFF24032364F77053DBD0423337991C267218D112ACC16877EF55B689047B6"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_vines/01.png",
+          "sha256": "27B9A12BB65A76C2EAF6A12494503290DB323768ED3681782284E678FE1FB2E4"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_vines/02.png",
+          "sha256": "27B9A12BB65A76C2EAF6A12494503290DB323768ED3681782284E678FE1FB2E4"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_vines/03.png",
+          "sha256": "3F3AAB75EBC5087821E0F6EDC9012C40C3D12805D7615D5B5859BE2051BFD622"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_vines/04.png",
+          "sha256": "24CFF24032364F77053DBD0423337991C267218D112ACC16877EF55B689047B6"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_vines/05.png",
+          "sha256": "27B9A12BB65A76C2EAF6A12494503290DB323768ED3681782284E678FE1FB2E4"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_vines/06.png",
+          "sha256": "60C97A9B666034D0E201FC3475C2387AC2FEE81056E2DF817451AA077552AB49"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_vines/07.png",
+          "sha256": "24CFF24032364F77053DBD0423337991C267218D112ACC16877EF55B689047B6"
+        },
+        {
+          "url": "./battle-vfx/2026-10-10/zone-area-r4/frames/zone_vines/08.png",
+          "sha256": "24CFF24032364F77053DBD0423337991C267218D112ACC16877EF55B689047B6"
+        }
+      ]
+    }
+  },
+  "marker_icons": {
+    "blessed": {
+      "url": "./battle-vfx/2026-10-10/markers/blessed.png",
+      "sha256": "8B6D175BAFDAB61B8F4F2C2CFD3E7A12DB2F6AF11E4A0454D015D987BFE250B9"
+    },
+    "baned": {
+      "url": "./battle-vfx/2026-10-10/markers/baned.png",
+      "sha256": "E5D976BFD2A8733F6FDD537E7F4F7067CD2185EB948B0EC01FEB2D06022BBE72"
+    },
+    "weapon_empowered": {
+      "url": "./battle-vfx/2026-10-10/markers/weapon_empowered.png",
+      "sha256": "F35F16D5B59AE49175BE5E35E33A886B1E0D1CAC2A0FC02B89CFE160636A03ED"
+    },
+    "outlined": {
+      "url": "./battle-vfx/2026-10-10/markers/outlined.png",
+      "sha256": "2E73E23A4088FE29D42A7C0C5255CB413F1E15375E690F2FC3C4DB77865A6F15"
+    },
+    "heated": {
+      "url": "./battle-vfx/2026-10-10/markers/heated.png",
+      "sha256": "D455CB7A076043488BB619D7E7704A224425B5A45224CF21ABEFADD439FC4716"
+    },
+    "aided": {
+      "url": "./battle-vfx/2026-10-10/markers/aided.png",
+      "sha256": "09095B641BA485D28964A1D71E16516512C8D71A09E5897FFB51F7A6ABF5638E"
+    },
+    "hopeful": {
+      "url": "./battle-vfx/2026-10-10/markers/hopeful.png",
+      "sha256": "B2B7E7C45F4D04CAA9D380066BCEEC617EEF02BA9277821F5A7BE1C1194E0BF2"
+    },
+    "slowed": {
+      "url": "./battle-vfx/2026-10-10/markers/slowed.png",
+      "sha256": "A7EA3E63FF66B62D8B0081832AD21F2CBF48BC5A8B01F4FD90E9DC0FBB90BCDF"
+    },
+    "confused": {
+      "url": "./battle-vfx/2026-10-10/markers/confused.png",
+      "sha256": "D14DF3A951F268956682E826F5A13F8094ED35F1C189216FB042101CD71FB95F"
+    },
+    "suggested": {
+      "url": "./battle-vfx/2026-10-10/markers/suggested.png",
+      "sha256": "321B771A730A5943488C96C5DBADDFD6B4FC79B3CC570365827D8C09820BC6AF"
+    }
+  }
+}

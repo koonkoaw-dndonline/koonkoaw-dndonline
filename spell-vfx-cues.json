@@ -1,0 +1,904 @@
+{
+  "schema": "spell-vfx-cues/v1",
+  "version": "20261010vfx409",
+  "spells": {
+    "produce-flame": {
+      "scope_order": 1,
+      "delivery": "projectile_fire",
+      "shape": "projectile",
+      "impact": [],
+      "markers": [],
+      "areas": [
+        "zone_light_mote"
+      ],
+      "statuses": []
+    },
+    "shillelagh": {
+      "scope_order": 2,
+      "shape": "target",
+      "impact": [
+        "buff_up"
+      ],
+      "markers": [
+        "weapon_empowered"
+      ],
+      "areas": [],
+      "statuses": []
+    },
+    "magic-weapon": {
+      "scope_order": 3,
+      "shape": "target",
+      "impact": [
+        "buff_up"
+      ],
+      "markers": [
+        "weapon_empowered"
+      ],
+      "areas": [],
+      "statuses": []
+    },
+    "heat-metal": {
+      "scope_order": 4,
+      "shape": "target",
+      "impact": [
+        "fire"
+      ],
+      "markers": [
+        "heated"
+      ],
+      "areas": [],
+      "statuses": []
+    },
+    "dispel-magic": {
+      "scope_order": 5,
+      "shape": "target",
+      "impact": [
+        "dispel"
+      ],
+      "markers": [],
+      "areas": [],
+      "statuses": []
+    },
+    "telekinesis": {
+      "scope_order": 6,
+      "delivery": "spectral_hand",
+      "shape": "ray",
+      "impact": [
+        "force"
+      ],
+      "markers": [],
+      "areas": [],
+      "statuses": [
+        "restrained"
+      ]
+    },
+    "acid-splash": {
+      "scope_order": 7,
+      "shape": "sphere",
+      "impact": [
+        "acid"
+      ],
+      "markers": [],
+      "areas": [],
+      "statuses": []
+    },
+    "bane": {
+      "scope_order": 8,
+      "shape": "target",
+      "impact": [
+        "debuff_down"
+      ],
+      "markers": [
+        "baned"
+      ],
+      "areas": [],
+      "statuses": []
+    },
+    "bless": {
+      "scope_order": 9,
+      "shape": "target",
+      "impact": [
+        "buff_up"
+      ],
+      "markers": [
+        "blessed"
+      ],
+      "areas": [],
+      "statuses": []
+    },
+    "magic-missile": {
+      "scope_order": 10,
+      "delivery": "projectile",
+      "shape": "projectile",
+      "impact": [
+        "force"
+      ],
+      "markers": [],
+      "areas": [],
+      "statuses": []
+    },
+    "aid": {
+      "scope_order": 11,
+      "shape": "target",
+      "impact": [
+        "heal"
+      ],
+      "markers": [
+        "aided"
+      ],
+      "areas": [],
+      "statuses": []
+    },
+    "scorching-ray": {
+      "scope_order": 12,
+      "delivery": "ray_fire",
+      "shape": "ray",
+      "impact": [
+        "fire"
+      ],
+      "markers": [],
+      "areas": [],
+      "statuses": []
+    },
+    "beacon-of-hope": {
+      "scope_order": 13,
+      "shape": "target",
+      "impact": [
+        "buff_up"
+      ],
+      "markers": [
+        "hopeful"
+      ],
+      "areas": [],
+      "statuses": []
+    },
+    "mass-healing-word": {
+      "scope_order": 14,
+      "shape": "target",
+      "impact": [
+        "heal"
+      ],
+      "markers": [],
+      "areas": [],
+      "statuses": []
+    },
+    "mass-cure-wounds": {
+      "scope_order": 15,
+      "shape": "sphere",
+      "impact": [
+        "heal"
+      ],
+      "markers": [],
+      "areas": [],
+      "statuses": []
+    },
+    "chain-lightning": {
+      "scope_order": 16,
+      "delivery": "beam",
+      "shape": "line",
+      "impact": [
+        "lightning"
+      ],
+      "markers": [],
+      "areas": [],
+      "statuses": []
+    },
+    "mass-suggestion": {
+      "scope_order": 17,
+      "shape": "target",
+      "impact": [
+        "psychic"
+      ],
+      "markers": [
+        "suggested"
+      ],
+      "areas": [],
+      "statuses": []
+    },
+    "burning-hands": {
+      "scope_order": 18,
+      "delivery": "cone_fire",
+      "shape": "cone",
+      "impact": [
+        "fire"
+      ],
+      "markers": [],
+      "areas": [],
+      "statuses": []
+    },
+    "thunderwave": {
+      "scope_order": 19,
+      "delivery": "wave",
+      "shape": "cube",
+      "impact": [
+        "thunder"
+      ],
+      "markers": [],
+      "areas": [],
+      "statuses": []
+    },
+    "fireball": {
+      "scope_order": 20,
+      "delivery": "projectile_fire",
+      "shape": "sphere",
+      "impact": [
+        "fire"
+      ],
+      "markers": [],
+      "areas": [],
+      "statuses": []
+    },
+    "lightning-bolt": {
+      "scope_order": 21,
+      "delivery": "beam",
+      "shape": "line",
+      "impact": [
+        "lightning"
+      ],
+      "markers": [],
+      "areas": [],
+      "statuses": []
+    },
+    "shatter": {
+      "scope_order": 22,
+      "shape": "sphere",
+      "impact": [
+        "thunder"
+      ],
+      "markers": [],
+      "areas": [],
+      "statuses": []
+    },
+    "cone-of-cold": {
+      "scope_order": 23,
+      "delivery": "wave",
+      "shape": "cone",
+      "impact": [
+        "cold"
+      ],
+      "markers": [],
+      "areas": [],
+      "statuses": []
+    },
+    "ice-storm": {
+      "scope_order": 24,
+      "shape": "column",
+      "impact": [
+        "cold",
+        "bludgeoning"
+      ],
+      "markers": [],
+      "areas": [
+        "zone_ice"
+      ],
+      "statuses": []
+    },
+    "circle-of-death": {
+      "scope_order": 25,
+      "shape": "sphere",
+      "impact": [
+        "necrotic"
+      ],
+      "markers": [],
+      "areas": [],
+      "statuses": []
+    },
+    "sunburst": {
+      "scope_order": 26,
+      "shape": "sphere",
+      "impact": [
+        "radiant"
+      ],
+      "markers": [],
+      "areas": [],
+      "statuses": [
+        "blinded"
+      ]
+    },
+    "sleep": {
+      "scope_order": 27,
+      "shape": "sphere",
+      "impact": [],
+      "markers": [],
+      "areas": [],
+      "statuses": [
+        "unconscious"
+      ]
+    },
+    "color-spray": {
+      "scope_order": 28,
+      "delivery": "cone_prismatic",
+      "shape": "cone",
+      "impact": [],
+      "markers": [],
+      "areas": [],
+      "statuses": [
+        "blinded"
+      ]
+    },
+    "fear": {
+      "scope_order": 29,
+      "delivery": "wave",
+      "shape": "cone",
+      "impact": [
+        "psychic"
+      ],
+      "markers": [],
+      "areas": [],
+      "statuses": [
+        "frightened"
+      ]
+    },
+    "confusion": {
+      "scope_order": 30,
+      "shape": "sphere",
+      "impact": [
+        "psychic"
+      ],
+      "markers": [
+        "confused"
+      ],
+      "areas": [],
+      "statuses": []
+    },
+    "flame-strike": {
+      "scope_order": 31,
+      "shape": "column",
+      "impact": [
+        "column_fire",
+        "radiant"
+      ],
+      "markers": [],
+      "areas": [],
+      "statuses": []
+    },
+    "sunbeam": {
+      "scope_order": 32,
+      "delivery": "beam_radiant",
+      "shape": "line",
+      "impact": [
+        "radiant"
+      ],
+      "markers": [],
+      "areas": [],
+      "statuses": [
+        "blinded"
+      ]
+    },
+    "delayed-blast-fireball": {
+      "scope_order": 33,
+      "delivery": "projectile_fire",
+      "shape": "sphere",
+      "impact": [
+        "fire"
+      ],
+      "markers": [],
+      "areas": [],
+      "statuses": []
+    },
+    "prismatic-spray": {
+      "scope_order": 34,
+      "delivery": "cone_prismatic",
+      "shape": "cone",
+      "impact": [],
+      "markers": [],
+      "areas": [
+        "zone_portal"
+      ],
+      "statuses": [
+        "restrained",
+        "petrified",
+        "blinded"
+      ]
+    },
+    "fire-storm": {
+      "scope_order": 35,
+      "shape": "cube",
+      "impact": [
+        "column_fire"
+      ],
+      "markers": [],
+      "areas": [],
+      "statuses": []
+    },
+    "hypnotic-pattern": {
+      "scope_order": 36,
+      "shape": "cube",
+      "impact": [
+        "psychic"
+      ],
+      "markers": [],
+      "areas": [],
+      "statuses": [
+        "charmed",
+        "incapacitated"
+      ]
+    },
+    "fog-cloud": {
+      "scope_order": 37,
+      "shape": "sphere",
+      "impact": [],
+      "markers": [],
+      "areas": [
+        "zone_fog"
+      ],
+      "statuses": []
+    },
+    "darkness": {
+      "scope_order": 38,
+      "shape": "sphere",
+      "impact": [],
+      "markers": [],
+      "areas": [
+        "zone_darkness"
+      ],
+      "statuses": []
+    },
+    "silence": {
+      "scope_order": 39,
+      "shape": "sphere",
+      "impact": [],
+      "markers": [],
+      "areas": [
+        "zone_silence"
+      ],
+      "statuses": [
+        "deafened"
+      ]
+    },
+    "web": {
+      "scope_order": 40,
+      "shape": "cube",
+      "impact": [],
+      "markers": [],
+      "areas": [
+        "zone_web"
+      ],
+      "statuses": [
+        "restrained"
+      ]
+    },
+    "spirit-guardians": {
+      "scope_order": 41,
+      "shape": "sphere",
+      "impact": [],
+      "markers": [],
+      "areas": [
+        "zone_spirits"
+      ],
+      "statuses": []
+    },
+    "insect-plague": {
+      "scope_order": 42,
+      "shape": "sphere",
+      "impact": [
+        "piercing"
+      ],
+      "markers": [],
+      "areas": [
+        "zone_insects"
+      ],
+      "statuses": []
+    },
+    "faerie-fire": {
+      "scope_order": 43,
+      "shape": "cube",
+      "impact": [],
+      "markers": [
+        "outlined"
+      ],
+      "areas": [
+        "zone_faerie"
+      ],
+      "statuses": []
+    },
+    "moonbeam": {
+      "scope_order": 44,
+      "shape": "column",
+      "impact": [
+        "radiant"
+      ],
+      "markers": [],
+      "areas": [
+        "zone_moonbeam"
+      ],
+      "statuses": []
+    },
+    "flaming-sphere": {
+      "scope_order": 45,
+      "shape": "sphere",
+      "impact": [
+        "fire"
+      ],
+      "markers": [],
+      "areas": [
+        "zone_fire_orb"
+      ],
+      "statuses": []
+    },
+    "call-lightning": {
+      "scope_order": 46,
+      "shape": "column",
+      "impact": [
+        "lightning"
+      ],
+      "markers": [],
+      "areas": [
+        "zone_storm"
+      ],
+      "statuses": []
+    },
+    "cloudkill": {
+      "scope_order": 47,
+      "shape": "sphere",
+      "impact": [
+        "poison"
+      ],
+      "markers": [],
+      "areas": [
+        "zone_poison"
+      ],
+      "statuses": []
+    },
+    "guardian-of-faith": {
+      "scope_order": 48,
+      "shape": "target",
+      "impact": [
+        "radiant"
+      ],
+      "markers": [],
+      "areas": [
+        "zone_guardian"
+      ],
+      "statuses": []
+    },
+    "daylight": {
+      "scope_order": 49,
+      "shape": "sphere",
+      "impact": [],
+      "markers": [],
+      "areas": [
+        "zone_light"
+      ],
+      "statuses": []
+    },
+    "crusaders-mantle": {
+      "scope_order": 50,
+      "shape": "sphere",
+      "impact": [
+        "radiant"
+      ],
+      "markers": [],
+      "areas": [
+        "zone_aura_holy"
+      ],
+      "statuses": []
+    },
+    "slow": {
+      "scope_order": 51,
+      "shape": "cube",
+      "impact": [
+        "debuff_down"
+      ],
+      "markers": [
+        "slowed"
+      ],
+      "areas": [],
+      "statuses": []
+    },
+    "holy-aura": {
+      "scope_order": 52,
+      "shape": "sphere",
+      "impact": [],
+      "markers": [],
+      "areas": [
+        "zone_aura_holy"
+      ],
+      "statuses": [
+        "blinded"
+      ]
+    },
+    "wall-of-fire": {
+      "scope_order": 53,
+      "shape": "wall",
+      "impact": [
+        "fire"
+      ],
+      "markers": [],
+      "areas": [
+        "zone_wall_fire",
+        "zone_fire"
+      ],
+      "statuses": []
+    },
+    "wall-of-force": {
+      "scope_order": 54,
+      "shape": "wall",
+      "impact": [],
+      "markers": [],
+      "areas": [
+        "zone_wall_force",
+        "zone_dome_force"
+      ],
+      "statuses": []
+    },
+    "wall-of-stone": {
+      "scope_order": 55,
+      "shape": "wall",
+      "impact": [],
+      "markers": [],
+      "areas": [
+        "zone_wall_stone"
+      ],
+      "statuses": []
+    },
+    "wall-of-ice": {
+      "scope_order": 56,
+      "shape": "wall",
+      "impact": [
+        "cold"
+      ],
+      "markers": [],
+      "areas": [
+        "zone_wall_ice"
+      ],
+      "statuses": []
+    },
+    "misty-step": {
+      "scope_order": 57,
+      "shape": "target",
+      "impact": [
+        "teleport_mist"
+      ],
+      "markers": [],
+      "areas": [],
+      "statuses": []
+    },
+    "spiritual-weapon": {
+      "scope_order": 58,
+      "delivery": "weapon_spectral",
+      "shape": "projectile",
+      "impact": [
+        "force"
+      ],
+      "markers": [],
+      "areas": [],
+      "statuses": []
+    },
+    "dancing-lights": {
+      "scope_order": 59,
+      "shape": "target",
+      "impact": [],
+      "markers": [],
+      "areas": [
+        "zone_light_mote"
+      ],
+      "statuses": []
+    },
+    "minor-illusion": {
+      "scope_order": 60,
+      "shape": "target",
+      "impact": [
+        "minor_magic"
+      ],
+      "markers": [],
+      "areas": [],
+      "statuses": []
+    },
+    "light": {
+      "scope_order": 61,
+      "shape": "target",
+      "impact": [],
+      "markers": [],
+      "areas": [
+        "zone_light_mote"
+      ],
+      "statuses": []
+    },
+    "mage-hand": {
+      "scope_order": 62,
+      "delivery": "spectral_hand",
+      "shape": "ray",
+      "impact": [],
+      "markers": [],
+      "areas": [],
+      "statuses": []
+    },
+    "mending": {
+      "scope_order": 63,
+      "shape": "target",
+      "impact": [
+        "minor_magic"
+      ],
+      "markers": [],
+      "areas": [],
+      "statuses": []
+    },
+    "prestidigitation": {
+      "scope_order": 64,
+      "shape": "target",
+      "impact": [
+        "minor_magic"
+      ],
+      "markers": [],
+      "areas": [],
+      "statuses": []
+    },
+    "thaumaturgy": {
+      "scope_order": 65,
+      "shape": "target",
+      "impact": [
+        "minor_magic"
+      ],
+      "markers": [],
+      "areas": [],
+      "statuses": []
+    },
+    "druidcraft": {
+      "scope_order": 66,
+      "shape": "target",
+      "impact": [
+        "minor_magic"
+      ],
+      "markers": [],
+      "areas": [
+        "zone_vines"
+      ],
+      "statuses": []
+    },
+    "reverse-gravity": {
+      "scope_order": 67,
+      "shape": "column",
+      "impact": [
+        "bludgeoning"
+      ],
+      "markers": [],
+      "areas": [
+        "zone_gravity"
+      ],
+      "statuses": [
+        "prone"
+      ]
+    },
+    "earthquake": {
+      "scope_order": 68,
+      "shape": "sphere",
+      "impact": [
+        "bludgeoning"
+      ],
+      "markers": [],
+      "areas": [
+        "zone_quake"
+      ],
+      "statuses": [
+        "prone"
+      ]
+    },
+    "storm-of-vengeance": {
+      "scope_order": 69,
+      "shape": "column",
+      "impact": [],
+      "markers": [],
+      "areas": [
+        "zone_storm"
+      ],
+      "statuses": [
+        "deafened"
+      ]
+    },
+    "antimagic-field": {
+      "scope_order": 70,
+      "shape": "sphere",
+      "impact": [],
+      "markers": [],
+      "areas": [
+        "zone_antimagic"
+      ],
+      "statuses": []
+    },
+    "globe-of-invulnerability": {
+      "scope_order": 71,
+      "shape": "sphere",
+      "impact": [],
+      "markers": [],
+      "areas": [
+        "zone_dome_force"
+      ],
+      "statuses": []
+    },
+    "gate": {
+      "scope_order": 72,
+      "shape": "target",
+      "impact": [],
+      "markers": [],
+      "areas": [
+        "zone_portal"
+      ],
+      "statuses": []
+    },
+    "animate-dead": {
+      "scope_order": 73,
+      "shape": "target",
+      "impact": [
+        "summon_necrotic"
+      ],
+      "markers": [],
+      "areas": [],
+      "statuses": []
+    },
+    "teleport": {
+      "scope_order": 74,
+      "shape": "target",
+      "impact": [
+        "teleport_mist"
+      ],
+      "markers": [],
+      "areas": [
+        "zone_portal"
+      ],
+      "statuses": []
+    },
+    "dimension-door": {
+      "scope_order": 75,
+      "shape": "target",
+      "impact": [
+        "teleport_mist"
+      ],
+      "markers": [],
+      "areas": [
+        "zone_portal"
+      ],
+      "statuses": []
+    },
+    "water-breathing": {
+      "scope_order": 76,
+      "shape": "target",
+      "impact": [
+        "buff_up"
+      ],
+      "markers": [],
+      "areas": [],
+      "statuses": []
+    },
+    "prayer-of-healing": {
+      "scope_order": 77,
+      "shape": "target",
+      "impact": [
+        "heal"
+      ],
+      "markers": [],
+      "areas": [],
+      "statuses": []
+    },
+    "feather-fall": {
+      "scope_order": 78,
+      "shape": "target",
+      "impact": [
+        "buff_up"
+      ],
+      "markers": [],
+      "areas": [],
+      "statuses": []
+    },
+    "animate-objects": {
+      "scope_order": 79,
+      "shape": "target",
+      "impact": [
+        "summon_arcane"
+      ],
+      "markers": [],
+      "areas": [],
+      "statuses": []
+    },
+    "mass-heal": {
+      "scope_order": 80,
+      "shape": "target",
+      "impact": [
+        "heal"
+      ],
+      "markers": [],
+      "areas": [],
+      "statuses": []
+    }
+  }
+}

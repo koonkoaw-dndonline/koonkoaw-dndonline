@@ -14,6 +14,17 @@
   const PACK_URL='./battle-vfx/2026-09-27/manifest.json';
   const PACK_PREFIX='./battle-vfx/2026-09-27/';
   const PACK_SHA256='603c6dea8fd13abcb35e1a211f76cd63386a9fb8c9f8d8a8ed0a39a83bfcf8fc';
+  const SPELL_PREFIX='./battle-vfx/2026-10-10/';
+  const SPELL_PACK_SHA256='be9ce649d7e1f68efbfc4eacd0bd70b07b5f3f7c802c8180152a76b7c3bdff2b';
+  const CUES_URL='./spell-vfx-cues.json?v=20261010vfx409';
+  const CUES_SHA256='172cee4d364e0e48f8f4bcc4dd72a68070651d7d13127e688ca61d0f063c9bd4';
+  const EXTRA_KEYS=new Set(('buff_up debuff_down teleport_mist dispel summon_necrotic radiant thunder psychic necrotic bludgeoning piercing slashing column_fire summon_arcane minor_magic projectile_fire cone_fire cone_prismatic ray_fire weapon_spectral spectral_hand projectile wave beam_radiant zone_fire_orb zone_light_mote zone_guardian zone_portal zone_wall_fire zone_wall_stone zone_wall_force zone_wall_ice zone_fire zone_fog zone_web zone_faerie zone_darkness zone_silence zone_moonbeam zone_spirits zone_storm zone_aura_holy zone_light zone_ice zone_poison zone_insects zone_dome_force zone_gravity zone_antimagic zone_quake zone_smoke zone_thorns zone_vines').split(' '));
+  const SHAPES=new Set(['target','projectile','ray','line','cone','sphere','column','cube','wall']);
+  const MARKERS={blessed:['B','ได้รับพร','Blessed'],baned:['B','ถูกเวทภัยพิบัติ','Baned'],
+    weapon_empowered:['W','อาวุธเสริมพลัง','Empowered weapon'],outlined:['O','แสงเผยร่าง','Outlined'],
+    heated:['H','โลหะร้อน','Heated metal'],aided:['A','ได้รับเวทช่วยเหลือ','Aided'],
+    hopeful:['H','แสงแห่งความหวัง','Beacon of Hope'],slowed:['S','ถูกเวทสโลว์','Slowed'],
+    confused:['C','ถูกเวทสับสน','Confused'],suggested:['S','อยู่ใต้อิทธิพลคำชี้นำ','Suggested']};
   const PACK_KEYS=new Set(['acid','beam','bludgeoning','cold','dash','fire','fist',
     'force','heal','lightning','necrotic','piercing','poison','projectile',
     'psychic','radiant','slashing','temporary_hp','thunder','wave','zone_fire',
@@ -21,7 +32,7 @@
   const STATUS={blinded:['BL','ตาบอด','Blinded'],charmed:['CH','ถูกเสน่ห์','Charmed'],
     deafened:['DE','หูหนวก','Deafened'],exhaustion:['EX','อ่อนล้า','Exhaustion'],
     frightened:['FR','หวาดกลัว','Frightened'],grappled:['GR','ถูกจับยึด','Grappled'],
-    incapacitated:['IN','ไร้ความสามารถ','Incapacitated'],
+    incapacitated:['IN','ไร้ความสามารถ','Incapacitated'],invisible:['IV','ล่องหน','Invisible'],
     paralyzed:['PA','เป็นอัมพาต','Paralyzed'],petrified:['PE','กลายเป็นหิน','Petrified'],
     poisoned:['PO','ติดพิษ','Poisoned'],prone:['PR','ล้มคว่ำ','Prone'],
     restrained:['RE','ถูกตรึง','Restrained'],stunned:['ST','มึนงง','Stunned'],
@@ -30,6 +41,7 @@
     oil:['O','น้ำมัน','Oil'],ice:['I','พื้นน้ำแข็ง','Icy terrain'],trap:['T','กับดักที่เปิดเผย','Revealed trap']};
   const manifest=Object.create(null);
   const statusIcons=Object.create(null);
+  const markerIcons=Object.create(null),spellCues=Object.create(null),areaArt=Object.create(null);
   let manifestFlight=null,manifestReady=false;
   let scope='',cursor=null,boardSvg=null,boardWatched=null,observer=null;
   let layerNode=null,hostNode=null,listeners=false,listenerDocument=null;
@@ -154,10 +166,14 @@
       if(row.mitigation!=='immune'&&row.save_outcome!=='success_zero') return null;
     }
     if(row.kind!=='damage'&&parts.length) return null;
-    if(row.delivery_key!=null&&(!['projectile','beam'].includes(row.delivery_key)||
+    const spell=typeof row.spell_slug==='string'&&Object.hasOwn(spellCues,row.spell_slug)?spellCues[row.spell_slug]:null;
+    if(row.delivery_key!=null&&!spell&&(!['projectile','beam'].includes(row.delivery_key)||
       !['damage','miss'].includes(row.kind)||
       (row.delivery_key==='beam'&&(row.kind!=='damage'||parts.some(p=>p.type!=='fire')))||
       (row.kind==='damage'&&parts.some(p=>p.type!=='fire'&&p.type!=='force')))) return null;
+    if(spell&&row.delivery_key!=null&&row.delivery_key!==spell.delivery&&
+      !(row.spell_slug==='produce-flame'&&row.delivery_key==='projectile')&&
+      !(row.spell_slug==='scorching-ray'&&row.delivery_key==='beam'))return null;
     let keys=[],strength=1,blocked=false;
     if(row.kind==='damage'){
       blocked=row.mitigation==='immune'||row.save_outcome==='success_zero'||Number(row.amount_applied)===0;
@@ -170,7 +186,11 @@
       }
     } else {keys=[row.kind];if(row.kind==='miss') strength=0.45;}
     if(!keys.length) return null;
-    if(row.delivery_key==='projectile'||row.delivery_key==='beam') keys=[row.delivery_key,...keys];
+    // Damage art follows actual applied parts. A registry row never creates damage or a status.
+    if(spell&&row.kind==='damage'&&!blocked&&keys.includes('fire')&&spell.impact.includes('column_fire'))
+      keys=keys.map(k=>k==='fire'?'column_fire':k);
+    const delivery=spell?.delivery||row.delivery_key;
+    if(delivery&&['damage','miss'].includes(row.kind))keys=[delivery,...keys];
     return {key:row.event_key+'|'+row.target_token_id+'|'+row.kind,
       cursor:Number(row.cursor_id),target:row.target_token_id,actor:row.actor_token_id,
       grid:row.grid_id,targetRefKind:row.target_ref_kind,targetRef:row.target_ref_id,
@@ -178,7 +198,7 @@
       targetCol:Number(row.target_col),targetRow:Number(row.target_row),
       targetSize:Number(row.target_size),actorCol:Number(row.actor_col),
       actorRow:Number(row.actor_row),actorSize:Number(row.actor_size),
-      kind:row.kind,keys,strength,createdAt:Date.parse(row.created_at||''),
+      kind:row.kind,keys,strength,shape:spell?.shape||'target',createdAt:Date.parse(row.created_at||''),
       canNudge:(row.kind==='damage'||row.kind==='miss')&&row.attack!=='none'&&
         row.actor_ref_kind==='character'&&row.target_ref_kind==='combat_state'&&
         row.actor_token_id!==row.target_token_id};
@@ -241,14 +261,14 @@
   }
   function localFrame(url){
     return typeof url==='string'&&/^\.\/battle-vfx\/[a-z0-9_./-]+\.png$/i.test(url)&&
-      !url.includes('..')?url+'?v='+ASSET_VERSION:null;
+      !url.includes('..')?url+'?v='+(url.startsWith(SPELL_PREFIX)?'20261010vfx409':ASSET_VERSION):null;
   }
-  function packAsset(item){
-    return item&&typeof item.url==='string'&&item.url.startsWith(PACK_PREFIX)&&
+  function packAsset(item,extra=false){
+    return item&&typeof item.url==='string'&&(item.url.startsWith(PACK_PREFIX)||(extra&&item.url.startsWith(SPELL_PREFIX)))&&
       /^[A-F0-9]{64}$/i.test(String(item.sha256||''))&&localFrame(item.url)
       ?item.url:null;
   }
-  function setManifest(next){
+  function setManifest(next,extra,cues){
     if(!next||next.schema!=='battle-vfx-pack/v1'||next.version!=='2026-09-27'||
       !next.effects||!next.status_icons||
       Object.keys(next.effects).length!==PACK_KEYS.size||
@@ -265,9 +285,38 @@
       if(!Object.hasOwn(STATUS,key)&&key!=='invisible')return false;
       const url=packAsset(value);if(!url)return false;icons[key]=url;
     }
+    const extraEffects=Object.create(null),markers=Object.create(null),registry=Object.create(null),areas=Object.create(null);
+    if(extra||cues){
+      if(!extra||extra.schema!=='battle-vfx-pack/v1'||extra.version!=='2026-10-10'||
+        extra.extends!=='2026-09-27'||!extra.effects||Object.keys(extra.effects).length!==EXTRA_KEYS.size||
+        !extra.marker_icons||Object.keys(extra.marker_icons).length!==10||
+        !cues||cues.schema!=='spell-vfx-cues/v1'||!cues.spells||Object.keys(cues.spells).length!==80)return false;
+      for(const [key,value]of Object.entries(extra.effects)){
+        if(!EXTRA_KEYS.has(key)||!value||!['impact','delivery','zone'].includes(value.kind)||
+          !packAsset(value.still,true)||!Array.isArray(value.frames)||value.frames.length!==9||
+          value.frames.some(f=>!packAsset(f,true)))return false;
+        const parsed={kind:value.kind,still:value.still.url,frames:value.frames.map(f=>f.url)};
+        if(value.kind==='zone')areas[key]=parsed;else extraEffects[key]=parsed;
+      }
+      for(const [key,value]of Object.entries(extra.marker_icons)){
+        if(!Object.hasOwn(MARKERS,key)||!packAsset(value,true))return false;markers[key]=value.url;
+      }
+      const effectKey=k=>Object.hasOwn(extraEffects,k)||Object.hasOwn(effects,k);
+      for(const [slug,cue]of Object.entries(cues.spells)){
+        if(!/^[a-z]+(?:-[a-z]+)*$/.test(slug)||!cue||!SHAPES.has(cue.shape)||
+          (cue.delivery&&(!effectKey(cue.delivery)||(extraEffects[cue.delivery]||effects[cue.delivery]).kind!=='delivery'))||
+          !Array.isArray(cue.impact)||cue.impact.some(k=>!effectKey(k))||
+          !Array.isArray(cue.markers)||cue.markers.some(k=>!Object.hasOwn(MARKERS,k))||
+          !Array.isArray(cue.statuses)||cue.statuses.some(k=>!Object.hasOwn(STATUS,k))||
+          !Array.isArray(cue.areas)||cue.areas.some(k=>!Object.hasOwn(areas,k)))return false;
+        registry[slug]=Object.freeze({...cue,impact:Object.freeze([...cue.impact])});
+      }
+    }
     for(const key of Object.keys(manifest))delete manifest[key];
     for(const key of Object.keys(statusIcons))delete statusIcons[key];
-    Object.assign(manifest,effects);Object.assign(statusIcons,icons);
+    for(const table of [markerIcons,spellCues,areaArt])for(const key of Object.keys(table))delete table[key];
+    Object.assign(manifest,effects,extraEffects);Object.assign(statusIcons,icons);
+    Object.assign(markerIcons,markers);Object.assign(spellCues,registry);Object.assign(areaArt,areas);
     manifestReady=true;
     return true;
   }
@@ -276,12 +325,16 @@
     if(manifestFlight)return manifestFlight;
     manifestFlight=(async()=>{
       try{
-        const response=await root.fetch(PACK_URL,{cache:'force-cache'});
-        if(!response.ok||!root.crypto?.subtle)return false;
-        const bytes=await response.arrayBuffer();
-        const hash=[...new Uint8Array(await root.crypto.subtle.digest('SHA-256',bytes))]
-          .map(byte=>byte.toString(16).padStart(2,'0')).join('');
-        return hash===PACK_SHA256&&setManifest(JSON.parse(new TextDecoder().decode(bytes)));
+        if(!root.crypto?.subtle)return false;
+        const read=async(url,pin)=>{
+          const response=await root.fetch(url,{cache:'force-cache'});if(!response.ok)throw Error('vfx_asset_http');
+          const bytes=await response.arrayBuffer();
+          const hash=[...new Uint8Array(await root.crypto.subtle.digest('SHA-256',bytes))].map(b=>b.toString(16).padStart(2,'0')).join('');
+          if(hash!==pin)throw Error('vfx_asset_hash');return JSON.parse(new TextDecoder().decode(bytes));
+        };
+        const [base,extra,cues]=await Promise.all([read(PACK_URL,PACK_SHA256),
+          read(SPELL_PREFIX+'manifest.json?v=20261010vfx409',SPELL_PACK_SHA256),read(CUES_URL,CUES_SHA256)]);
+        return setManifest(base,extra,cues);
       }catch(_error){return false;}
       finally{manifestFlight=null;}
     })();
@@ -324,13 +377,25 @@
     node.style.setProperty('--vfx-opacity',String(Math.min(0.92,0.45+0.45*cue.strength)));
     node.setAttribute('data-vfx-kind',cue.keys[0]);
     node.setAttribute('data-vfx-playback-kind',effect.kind);
-    const frames=effect?(effect.frames.length?effect.frames:[effect.still]):null;
+    const shape=SHAPES.has(cue.shape)?cue.shape:'target';
+    node.setAttribute('data-vfx-shape',shape);
+    // These are cosmetic paths between certified tokens, never an area/target preview.
+    const stretched=effect.kind==='delivery'&&['ray','line','cone'].includes(shape);
+    if(stretched&&origin){
+      const dx=center.x-origin.x,dy=center.y-origin.y,distance=Math.hypot(dx,dy);
+      node.style.left=origin.x+'px';node.style.top=origin.y+'px';
+      node.style.width=Math.max(1,distance)+'px';node.style.height=size+'px';
+      node.style.transform='translate(0,-50%) rotate('+Math.atan2(dy,dx)+'rad)';
+      node.style.transformOrigin='0 50%';
+    }
+    const frames=effect?(reduced&&effect.still?[effect.still]:effect.frames.length?effect.frames:effect.still?[effect.still]:[]):null;
     const duration=effect?.kind==='delivery'?720:effect?.kind==='zone'?960:460;
     if(Array.isArray(frames)&&frames.length){
       const src=localFrame(frames[0]);
       if(src){
         const img=root.document.createElement('img');
         img.alt='';img.draggable=false;img.src=src;node.appendChild(img);
+        if(stretched)img.style.objectFit='fill';
         if(!reduced&&frames.length>1){
           const frameSteps=effect.kind==='zone'?2*(frames.length-1):
             effect.kind==='delivery'?2*frames.length:frames.length-1;
@@ -360,7 +425,7 @@
       },delay);
       timers.add(follow);
     }
-    if(effect.kind==='delivery'&&!reduced&&node.animate){
+    if(effect.kind==='delivery'&&!stretched&&!reduced&&node.animate){
       const travel=node.animate([{left:origin.x+'px',top:origin.y+'px'},
         {left:center.x+'px',top:center.y+'px'}],{duration:duration,iterations:1});
       motions.add(travel);travel.onfinish=function(){motions.delete(travel);};
@@ -391,6 +456,9 @@
       Number(row.col)>19||Number(row.row)>19||
       Number(row.size)<1||Number(row.size)>20) return null;
     const kind=row.kind,slug=row.slug;
+    if(kind==='marker'&&(!Object.hasOwn(MARKERS,slug)||!Object.hasOwn(markerIcons,slug)||
+      !['character','combat_state'].includes(row.ref_kind)||
+      (row.expires_round!==null&&!whole(row.expires_round))))return null;
     if(kind==='status'&&(!Object.hasOwn(STATUS,slug)||
       !['character','combat_state'].includes(row.ref_kind)||row.expires_round!==null)) return null;
     if(kind==='hazard'&&(!['fire','acid','oil','ice'].includes(slug)||
@@ -398,7 +466,7 @@
       row.expires_round===null||!whole(row.expires_round))) return null;
     if(kind==='trap'&&(slug!=='trap'||row.ref_kind!=='object'||
       row.ref_id!==row.token_id||row.expires_round!==null)) return null;
-    if(!['status','hazard','trap'].includes(kind)) return null;
+    if(!['status','marker','hazard','trap'].includes(kind)) return null;
     return {key:row.token_id+'|'+kind+'|'+slug,kind,slug,
       target:row.token_id,grid:row.grid_id,targetRefKind:row.ref_kind,
       targetRef:row.ref_id,targetCol:Number(row.col),targetRow:Number(row.row),
@@ -417,20 +485,22 @@
     const counts=new Map();
     for(const cue of cues){
       const token=exactToken(board,cue,'target');if(!token)continue;
-      const center=point(token,layer,cue.kind==='status'?'status':true);if(!center)continue;
-      const countKey=cue.kind+':'+cue.target,offset=counts.get(countKey)||0;
+      const badge=cue.kind==='status'||cue.kind==='marker';
+      const center=point(token,layer,badge?'status':true);if(!center)continue;
+      const countKey=(badge?'badge':cue.kind)+':'+cue.target,offset=counts.get(countKey)||0;
       counts.set(countKey,offset+1);
-      const label=cue.kind==='status'?STATUS[cue.slug]:ZONES[cue.slug];
+      const label=cue.kind==='status'?STATUS[cue.slug]:cue.kind==='marker'?MARKERS[cue.slug]:ZONES[cue.slug];
       const node=root.document.createElement('div');
       node.className='bs-vfx-static bs-vfx-'+cue.kind;
-      const statusCount=cue.kind==='status'?cues.filter(c=>c.target===cue.target&&c.kind==='status').length:0;
+      const statusCount=badge?cues.filter(c=>c.target===cue.target&&(c.kind==='status'||c.kind==='marker')).length:0;
       const rowCount=Math.min(4,statusCount-Math.floor(offset/4)*4);
-      node.style.left=(center.x+(cue.kind==='status'?((offset%4)-(rowCount-1)/2)*19:0))+'px';
-      node.style.top=(center.y+(cue.kind==='status'?-18-Math.floor(offset/4)*19:0))+'px';
+      node.style.left=(center.x+(badge?((offset%4)-(rowCount-1)/2)*19:0))+'px';
+      node.style.top=(center.y+(badge?-18-Math.floor(offset/4)*19:0))+'px';
       node.title=typeof root.uiCopy==='function'?root.uiCopy(label[1],label[2]):
         root.document?.documentElement?.lang==='en'?label[2]:label[1];
       node.setAttribute('data-vfx-static',cue.kind+':'+cue.slug);
       const art=cue.kind==='status'?statusIcons[cue.slug]:
+        cue.kind==='marker'?markerIcons[cue.slug]:
         cue.kind==='hazard'&&cue.slug==='fire'?manifest.zone_fire?.still:null;
       if(art){const img=root.document.createElement('img');img.alt='';
         img.draggable=false;img.src=localFrame(art);node.appendChild(img);}
@@ -507,6 +577,7 @@
     finally{if(thisFlight===flightSerial) inFlight=false;}
   }
   root.BattleVfx={normalize,normalizeStatic,renderStatic,syncStaticSnapshot,
+    spellStats:()=>({spells:Object.keys(spellCues).length,markers:Object.keys(markerIcons).length,areas:Object.keys(areaArt).length}),
     exactToken,cueSize,localFrame,point,play,sync,reset,loadManifest,
     enabled,refreshGate,setUserEnabled,mountUserControl,stats:()=>({returned:counts.returned,
       played:counts.played,skipped:{...counts.skipped}}),

@@ -23,7 +23,10 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./grid-command-flow.js?v=20261002q176"></script>
 <script src="./grid-command-adapter.js?v=20260928move08"></script>
 <script src="./grid-board-replacement-lease.js?v=202608110249"></script>
-<script src="./battle-vfx.js?v=20261002vfxsp3b"></script>
+<!-- ER409_VFX_WIRE_START -->
+<link rel="preload" as="fetch" href="./spell-vfx-cues.json?v=20261010vfx409" crossorigin>
+<script src="./battle-vfx.js?v=20261010vfx409"></script>
+<!-- ER409_VFX_WIRE_END -->
 <script src="./battle-facing-manifest.js?v=20260927face01"></script>
 <script src="./battle-facing.js?v=20260928turn10"></script>
 <script src="./battle-facing-motion.js?v=20260927face01"></script>
@@ -1007,6 +1010,10 @@ body.in-battle .bs-cs-btn{display:block;}
 .bs-vfx-cue[data-vfx-kind="blocked"]::after{content:'⊘';}
 .bs-vfx-static{position:absolute;transform:translate(-50%,-50%);width:18px;height:18px;box-sizing:border-box;border:1px solid #fff;border-radius:4px;background:#142232;color:#fff;box-shadow:0 1px 4px #07121c;font:700 10px/16px system-ui,sans-serif;text-align:center;white-space:nowrap;image-rendering:pixelated;}
 .bs-vfx-static img{display:block;width:100%;height:100%;object-fit:contain;image-rendering:pixelated;}
+/* ER409: markers are spell effects, separate from RAW status icons. */
+.bs-vfx-marker{border-color:#e8c56b;background:#1c3035;pointer-events:auto;}
+.bs-vfx-cue:has(img){border:0;box-shadow:none;}
+.bs-vfx-cue:has(img)::before,.bs-vfx-cue:has(img)::after{display:none;}
 .bs-vfx-hazard{width:32px;height:32px;border-color:#ffb26d;background:#813617;opacity:.82;animation:bsVfxZone .96s ease-in-out infinite alternate;}
 .bs-vfx-trap{border-color:#ff8f8f;background:#762525;opacity:.82;}
 @keyframes bsVfxZone{from{opacity:.56}to{opacity:.9}}
@@ -2411,7 +2418,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202610101239;
+const FRONTEND_BUILD = 202610101240;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
