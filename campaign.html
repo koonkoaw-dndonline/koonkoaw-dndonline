@@ -25,14 +25,17 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./grid-board-replacement-lease.js?v=202608110249"></script>
 <!-- ER409_VFX_WIRE_START -->
 <link rel="preload" as="fetch" href="./spell-vfx-cues.json?v=20261010vfx409" crossorigin>
-<script src="./battle-vfx.js?v=20261010vfx409"></script>
+<!-- ER409B_ZONE_START -->
+<script src="./battle-vfx-zones.js?v=20261010vfx409b"></script>
+<script src="./battle-vfx.js?v=20261010vfx409b"></script>
+<!-- ER409B_ZONE_END -->
 <!-- ER409_VFX_WIRE_END -->
 <script src="./battle-facing-manifest.js?v=20260927face01"></script>
 <script src="./battle-facing.js?v=20260928turn10"></script>
 <script src="./battle-facing-motion.js?v=20260927face01"></script>
 <script src="./dice-roll-sound.js?v=0823"></script>
 <script src="./dice-fx.js?v=0903"></script>
-<script src="./dice-canvas.js?v=20260927dicelive01"></script>
+<script src="./dice-canvas.js?v=20261010split155b"></script>
 <script src="./dice-stage.js?v=20261010c8"></script>
 <script src="./ui-draft-guard.js?v=20261009f375"></script>
 <script src="./music-playback-owner.js?v=847"></script>
@@ -351,7 +354,7 @@ html.skin-paper #panel-companion .btn,html.skin-paper #panel-companion .btn.sm{f
   position:fixed;bottom:84px;left:50%;transform:translateX(-50%) translateY(12px);
   background:var(--black);border:var(--px) solid var(--white);border-radius:7px;
   color:var(--white);padding:11px 18px;font-size:var(--fs-base);font-weight:600;letter-spacing:.3px;
-  opacity:0;transition:opacity .12s,transform .12s;pointer-events:none;z-index:9999;
+  opacity:0;transition:opacity .12s,transform .12s;pointer-events:none;z-index:2147482200;
   max-width:90vw;text-align:center;box-shadow:0 0 0 var(--px) var(--black);
 }
 .toast::before{content:"▶ ";}
@@ -2418,7 +2421,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202610101240;
+const FRONTEND_BUILD = 202610101242;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -3254,27 +3257,38 @@ function diceCanvasStableIdentity(input){
 }
 function diceCanvasEventFromLegacy(input){
   const source=input&&typeof input==='object'?input:{};
+  // SPLIT155: preserve the server's complete groups. Unknown/partial groups refuse as a unit.
+  if(source.serverRollEvent){
+    const event=source.serverRollEvent, groups=event.groups;
+    if(typeof event.id!=='string'||!event.id.trim()||event.id.length>4096||!Array.isArray(groups)||!groups.length||groups.length>64)return null;
+    let count=0;
+    for(const group of groups){
+      if(!group||typeof group.id!=='string'||!/^d(?:4|6|8|10|12|20|100)$/.test(group.die)||!Array.isArray(group.rolls)||!group.rolls.length||!Number.isSafeInteger(group.subtotal))return null;
+      if(group.rolls.some(value=>!Number.isSafeInteger(value)||value<1||value>Number(group.die.slice(1))))return null;
+      count+=group.rolls.length;if(count>64)return null;
+    }
+    if(new Set(groups.map(group=>group.id)).size!==groups.length)return null;
+    return Object.assign({},event,{groups:groups.map(group=>Object.assign({},group,{rolls:group.rolls.slice()}))});
+  }
   const settled=(Array.isArray(source.dice)?source.dice:[]).map((die,index)=>({
     die:String(die&&die.die||'').toLowerCase(), value:Number(die&&die.value), index:index
   })).filter(die=>/^d(?:4|6|8|10|12|20|100)$/.test(die.die)&&Number.isFinite(die.value));
   if(!settled.length) return null;
+  if(!Array.isArray(source.dice)||source.dice.length>64||settled.length!==source.dice.length||settled.some(die=>!Number.isSafeInteger(die.value)||die.value<1||die.value>Number(die.die.slice(1))))return null;
   const id=diceCanvasStableIdentity(source), label=String(source.label||'').trim();
   const flat=Number.isFinite(source.flat)?Number(source.flat):0;
   const total=Number.isFinite(source.total)?Number(source.total):null;
   const dc=Number.isFinite(source.dc)?Number(source.dc):null;
   const role=String(source.role||(dc!==null?'save':'check'));
-  const formula=settled.map(die=>die.die).join(' + ')+(flat?(flat>0?' + '+flat:' - '+Math.abs(flat)):'');
+  const groups=[];
+  settled.forEach(die=>{let group=groups[groups.length-1];if(!group||group.die!==die.die){group={id:id+'-g'+groups.length,label:label||die.die,formula:die.die,die:die.die,rolls:[],subtotal:0,role:role,sourceCategory:String(source.sourceCategory||''),critical:source.critical===true,natOne:source.natOne===true};groups.push(group);}group.rolls.push(die.value);group.subtotal+=die.value;group.formula=group.rolls.length+group.die;});
+  const formula=String(source.formula||groups.map(group=>group.formula).join(' + ')+(flat?(flat>0?' + '+flat:' - '+Math.abs(flat)):''));
   return {
     id:id, kind:String(source.kind||(dc!==null?'save':'check')), title:label, label:label, actor:String(source.who||source.actor||''),
     formula:formula, roll:Number.isFinite(source.roll)?Number(source.roll):settled[0].value,
     flat:flat, total:total, dc:dc, pass:typeof source.pass==='boolean'?source.pass:null,
     tier:typeof source.tier==='string'?source.tier:'',
-    groups:settled.map(die=>({
-      id:id+'-g'+die.index, label:label||die.die, formula:die.die, die:die.die,
-      rolls:[die.value], subtotal:die.value, role:role,
-      sourceCategory:String(source.sourceCategory||''), critical:source.critical===true,
-      natOne:source.natOne===true
-    }))
+    groups:groups
   };
 }
 // W110 (owner 09-05): no gold ring, burst or outline is drawn around the die — the die sits alone on the dim backdrop.
@@ -3420,6 +3434,7 @@ function diceCanvasDefaultEnvironment(){
   return {
     fxEnabled:()=>dicePreferenceEnabled('dice_fx'), sfxEnabled:()=>dicePreferenceEnabled('dice_sfx')&&musicOn===true,
     copy:(th,en)=>uiCopy(th,en),
+    notifyRenderRefusal:()=>{if(typeof toast==='function')toast(uiCopy('แสดงภาพลูกเต๋าไม่สำเร็จ ผลทอยไม่เปลี่ยน','The dice could not be displayed. Your roll is unchanged.'),true);},
     reducedMotion:()=>{ try{ return !!window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(_error){ return false; } },
     setTimer:(callback,delay)=>setTimeout(callback,delay), clearTimer:id=>clearTimeout(id),
     visualProof:(phase,detail)=>recordDiceVisualProof(phase,detail),
@@ -3441,7 +3456,7 @@ function diceCanvasDefaultEnvironment(){
         const overlay=document.createElement('div'); overlay.setAttribute('data-dice-canvas-wire','1');
         overlay.style.cssText='position:fixed;inset:0;z-index:2147482100;pointer-events:none;background:transparent';
         const stage=document.createElement('div');
-        stage.setAttribute('data-dice-canvas-stage','1');stage.style.cssText='position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(92vw,520px);min-height:330px;pointer-events:none;transition:opacity .16s ease';
+stage.setAttribute('data-dice-canvas-stage','1');stage.style.cssText='position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(92vw,520px);min-height:0;pointer-events:none;transition:opacity .16s ease';
         const live=document.createElement('div'); live.setAttribute('role','status'); live.setAttribute('aria-live','polite');
         live.style.cssText='position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0';
         overlay.appendChild(stage); overlay.appendChild(live); document.body.appendChild(overlay);
@@ -3450,15 +3465,15 @@ function diceCanvasDefaultEnvironment(){
         const viewSize=()=>{const doc=document&&document.documentElement;return {width:Number(doc&&doc.clientWidth)||Number(window&&window.innerWidth)||1,height:Number(doc&&doc.clientHeight)||Number(window&&window.innerHeight)||1};};
         const ensureResultHost=()=>{
           if(resultHost===stage||resultFallbackHost)return '';
-          const view=viewSize(),stageRect=stage.getBoundingClientRect(),hostRect=resultHost.getBoundingClientRect();let issue=diceResultHostIssue(resultHost,view.width,view.height),placement=diceStagePlacement(view.width,view.height,hostRect,Number(stageRect.width)||Number(stage.clientWidth),Number(stageRect.height)||Number(stage.clientHeight));if(!issue||placement.reason!=='rehost')return '';
-          if(!resultHostScrollAttempted){resultHostScrollAttempted=true;try{resultHost.scrollIntoView({block:'nearest'});}catch(_diceResultHostScrollError){}const retryRect=resultHost.getBoundingClientRect();issue=diceResultHostIssue(resultHost,view.width,view.height);placement=diceStagePlacement(view.width,view.height,retryRect,Number(stageRect.width)||Number(stage.clientWidth),Number(stageRect.height)||Number(stage.clientHeight));if(!issue||placement.reason!=='rehost')return '';}
+          const view=viewSize(),stageRect=stage.getBoundingClientRect(),hostRect=resultHost.getBoundingClientRect();let issue=diceResultHostIssue(resultHost,view.width,view.height),placement=diceStagePlacement(view.width,view.height,hostRect,Number(stageRect.width)||Number(stage.clientWidth),Number(stageRect.height)||Number(stage.clientHeight));if(!issue&&placement.reason!=='docked')return '';if(placement.reason==='docked')issue='dice_stage_joint_rehost';
+          if(placement.reason!=='docked'&&!resultHostScrollAttempted){resultHostScrollAttempted=true;try{resultHost.scrollIntoView({block:'nearest'});}catch(_diceResultHostScrollError){}const retryRect=resultHost.getBoundingClientRect();issue=diceResultHostIssue(resultHost,view.width,view.height);placement=diceStagePlacement(view.width,view.height,retryRect,Number(stageRect.width)||Number(stage.clientWidth),Number(stageRect.height)||Number(stage.clientHeight));if(!issue&&placement.reason!=='docked')return '';}
           resultFallbackHost=createDiceResultFallbackHost(document,overlay);resultHost=resultFallbackHost;
           try{if(detailControl&&detailControl.summary)resultHost.appendChild(detailControl.summary);if(ackControl&&ackControl.panel)resultHost.appendChild(ackControl.panel);}catch(_diceResultRehostMoveError){}
           if(mounted)mounted.resultContainer=resultHost;
           try{dicePlaybackLog(issue,{campaignId:String(campaign&&campaign.id||''),roundId:String(curRound&&curRound.id||''),resultHost:'fallback'});}catch(_diceResultHostLogError){}
           return issue;
         };
-        const relayout=()=>{ensureResultHost();const placement=separateDiceStageFromResultRail(stage,resultHost);if(resultFallbackHost&&placement){stage.setAttribute('data-dice-stage-placement','rehost');return Object.assign({},placement,{reason:'rehost'});}return placement;};
+        const relayout=()=>{const view=viewSize(),painted=stage.querySelector('canvas'),renderWidth=painted&&parseFloat(painted.style.width),renderHeight=painted&&parseFloat(painted.style.height);let scale=1;if(renderWidth>0&&renderHeight>0){scale=Math.min(1,(view.width-DICE_STAGE_EDGE_PX*2)/renderWidth,(view.height*.45)/renderHeight);stage.style.width=String(renderWidth)+'px';stage.style.transformOrigin='top center';stage.style.transform='translateX(-50%) scale('+String(scale)+')';}ensureResultHost();if(resultFallbackHost){const height=stage.getBoundingClientRect().height;resultFallbackHost.style.maxHeight=String(Math.max(1,view.height-height-DICE_RESULT_GAP_PX-DICE_STAGE_EDGE_PX*2))+'px';resultFallbackHost.style.overflowY='auto';stage.style.left='50%';stage.style.top=String(DICE_STAGE_EDGE_PX)+'px';stage.style.transform='translateX(-50%) scale('+String(scale)+')';stage.style.visibility='visible';stage.style.opacity='1';stage.setAttribute('data-dice-stage-placement','rehost');return {top:DICE_STAGE_EDGE_PX,hidden:false,reason:'rehost'};}const placement=separateDiceStageFromResultRail(stage,resultHost);if(renderWidth>0)stage.style.transform='translateX(-50%) scale('+String(scale)+')';return placement;};
         ensureResultHost();relayout();try{window.addEventListener('resize',relayout);document.addEventListener('scroll',relayout,true);}catch(_diceStageListenerError){}
         let connected=false;try{connected=overlay.isConnected===true||!!(document.documentElement&&typeof document.documentElement.contains==='function'&&document.documentElement.contains(overlay));}catch(_diceOverlayConnectedError){}
         recordDiceVisualProof('overlay_mounted',{connected:connected});
@@ -3533,9 +3548,27 @@ function mountDiceJobOnCenterStage(hosts){
     showResultAck:model=>{if(ackControl)return ackControl;ackControl=createDiceResultAckPanel(document,model);resultHost.appendChild(ackControl.panel);try{if(window.DiceStage&&typeof window.DiceStage.jobResult==='function')window.DiceStage.jobResult();}catch(_diceStageResultError){}try{ackControl.button.focus({preventScroll:true});}catch(_diceStageAckFocusError){}return ackControl;},
     dispose:()=>{try{if(ackControl)ackControl.close();}catch(_diceStageAckDisposeError){}try{if(detailControl)detailControl.close();}catch(_diceStageDetailDisposeError){}try{stage.remove();}catch(_diceStageRemoveError){}try{if(window.DiceStage&&typeof window.DiceStage.jobDisposed==='function')window.DiceStage.jobDisposed();}catch(_diceStageDisposeError){}try{recordDiceVisualProof('overlay_removed');}catch(_diceStageRemovedProofError){}}};
 }
+function diceD1GroupRecord(proof,input){
+  const source=input&&typeof input==='object'?input:{},campaignId=String(typeof campaign!=='undefined'&&campaign&&campaign.id||''),roundId=String(typeof curRound!=='undefined'&&curRound&&curRound.id||'');
+  const eventId=String(proof&&proof.eventId||source.eventId||''),row=Object.assign({schema:'dice-d1-group-reveal/v1',source:'diceD1',campaignId:campaignId,roundId:roundId,eventId:eventId,at:new Date().toISOString()},proof||{});
+  const log=(reason)=>{row.reason=reason;const rows=Array.isArray(window.__diceD1Log)?window.__diceD1Log:[];rows.push(row);window.__diceD1Log=rows.slice(-64);if(window.console&&typeof window.console.warn==='function')window.console.warn('[diceD1]',row);return false;};
+  if(source.evidenceFailure){row.error=String(source.evidenceFailure).slice(0,120);return log('dice_d1_input_refused');}
+  if(!proof||!campaignId||!eventId||source.cosmetic===true)return log('dice_d1_render_proof_refused');
+  const key='ttrpg_dice_d1_group_v1_'+campaignId;
+  try{const parsed=JSON.parse(localStorage.getItem(key)||'[]'),rows=Array.isArray(parsed)?parsed.filter(item=>item&&item.schema===row.schema&&item.campaignId===campaignId).slice(-64):[];
+    if(rows.some(item=>item.eventId===eventId))return log('dice_d1_duplicate_render');
+    row.reason='dice_d1_group_revealed';rows.push(row);localStorage.setItem(key,JSON.stringify(rows.slice(-64)));
+  }catch(error){row.error=String(error&&error.message||'storage_failed').slice(0,120);return log('dice_d1_ledger_failed');}
+  log('dice_d1_group_revealed');return true;
+}
+if(typeof window!=='undefined')window.__diceD1Probe=function(){
+  const campaignId=String(typeof campaign!=='undefined'&&campaign&&campaign.id||'');
+  try{const parsed=JSON.parse(localStorage.getItem('ttrpg_dice_d1_group_v1_'+campaignId)||'[]');return {schema:'dice-d1-group-probe/v1',campaignId:campaignId,ledger:Array.isArray(parsed)?parsed.filter(row=>row&&row.schema==='dice-d1-group-reveal/v1'&&row.campaignId===campaignId).slice(-64):[],log:Array.isArray(window.__diceD1Log)?window.__diceD1Log.slice(-64):[]};}
+  catch(error){diceD1GroupRecord(null,{eventId:'probe-read'});return {schema:'dice-d1-group-probe/v1',campaignId:campaignId,ledger:[],error:'storage_read_failed',log:window.__diceD1Log||[]};}
+};
 function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
   const environment=Object.assign({},diceCanvasDefaultEnvironment(),overrides||{});
-  const queue=[]; let activeJob=null, canvasReady=false;
+  const queue=[],groupSeen=new Set(); let activeJob=null, canvasReady=false;
   function safeDone(input){ try{ if(input&&typeof input.onDone==='function') input.onDone(); }catch(_error){} }
   function onceDone(input){ let done=false; return ()=>{if(done)return false;done=true;safeDone(input);return true;}; }
   function complete(job,reason){
@@ -3594,6 +3627,42 @@ function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
     try{if(typeof job.input.onRollTrigger==='function')job.input.onRollTrigger(pressedByPlayer===true);}catch(_error){}
     queue.push(job);runNext();return true;
   }
+  function renderedSurfaceBox(host){
+    try{
+      const painted=host&&typeof host.querySelector==='function'&&host.querySelector('canvas');
+      if(!painted||painted.isConnected!==true||host.isConnected!==true||typeof host.contains!=='function'||!host.contains(painted)||typeof window.getComputedStyle!=='function')return null;
+      const box=painted.getBoundingClientRect(),hostBox=host.getBoundingClientRect();
+      if(!box||box.width<=0||box.height<=0||box.left<0||box.top<0||box.right>window.innerWidth+1||box.bottom>window.innerHeight+1||box.left<hostBox.left-1||box.top<hostBox.top-1||box.right>hostBox.right+1||box.bottom>hostBox.bottom+1)return null;
+      for(let element=painted;element;element=element.parentElement){
+        const style=window.getComputedStyle(element);
+        if(element.hidden===true||style.display==='none'||style.visibility!=='visible'||Number(style.opacity)===0||style.contentVisibility==='hidden'||style.clipPath&&style.clipPath!=='none')return null;
+        if(/hidden|clip|scroll|auto/.test(style.overflowX+' '+style.overflowY)){const clip=element.getBoundingClientRect();if(box.left<clip.left-1||box.top<clip.top-1||box.right>clip.right+1||box.bottom>clip.bottom+1)return null;}
+      }
+      const coordinateWidth=Number(painted.clientWidth),coordinateHeight=Number(painted.clientHeight);if(!(coordinateWidth>0&&coordinateHeight>0))return null;
+      return {left:box.left,top:box.top,right:box.right,bottom:box.bottom,width:box.width,height:box.height,coordinateWidth:coordinateWidth,coordinateHeight:coordinateHeight};
+    }catch(_diceVisibleSurfaceError){return null;}
+  }
+  function groupRevealProof(job,handle){
+    const event=job.groupEvent,mirror=handle&&handle.mirror;
+    if(!event)return null;
+    const host=job.mount&&job.mount.container,box=renderedSurfaceBox(host);
+    if(!box)return null;
+    const expected=event.groups.map(group=>({id:group.id,die:group.die,rolls:group.rolls,subtotal:group.subtotal}));
+    const actual=mirror&&Array.isArray(mirror.groups)?mirror.groups.map(group=>({id:group.id,die:group.die,rolls:group.rolls,subtotal:group.subtotal})):null;
+    if(JSON.stringify(actual)!==JSON.stringify(expected))return null;
+    const dice=mirror&&mirror.dice,faces=event.groups.flatMap(group=>group.rolls.map((value,index)=>({groupId:group.id,index:index,die:group.die,value:value})));
+    if(!Array.isArray(dice)||dice.length!==faces.reduce((n,face)=>n+(face.die==='d100'?2:1),0)||dice.some(item=>!item.position||!Number.isFinite(item.position.x)||!Number.isFinite(item.position.y)||!Number.isFinite(item.position.size)||item.position.size<=0))return null;
+    if(new Set(dice.map(item=>item.position.x+':'+item.position.y)).size!==dice.length||dice.some(item=>item.position.x-item.position.size/2<0||item.position.y-item.position.size/2<0||item.position.x+item.position.size/2>box.coordinateWidth+1||item.position.y+item.position.size/2>box.coordinateHeight+1))return null;
+    for(const face of faces){
+      const members=dice.filter(item=>item.groupId===face.groupId&&item.serverIndex===face.index);
+      if(members.some(item=>item.die!==face.die||item.value!==face.value))return null;
+      if(face.die==='d100'){
+        const percentile=face.value===100?0:face.value;
+        if(members.length!==2||!members.some(item=>item.percentilePart==='tens'&&item.displayValue===Math.floor(percentile/10)*10)||!members.some(item=>item.percentilePart==='ones'&&item.displayValue===percentile%10))return null;
+      }else if(members.length!==1||members[0].displayValue!==face.value)return null;
+    }
+    return {schema:'dice-d1-group-reveal/v1',eventId:event.id,groupCount:expected.length,dieCount:faces.length,visualCount:dice.length,groups:expected,viewportMeasured:!!box,total:Number.isSafeInteger(event.total)?event.total:null,grouping:job.input.serverRollEvent?'provided_groups':'receipt_kind_runs'};
+  }
   function runNext(){
     if(activeJob||!queue.length) return;
     const job=queue.shift(); activeJob=job;
@@ -3610,7 +3679,8 @@ function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
     }
     if(!canvasReady||!diceCanvas||typeof diceCanvas.render!=='function'){ legacyFallback(job); return; }
     const rollEvent=diceCanvasEventFromLegacy(job.input);
-    if(!rollEvent){ legacyFallback(job); return; }
+    if(!rollEvent){const record=typeof environment.groupReveal==='function'?environment.groupReveal:diceD1GroupRecord;record(null,Object.assign({},job.input,{evidenceFailure:'invalid_complete_group'}));legacyFallback(job); return; }
+    job.groupEvent=rollEvent;
     let mounted=null, committed=false, handle=null;
     try{ mounted=environment.mount(); }catch(_error){}
     if(!mounted||!mounted.container){ legacyFallback(job); return; }
@@ -3618,8 +3688,8 @@ function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
     try{
       handle=diceCanvas.render({
         rollEvent:diceCanvasRingFreeEvent(rollEvent), container:mounted.container,   // W110: no gold ring / burst / crit outline around the die
-        settings:{reducedMotion:!!environment.reducedMotion(),gravityDiceV2:window._diceGravityV2===true},
-        onDone:()=>{ if(committed) awaitResultAcknowledgement(job); }
+        settings:{reducedMotion:!!environment.reducedMotion(),gravityDiceV2:window._diceGravityV2===true,groupViewportHeight:typeof window.innerHeight==='number'?Math.max(128,Math.floor(window.innerHeight*.45)):undefined},
+        onDone:result=>{ if(committed&&!job.done&&(!result||result.status==='complete')){const proof=groupRevealProof(job,handle);const record=typeof environment.groupReveal==='function'?environment.groupReveal:diceD1GroupRecord;try{record(proof,job.input);}catch(error){environment.playbackCompletion('dice_d1_evidence_callback_failed',job.input);}if(!proof)try{environment.notifyRenderRefusal();}catch(_diceNoticeError){environment.playbackCompletion('dice_d1_correction_notice_failed',job.input);} awaitResultAcknowledgement(job);} }
       });
     }catch(_error){ try{ mounted.dispose(); }catch(_disposeError){} job.mount=null; legacyFallback(job); return; }
     if(!handle||handle.status!=='rendering'){
@@ -3642,6 +3712,10 @@ function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
   function roll(input){
     const source=input&&typeof input==='object'?input:{};
     if(!environment.fxEnabled()){ safeDone(source); return Object.freeze({skipped:true,reason:'disabled',cancel:()=>false}); }
+    const explicitKey=source.eventId||source.serverRollEvent&&source.serverRollEvent.id;
+    const groupKey=typeof explicitKey==='string'&&explicitKey.trim()&&!Array.isArray(source.rawValues)?explicitKey:'';
+    if(groupKey&&groupSeen.has(groupKey)){environment.playbackCompletion('dice_d1_already_seen',source);safeDone(source);return Object.freeze({skipped:true,reason:'already_seen',cancel:()=>false});}
+    if(groupKey){groupSeen.add(groupKey);if(groupSeen.size>256)groupSeen.delete(groupSeen.values().next().value);}
     const job={input:source,done:false,started:false,ackReady:false,mount:null,canvasHandle:null,announceTimer:null,rawTimer:null,pressTimer:null,ackTimer:null,detailTimer:null,pressPrompt:null,ackControl:null,detailControl:null};
     let stagePress=null;try{stagePress=typeof environment.stagePressed==='function'?environment.stagePressed(source):null;}catch(_diceStagePressError){stagePress=null;}   // W102: the center stage already collected this round's single press
     if(source.pressToRoll===true&&stagePress)startJob(job,stagePress==='player');
@@ -3676,7 +3750,7 @@ function createDiceCanvasAdapter(legacyDiceFx,diceCanvas,overrides){
     let initialized=false;
     try{ if(legacyDiceFx&&typeof legacyDiceFx.init==='function') initialized=legacyDiceFx.init(options)!==false||initialized; }catch(_error){}
     try{
-      if(diceCanvas&&typeof diceCanvas.init==='function') canvasReady=diceCanvas.init({t:(th,en)=>String(en||th||'')})!==false;
+      if(diceCanvas&&typeof diceCanvas.init==='function') canvasReady=diceCanvas.init({t:(th,en)=>typeof environment.copy==='function'?String(environment.copy(th,en)||en||th||''):String(en||th||'')})!==false;
       initialized=canvasReady||initialized;
     }catch(_error){ canvasReady=false; }
     return initialized;
@@ -8681,14 +8755,19 @@ function failDiceFx(handle){ try{ if(handle&&typeof handle.fail==='function') ha
 async function rollDM(items,diceRow){
   const _diceButtons=diceRow?Array.from(diceRow.querySelectorAll('button')):[];
   const _setDiceDisabled=(disabled)=>_diceButtons.forEach(button=>{button.disabled=disabled;});
-  let _diceFx=null;
+  let _diceFx=null,_diceD1EventId='';
   try{
     _setDiceDisabled(true);
     if(Array.isArray(items)&&items.length){
       const _previewDice=[];
       items.forEach(it=>{ const f=String(it.formula||'1d20').toLowerCase(); const m=f.match(/(\d*)d(\d+)/); const cnt=m?Math.max(1,parseInt(m[1]||'1')):1; const sides=m?parseInt(m[2]):20; for(let i=0;i<Math.min(cnt,64);i++)_previewDice.push({die:'d'+sides}); });
       _diceFx=window.DiceFx && window.DiceFx.pending({dice:_previewDice,label:items.map(it=>String(it.label||'Roll')+' '+String(it.formula||'1d20')).join(' · ')});
-      const parts=[], _settledDice=[];
+      const parts=[], _settledDice=[], _serverGroups=[];
+      const _diceD1RequestCount=items.reduce((count,it)=>{const m=String(it.formula||'1d20').toLowerCase().match(/(\d*)d(\d+)/);return count+(m?Math.max(1,parseInt(m[1]||'1')):1);},0);
+      if(!Number.isSafeInteger(_diceD1RequestCount)||_diceD1RequestCount>64)throw new Error('unsupported dice group');
+      window.__diceD1RpcSequence=(Number.isSafeInteger(window.__diceD1RpcSequence)?window.__diceD1RpcSequence:0)+1;
+      const _groupEventId='dm-rpc:'+Date.now()+':'+window.__diceD1RpcSequence;
+      _diceD1EventId=_groupEventId;
       let _flatTotal=0, _grandTotal=0;
       for(const it of items){
         const f=(it.formula||'1d20').toLowerCase(); const m=f.match(/(\d*)d(\d+)/);
@@ -8696,36 +8775,37 @@ async function rollDM(items,diceRow){
         if(m){
           const cnt=Math.max(1,parseInt(m[1]||'1')), sides=parseInt(m[2]);
           const _flatMatch=f.match(/([+-])\s*(\d+)\s*$/); _flat=_flatMatch?(_flatMatch[1]==='-'?-1:1)*parseInt(_flatMatch[2]):0;
-          if(cnt>=2&&cnt<=8){
+          if(!Number.isSafeInteger(cnt)||cnt<1||cnt>64||![4,6,8,10,12,20,100].includes(sides))throw new Error('unsupported dice group');
+          if(cnt>=2){
             const rolls=await Promise.all(Array.from({length:cnt},()=>supa.rpc('roll_dice',{sides,dice:1})));
             const bad=rolls.find(r=>r.error); if(bad)throw bad.error;
-            _faces=rolls.map(r=>Number(r.data)); if(_faces.some(value=>!Number.isFinite(value)))throw new Error('invalid dice response');
+            _faces=rolls.map(r=>Number(r.data)); if(_faces.some(value=>!Number.isSafeInteger(value)||value<1||value>sides))throw new Error('invalid dice response');
             n=_faces.reduce((sum,value)=>sum+value,0)+_flat;
           }else{
             const r=await supa.rpc('roll_dice',{sides,dice:cnt}); if(r.error)throw r.error;
-            const raw=Number(r.data); if(!Number.isFinite(raw))throw new Error('invalid dice response');
+            const raw=Number(r.data); if(!Number.isSafeInteger(raw)||raw<1||raw>sides)throw new Error('invalid dice response');
             n=raw+_flat;
-            if(cnt>8){
-              const split=window.DiceFx && window.DiceFx._pure && window.DiceFx._pure.splitTotalCosmetic(raw,cnt,sides);
-              _faces=Array.isArray(split)?split:[raw];   // cosmetic split only; authoritative total remains the RPC value
-            }else _faces=[raw];
+            _faces=[raw];
           }
           _faces.forEach(value=>_settledDice.push({die:'d'+sides,value:value}));
+          _serverGroups.push({id:_groupEventId+':g'+_serverGroups.length,label:String(it.label||'Roll'),formula:String(it.formula||'1d20'),die:'d'+sides,rolls:_faces.slice(),subtotal:_faces.reduce((sum,value)=>sum+value,0),role:'check',source:'roll_dice'});
         }else{
           const r=await supa.rpc('roll_d20'); if(r.error)throw r.error;
           n=Number(r.data); if(!Number.isFinite(n))throw new Error('invalid d20 response');
           _settledDice.push({die:'d20',value:n});
+          _serverGroups.push({id:_groupEventId+':g'+_serverGroups.length,label:String(it.label||'Roll'),formula:'1d20',die:'d20',rolls:[n],subtotal:n,role:'check',source:'roll_d20'});
         }
         _flatTotal+=_flat; _grandTotal+=n;
         parts.push(`${it.label||'Roll'} ${it.formula||'1d20'}=${n}${it.ability?(' +'+it.ability):''}`);
       }
-      settleDiceFx(_diceFx,{dice:_settledDice,flat:_flatTotal,label:items.map(it=>String(it.label||'Roll')).join(' · '),total:_grandTotal},()=>insertRollMulti(parts.join(' · '),'DM'));
+      const _groupLabel=items.map(it=>String(it.label||'Roll')).join(' · ');
+      settleDiceFx(_diceFx,{eventId:_groupEventId,dice:_settledDice,flat:_flatTotal,label:_groupLabel,total:_grandTotal,serverRollEvent:{id:_groupEventId,kind:'check',title:_groupLabel,flat:_flatTotal,total:_grandTotal,groups:_serverGroups}},()=>insertRollMulti(parts.join(' · '),'DM'));
     } else {
       _diceFx=window.DiceFx && window.DiceFx.pending({dice:[{die:'d20'}],label:'d20'});
       const { data, error }=await supa.rpc('roll_d20'); if(error) throw error;
       settleDiceFx(_diceFx,{dice:[{die:'d20',value:data}],total:data,label:'d20'},()=>insertRoll(data,'DM'));
     }
-  }catch(e){ failDiceFx(_diceFx); _setDiceDisabled(false); toast(uiCopy('ทอยไม่สำเร็จ กรุณาลองอีกครั้ง','The roll failed. Please try again.'),true); }
+  }catch(e){ failDiceFx(_diceFx); _setDiceDisabled(false);const invalid=/^(unsupported dice group|invalid dice response)$/.test(String(e&&e.message||''));if(invalid)diceD1GroupRecord(null,{eventId:_diceD1EventId||'dm-rpc:refused',evidenceFailure:String(e.message)});toast(invalid?uiCopy('แสดงผลทอยไม่ได้ กรุณาลองอีกครั้ง','The dice result is unavailable. Please try again.'):uiCopy('ทอยไม่สำเร็จ กรุณาลองอีกครั้ง','The roll failed. Please try again.'),true); }
 }
 function insertRollMulti(text,who){
   const ta=$('actInput'); if(!ta) return;
@@ -12361,6 +12441,10 @@ async function renderBattleGrid(p){
       _decoToks.push({kind:'object', glyph:_deco[pick], label:'', col:c, row:r, z:-1, _deco:true});
     }
   } }catch(e){}
+  // ER409b: geometry anchors are presentation-only; server cells alone choose the footprint.
+  const _zoneOn=!!window.BattleVfx?.enabled(campaign.id), _zoneGrid=escapeHtml(String(grid.id));
+  const _zoneCellAttrs=(c,r)=>_zoneOn?` data-vfx-cell="${c},${r}" data-grid-id="${_zoneGrid}"`:'';
+  const _zoneGround=_zoneOn?`<g data-vfx-zone-ground="1" data-grid-id="${_zoneGrid}" data-cols="${cols}" data-rows="${rows}" pointer-events="none" aria-hidden="true"></g>`:'';
   let svg=`<svg viewBox="0 0 ${ISO?IVW:VW} ${ISO?IVH:VH}" style="display:block;width:100%;max-width:${ISO?IVW:VW}px;min-width:${cols*22}px;background:#0d1018;border:2px solid #fff;border-radius:6px">`;
   svg+='<style>.gtok{cursor:pointer}.gtok .tklbl{visibility:hidden}.gtok:hover .tklbl{visibility:visible}.gtok.lblon .tklbl{visibility:visible}</style>';
   // ── v416 ISO render path (dormant จน window._isoGrid=true) — drawTok ใช้ footXY + image hook (เติม registry หลังอัปไฟล์) ──
@@ -12510,13 +12594,13 @@ async function renderBattleGrid(p){
       if(isW){ const P=['#5b606b','#23262e','#34383f'];   // กำแพง = บล็อกนูน
         let s=`<polygon points="${x-IHTW},${y} ${x},${y+IHTH} ${x},${y+IHTH+eh} ${x-IHTW},${y+eh}" fill="${P[1]}"/>`;
         s+=`<polygon points="${x},${y+IHTH} ${x+IHTW},${y} ${x+IHTW},${y+eh} ${x},${y+IHTH+eh}" fill="${P[2]}"/>`;
-        s+=`<polygon points="${x},${y-IHTH} ${x+IHTW},${y} ${x},${y+IHTH} ${x-IHTW},${y}" fill="${P[0]}" stroke="${P[1]}" stroke-width="0.8"><title>${cell}</title></polygon>`;
+        s+=`<polygon${_zoneCellAttrs(c,r)} points="${x},${y-IHTH} ${x+IHTW},${y} ${x},${y+IHTH} ${x-IHTW},${y}" fill="${P[0]}" stroke="${P[1]}" stroke-width="0.8"><title>${cell}</title></polygon>`;
         return s; }
-      if(wet){ let s=`<polygon points="${x},${y-IHTH} ${x+IHTW},${y} ${x},${y+IHTH} ${x-IHTW},${y}" fill="#1f4063" stroke="#102338" stroke-width="0.8" opacity="0.85"><title>${cell}</title></polygon>`;
+      if(wet){ let s=`<polygon${_zoneCellAttrs(c,r)} points="${x},${y-IHTH} ${x+IHTW},${y} ${x},${y+IHTH} ${x-IHTW},${y}" fill="#1f4063" stroke="#102338" stroke-width="0.8" opacity="0.85"><title>${cell}</title></polygon>`;
         s+=`<line x1="${x-IHTW*0.5}" y1="${y}" x2="${x+IHTW*0.5}" y2="${y}" stroke="#67a7c9" stroke-width="1" opacity="0.5"/>`; return s; }
       const lit=(((c+r)&1)===0);   // ตารางหมากรุก: สลับสว่าง/มืดจางๆ
       const _hz=HAZARD_TILES.has(cell)?`<polygon points="${x},${y-IHTH} ${x+IHTW},${y} ${x},${y+IHTH} ${x-IHTW},${y}" fill="#ff6a2b" opacity="0.22" style="pointer-events:none"><animate attributeName="opacity" values="0.1;0.32;0.1" dur="1.4s" repeatCount="indefinite"/></polygon>`:'';   // v487 REQ3: พื้นอันตรายเรืองส้มเต้น
-      return `<polygon points="${x},${y-IHTH} ${x+IHTW},${y} ${x},${y+IHTH} ${x-IHTW},${y}" fill="${lit?'rgba(255,255,255,0.07)':'rgba(0,0,0,0.10)'}" stroke="rgba(255,255,255,0.22)" stroke-width="0.8"><title>${cell}</title></polygon>`+_hz; };
+      return `<polygon${_zoneCellAttrs(c,r)} points="${x},${y-IHTH} ${x+IHTW},${y} ${x},${y+IHTH} ${x-IHTW},${y}" fill="${lit?'rgba(255,255,255,0.07)':'rgba(0,0,0,0.10)'}" stroke="rgba(255,255,255,0.22)" stroke-width="0.8"><title>${cell}</title></polygon>`+_hz; };
     const _tk={}; toks.concat(_decoToks).forEach(t=>{ const k=t.col+'_'+t.row; (_tk[k]=_tk[k]||[]).push(t); });
     const _cl=[]; for(let _r=0;_r<rows;_r++)for(let _c=0;_c<cols;_c++) _cl.push([_c,_r]);
     _cl.sort((a,b)=>(a[0]+a[1])-(b[0]+b[1]));
@@ -12527,7 +12611,7 @@ async function renderBattleGrid(p){
     const _allTok=[]; _cl.forEach(p=>{ const g=_tk[p[0]+'_'+p[1]]; if(g) for(const _t of g) _allTok.push(_t); });
     _allTok.sort((a,b)=>((a.col+a.row)-(b.col+b.row)) || ((_isChar(a)?1:0)-(_isChar(b)?1:0)) || ((a.z||0)-(b.z||0)));   // v448: depth (col+row) ก่อน = หน้าทับหลังถูกต้อง (มอนยืนหน้า PC ไม่ถูก PC บัง) · char เป็น tiebreak เมื่อ depth เท่ากัน
     _allTok.forEach(t=>{ const _d=drawTok(t); if(t.kind==='pc'||t.kind==='ally'||t.kind==='npc'||t.kind==='monster') _fg+=_d; else _bg+=_d; });   // v560 DoF: ตัวละคร/ศัตรู=ชั้นหน้า · วัตถุ/decor=ชั้นหรี่
-    svg += (_DOF ? `<g style="filter:saturate(${_DOF_SAT}) brightness(${_DOF_BRIGHT})">`+_bg+`</g>` : _bg) + _todTintSvg(IVW,IVH) + _fg;   // v560: ประกอบ ชั้นหรี่ → tint → ตัวละคร
+    svg += (_DOF ? `<g style="filter:saturate(${_DOF_SAT}) brightness(${_DOF_BRIGHT})">`+_bg+`</g>` : _bg) + _todTintSvg(IVW,IVH) + _zoneGround + _fg;   // v560: ประกอบ ชั้นหรี่ → tint → ตัวละคร
   } else {
   // tiles (checkerboard + squash = 2.5D) + กำแพง + พื้นสูง (hills) + น้ำ
   for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
@@ -12536,15 +12620,16 @@ async function renderBattleGrid(p){
     if(hill){
       // พื้นต่างระดับ: หน้าผาด้านข้าง (ฐาน) + พื้นบนยกขึ้น RAISE
       svg+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${TILE}" height="${(th+RAISE).toFixed(1)}" fill="#2a3a24" stroke="#1c2418" stroke-width="0.8"/>`;
-      svg+=`<rect x="${x.toFixed(1)}" y="${(y-RAISE).toFixed(1)}" width="${TILE}" height="${th.toFixed(1)}" fill="#3c5230" stroke="#2c3f22" stroke-width="0.8"><title>${cell}</title></rect>`;
+      svg+=`<rect${_zoneCellAttrs(c,r)} x="${x.toFixed(1)}" y="${(y-RAISE).toFixed(1)}" width="${TILE}" height="${th.toFixed(1)}" fill="#3c5230" stroke="#2c3f22" stroke-width="0.8"><title>${cell}</title></rect>`;
     } else {
       const fill=isW?'#3a3f4b':wet?'#1c3a5e':((c+r)%2===0?'#1a2030':'#202840');
-      svg+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${TILE}" height="${th.toFixed(1)}" fill="${fill}" stroke="#2c3344" stroke-width="0.8"><title>${cell}</title></rect>`;
+      svg+=`<rect${_zoneCellAttrs(c,r)} x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${TILE}" height="${th.toFixed(1)}" fill="${fill}" stroke="#2c3344" stroke-width="0.8"><title>${cell}</title></rect>`;
       if(wet) svg+=`<line x1="${(x+3).toFixed(1)}" y1="${(y+th*0.45).toFixed(1)}" x2="${(x+TILE-3).toFixed(1)}" y2="${(y+th*0.45).toFixed(1)}" stroke="#3a6fa0" stroke-width="0.9"/>`;
       if(isW) svg+=`<rect x="${(x+4).toFixed(1)}" y="${(y-6).toFixed(1)}" width="${TILE-8}" height="${(th+6).toFixed(1)}" fill="#4a5160" stroke="#2c3344" stroke-width="0.8" rx="2"/>`;
       if(pit) svg+=`<ellipse cx="${(x+TILE/2).toFixed(1)}" cy="${(y+th*0.52).toFixed(1)}" rx="${(TILE*0.42).toFixed(1)}" ry="${(th*0.52).toFixed(1)}" fill="#05070a" stroke="#241a12" stroke-width="1"/><ellipse cx="${(x+TILE/2).toFixed(1)}" cy="${(y+th*0.44).toFixed(1)}" rx="${(TILE*0.30).toFixed(1)}" ry="${(th*0.36).toFixed(1)}" fill="#000"/>`;   /* v482: เหว = หลุมดำ */
     }
   }
+  svg += _zoneGround; // ER409b: every actor and command overlay stays above the zone.
   // tokens เรียงตามแถว (painter's: หลัง→หน้า) · v421: ตัวละคร(pc/ally/npc)วาดทับบนสุด → มอนตัวใหญ่ไม่บังตัวละครจนมองไม่เห็น
   const _isCharF=t=>(t.kind==='pc'||t.kind==='ally'||t.kind==='npc');
   const _isActorF=t=>(_isCharF(t)||t.kind==='monster');

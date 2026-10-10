@@ -93,6 +93,7 @@
     button.onclick=()=>{setUserEnabled(campaignId,off);if(onChange)onChange();};
   }
   function clearVisuals(){
+    root.BattleVfxZones?.reset();
     for(const timer of timers) clearTimeout(timer);
     timers.clear(); active=0;
     for(const motion of motions) motion.cancel();
@@ -295,7 +296,7 @@
         if(!EXTRA_KEYS.has(key)||!value||!['impact','delivery','zone'].includes(value.kind)||
           !packAsset(value.still,true)||!Array.isArray(value.frames)||value.frames.length!==9||
           value.frames.some(f=>!packAsset(f,true)))return false;
-        const parsed={kind:value.kind,still:value.still.url,frames:value.frames.map(f=>f.url)};
+        const parsed={kind:value.kind,presentation:value.presentation,still:value.still.url,frames:value.frames.map(f=>f.url)};
         if(value.kind==='zone')areas[key]=parsed;else extraEffects[key]=parsed;
       }
       for(const [key,value]of Object.entries(extra.marker_icons)){
@@ -317,6 +318,7 @@
     for(const table of [markerIcons,spellCues,areaArt])for(const key of Object.keys(table))delete table[key];
     Object.assign(manifest,effects,extraEffects);Object.assign(statusIcons,icons);
     Object.assign(markerIcons,markers);Object.assign(spellCues,registry);Object.assign(areaArt,areas);
+    root.BattleVfxZones?.configure(areaArt,spellCues);
     manifestReady=true;
     return true;
   }
@@ -473,6 +475,7 @@
       targetSize:Number(row.size)};
   }
   function renderStatic(rows,expected,board,layer){
+    root.BattleVfxZones?.render(rows,expected,board).catch(()=>root.BattleVfxZones.reset());
     for(const node of staticNodes)node.remove();
     staticNodes.length=0;
     if(!Array.isArray(rows)||rows.length>256||!board.isConnected)return;

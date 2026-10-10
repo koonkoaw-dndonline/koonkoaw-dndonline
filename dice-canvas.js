@@ -989,7 +989,7 @@
     });
   }
 
-  function layoutGroups(groups, viewportWidth) {
+  function layoutGroups(groups, viewportWidth, viewportHeight) {
     const normalized = eventGroups({
       groups: Array.isArray(groups) ? groups : [],
     });
@@ -1055,6 +1055,19 @@
       });
       cursorY += height + groupGap;
     });
+    const limit=integer(viewportHeight);
+    if(limit&&limit>=128&&cursorY-groupGap+18>limit&&visual.length){
+      let best={size:0,columns:1,rows:visual.length};
+      for(let columns=1;columns<=visual.length;columns++){
+        const rows=Math.ceil(visual.length/columns),size=Math.min(baseSize,(width-28)/columns-6,(limit-36)/rows-6);
+        if(size>best.size)best={size:size,columns:columns,rows:rows};
+      }
+      const size=Math.max(12,Math.floor(best.size)),gap=6,compact=visual.map(function(item,index){
+        const row=Math.floor(index/best.columns),column=index%best.columns,count=Math.min(best.columns,visual.length-row*best.columns),start=(width-count*(size+gap)+gap)/2;
+        return {id:item.id,groupIndex:item.groupIndex,x:start+column*(size+gap)+size/2,y:18+row*(size+gap)+size/2,size:size,authoritativeFace:item.authoritativeFace,displayFace:item.displayFace,percentilePart:item.percentilePart,die:item.die};
+      });
+      return deepFreeze({width:width,height:limit,mobile:mobile,dicePinned:mobile,detailsScrollable:true,allDiceVisible:compact.length===visual.length,autoScaled:true,dieSize:size,groupGap:gap,groups:groupLayouts,positions:compact,compact:true});
+    }
     return deepFreeze({
       width: width,
       height: Math.max(180, cursorY - groupGap + 18),
@@ -1236,10 +1249,10 @@
   ) {
     const event = rollEvent && typeof rollEvent === "object" ? rollEvent : {};
     const width = clamp(integer(viewportWidth) || 720, 240, 2400);
-    const layout = layoutGroups(event.groups, width);
+    const layout = layoutGroups(event.groups, width, deviceHints&&deviceHints.groupViewportHeight);
     const height = clamp(
       integer(viewportHeight) || Math.max(260, layout.height),
-      220,
+      128,
       1600,
     );
     const quality = qualityPlan(deviceHints);
@@ -2746,12 +2759,12 @@
       {},
       environment.deviceHints(),
       settings.deviceHints || {},
-      { gravityDiceV2: settings.gravityDiceV2 === true },
+      { gravityDiceV2: settings.gravityDiceV2 === true,groupViewportHeight:settings.groupViewportHeight },
     );
-    const layout = layoutGroups(event.groups, width);
+    const layout = layoutGroups(event.groups, width,settings.groupViewportHeight);
     const height = clamp(
       integer(settings.viewportHeight) || layout.height,
-      220,
+      integer(settings.groupViewportHeight)>=128?128:220,
       1600,
     );
     const motion = motionFramesFor(event, width, height, hints);
