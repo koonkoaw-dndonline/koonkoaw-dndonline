@@ -5,7 +5,8 @@
   const OPEN = Object.freeze({
     'burning-hands':['cone',15,'self'], thunderwave:['cube',15,'self'],
     fireball:['sphere',20,'point'], 'lightning-bolt':['line',100,'self'],
-    shatter:['sphere',10,'point'], 'cone-of-cold':['cone',60,'self']
+    shatter:['sphere',10,'point'], 'cone-of-cold':['cone',60,'self'],
+    'flame-strike':['cylinder',10,'point']
   });
   const DIRECTIONS=['N','NE','E','SE','S','SW','W','NW'];
   const DIR_TH=['เหนือ','ตะวันออกเฉียงเหนือ','ตะวันออก','ตะวันออกเฉียงใต้','ใต้','ตะวันตกเฉียงใต้','ตะวันตก','ตะวันตกเฉียงเหนือ'];
@@ -53,6 +54,10 @@
       area:{shape:spec.shape,size_ft:spec.sizeFt,origin:spec.origin,origin_cell:origin,direction:template.direction},
       point:spec.origin==='point'?origin:null};
     const validLevel=integer(selection.level)&&selection.level>=spell.level&&selection.level<=9;
+    if(spell.id==='flame-strike'&&selection.level>5){
+      if(!['fire','radiant'].includes(selection.upcastDamageType))return null;
+      payload.upcast_damage_type=selection.upcastDamageType;
+    }else if(selection.upcastDamageType!=null)return null;
     return {g,caster,cells,range,rangeFt,targets,visible,allies,payload,
       ready:validLevel&&targets.some(t=>t.side==='enemy'),
       signature:JSON.stringify([g.id,g.encounter_id,g.cols,g.rows,g.cell_ft,caster.id,payload,targets,visible])};
@@ -62,9 +67,10 @@
     if(capability()!==true||!supported(spell.id,spell.menuDecision&&spell.menuDecision.target)) return null;
     const oldFocus=doc.activeElement, spec=spell.menuDecision.target;
     let snapshot=options.snapshot, closed=false, generation=0, busy=false, reviewed=false, confirmedAllies=false, currentConfirm=null;
-    let selection={level:Math.max(1,spell.level),direction:'N',point:null};
+    let selection={level:Math.max(1,spell.level),direction:'N',point:null,upcastDamageType:null};
     const levels=()=>Array.from({length:10-Math.max(1,spell.level)},(_,i)=>i+Math.max(1,spell.level)).filter(n=>slotsLeft(n)>0);
     selection.level=levels()[0]||selection.level;
+    if(spell.id==='flame-strike'&&selection.level>5)selection.upcastDamageType='fire';
     const caster=(snapshot&&snapshot.toks||[]).find(t=>t.ref_char_id===snapshot.casterId);
     if(caster) selection.point={col:caster.col,row:caster.row};
     function node(tag,text,parent){const el=doc.createElement(tag);if(text!=null)el.textContent=text;if(parent)parent.appendChild(el);return el;}
@@ -85,7 +91,8 @@
       node('strong',spell.name,head).style.display='block';
       button(copy('ยกเลิก','Cancel'),foot,close);
       if(capability()!==true){node('p',copy('ยังไม่เปิดการยืนยันพื้นที่เวท เลือกคำสั่งอื่นได้','Area confirmation is unavailable. You can choose another command.'),body);return;}
-      select(copy('สล็อต','Slot'),levels().map(n=>[n,'L'+n]),selection.level,v=>selection.level=+v);
+      select(copy('สล็อต','Slot'),levels().map(n=>[n,'L'+n]),selection.level,v=>{selection.level=+v;selection.upcastDamageType=spell.id==='flame-strike'&&+v>5?'fire':null;});
+      if(spell.id==='flame-strike'&&selection.level>5)select(copy('เพิ่มลูกเต๋าให้ธาตุ','Add upcast dice to'),[['fire',copy('ไฟ','Fire')],['radiant',copy('แสงศักดิ์สิทธิ์','Radiant')]],selection.upcastDamageType,v=>selection.upcastDamageType=v);
       if(spec.origin==='self') select(copy('ทิศ','Direction'),DIRECTIONS.map((d,i)=>[d,copy(DIR_TH[i],d)]),selection.direction,v=>selection.direction=v);
       else if(snapshot&&snapshot.g){
         select(copy('คอลัมน์','Column'),Array.from({length:snapshot.g.cols},(_,i)=>[i,String(i+1)]),selection.point?.col,v=>selection.point={col:+v,row:selection.point?.row||0});

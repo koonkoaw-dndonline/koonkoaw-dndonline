@@ -34,11 +34,14 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./ui-draft-guard.js?v=20261009f375"></script>
 <script src="./music-playback-owner.js?v=847"></script>
 <script src="./music-v2-dark-launch.js?v=20261002q174"></script>
+<script src="./music-stinger.js?v=20261010er404"></script>
 <script src="./npc-codex-reader.js?v=0826r14"></script>
 <script src="./grid-touch-telemetry.js?v=20261001grid144"></script>
 <script src="./maintenance.js?v=20261004q220"></script>
 <script src="./spell-area-geometry.js?v=20261002sp3a"></script>
-<script src="./spell-area-picker.js?v=20261002sp3a"></script>
+<script src="./spell-area-picker.js?v=20261010s276flame"></script>
+<script type="module" src="./scene-biome.js?v=20261010s277er1"></script>
+<!-- ER400_COMPOSITION_START: accepted scene/picker hunks over HUD + stinger -->
 <style>
 /* ============================================================
    TTRPG CAMPAIGN — Dragon Quest (NES) monochrome re-skin (เฟส 5)
@@ -2033,6 +2036,27 @@ body{--er-type-micro:var(--er-fs-xs);--er-type-meta:var(--er-fs-sm);--er-type-bo
 body.ui-min #worldClock.story-receipt-active{display:flex!important;}
 @media(max-width:1299px){#worldClock.story-receipt-active{position:static;}#storyReceiptHud .story-roll-card{grid-template-columns:68px minmax(0,1fr);}#storyReceiptHud .story-roll-die{width:68px;height:80px;}}
 @media(min-width:1300px){#worldClock.story-receipt-active{max-height:calc(100dvh - 166px);overflow-y:auto;scrollbar-width:thin;}}
+/* ER398 compact story-roll HUD; server receipt data remains unchanged. */
+#storyReceiptHud .story-roll-head{display:grid;grid-template-columns:minmax(0,1fr) 88px;gap:0;padding:4px 8px;align-items:center;}
+#storyReceiptHud .story-roll-title{font-size:var(--er-type-meta);line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#storyReceiptHud .story-roll-controls{gap:0;flex-wrap:nowrap;}
+#storyReceiptHud .story-roll-controls .story-roll-control{position:relative;width:44px;min-width:44px;height:44px;padding:0;border:0;border-radius:4px;font:600 var(--er-type-heading)/1 var(--er-body);}
+#storyReceiptHud .story-roll-controls .story-roll-control::before{content:"";position:absolute;inset:8px;border:1px solid currentColor;border-radius:4px;opacity:.45;pointer-events:none;}
+#storyReceiptHud .story-roll-body{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));}
+#storyReceiptHud .story-roll-body[hidden]{display:none;}
+#storyReceiptHud .story-roll-card{grid-template-columns:46px minmax(0,1fr);gap:8px;padding:10px;align-items:center;align-content:start;}
+#storyReceiptHud .story-roll-die{width:46px;height:70px;align-self:start;}
+#storyReceiptHud .story-roll-die svg{height:52px;}
+#storyReceiptHud .story-roll-face{position:absolute;top:26px;left:50%;transform:translate(-50%,-50%);font-size:var(--er-type-title);line-height:1;white-space:nowrap;overflow-wrap:normal;}
+#storyReceiptHud .story-roll-kind{top:54px;bottom:auto;left:0;width:100%;text-align:center;font-size:var(--er-type-micro);line-height:1.2;}
+#storyReceiptHud .story-roll-actor,#storyReceiptHud .story-roll-skill{display:block;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;word-break:normal;overflow-wrap:normal;}
+#storyReceiptHud .story-roll-actor{font-size:var(--er-type-body);line-height:1.45;margin:0 0 4px;}
+#storyReceiptHud .story-roll-skill{font-size:var(--er-type-meta);line-height:1.5;font-weight:400;}
+#storyReceiptHud .story-roll-equation{grid-column:1/-1;display:flex;align-items:baseline;justify-content:space-between;gap:6px;white-space:nowrap;font-size:var(--er-type-meta);line-height:1.4;}
+#storyReceiptHud .story-roll-sum{display:flex;align-items:baseline;gap:5px;min-width:0;font-variant-numeric:tabular-nums;}
+#storyReceiptHud .story-roll-total{font-size:var(--er-type-title);line-height:1.2;}
+#storyReceiptHud .story-roll-dc{font-size:var(--er-type-micro);flex:none;}
+#storyReceiptHud .story-roll-outcome{grid-column:1/-1;width:100%;box-sizing:border-box;margin:0;padding:5px 6px;text-align:center;font-size:var(--er-type-meta);line-height:1.4;white-space:nowrap;}
 </style>
 </head>
 <body>
@@ -2387,7 +2411,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202610101236;
+const FRONTEND_BUILD = 202610101239;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2752,7 +2776,9 @@ window.gameMaintenance=window.EverRollMaintenance.create({
         opt=Object.assign({},opt,{body:JSON.stringify(b)});
       }
     }catch(e){}
+    const _stingerScope=typeof _musicStingerRequestScope==='function'?_musicStingerRequestScope(u,opt):'';
     const p=window.gameMaintenance.send(_denyFetch,u,opt);
+    if(_stingerScope)p.then(r=>{if(r&&r.ok)r.clone().json().then(j=>_musicStingerConsumeResponse(j,_stingerScope)).catch(()=>console.info('[music-stinger]','response_unreadable'));}).catch(()=>{});
     try{
       if(typeof u==='string'&&u.indexOf(RESOLVE_FN)===0){
         p.then(r=>{ try{ frontendRequirementSeen(r.headers.get('X-Min-Frontend-Build'),r.headers.get('X-Min-Frontend-Epoch')); }catch(e){}
@@ -5741,9 +5767,48 @@ const DEFAULT_MUSIC={
 let musicVol=0.5, musicOverride='', _curGain=1, _fadeTimer=null;   /* v271 L3: handle ของ fade interval — track ไว้ยกเลิกได้ */
 try{ const v=parseFloat(localStorage.getItem('ttrpg_music_vol')); if(Number.isFinite(v)) musicVol=Math.max(0,Math.min(1,v)); }catch(e){}
 try{ musicOverride=localStorage.getItem('ttrpg_music_mood')||''; }catch(e){}
-function setMusicVol(v){ musicVol=Math.max(0,Math.min(1,(+v||0)/100)); try{localStorage.setItem('ttrpg_music_vol',String(musicVol));}catch(e){} if(_fadeTimer){ try{clearInterval(_fadeTimer);}catch(e){} _fadeTimer=null; }   /* v271 L3: หยุด fade ที่กำลังรัน ให้ค่า slider ติดทันที (เดิม fade เขียนทับ volume กลับค่าเก่า = สไลเดอร์ค้าง) */ if(mAudio){ try{mAudio.volume=Math.max(0,Math.min(1,_curGain*musicVol));}catch(e){} } if(_musicV2Controller){ try{_musicV2Controller.setVolume(musicVol);}catch(e){} } }
+function setMusicVol(v){ musicVol=Math.max(0,Math.min(1,(+v||0)/100)); try{localStorage.setItem('ttrpg_music_vol',String(musicVol));}catch(e){} if(_fadeTimer){ try{clearInterval(_fadeTimer);}catch(e){} _fadeTimer=null; }   /* v271 L3: หยุด fade ที่กำลังรัน ให้ค่า slider ติดทันที (เดิม fade เขียนทับ volume กลับค่าเก่า = สไลเดอร์ค้าง) */ _musicBaseEnvelope=1; if(mAudio){ try{mAudio.volume=Math.max(0,Math.min(1,_curGain*musicVol))*_musicStingerDuck;}catch(e){} } if(_musicV2Controller){ try{_musicV2Controller.setVolume(musicVol*_musicStingerDuck);}catch(e){} } if(_musicStingerController)_musicStingerController.setVolume(); if(window._perfPrev)window._perfPrev.volume=musicVol*_musicStingerDuck; }
 function setMusicMood(m){ musicOverride=String(m||''); try{localStorage.setItem('ttrpg_music_mood',musicOverride);}catch(e){} curMood=null; if(musicOn) _moodNow(); }
 function getAudioEl(){ if(!mAudio){ mAudio=new Audio(); mAudio.preload='auto'; } return mAudio; }
+// MUSIC_STINGER404_START: separate one-shot layer; duck gain never acquires the loop owner.
+let _musicStingerController=null,_musicStingerDuck=1,_musicBaseEnvelope=1;
+function _musicStingerScope(){return campaign&&campaign.id?String(campaign.id)+'/'+String(terminalGroupForUi()):'';}
+function _musicStingerApplyDuck(factor){
+  _musicStingerDuck=Math.max(0,Math.min(1,Number(factor)||0));
+  if(mAudio)mAudio.volume=Math.max(0,Math.min(1,_curGain*musicVol))*_musicBaseEnvelope*_musicStingerDuck;
+  if(_musicV2Controller)_musicV2Controller.setVolume(musicVol*_musicStingerDuck);
+  if(window._perfPrev)window._perfPrev.volume=musicVol*_musicStingerDuck;
+}
+function _musicStingerFor(){
+  if(_musicStingerController)return _musicStingerController;
+  const api=window.TTRPG_MUSIC_STINGER;if(!api)return null;
+  const codec=new Audio();
+  _musicStingerController=api.createController({
+    enabled:function(){return musicOn;},volume:function(){return musicVol;},scope:_musicStingerScope,duck:_musicStingerApplyDuck,
+    resolveAsset:api.createAssetResolver({client:supa,publicBase:PUBLIC_URL,canPlayType:function(mime){return codec.canPlayType(mime);}})
+  });
+  return _musicStingerController;
+}
+function _musicStingerRequestScope(input,options){
+  try{
+    const url=new URL(typeof input==='string'?input:input.url);
+    const path=url.pathname.endsWith('/')?url.pathname.slice(0,-1):url.pathname;
+    if(url.origin!==new URL(RESOLVE_FN).origin||!['/functions/v1/resolve-round','/functions/v1/resolve-story-round','/functions/v1/resolve-combat-round','/functions/v1/aux-endpoints'].includes(path)||
+      String(options&&options.method||input&&input.method||'GET').toUpperCase()!=='POST'||typeof (options&&options.body)!=='string')return '';
+    const body=JSON.parse(options.body),group=Number(body.group_no==null?(myChar&&myChar.group_no)||terminalGroupForUi():body.group_no);
+    if(!body.campaign_id||![1,2].includes(group))return '';
+    const scope=String(body.campaign_id)+'/'+group;return scope===_musicStingerScope()?scope:'';
+  }catch(_){return '';}
+}
+function _musicStingerConsumeResponse(body,scope){
+  if(!scope||scope!==_musicStingerScope()||!body||body.error||body.status==='refused')return;
+  const api=window.TTRPG_MUSIC_STINGER;if(!api)return;
+  const events=api.responseEvents(body);if(!events.length)return;
+  const controller=_musicStingerFor();if(controller)events.forEach(event=>controller.receive(event));
+}
+window.addEventListener('pagehide',function(){if(_musicStingerController)_musicStingerController.stop('pagehide');});
+window.addEventListener('beforeunload',function(){if(_musicStingerController)_musicStingerController.stop('hard_refresh');});
+// MUSIC_STINGER404_END
 async function loadMusicLibrary(){
   musicLib={};
   try{
@@ -5814,7 +5879,7 @@ function _playLegacyWithReceipt(el,pick,mood){
 }
 function toggleMusic(){
   tick();
-  if(musicOn){ musicOn=false; try{localStorage.setItem('ttrpg_music','0');}catch(e){} _musicV2CancelProjectionConvergence(); if(_musicPlaybackOwner)_musicPlaybackOwner.stopAll('music_off'); curMood=null; }
+  if(musicOn){ musicOn=false; try{localStorage.setItem('ttrpg_music','0');}catch(e){} _musicV2CancelProjectionConvergence(); if(_musicPlaybackOwner)_musicPlaybackOwner.stopAll('music_off'); if(_musicStingerController)_musicStingerController.stop('music_off'); curMood=null; }
   else { musicOn=true; try{localStorage.setItem('ttrpg_music','1');}catch(e){} _moodNow(); }
   updateMusicBtn();
 }
@@ -5869,7 +5934,7 @@ function _musicV2ControllerFor(){
   if(!_musicV2Enabled()||!window.TTRPG_MUSIC_V2)return null;
   if(!_musicV2Controller)_musicV2Controller=window.TTRPG_MUSIC_V2.createDarkLaunchController({
     storage:window.sessionStorage,
-    getContext:function(){return {settings:(worldState&&worldState.settings)||{},campaignId:campaign.id,groupNo:terminalGroupForUi(),language:uiLanguage(),volume:musicVol,supabase:supa,publicBase:PUBLIC_URL,resolveUrl:RESOLVE_FN,frontendBuild:FRONTEND_BUILD,frontendEpoch:FRONTEND_COMPAT_EPOCH,i18nAssetBuild:englishAssetBuildProof(),mood:(worldState&&worldState.scene_mood)||'forest',stateVersion:String(worldState&&worldState.updated_at||'')||null};},
+    getContext:function(){return {settings:(worldState&&worldState.settings)||{},campaignId:campaign.id,groupNo:terminalGroupForUi(),language:uiLanguage(),volume:musicVol*_musicStingerDuck,supabase:supa,publicBase:PUBLIC_URL,resolveUrl:RESOLVE_FN,frontendBuild:FRONTEND_BUILD,frontendEpoch:FRONTEND_COMPAT_EPOCH,i18nAssetBuild:englishAssetBuildProof(),mood:(worldState&&worldState.scene_mood)||'forest',stateVersion:String(worldState&&worldState.updated_at||'')||null};},
     playbackOwner:_musicPlaybackOwner,builtinAsset:_musicV2BuiltinAsset,onVisible:function(msg){try{toast(msg);}catch(e){}},onDegraded:_musicV2Degraded,onUIPath:_musicUIPathUpdate,onPlaybackStarted:function(e){const selected={selected_identity_status:'available',selected_origin:e.selected_origin,selected_logical_track_key:e.selected_track_key,selected_rotation_epoch:e.selected_rotation_epoch,selected_catalog_version:e.selected_catalog_version==null?null:e.selected_catalog_version,selected_unavailable_reason:null};void _reportMusicHeard(e.selected_track_key,e.observed_state_version,'scene_auto',selected);}
   });
   if(_musicV2Controller&&_musicPlaybackOwner)_musicPlaybackOwner.register('v2',{stop:function(){_musicV2Controller.pause();},isPlaying:function(){return _musicV2Controller.isPlaying();}});
@@ -5894,7 +5959,7 @@ function playPerformance(path){
   const url=PUBLIC_URL+'audio/'+path; const el=getAudioEl(); const tag='__perf__'+path;
   if(curMood===tag){ if(el.paused){ const pr=el.play(); if(pr&&pr.then){ pr.then(function(){_musicBlocked=false;}).catch(_flagBlocked); } } return; }
   curMood=tag; el.loop=true; if(el.src!==url) el.src=url; _curGain=1;
-  try{ el.volume=Math.max(0,Math.min(1,musicVol)); }catch(e){}
+  _musicBaseEnvelope=1; try{ el.volume=Math.max(0,Math.min(1,musicVol*_musicStingerDuck)); }catch(e){}
   const pr=el.play(); if(pr&&pr.then){ pr.then(function(){_musicBlocked=false;}).catch(_flagBlocked); }
 }
 function _moodNow(){ try{
@@ -5958,7 +6023,7 @@ function playMood(mood,ownerReason){
   _playLegacyWithReceipt(el,pick,mood);
   fadeInEl(el, target, 600);
 }
-function fadeInEl(a,target,ms){ try{a.volume=0;}catch(e){return;} if(_fadeTimer){ try{clearInterval(_fadeTimer);}catch(e){} _fadeTimer=null; }   /* v271 L3: ล้าง fade เดิมก่อน (กัน interval ซ้อนแย่งคุม volume กระตุก) */ const steps=12,dt=ms/steps; let i=0; _fadeTimer=setInterval(()=>{ i++; try{a.volume=Math.min(target,target*i/steps);}catch(e){} if(i>=steps){ clearInterval(_fadeTimer); _fadeTimer=null; } },dt); }
+function fadeInEl(a,target,ms){ _musicBaseEnvelope=0; try{a.volume=0;}catch(e){return;} if(_fadeTimer){ try{clearInterval(_fadeTimer);}catch(e){} _fadeTimer=null; }   /* v271 L3: ล้าง fade เดิมก่อน (กัน interval ซ้อนแย่งคุม volume กระตุก) */ const steps=12,dt=ms/steps; let i=0; _fadeTimer=setInterval(()=>{ i++; _musicBaseEnvelope=Math.min(1,i/steps); try{a.volume=Math.min(target,target*_musicBaseEnvelope)*_musicStingerDuck;}catch(e){} if(i>=steps){ clearInterval(_fadeTimer); _fadeTimer=null; } },dt); }
 // ไอคอนพิกเซลสีสำหรับ HUD
 const ICONS={date:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#f5b942" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="1" height="1"/><rect x="1" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="7" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="0" y="6" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/><rect x="7" y="6" width="1" height="1"/></svg>',time:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#5ad7e0" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="0" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/></svg>',weather:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#cfd6e6" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="7" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="7" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/></svg>',moon:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#e9e6a8" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/></svg>',season:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#7ad17a" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="0" width="1" height="1"/><rect x="6" y="0" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="0" y="6" width="1" height="1"/></svg>',loc:'<svg viewBox="0 0 8 8" shape-rendering="crispEdges" fill="#ff6b6b" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/></svg>'};
 // เหรียญ pixel (gold/silver/copper)
@@ -7279,6 +7344,27 @@ function storyReceiptBannerModels(n,text){
   return out;
 }
 // D1-384 pure end
+// ER398 presentation only: preserve exact actor/skill and full outcome in accessible labels.
+function compactStoryReceiptCard398(card,model){
+  const info=card.querySelector('.story-roll-info'),actor=card.querySelector('.story-roll-actor');
+  const parts=String(model.actor).match(/^(.+)\s+(?:ใช้|uses)\s+(.+)$/u);
+  actor.textContent=parts?parts[1]:model.actor;actor.title=actor.textContent;
+  if(parts){const skill=document.createElement('span');skill.className='story-roll-skill';skill.textContent=parts[2];skill.title=skill.textContent;info.appendChild(skill);}
+  const equation=card.querySelector('.story-roll-equation'),total=card.querySelector('.story-roll-total');
+  const full='d20 '+model.face+' '+(model.bonus<0?'−':'+')+' '+Math.abs(model.bonus)+' = '+model.total+' vs DC '+model.dc;
+  equation.replaceChildren();equation.title=full;equation.setAttribute('aria-label',full);
+  const sum=document.createElement('span');sum.className='story-roll-sum';sum.appendChild(document.createTextNode(model.face+' '+(model.bonus<0?'−':'+')+' '+Math.abs(model.bonus)+' ='));sum.appendChild(total);
+  const dc=document.createElement('span');dc.className='story-roll-dc';dc.textContent='vs DC '+model.dc;equation.append(sum,dc);card.appendChild(equation);
+  const outcome=card.querySelector('.story-roll-outcome');outcome.title=model.outcome;outcome.setAttribute('aria-label',model.outcome);
+  outcome.textContent=model.tone==='critical'?uiCopy('สำเร็จพิเศษ','Critical success'):model.tone==='success'?uiCopy('สำเร็จ','Success'):
+    /เกือบสำเร็จ|comes close/.test(model.outcome)?uiCopy('เกือบสำเร็จ','Near miss'):/พลาดอย่างหนัก|badly awry/.test(model.outcome)?uiCopy('พลาดหนัก','Critical failure'):uiCopy('ไม่สำเร็จ','Unsuccessful');
+  card.appendChild(outcome);
+}
+function compactStoryReceiptControls398(head,toggle,close,mode){
+  const title=head.querySelector('.story-roll-title');title.title=uiCopy('ผลทอยนอกศึก','Story roll results');title.textContent=uiCopy('ผลทอยนอกศึก','Story rolls');
+  toggle.textContent=mode==='open'?'−':'+';toggle.title=mode==='open'?uiCopy('ย่อผลทอยนอกศึก','Collapse story roll results'):uiCopy('ขยายผลทอยนอกศึก','Expand story roll results');toggle.setAttribute('aria-label',toggle.title);
+  close.textContent='×';close.title=uiCopy('ปิดผลทอยนอกศึก','Close story roll results');
+}
 const _storyReceiptBannerViews=new Map();
 function renderStoryReceiptBanner(rows,box){
   const selected=rows.map(n=>({n:n,text:narrText(n)})).filter(row=>String(row.n&&row.n.source_content||'').startsWith('system:story-check:')&&row.text);
@@ -7309,10 +7395,11 @@ function renderStoryReceiptBanner(rows,box){
       const equation=document.createElement('div');equation.className='story-roll-equation';equation.appendChild(document.createTextNode('d20 '+model.face+' '+(model.bonus<0?'−':'+')+' '+Math.abs(model.bonus)+' = '));
       const total=document.createElement('strong');total.className='story-roll-total';total.textContent=String(model.total);equation.appendChild(total);equation.appendChild(document.createTextNode(' · DC '+model.dc));info.appendChild(equation);
       const outcome=document.createElement('div');outcome.className='story-roll-outcome';outcome.textContent=model.outcome;info.appendChild(outcome);card.appendChild(info);body.appendChild(card);
+      if(box.id==='storyReceiptHud')compactStoryReceiptCard398(card,model);
     });
   });
   const reopen=document.createElement('button');reopen.type='button';reopen.className='story-roll-control';reopen.dataset.storyReceiptControl='reopen';reopen.textContent=uiCopy('แสดงผลทอยนอกศึก','Show story roll results');
-  const refresh=()=>{banner.hidden=state.mode==='closed';reopen.hidden=state.mode!=='closed';body.hidden=state.mode!=='open';toggle.setAttribute('aria-expanded',state.mode==='open'?'true':'false');toggle.textContent=state.mode==='open'?uiCopy('ย่อ','Collapse'):uiCopy('ขยาย','Expand');};
+  const refresh=()=>{banner.hidden=state.mode==='closed';reopen.hidden=state.mode!=='closed';body.hidden=state.mode!=='open';toggle.setAttribute('aria-expanded',state.mode==='open'?'true':'false');toggle.textContent=state.mode==='open'?uiCopy('ย่อ','Collapse'):uiCopy('ขยาย','Expand');if(box.id==='storyReceiptHud')compactStoryReceiptControls398(head,toggle,close,state.mode);};
   toggle.onclick=()=>{state.mode=state.mode==='open'?'collapsed':'open';refresh();};
   close.onclick=()=>{state.mode='closed';refresh();reopen.focus();};
   reopen.onclick=()=>{state.mode='open';refresh();toggle.focus();};
@@ -11967,55 +12054,45 @@ const NPC_SPRITE_BASE=(typeof window!=='undefined'&&window._npcSpriteBase)||(SPR
 const _ASSET={terrain:SPRITE_ROOT+'terrain/', object:SPRITE_ROOT+'objects/', monster:SPRITE_ROOT+'monsters/', bg:SPRITE_ROOT+'backgrounds/'};
 const _OBJ_KEYS=new Set(['pine','tree','cave','rock','table','fireplace','fire','barrel','chest','crate','door','well','tent','torch','grave','statue','crystal','banner','bush','mushroom','stump','log','bridge','stairs','altar','pillar','bones','skull','bookshelf','bed','cauldron','anvil','signpost','coffin','magiccircle','lever','fence','haystack','lantern','web','flower','cactus','wagon','animal_skull','armor_stand','ash_pile','bar_counter','basalt_column','basket','bench','berry_bush','boulder','brazier','broken_pillar','cage','cairn','cart','cattail','chains','chair','chandelier','crates_stack','creek','cupboard','dead_tree','dune','fallen_tree','fern','fire_crystal','fountain','frozen_tree','ice_crystal','ice_shard','icicle','iron_fence','lamppost','lava_floor','lava_pool','lilypad','magma_vent','mangrove','market_stall','mausoleum','mud_mound','oasis','obelisk','obsidian','ore_vein','palm','pond','portcullis','reeds','roots','rubble','rug','sandstone_ruin','sarcophagus','shelf','snowdrift','spike_trap','stalactite','stool','tall_grass','throne','urn','water_grass','weapon_rack',
   // SCENEART-01 (10-10): ของประดับชุดฉากใหม่ 9 แบบ (objects/<key>/<name>.png · 240×240)
-  'sewer_grate','pipe_outlet','sludge_puddle','brick_rubble','valve_wheel','iron_ladder','notice_board','shop_counter','goods_shelf','writing_desk','sack_pile','hanging_tools','yurt','canvas_tent','bedroll','palisade_stakes','banner_pole','hide_rack','milestone','broken_cart','roadside_shrine','hay_bales','rail_fence','waymarker_post','rock_pillar','bridge_post_rope','cliff_boulder','dry_shrub','cracked_rock','cactus_scrub','sheeted_sofa','candelabra','grandfather_clock','fallen_chandelier','empty_picture_frame','marble_bust_plinth','broken_arch','fallen_column','statue_base_empty','overgrown_wall','cracked_altar','ivy_pillar','mooring_post','rope_coil','rowboat','dock_planks','fishing_net_rack','lobster_traps','water_trough','wood_pile','scarecrow','farm_cart','chicken_coop','beehive_skep']);
+  'sewer_grate','pipe_outlet','sludge_puddle','brick_rubble','valve_wheel','iron_ladder','notice_board','shop_counter','goods_shelf','writing_desk','sack_pile','hanging_tools','yurt','canvas_tent','bedroll','palisade_stakes','banner_pole','hide_rack','milestone','broken_cart','roadside_shrine','hay_bales','rail_fence','waymarker_post','rock_pillar','bridge_post_rope','cliff_boulder','dry_shrub','cracked_rock','cactus_scrub','sheeted_sofa','candelabra','grandfather_clock','fallen_chandelier','empty_picture_frame','marble_bust_plinth','broken_arch','fallen_column','statue_base_empty','overgrown_wall','cracked_altar','ivy_pillar','mooring_post','rope_coil','rowboat','dock_planks','fishing_net_rack','lobster_traps','water_trough','wood_pile','scarecrow','farm_cart','chicken_coop','beehive_skep',
+  // SCENEART-02 (10-10): เมืองใหญ่/ตลาด/ดันเจี้ยน 4 แบบ
+  'street_lamp_ornate','stone_bench_planter','notice_pillar','bronze_statue_faceless','flower_cart','city_well_fountain','spice_stall','fruit_crates','rug_rack','pottery_stack','hanging_lanterns_pole','merchant_scales','crude_barricade','glowing_crystal_cluster','rope_bridge_post','mushroom_cluster_big','rock_totem','supply_crates_crude','arcane_pedestal','brass_orrery_small','scroll_rack','alchemy_table','floating_rune_stone','spiral_stair_segment','iron_cage','wall_shackles_empty','jailer_desk','prison_door_barred','torch_bracket','rusted_portcullis_piece','mine_cart','forge_anvil_big','gear_mechanism','dwarven_pillar_carved','ore_pile','rune_brazier']);
 // v485: biome→keys index (tokImgHref เลือก objects/{biome}/{key}.png ก่อน → common → flat)
 const OBJ_INDEX={mountain:new Set(['boulder','bridge','bush','cairn','crystal','pine','rock','rubble']), forest:new Set(['berry_bush','boulder','fern','log','mushroom','pond','roots','stump']), lava:new Set(['animal_skull','ash_pile','basalt_column','fire_crystal','lava_floor','lava_pool','magma_vent','obsidian']), castle:new Set(['armor_stand','banner','brazier','pillar','portcullis','rubble','throne','weapon_rack']), tavern:new Set(['bar_counter','barrel','chair','chandelier','cupboard','rug','shelf','stool']), desert:new Set(['animal_skull','cactus','dune','oasis','palm','rubble','sandstone_ruin','urn']), snow:new Set(['bones','cairn','fallen_tree','frozen_tree','ice_crystal','ice_shard','icicle','snowdrift']), cave:new Set(['boulder','crystal','mushroom','ore_vein','pond','rock','stalactite','table']), plain:new Set(['boulder','bush','creek','fence','flower','haystack','mud_mound','tall_grass']), wetland:new Set(['cattail','fallen_tree','lilypad','mangrove','mud_mound','pond','reeds','water_grass']), graveyard:new Set(['bones','coffin','dead_tree','grave','iron_fence','mausoleum','obelisk','urn']), dungeon:new Set(['brazier','broken_pillar','cage','chains','portcullis','rubble','sarcophagus','spike_trap']), town:new Set(['basket','bench','cart','crates_stack','fountain','lamppost','market_stall','signpost']), common:new Set(['animal_skull','banner','barrel','basket','bench','bones','boulder','brazier','bush','cage','cairn','cart','chains','chair','crates_stack','crystal','fallen_tree','fence','flower','log','mud_mound','mushroom','pillar','pond','portcullis','rock','rubble','signpost','stump','table','urn']),
-  sewer:new Set(['sewer_grate','pipe_outlet','sludge_puddle','brick_rubble','valve_wheel','iron_ladder']), interior:new Set(['notice_board','shop_counter','goods_shelf','writing_desk','sack_pile','hanging_tools']), camp:new Set(['yurt','canvas_tent','bedroll','palisade_stakes','banner_pole','hide_rack']), road:new Set(['milestone','broken_cart','roadside_shrine','hay_bales','rail_fence','waymarker_post']), canyon:new Set(['rock_pillar','bridge_post_rope','cliff_boulder','dry_shrub','cracked_rock','cactus_scrub']), manor:new Set(['sheeted_sofa','candelabra','grandfather_clock','fallen_chandelier','empty_picture_frame','marble_bust_plinth']), ruins:new Set(['broken_arch','fallen_column','statue_base_empty','overgrown_wall','cracked_altar','ivy_pillar']), waterside:new Set(['mooring_post','rope_coil','rowboat','dock_planks','fishing_net_rack','lobster_traps']), village:new Set(['water_trough','wood_pile','scarecrow','farm_cart','chicken_coop','beehive_skep'])};   // SCENEART-01: ชุดฉากใหม่ (ชื่อไม่ซ้ำข้ามชุด ⇒ ค้นข้าม biome ของ v505 หาเจอเสมอ)
+  sewer:new Set(['sewer_grate','pipe_outlet','sludge_puddle','brick_rubble','valve_wheel','iron_ladder']), interior:new Set(['notice_board','shop_counter','goods_shelf','writing_desk','sack_pile','hanging_tools']), camp:new Set(['yurt','canvas_tent','bedroll','palisade_stakes','banner_pole','hide_rack']), road:new Set(['milestone','broken_cart','roadside_shrine','hay_bales','rail_fence','waymarker_post']), canyon:new Set(['rock_pillar','bridge_post_rope','cliff_boulder','dry_shrub','cracked_rock','cactus_scrub']), manor:new Set(['sheeted_sofa','candelabra','grandfather_clock','fallen_chandelier','empty_picture_frame','marble_bust_plinth']), ruins:new Set(['broken_arch','fallen_column','statue_base_empty','overgrown_wall','cracked_altar','ivy_pillar']), waterside:new Set(['mooring_post','rope_coil','rowboat','dock_planks','fishing_net_rack','lobster_traps']), village:new Set(['water_trough','wood_pile','scarecrow','farm_cart','chicken_coop','beehive_skep']),
+  city:new Set(['street_lamp_ornate','stone_bench_planter','notice_pillar','bronze_statue_faceless','flower_cart','city_well_fountain']), market:new Set(['spice_stall','fruit_crates','rug_rack','pottery_stack','hanging_lanterns_pole','merchant_scales']), cave_dungeon:new Set(['crude_barricade','glowing_crystal_cluster','rope_bridge_post','mushroom_cluster_big','rock_totem','supply_crates_crude']), tower_dungeon:new Set(['arcane_pedestal','brass_orrery_small','scroll_rack','alchemy_table','floating_rune_stone','spiral_stair_segment']), prison_dungeon:new Set(['iron_cage','wall_shackles_empty','jailer_desk','prison_door_barred','torch_bracket','rusted_portcullis_piece']), dwarven_hold:new Set(['mine_cart','forge_anvil_big','gear_mechanism','dwarven_pillar_carved','ore_pile','rune_brazier'])};   // SCENEART-01: ชุดฉากใหม่ (ชื่อไม่ซ้ำข้ามชุด ⇒ ค้นข้าม biome ของ v505 หาเจอเสมอ)
+Object.setPrototypeOf(OBJ_INDEX,null); // ER399b own scene tables: inherited names are never entries.
 // (revert) ตาราง _OBJSZ ต่อชนิด ลบแล้ว — object เรนเดอร์ uniform (_SZ.ob=64) · ผู้ใช้คุมสัดส่วนผ่าน PNG เอง
-const _BG_KEYS=new Set(['cave','plain','wetland','graveyard','dungeon','town','forest','lava','castle','tavern','desert','snow','mountain','sewer','interior','road','camp','manor','ruins','canyon','waterside','village']);   // SCENEART-01: +9 ฉากใหม่ (BUGINDEX B-261009-3..12 · ภาพ D:\TTRPG-Backgrounds\v1)
+const _BG_KEYS=new Set(['cave','plain','wetland','graveyard','dungeon','town','forest','lava','castle','tavern','desert','snow','mountain','sewer','interior','road','camp','manor','ruins','canyon','waterside','village','city','market','cave_dungeon','tower_dungeon','prison_dungeon','dwarven_hold']);   // SCENEART-01: +9 ฉากใหม่ (BUGINDEX B-261009-3..12 · ภาพ D:\TTRPG-Backgrounds\v1) · SCENEART-02 +6 (เมืองใหญ่/ตลาด/ดันเจี้ยน 4 แบบ · v1\round2)
 const _MON_RENDERED=new Set(['aboleth','banshee','beholder','cyclops','water_weird','yeti','acolyte','adult_black_dragon','adult_blue_dragon','adult_brass_dragon','adult_bronze_dragon','adult_copper_dragon','adult_gold_dragon','adult_green_dragon','adult_red_dragon','adult_silver_dragon','adult_white_dragon','air_elemental','ancient_black_dragon','ancient_blue_dragon','ancient_brass_dragon','ancient_bronze_dragon','ancient_copper_dragon','ancient_gold_dragon','ancient_green_dragon','ancient_red_dragon','ancient_silver_dragon','ancient_white_dragon','androsphinx','animated_armor','ankheg','ape','archmage','assassin','awakened_shrub','awakened_tree','axe_beak','azer','baboon','badger','balor','bandit_captain','bandit','barbed_devil','basilisk','bat','bearded_devil','behir','berserker','black_bear','black_dragon_wyrmling','black_pudding','blink_dog','blood_hawk','blue_dragon_wyrmling','boar','bone_devil','brass_dragon_wyrmling','bronze_dragon_wyrmling','brown_bear','bugbear','bulette','camel','carrion_crawler','cat','centaur','chain_devil','chimera','chuul','clay_golem','cloaker','cloud_giant','cockatrice','commoner','constrictor_snake','copper_dragon_wyrmling','couatl','crab','crocodile','cult_fanatic','cultist','darkmantle','death_dog','deep_gnome_svirfneblin','deer','deva','dire_wolf','djinni','doppelganger','draft_horse','dragon_turtle','dretch','drider','drow','druid','dryad','duergar','dust_mephit','eagle','earth_elemental','efreeti','elephant','elk','erinyes','ettercap','ettin','fire_elemental','fire_giant','flesh_golem','flying_snake','flying_sword','frog','frost_giant','gargoyle','gelatinous_cube','ghast','ghost','ghoul','giant_ape','giant_badger','giant_bat','giant_boar','giant_centipede','giant_constrictor_snake','giant_crab','giant_crocodile','giant_eagle','giant_elk','giant_fire_beetle','giant_frog','giant_goat','giant_hyena','giant_lizard','giant_octopus','giant_owl','giant_poisonous_snake','giant_rat_diseased','giant_rat','giant_scorpion','giant_sea_horse','giant_shark','giant_spider','giant_toad','giant_vulture','giant_wasp','giant_weasel','giant_wolf_spider','gibbering_mouther','glabrezu','gladiator','gnoll','goat','goblin','gold_dragon_wyrmling','gorgon','gray_ooze','green_dragon_wyrmling','green_hag','grick','griffon','grimlock','guard','guardian_naga','gynosphinx','half_red_dragon_veteran','harpy','hawk','hell_hound','hezrou','hill_giant','hippogriff','hobgoblin','homunculus','horned_devil','hunter_shark','hydra','hyena','ice_devil','ice_mephit','imp','invisible_stalker','iron_golem','jackal','killer_whale','knight','kobold','kraken','lamia','lemure','lich','lion','lizard','lizardfolk','mage','magma_mephit','magmin','mammoth','manticore','marilith','mastiff','medusa','merfolk','merrow','mimic','minotaur_skeleton','minotaur','mule','mummy_lord','mummy','nalfeshnee','night_hag','nightmare','noble','ochre_jelly','octopus','ogre_zombie','ogre','oni','orc','otyugh','owl','owlbear','panther','pegasus','phase_spider','pit_fiend','planetar','plesiosaurus','poisonous_snake','polar_bear','pony','priest','pseudodragon','purple_worm','quasit','quipper','rakshasa','rat','raven','red_dragon_wyrmling','reef_shark','remorhaz','rhinoceros','riding_horse','roc','roper','rug_of_smothering','rust_monster','saber_toothed_tiger','sahuagin','salamander','satyr','scorpion','scout','sea_hag','sea_horse','shadow','shambling_mound','shield_guardian','shrieker','silver_dragon_wyrmling','skeleton','solar','specter','spider','spirit_naga','sprite','spy','steam_mephit','stirge','stone_giant','stone_golem','storm_giant','succubus_incubus','swarm_of_bats','swarm_of_beetles','swarm_of_centipedes','swarm_of_insects','swarm_of_poisonous_snakes','swarm_of_quippers','swarm_of_rats','swarm_of_ravens','swarm_of_spiders','swarm_of_wasps','tarrasque','thug','tiger','treant','tribal_warrior','triceratops','troll','tyrannosaurus_rex','unicorn','vampire_bat_form','vampire_mist_form','vampire_spawn','vampire_vampire_form','veteran','violet_fungus','vrock','vulture','warhorse_skeleton','warhorse','water_elemental','weasel','werebear_bear_form','werebear_human_form','werebear_hybrid_form','wereboar_boar_form','wereboar_human_form','wereboar_hybrid_form','wererat_human_form','wererat_hybrid_form','wererat_rat_form','weretiger_human_form','weretiger_hybrid_form','weretiger_tiger_form','werewolf_human_form','werewolf_hybrid_form','werewolf_wolf_form','white_dragon_wyrmling','wight','will_o_wisp','winter_wolf','wolf','worg','wraith','wyvern','xorn','young_black_dragon','young_blue_dragon','young_brass_dragon','young_bronze_dragon','young_copper_dragon','young_gold_dragon','young_green_dragon','young_red_dragon','young_silver_dragon','young_white_dragon','zombie']);
 const _MON_BIG={adult_black_dragon:2,adult_blue_dragon:2,adult_brass_dragon:2,adult_bronze_dragon:2,adult_copper_dragon:2,adult_gold_dragon:2,adult_green_dragon:2,adult_red_dragon:2,adult_silver_dragon:2,adult_white_dragon:2,ancient_black_dragon:3,ancient_blue_dragon:3,ancient_brass_dragon:3,ancient_bronze_dragon:3,ancient_copper_dragon:3,ancient_gold_dragon:3,ancient_green_dragon:3,ancient_red_dragon:3,ancient_silver_dragon:3,ancient_white_dragon:3,awakened_tree:2,balor:2,behir:2,cloud_giant:2,dragon_turtle:3,elephant:2,fire_giant:2,frost_giant:2,giant_ape:2,giant_constrictor_snake:2,giant_crocodile:2,giant_elk:2,giant_shark:2,hill_giant:2,hydra:2,killer_whale:2,kraken:3,mammoth:2,purple_worm:3,remorhaz:2,roc:3,stone_giant:2,storm_giant:2,tarrasque:3,treant:2,triceratops:2,tyrannosaurus_rex:2};
 // revert: ขนาดมอน = ×tiles (medium 1 · Large 2 · Huge 3 · Gargantuan 4 ตาม footprint D&D 5e จาก catalog) · ไม่อยู่ในตาราง = 1
 const _MON_TILES={aboleth:2, cyclops:3, water_weird:2, yeti:2, beholder:2, adult_black_dragon:3, adult_blue_dragon:3, adult_brass_dragon:3, adult_bronze_dragon:3, adult_copper_dragon:3, adult_gold_dragon:3, adult_green_dragon:3, adult_red_dragon:3, adult_silver_dragon:3, adult_white_dragon:3, air_elemental:2, ancient_black_dragon:4, ancient_blue_dragon:4, ancient_brass_dragon:4, ancient_bronze_dragon:4, ancient_copper_dragon:4, ancient_gold_dragon:4, ancient_green_dragon:4, ancient_red_dragon:4, ancient_silver_dragon:4, ancient_white_dragon:4, androsphinx:2, ankheg:2, awakened_tree:3, axe_beak:2, balor:3, behir:3, black_pudding:2, bone_devil:2, brown_bear:2, bulette:2, camel:2, carrion_crawler:2, centaur:2, chimera:2, chuul:2, clay_golem:2, cloaker:2, cloud_giant:3, constrictor_snake:2, crocodile:2, dire_wolf:2, djinni:2, draft_horse:2, dragon_turtle:4, drider:2, earth_elemental:2, efreeti:2, elephant:3, elk:2, ettin:2, fire_elemental:2, fire_giant:3, frost_giant:3, gelatinous_cube:2, giant_ape:3, giant_bat:2, giant_boar:2, giant_constrictor_snake:3, giant_crocodile:3, giant_eagle:2, giant_elk:3, giant_goat:2, giant_hyena:2, giant_lizard:2, giant_octopus:2, giant_owl:2, giant_scorpion:2, giant_sea_horse:2, giant_shark:3, giant_spider:2, giant_toad:2, giant_vulture:2, glabrezu:2, gorgon:2, griffon:2, guardian_naga:2, gynosphinx:2, hezrou:2, hill_giant:3, hippogriff:2, horned_devil:2, hydra:3, ice_devil:2, iron_golem:2, killer_whale:3, kraken:4, lamia:2, lion:2, mammoth:3, manticore:2, marilith:2, merrow:2, minotaur:2, minotaur_skeleton:2, nalfeshnee:2, nightmare:2, ochre_jelly:2, ogre:2, ogre_zombie:2, oni:2, otyugh:2, owlbear:2, pegasus:2, phase_spider:2, pit_fiend:2, planetar:2, plesiosaurus:2, polar_bear:2, purple_worm:4, remorhaz:3, rhinoceros:2, riding_horse:2, roc:4, roper:2, rug_of_smothering:2, saber_toothed_tiger:2, salamander:2, shambling_mound:2, shield_guardian:2, solar:2, spirit_naga:2, stone_giant:3, stone_golem:2, storm_giant:3, tarrasque:4, tiger:2, treant:3, triceratops:3, troll:2, tyrannosaurus_rex:3, unicorn:2, vrock:2, warhorse:2, warhorse_skeleton:2, water_elemental:2, winter_wolf:2, worg:2, wyvern:2, young_black_dragon:2, young_blue_dragon:2, young_brass_dragon:2, young_bronze_dragon:2, young_copper_dragon:2, young_gold_dragon:2, young_green_dragon:2, young_red_dragon:2, young_silver_dragon:2, young_white_dragon:2};
 const _MON_ALIAS={werewolf:'werewolf_hybrid_form',wereboar:'wereboar_hybrid_form',wererat:'wererat_hybrid_form',weretiger:'weretiger_hybrid_form',werebear:'werebear_hybrid_form',vampire:'vampire_vampire_form'};   // v638 BUG1: ชื่อ spawn โดด (Werewolf/Vampire) → default form sprite (รูปมีอยู่ใต้ key *_form แต่ generator สร้างชื่อโดด → เดิม pawn แดงทั้งที่ art มี)
+Object.setPrototypeOf(_MON_TILES,null); // ER399b
 function _monId(t){ const key=String((t&&t.glyph)||'').trim().toLowerCase(); return _MON_RENDERED.has(key)?key:''; }   // C0928-11: server owns catalog/form/type-fallback identity; labels never select art.
-function _biomeKey(bg){ const s=String(bg||'').toLowerCase().trim();
-  if(_BG_KEYS.has(s)) return s;   // SCENEART-01: key ที่ server เขียนลง battle_grids.background = อำนาจ server ตรงตัว (ไม่ผ่าน regex)
-  // ข้างล่าง = ค่าดิบที่ DM ส่งเอง (เช่น "assets/maps/dockside.webp" · B-261009-10) · ลำดับสำคัญ: ฉากเฉพาะก่อนฉากกว้าง
-  if(/ท่อระบาย|sewer|undercity|ใต้เมือง/.test(s)) return 'sewer';
-  if(/ถ้ำ|\bcave\b/.test(s)) return 'cave'; if(/ดันเจ|dungeon|ใต้ดิน|crypt/.test(s)) return 'dungeon';
-  if(/ซากปรัก|ซากอาคาร|\bruins?\b/.test(s)) return 'ruins';   // SCENEART-01: "ซาก" เดิมตีเป็นสุสาน (server ไม่เคยให้)
-  if(/สุสาน|หลุมศพ|grave|tomb/.test(s)) return 'graveyard'; if(/ลาวา|lava|ภูเขาไฟ|volcan|นรก/.test(s)) return 'lava';
-  if(/บึง|หนอง|swamp|marsh|wetland/.test(s)) return 'wetland';
-  if(/หุบผา|หุบเขา|รอยแยก|canyon|ravine|gorge|chasm/.test(s)) return 'canyon';   // ก่อน desert (หินทราย) และ mountain (ผา)
-  if(/ทะเลทราย|desert|ทราย/.test(s)) return 'desert';
-  if(/หิมะ|snow|น้ำแข็ง|\bice\b/.test(s)) return 'snow'; if(/ภูเขา|mountain|ผา|cliff/.test(s)) return 'mountain';
-  if(/ค่าย|กระโจม|เต็นท์|\bcamp|encampment|\byurts?\b/.test(s)) return 'camp';   // ก่อน forest ("Redwood Camp")
-  if(/ท่าเรือ|ท่าน้ำ|แม่น้ำ|สะพาน|ชายฝั่ง|\bdocks?\b|dockside|harbou?r|\bpiers?\b|wharf|\brivers?\b|\bbridges?\b|\bcoast/.test(s)) return 'waterside';
-  if(/ป่า|forest|wood|ชายป่า/.test(s)) return 'forest';
-  if(/คฤหาสน์|\bmanor\b|mansion/.test(s)) return 'manor';   // ก่อน castle
-  if(/ปราสาท|castle|วิหาร|temple|ป้อม|throne|บัลลังก์/.test(s)) return 'castle'; if(/โรงเตี๊ยม|tavern|ผับ|\binn\b/.test(s)) return 'tavern';
-  if(/กิลด์|สมาคม|ร้าน|โกดัง|หอสมุด|\bguild|\bshops?\b|\bstores?\b|warehouse|library|\boffice\b/.test(s)) return 'interior';
-  if(/หมู่บ้าน|village|hamlet/.test(s)) return 'village';
-  if(/เมือง|town|ตลาด|market|\bcity\b/.test(s)) return 'town';
-  if(/ถนน|เส้นทาง|ทางแยก|\broads?\b|\btrail\b|\bpath\b|crossroad/.test(s)) return 'road';
-  if(/ทุ่ง|plain|grass|field|เนิน|หญ้า/.test(s)) return 'plain';
-  return ''; }
+function _biomeKey(bg){ const scene=window.SceneBiome; return scene ? scene.sceneArtKey(scene.sceneBackgroundKey(bg)||'plain') : 'plain'; }
 // SCENEART-01 (10-10): ฉากหลังมีแบบย่อย 5 แบบต่อ key — sprites/backgrounds/<key>/<key>_bg_vNN.webp (bucket · ห้ามเขียนทับ: แก้ภาพ = เลขใหม่)
 //   v00 = sprites/backgrounds/<key>.png ของ 13 key เดิม = ทางสำรองเมื่อโหลดแบบย่อยไม่ได้ · key ใหม่ไม่มี v00 ⇒ โหลดไม่ได้ = ไม่มีฉากหลัง (พฤติกรรมเดิม)
 //   เลือกแบบ: server แช่แข็งใน battle_grids.terrain.bg_variant (ทาง resolver ใหม่) ชนะ · ไม่งั้น 1+hash(grid.id) mod N ⇒ ทุกคนในศึกเห็นภาพเดียวกัน รีเฟรชไม่เปลี่ยน
 //   จำนวนแบบเป็นค่าคงที่ที่ปล่อยพร้อมภาพ (ห้าม probe 404 ทีละไฟล์) · language-impact: none (ไม่มีข้อความ runtime)
 const _BG_V00=new Set(['cave','plain','wetland','graveyard','dungeon','town','forest','lava','castle','tavern','desert','snow','mountain']);
-const _BG_VARIANTS={cave:5,plain:5,wetland:5,graveyard:5,dungeon:5,town:5,forest:5,lava:5,castle:5,tavern:5,desert:5,snow:5,mountain:5,sewer:5,interior:5,road:5,camp:5,manor:5,ruins:5,canyon:5,waterside:5,village:5};
+const _BG_VARIANTS={cave:5,plain:5,wetland:5,graveyard:5,dungeon:5,town:5,forest:5,lava:5,castle:5,tavern:5,desert:5,snow:5,mountain:5,sewer:5,interior:5,road:5,camp:5,manor:5,ruins:5,canyon:5,waterside:5,village:5,city:6,market:6,cave_dungeon:6,tower_dungeon:6,prison_dungeon:6,dwarven_hold:6};
+// SCENEART-02: ดันเจี้ยน 4 แบบ ภาพผูกบทบาทห้อง 5 ห้อง (dungeon-roles.ts) — v01 guardian · v02 puzzle · v03 trick · v04/v06 climax (โถงบอส 2 แบบ) · v05 reward
+const _BG_ROLE_KEYS=new Set(['cave_dungeon','tower_dungeon','prison_dungeon','dwarven_hold']);
+const _BG_ROLE_VARIANT={guardian:1,puzzle:2,trick:3,reward:5};
+for(const table of [_BG_VARIANTS,_BG_ROLE_VARIANT]) Object.setPrototypeOf(table,null); // ER399b
 function _sceneHash(s){ let h=2166136261; s=String(s); for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); } return h>>>0; }
 function _bgVariant(bk,g){ const n=_BG_VARIANTS[bk]|0; if(!n) return 0;
   const t=g&&g.terrain&&typeof g.terrain==='object'?g.terrain:null, fz=t?Math.floor(+t.bg_variant):NaN;
   if(fz>=1&&fz<=n) return fz;
+  const role=t?String(t.dungeon_role||''):'';   // server เขียนบทบาทห้องปัจจุบันลง battle_grids.terrain (ทาง resolver ใหม่)
+  if(role&&_BG_ROLE_KEYS.has(bk)){ if(role==='climax') return (_sceneHash(String((g&&g.id)||'')+'|boss')&1)?6:4; if(_BG_ROLE_VARIANT[role]) return _BG_ROLE_VARIANT[role]; }
   return 1+(_sceneHash(String((g&&g.id)||'')+'|bg')%n); }
 function _bgFallbackHref(bk){ return _BG_V00.has(bk)?_ASSET.bg+bk+'.png':''; }
 function _bgHref(bk,g){ const v=_bgVariant(bk,g); const fail=(typeof window!=='undefined'&&window._bgFail)||{};
   const u=v>0?_ASSET.bg+bk+'/'+bk+'_bg_v'+String(v).padStart(2,'0')+'.webp':'';
-  return (u&&!fail[u])?u:_bgFallbackHref(bk); }
+  return (u&&!(Object.hasOwn(fail,u)&&fail[u]))?u:_bgFallbackHref(bk); }
 //   พื้นกระดาน = ตารางใส v451 ทุกฉาก (เจ้าของ 10-10: ไม่ใช้ลายพื้น · ไฟล์ terrain/<family>/ ใน bucket ไม่ถูกเรียก)
 function _spriteRaceKey(raw){ const r=String(HD2D.normalizeRace(raw)).toLowerCase();
   if(r.includes('drow')) return 'drow'; if(r.includes('half-elf')) return 'half_elf'; if(r.includes('half-orc')) return 'half_orc';
@@ -12102,6 +12179,8 @@ function gridProneTransform(box,center,halfWidth,halfHeight,iso,degrees){
 }
 function boundedCanvasSampleSize(width,height,maxSide){ const w=Math.max(1,Math.floor(+width||1)),h=Math.max(1,Math.floor(+height||1)),cap=Math.max(16,Math.floor(+maxSide||96)),scale=Math.min(1,cap/Math.max(w,h)); return {width:Math.max(1,Math.round(w*scale)),height:Math.max(1,Math.round(h*scale))}; }
 async function renderBattleGrid(p){
+  // Scene art data is shared with the server classifier; no second key table here.
+  for(const [biome,objects] of Object.entries(window.SceneBiome?.SCENE_OBJECTS||{})){ OBJ_INDEX[biome]=new Set(objects); for(const key of objects) _OBJ_KEYS.add(key); }
   // ── (06-10) cache: แตะเลือกช่อง/ยืนยันเดิน = วาดจากข้อมูลล่าสุดทันที (0 query) — full fetch เฉพาะ render ปกติ ──
   const _useCache = _gridUseCache && _gridCache && (Date.now()-_gridCache.ts < 15000);
   _gridUseCache=false;
@@ -12168,6 +12247,7 @@ async function renderBattleGrid(p){
     return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${TILE}" height="${th.toFixed(1)}" rx="2" fill="#FAC775" opacity="0.3" stroke="#FFE9A8" stroke-width="2" style="pointer-events:none"><animate attributeName="opacity" values="0.16;0.46;0.16" dur="1.5s" repeatCount="indefinite"/></rect>`; };
   // สัญลักษณ์ภูมิประเทศ (object token) — แม็ปจาก glyph หรือชื่อ (ไทย/อังกฤษ) → อิโมจิพิกเซล
   const GLYPH={cave:'🕳️','ถ้ำ':'🕳️',house:'🏠','บ้าน':'🏠',hut:'🛖','กระท่อม':'🛖',well:'🪣','บ่อน้ำ':'🪣',tree:'🌲','ต้นไม้':'🌲',rock:'🪨','หิน':'🪨',fire:'🔥','เตาไฟ':'🔥','ไฟ':'🔥',brazier:'🔥',door:'🚪','ประตู':'🚪',chest:'📦','หีบ':'📦',crate:'📦','ลัง':'📦',barrel:'🛢️','ถัง':'🛢️',statue:'🗿','รูปปั้น':'🗿',altar:'⛩️','แท่นบูชา':'⛩️',bridge:'🌉','สะพาน':'🌉',ladder:'🪜','บันได':'🪜',tent:'⛺','เต็นท์':'⛺',banner:'🚩','ธง':'🚩',grave:'🪦','หลุมศพ':'🪦',lever:'🎚️','คันโยก':'🎚️',torch:'🔥','คบเพลิง':'🔥',crystal:'💎','คริสตัล':'💎'};
+  Object.setPrototypeOf(GLYPH,null); // ER399b
   const glyphFor=(t)=>{ const k=String(t.glyph||'').toLowerCase(); if(GLYPH[k])return GLYPH[k]; const lab=String(t.label||'').toLowerCase(); for(const key in GLYPH){ if(lab.includes(key.toLowerCase())) return GLYPH[key]; } return null; };
   // ── pixel-sprite ฝังในเว็บ (ฟรี/ไม่แตะ DB) — วาดวัตถุพื้นฐานบนกริดแทน emoji ให้นิ่งทุกเครื่อง ──
   const SPRITES={
@@ -12217,9 +12297,11 @@ async function renderBattleGrid(p){
   };
   const SPR_ALIAS={'ต้นสน':'pine',pine:'pine',fir:'pine','สน':'pine','ต้นไม้':'tree',tree:'tree',oak:'tree','ต้นโอ๊ค':'tree','ถ้ำ':'cave',cave:'cave','โพรง':'cave','หิน':'rock','ก้อนหิน':'rock',rock:'rock',boulder:'rock','โต๊ะ':'table',table:'table','เตาผิง':'fireplace',fireplace:'fireplace',hearth:'fireplace','เตาไฟ':'fire','กองไฟ':'fire','ไฟ':'fire',fire:'fire',campfire:'fire','ถัง':'barrel',barrel:'barrel','หีบ':'chest','หีบสมบัติ':'chest',chest:'chest',treasure:'chest','ลัง':'crate','กล่อง':'crate',crate:'crate',box:'crate','ประตู':'door',door:'door','บ่อน้ำ':'well',well:'well','เต็นท์':'tent',tent:'tent','คบเพลิง':'torch','ตะเกียง':'torch',torch:'torch',brazier:'torch','หลุมศพ':'grave',grave:'grave',tombstone:'grave','รูปปั้น':'statue',statue:'statue','คริสตัล':'crystal','ผลึก':'crystal',crystal:'crystal','ธง':'banner',banner:'banner',flag:'banner','พุ่มไม้':'bush',bush:'bush',shrub:'bush','เห็ด':'mushroom',mushroom:'mushroom','ตอไม้':'stump',stump:'stump','ขอนไม้':'log',log:'log','ท่อนไม้':'log','สะพาน':'bridge',bridge:'bridge','บันได':'stairs',stairs:'stairs',ladder:'stairs','แท่นบูชา':'altar',altar:'altar','เสา':'pillar',pillar:'pillar',column:'pillar','กระดูก':'bones',bones:'bones','กะโหลก':'skull',skull:'skull','ชั้นหนังสือ':'bookshelf',bookshelf:'bookshelf',shelf:'bookshelf','เตียง':'bed',bed:'bed','หม้อ':'cauldron','หม้อต้ม':'cauldron',cauldron:'cauldron','pot':'cauldron','ทั่ง':'anvil',anvil:'anvil','ป้าย':'signpost',signpost:'signpost',sign:'signpost','โลงศพ':'coffin',coffin:'coffin','วงเวท':'magiccircle','วงเวทมนตร์':'magiccircle','พอร์ทัล':'magiccircle',portal:'magiccircle',rune:'magiccircle','คันโยก':'lever',lever:'lever','รั้ว':'fence',fence:'fence','กองฟาง':'haystack',haystack:'haystack',hay:'haystack','โคมไฟ':'lantern',lantern:'lantern','ตะเกียงแขวน':'lantern','ใยแมงมุม':'web',web:'web',cobweb:'web','ดอกไม้':'flower',flower:'flower','กระบองเพชร':'cactus',cactus:'cactus','เกวียน':'wagon','รถลาก':'wagon',wagon:'wagon',cart:'wagon',
   'กะโหลกสัตว์':'animal_skull', 'ชุดเกราะตั้ง':'armor_stand', 'กองเถ้า':'ash_pile', 'เคาน์เตอร์บาร์':'bar_counter', 'เสาบะซอลต์':'basalt_column', 'ตะกร้า':'basket', 'ม้านั่ง':'bench', 'พุ่มเบอร์รี่':'berry_bush', 'หินก้อนใหญ่':'boulder', 'กระถางไฟ':'brazier', 'เสาหัก':'broken_pillar', 'กรงขัง':'cage', 'กองหินซ้อน':'cairn', 'รถเข็น':'cart', 'ธูปฤๅษี':'cattail', 'โซ่ตรวน':'chains', 'เก้าอี้':'chair', 'โคมระย้า':'chandelier', 'ลังซ้อน':'crates_stack', 'ลำธาร':'creek', 'ตู้':'cupboard', 'ต้นไม้ตาย':'dead_tree', 'เนินทราย':'dune', 'ต้นไม้ล้ม':'fallen_tree', 'เฟิร์น':'fern', 'ผลึกไฟ':'fire_crystal', 'น้ำพุ':'fountain', 'ต้นไม้แข็ง':'frozen_tree', 'ผลึกน้ำแข็ง':'ice_crystal', 'แท่งน้ำแข็ง':'ice_shard', 'หินย้อยน้ำแข็ง':'icicle', 'รั้วเหล็ก':'iron_fence', 'เสาไฟ':'lamppost', 'พื้นลาวา':'lava_floor', 'บ่อลาวา':'lava_pool', 'ใบบัว':'lilypad', 'ปล่องแมกมา':'magma_vent', 'โกงกาง':'mangrove', 'แผงตลาด':'market_stall', 'สุสานหิน':'mausoleum', 'เนินโคลน':'mud_mound', 'โอเอซิส':'oasis', 'เสาโอเบลิสก์':'obelisk', 'ออบซิเดียน':'obsidian', 'สายแร่':'ore_vein', 'ต้นปาล์ม':'palm', 'บ่อน้ำ':'pond', 'ประตูเหล็ก':'portcullis', 'กอกก':'reeds', 'รากไม้':'roots', 'กองเศษหิน':'rubble', 'พรม':'rug', 'ซากหินทราย':'sandstone_ruin', 'โลงหิน':'sarcophagus', 'ชั้นวางของ':'shelf', 'กองหิมะ':'snowdrift', 'กับดักหนาม':'spike_trap', 'หินย้อย':'stalactite', 'สตูล':'stool', 'หญ้าสูง':'tall_grass', 'บัลลังก์':'throne', 'โกศ':'urn', 'หญ้าน้ำ':'water_grass', 'ราวอาวุธ':'weapon_rack'};
+  Object.setPrototypeOf(SPRITES,null);Object.setPrototypeOf(SPR_ALIAS,null); // ER399b
   function spriteFn(t){ const k=String(t.glyph||'').toLowerCase().trim(); if(SPR_ALIAS[k]&&SPRITES[SPR_ALIAS[k]]) return SPRITES[SPR_ALIAS[k]]; const lab=String(t.label||'').toLowerCase(); for(const key in SPR_ALIAS){ if(lab.includes(key.toLowerCase())) return SPRITES[SPR_ALIAS[key]]; } return null; }
   const _paperPawn=document.documentElement.classList.contains('skin-paper');
   const PAL=_paperPawn?{pc:['#d8c7a2','#235e8a','#fbf6ea'],ally:['#d8c7a2','#596b3a','#fbf6ea'],monster:['#d8c7a2','#9c2f2f','#fbf6ea'],npc:['#d8c7a2','#8a6d1f','#fbf6ea']}:{pc:['#30343b','#378ADD','#d7dbe1'],ally:['#30343b','#5c7bff','#d7dbe1'],monster:['#30343b','#E24B4A','#d7dbe1'],npc:['#30343b','#E8B23A','#d7dbe1']};
+  Object.setPrototypeOf(PAL,null); // ER399b
   // ── (06-10) ของตกแต่งสุ่มฝั่ง client: ใช้เฉพาะกริดเก่าที่ไม่มี decor จริงจาก server (v145 ลง DB แล้ว — DM เห็น/ใช้เป็นกลไกได้) ──
   const _decoToks=[];
   try{ if(!toks.some(t=>Array.isArray(t.flags)&&t.flags.includes('decor'))){
@@ -12252,7 +12334,16 @@ async function renderBattleGrid(p){
       canyon:['rock_pillar','cliff_boulder','cliff_boulder','dry_shrub','cracked_rock','cactus_scrub','bridge_post_rope','rock'],
       waterside:['mooring_post','mooring_post','rope_coil','rowboat','dock_planks','fishing_net_rack','lobster_traps','barrel'],
       village:['water_trough','wood_pile','scarecrow','farm_cart','chicken_coop','beehive_skep','haystack','fence','flower'],
+      // SCENEART-02
+      city:['street_lamp_ornate','street_lamp_ornate','stone_bench_planter','notice_pillar','bronze_statue_faceless','flower_cart','city_well_fountain','barrel'],
+      market:['spice_stall','spice_stall','fruit_crates','rug_rack','pottery_stack','hanging_lanterns_pole','merchant_scales','market_stall'],
+      cave_dungeon:['crude_barricade','glowing_crystal_cluster','glowing_crystal_cluster','rope_bridge_post','mushroom_cluster_big','rock_totem','supply_crates_crude','rock'],
+      tower_dungeon:['arcane_pedestal','brass_orrery_small','scroll_rack','scroll_rack','alchemy_table','floating_rune_stone','spiral_stair_segment','bookshelf'],
+      prison_dungeon:['iron_cage','iron_cage','wall_shackles_empty','jailer_desk','prison_door_barred','torch_bracket','rusted_portcullis_piece','chains'],
+      dwarven_hold:['mine_cart','forge_anvil_big','gear_mechanism','dwarven_pillar_carved','dwarven_pillar_carved','ore_pile','rune_brazier','anvil'],
     };
+    Object.setPrototypeOf(_DECO_BY_BIOME,null); // ER399b
+    Object.assign(_DECO_BY_BIOME,window.SceneBiome?.SCENE_OBJECTS||{});
     const _deco=_DECO_BY_BIOME[_biomeKey(grid.background)]||['tree','pine','bush','flower','rock','stump'];   // default ธรรมชาติ (road/water/ไม่รู้จัก)
     const _occ=new Set(toks.map(t=>rc2cell(t.col,t.row)));
     for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
@@ -12285,13 +12376,16 @@ async function renderBattleGrid(p){
   // v483 proportional sizing: สเกลวัตถุเทียบ "มนุษย์=1.0" (แก้วัตถุขนาดเท่ากันหมด) — คูณ _SZ.ob (PNG) / scale transform (SVG) · ปรับค่าตรงนี้จูนได้
   const _OBJ_SCALE={pine:1.4,tree:1.35,cave:2.0,rock:0.72,table:0.78,fireplace:1.0,fire:0.55,barrel:0.66,chest:0.55,crate:0.62,door:1.15,well:0.85,tent:1.1,torch:0.5,grave:0.66,statue:1.35,crystal:0.6,banner:1.05,bush:0.62,mushroom:0.4,stump:0.5,log:0.6,bridge:1.2,stairs:0.85,altar:0.95,pillar:1.7,bones:0.4,skull:0.38,bookshelf:1.2,bed:0.6,cauldron:0.66,anvil:0.5,signpost:1.0,coffin:0.6,magiccircle:0.55,lever:0.6,fence:0.7,haystack:0.85,lantern:0.45,web:0.7,flower:0.32,cactus:0.9,wagon:1.7,brazier:0.75,chair:0.6,stool:0.45,rubble:0.5,sack:0.55,animal_skull:0.5,armor_stand:1.1,ash_pile:0.5,bar_counter:0.9,basalt_column:1.7,basket:0.4,bench:0.55,berry_bush:0.6,boulder:1.0,broken_pillar:1.4,cage:1.2,cairn:0.75,cart:1.4,cattail:0.85,chains:0.9,chandelier:0.9,crates_stack:1.0,creek:0.9,cupboard:1.2,dead_tree:1.35,dune:0.9,fallen_tree:0.6,fern:0.5,fire_crystal:0.6,fountain:1.0,frozen_tree:1.35,ice_crystal:0.6,ice_shard:0.85,icicle:0.7,iron_fence:0.9,lamppost:1.8,lava_floor:0.85,lava_pool:0.9,lilypad:0.4,magma_vent:0.75,mangrove:1.3,market_stall:1.3,mausoleum:1.7,mud_mound:0.55,oasis:0.95,obelisk:1.9,obsidian:0.7,ore_vein:1.2,palm:1.35,pond:0.9,portcullis:1.6,reeds:0.85,roots:0.45,rug:0.5,sandstone_ruin:1.5,sarcophagus:0.6,shelf:1.2,snowdrift:0.7,spike_trap:0.4,stalactite:1.3,tall_grass:0.6,throne:1.35,urn:0.6,water_grass:0.6,weapon_rack:1.1,
     // SCENEART-01: ของชุดฉากใหม่ (มนุษย์=1.0)
-    sewer_grate:0.7,pipe_outlet:0.9,sludge_puddle:0.7,brick_rubble:0.7,valve_wheel:0.6,iron_ladder:1.3,notice_board:1.1,shop_counter:1.0,goods_shelf:1.2,writing_desk:0.8,sack_pile:0.6,hanging_tools:1.0,yurt:1.6,canvas_tent:1.3,bedroll:0.6,palisade_stakes:1.1,banner_pole:1.3,hide_rack:1.0,milestone:0.6,broken_cart:1.1,roadside_shrine:1.0,hay_bales:0.8,rail_fence:0.9,waymarker_post:1.1,rock_pillar:1.5,bridge_post_rope:1.0,cliff_boulder:1.1,dry_shrub:0.6,cracked_rock:0.7,cactus_scrub:0.7,sheeted_sofa:0.8,candelabra:0.8,grandfather_clock:1.3,fallen_chandelier:0.8,empty_picture_frame:0.8,marble_bust_plinth:1.0,broken_arch:1.6,fallen_column:1.0,statue_base_empty:0.8,overgrown_wall:1.3,cracked_altar:0.9,ivy_pillar:1.6,mooring_post:0.7,rope_coil:0.5,rowboat:1.2,dock_planks:0.9,fishing_net_rack:1.1,lobster_traps:0.6,water_trough:0.8,wood_pile:0.8,scarecrow:1.2,farm_cart:1.1,chicken_coop:1.0,beehive_skep:0.6};
+    sewer_grate:0.7,pipe_outlet:0.9,sludge_puddle:0.7,brick_rubble:0.7,valve_wheel:0.6,iron_ladder:1.3,notice_board:1.1,shop_counter:1.0,goods_shelf:1.2,writing_desk:0.8,sack_pile:0.6,hanging_tools:1.0,yurt:1.6,canvas_tent:1.3,bedroll:0.6,palisade_stakes:1.1,banner_pole:1.3,hide_rack:1.0,milestone:0.6,broken_cart:1.1,roadside_shrine:1.0,hay_bales:0.8,rail_fence:0.9,waymarker_post:1.1,rock_pillar:1.5,bridge_post_rope:1.0,cliff_boulder:1.1,dry_shrub:0.6,cracked_rock:0.7,cactus_scrub:0.7,sheeted_sofa:0.8,candelabra:0.8,grandfather_clock:1.3,fallen_chandelier:0.8,empty_picture_frame:0.8,marble_bust_plinth:1.0,broken_arch:1.6,fallen_column:1.0,statue_base_empty:0.8,overgrown_wall:1.3,cracked_altar:0.9,ivy_pillar:1.6,mooring_post:0.7,rope_coil:0.5,rowboat:1.2,dock_planks:0.9,fishing_net_rack:1.1,lobster_traps:0.6,water_trough:0.8,wood_pile:0.8,scarecrow:1.2,farm_cart:1.1,chicken_coop:1.0,beehive_skep:0.6,
+    // SCENEART-02
+    street_lamp_ornate:1.3,stone_bench_planter:0.8,notice_pillar:1.2,bronze_statue_faceless:1.4,flower_cart:1.0,city_well_fountain:1.1,spice_stall:1.2,fruit_crates:0.7,rug_rack:1.1,pottery_stack:0.7,hanging_lanterns_pole:1.3,merchant_scales:0.7,crude_barricade:1.0,glowing_crystal_cluster:0.8,rope_bridge_post:1.0,mushroom_cluster_big:0.8,rock_totem:1.2,supply_crates_crude:0.7,arcane_pedestal:0.9,brass_orrery_small:0.8,scroll_rack:1.1,alchemy_table:0.9,floating_rune_stone:0.8,spiral_stair_segment:1.4,iron_cage:1.1,wall_shackles_empty:0.9,jailer_desk:0.8,prison_door_barred:1.2,torch_bracket:0.7,rusted_portcullis_piece:1.1,mine_cart:0.9,forge_anvil_big:0.9,gear_mechanism:1.1,dwarven_pillar_carved:1.6,ore_pile:0.7,rune_brazier:0.9};
+  Object.setPrototypeOf(_OBJ_SCALE,null); // ER399b
   function objScaleFor(t){ if(!t||t.kind!=='object') return 1; let k=String(t.glyph||'').toLowerCase().trim(); if(!(k in _OBJ_SCALE)){ const a=SPR_ALIAS[k]; if(a&&(a in _OBJ_SCALE)) k=a; else { const lab=String(t.label||'').toLowerCase(); for(const al in SPR_ALIAS){ if(lab.includes(al.toLowerCase())){ const g=SPR_ALIAS[al]; if(g in _OBJ_SCALE){ k=g; break; } } } } } return (k in _OBJ_SCALE)?_OBJ_SCALE[k]:0.85; }
   // v531 obj-fill normalize: PNG วัตถุแต่ละชุดมีขอบโปร่งใสไม่เท่ากัน — scale คูณที่ "กรอบ" อย่างเดียวทำให้สัดส่วนจริงเพี้ยน
   //   เคสจริง 07-05: barrel (common/ 240px เนื้อ 82%) vs wagon (ไฟล์แบนเก่า 128px เนื้อ 43%) → ถังใหญ่เกวียนเล็กบนจอ
   //   แก้ทั้งคลาส: วัด bbox เนื้อภาพ (alpha>10) ครั้งเดียวต่อรูป → ตัวคูณชดเชย 0.8/fill (0.8 ≈ fill มาตรฐาน asset ส่วนใหญ่ · เท่ากรอบตัวละคร) clamp [0.8,1.9] · ระหว่างวัด=1 (พฤติกรรมเดิม) วัดเสร็จ re-render หนึ่งครั้ง · CORS ล้ม/รูปเสีย=1
   const _objFill=(window._objFill=window._objFill||{});   // v538 H5: persist ข้าม render (เดิม const {} สร้างใหม่ทุก render → วัดแล้วทิ้ง + new Image ทุก URL ทุกครั้ง → onload เรียก render ซ้ำ = query loop ไม่รู้จบตลอดคอมแบต)
-  function objFillNorm(url){ if(!url) return 1; const c=_objFill[url];
+  function objFillNorm(url){ if(!url) return 1; const c=Object.hasOwn(_objFill,url)?_objFill[url]:undefined;
     if(c!==undefined) return c||1;
     _objFill[url]=0;
     try{ const im=new Image(); im.crossOrigin='anonymous';
@@ -12305,7 +12399,7 @@ async function renderBattleGrid(p){
   //   helper นี้เช็คต่อ URL: error → คืน false ให้ drawTok ตกไปสาขา pawn (มิเรอร์ _objFill กัน new Image ซ้ำ/loop · ห้ามใส่ generic onerror ที่ _imgTok เพราะกระทบ char/object)
   //   ผลข้าง: เติม key ใหม่ใน _MON_RENDERED ก่อน asset จะขึ้น = แสดง pawn (ไม่ใช่ blank) จนกว่า PNG จะอัปถัง
   const _monImg=(window._monImg=window._monImg||{});   // persist ข้าม render
-  function monSpriteOk(url,waitReady=false){ if(!url) return !waitReady; const c=_monImg[url];
+  function monSpriteOk(url,waitReady=false){ if(!url) return !waitReady; const c=Object.hasOwn(_monImg,url)?_monImg[url]:undefined;
     if(c!==undefined) return waitReady?c===true:c!==false;
     _monImg[url]=null;
     try{ const im=new Image();
@@ -12398,10 +12492,11 @@ async function renderBattleGrid(p){
   if(ISO){
     // iso: tile + token interleave ตาม depth (c+r) — กำแพง/ช่องหน้าบัง token หลัง
     let _bg='', _fg='';   // v560 DoF: bg (backdrop+พื้น+วัตถุ/decor) หรี่รวมกลุ่มเดียว · fg (ตัวละคร/ศัตรู) ไม่หรี่
-    if(window._charSprites===true){ const _bk=_biomeKey(grid.background); if(_bk&&_BG_KEYS.has(_bk)){ const _bh=_bgHref(_bk,grid), _bfb=_bgFallbackHref(_bk);
-      // SCENEART-01: แบบย่อยโหลดไม่ได้ → จำ URL ที่ล้ม (ไม่ยิงซ้ำทุก render) แล้วสลับเป็น v00 · ไม่มี v00 = ถอดภาพทิ้ง
-      const _bon=`(window._bgFail=window._bgFail||{})[this.getAttribute('href')]=1;this.onerror=null;`+((_bfb&&_bfb!==_bh)?`this.setAttribute('href','${_bfb}')`:`this.remove()`);
-      if(_bh) _bg+=`<image href="${_bh}" x="0" y="0" width="${IVW}" height="${IVH}" preserveAspectRatio="xMidYMid slice" opacity="1" onerror="${_bon}"/>`; } }   // v451 backdrop biome (เด่นขึ้น รับเลย์เอาต์ฉาก 2/3)
+    if(window._charSprites===true){ const scene=window.SceneBiome, _bk=_biomeKey(grid.background);
+      if(scene?.SCENE_KEYS.includes(_bk)){ const _bh=scene.sceneBackdropHref(_bk,grid,_ASSET.bg,Object.assign(Object.create(null),window._bgFail||{}));
+        if(_bh) _bg+=`<image href="${_bh}" x="0" y="0" width="${IVW}" height="${IVH}" preserveAspectRatio="xMidYMid slice" opacity="1" onerror="window._bgFail=window._bgFail||{};window._bgFail[this.getAttribute('href')]=1;this.onerror=function(){window._bgFail[this.getAttribute('href')]=1;this.remove()};var u=window.SceneBiome.sceneBackdropHref('${_bk}',{id:'${String(grid.id||'').replace(/[^a-zA-Z0-9-]/g,'')}',terrain:{bg_variant:${Number.isInteger(Number(grid?.terrain?.bg_variant))&&Number(grid?.terrain?.bg_variant)>=1&&Number(grid?.terrain?.bg_variant)<=6?Number(grid.terrain.bg_variant):0},dungeon_role:'${['guardian','puzzle','trick','reward','climax'].includes(grid?.terrain?.dungeon_role)?grid.terrain.dungeon_role:''}'}},'${_ASSET.bg}',Object.assign(Object.create(null),window._bgFail));if(u)this.setAttribute('href',u);else this.remove()"/>`;
+      }
+    }   // v451 transparent board; backdrop variants are display only
     // ── v451: พื้น = ตารางหมากรุก iso จาง (ตัด terrain texture ออกหมด — ไม่พึ่งรูปใน Supabase) ──
     //   ช่องปกติ = หมากรุก ~7% + เส้น grid ~22% · กำแพง = บล็อกนูน · น้ำ = overlay
     const _isoTile=(c,r)=>{ const cell=rc2cell(c,r), isW=walls.has(cell), wet=WATER.has(cell), x=isx(c,r), y=isy(c,r), eh=isW?IWALL:IEH;
@@ -13251,7 +13346,7 @@ async function renderPerformanceCard(p){
     const row=document.createElement('label'); row.style.cssText='display:flex;align-items:center;gap:8px;margin:3px 0;cursor:pointer';
     const rb=document.createElement('input'); rb.type='radio'; rb.name='perfPick'; rb.checked=(window._perfPick===t.id); rb.onchange=()=>{ window._perfPick=t.id; };
     const nm=document.createElement('span'); nm.style.cssText='flex:1;font-size:var(--fs-base)'; nm.setAttribute('data-runtime-origin','reference-source'); nm.textContent='♪ '+(t.name||'track');
-    const pv=document.createElement('button'); pv.className='btn ghost sm'; pv.type='button'; pv.textContent='▶'; pv.title=uiCopy('ฟังตัวอย่าง','Preview'); pv.onclick=(e)=>{ e.preventDefault(); try{ if(!_musicOwnerAcquire('preview','performance_preview'))return toast(uiCopy('ยังเล่นตัวอย่างเพลงไม่ได้ โปรดลองอีกครั้งเมื่อเสียงปัจจุบันจบ','The preview cannot play yet. Try again when the current audio finishes.')); if(window._perfPrev&&window._perfPrev.pause) window._perfPrev.pause(); const a=new Audio(PUBLIC_URL+'audio/'+t.storage_path); a.volume=Math.max(0,Math.min(1,musicVol)); a.addEventListener('ended',function(){if(window._perfPrev===a){window._perfPrev=null;if(musicOn)_moodNow();}},{once:true}); const playing=a.play(); window._perfPrev=a; if(playing&&typeof playing.catch==='function') playing.catch(()=>{if(window._perfPrev===a){window._perfPrev=null;toast(uiCopy('เล่นตัวอย่างเพลงไม่สำเร็จ โปรดลองใหม่','Could not play the preview. Please try again.'),true);}}); }catch(_e){toast(uiCopy('เล่นตัวอย่างเพลงไม่สำเร็จ โปรดลองใหม่','Could not play the preview. Please try again.'),true);} };
+    const pv=document.createElement('button'); pv.className='btn ghost sm'; pv.type='button'; pv.textContent='▶'; pv.title=uiCopy('ฟังตัวอย่าง','Preview'); pv.onclick=(e)=>{ e.preventDefault(); try{ if(!_musicOwnerAcquire('preview','performance_preview'))return toast(uiCopy('ยังเล่นตัวอย่างเพลงไม่ได้ โปรดลองอีกครั้งเมื่อเสียงปัจจุบันจบ','The preview cannot play yet. Try again when the current audio finishes.')); if(window._perfPrev&&window._perfPrev.pause) window._perfPrev.pause(); const a=new Audio(PUBLIC_URL+'audio/'+t.storage_path); a.volume=Math.max(0,Math.min(1,musicVol*_musicStingerDuck)); a.addEventListener('ended',function(){if(window._perfPrev===a){window._perfPrev=null;if(musicOn)_moodNow();}},{once:true}); const playing=a.play(); window._perfPrev=a; if(playing&&typeof playing.catch==='function') playing.catch(()=>{if(window._perfPrev===a){window._perfPrev=null;toast(uiCopy('เล่นตัวอย่างเพลงไม่สำเร็จ โปรดลองใหม่','Could not play the preview. Please try again.'),true);}}); }catch(_e){toast(uiCopy('เล่นตัวอย่างเพลงไม่สำเร็จ โปรดลองใหม่','Could not play the preview. Please try again.'),true);} };
     const del=document.createElement('button'); del.className='btn ghost sm'; del.type='button'; del.textContent='✕'; del.onclick=(e)=>{ e.preventDefault(); deletePerformTrack(t.id,t.storage_path); };
     row.appendChild(rb); row.appendChild(nm); row.appendChild(pv); row.appendChild(del); body.appendChild(row);
   });
@@ -14726,7 +14821,7 @@ window.cc = (function(){
         const enabled=await ccCheckAreaCapability(),sheetOk=enabled&&await reloadMySheet();
         const ledger=ccSlotLedgerState(mySheet&&mySheet.slots,sheetOk);character.slots=ledger.slots;character.slotsKnown=ledger.slotsKnown;
         const fresh=sheetOk?await ccLoadAreaGrid():null;
-        const model=spell&&window.SpellAreaPicker&&window.SpellAreaPicker.project(spell,fresh,{level:pick.slot_level,point:pick.point,direction:pick.area.direction});
+        const model=spell&&window.SpellAreaPicker&&window.SpellAreaPicker.project(spell,fresh,{level:pick.slot_level,point:pick.point,direction:pick.area.direction,upcastDamageType:pick.upcast_damage_type??null});
         if(!enabled||!sheetOk||!character.slotsKnown||slotsLeft(pick.slot_level)<1||!model||!model.ready||model.signature!==turn.action._areaPreviewSig||(model.allies.length&&pick.confirm_allies!==true)){
           toast(uiCopy('ยังส่งไม่ได้ กรุณาแก้คำสั่งและตรวจพื้นที่เวทอีกครั้ง','Not submitted. Edit the command and review the spell area again.'),true);return false;
         }
