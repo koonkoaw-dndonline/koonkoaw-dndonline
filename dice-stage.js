@@ -49,7 +49,7 @@
 (function attachDiceStage(){
   'use strict';
 
-  const BUILD='20261009-er375-all-dice';
+  const BUILD='20261010-c1010-8-labels';
   const DICE_PREROLL_AUTO_MS=20000;   // no press → the stage rolls on its own
   const DICE_HOLD_MAX_MS=8000;        // content that arrives before the dice batch waits at most this long
   const DICE_STAGE_TOTAL_MS=35000;    // whole freeze budget with zero input (preroll + roll + result)
@@ -95,6 +95,30 @@
   }
   function isEventObject(event){ return !!event&&typeof event==='object'&&!Array.isArray(event); }
   function normalizedKey(value){ return String(value||'').trim().toLowerCase().replace(/[\s_]+/g,'-'); }
+
+  // C1010-8: key-to-label catalog. Canonical keys stay on the wire, never on the stage.
+  const ROLL_LABELS=Object.freeze([
+    ['acrobatics','กายกรรม','Acrobatics'],['animal handling','ควบคุมสัตว์','Animal Handling'],
+    ['arcana','เวทมนตร์ศาสตร์','Arcana'],['athletics','กรีฑา','Athletics'],['deception','หลอกลวง','Deception'],
+    ['history','ประวัติศาสตร์','History'],['insight','หยั่งใจ','Insight'],['intimidation','ข่มขู่','Intimidation'],
+    ['investigation','สืบสวน','Investigation'],['medicine','การแพทย์','Medicine'],['nature','ธรรมชาติ','Nature'],
+    ['perception','การรับรู้','Perception'],['performance','การแสดง','Performance'],['persuasion','โน้มน้าว','Persuasion'],
+    ['religion','ศาสนา','Religion'],['sleight of hand','มือไว','Sleight of Hand'],['stealth','ลอบเร้น','Stealth'],['survival','เอาตัวรอด','Survival'],
+    ['str','พละกำลัง','Strength','ability'],['dex','ความคล่องแคล่ว','Dexterity','ability'],
+    ['con','ความแข็งแกร่ง','Constitution','ability'],['int','สติปัญญา','Intelligence','ability'],
+    ['wis','ปัญญา','Wisdom','ability'],['cha','เสน่ห์','Charisma','ability'],
+    ['initiative','ทอยลำดับการรบ','Initiative'],['death save','เซฟความตาย','Death save']
+  ].map(function(row){return Object.freeze(row);}));
+  function mechanicalLabel(key,kind,localize){
+    const pick=typeof localize==='function'?localize:function(th,en){return en;};
+    const normalize=function(v){return String(v||'').normalize('NFKC').trim().toLowerCase().replace(/[\s_-]+/g,'');};
+    const raw=normalize(key),type=normalize(kind),save=type==='save'||type==='savingthrow';
+    const canonical=raw==='death'||raw==='deathsave'?'deathsave':raw;
+    const row=ROLL_LABELS.find(function(r){return [r[0],r[1],r[2]].some(function(v){return normalize(v)===canonical;});});
+    if(!row||!String(row[1]||'').trim()||!String(row[2]||'').trim())return save?pick('การเซฟ','Saving throw'):pick('การทดสอบ','Ability check');
+    if(save&&row[3]==='ability')return pick('เซฟ'+row[1],row[2]+' save');
+    return pick(row[1],row[2]);
+  }
   function initiativeLike(event){ return isEventObject(event)&&(normalizedKey(event.kind)==='initiative'||normalizedKey(event.role)==='initiative'||normalizedKey(event.ability)==='initiative'); }
   function isDirectKey(key){ return /^direct:/.test(String(key||'')); }
 
@@ -598,7 +622,7 @@
         glyphs:plan.glyphs,
         buttonLabel:copy('🎲 ทอยเต๋าทั้งหมด','🎲 Roll all dice'),
         hint:hintText(DICE_PREROLL_AUTO_MS/1000),
-        escapeLabel:copy('เล่นต่อ','Play on'),
+        escapeLabel:copy('ข้ามภาพเต๋าและเล่นต่อ','Skip dice display and continue'),
         onPress:function(){ try{ if(machine)machine.press('player',REASONS.pressed); }catch(error){ failOpen(error); } },
         onEscape:escapeHandler(key)
       };
@@ -636,7 +660,7 @@
         glyphs:stageGlyphs(source),
         buttonLabel:copy('🎲 ทอยเต๋า','🎲 Roll the dice'),
         hint:'',
-        escapeLabel:copy('เล่นต่อ','Play on'),
+        escapeLabel:copy('ข้ามภาพเต๋าและเล่นต่อ','Skip dice display and continue'),
         onPress:function(){},
         onEscape:escapeHandler(key)
       };
@@ -710,6 +734,7 @@
   function resetForTests(){ if(machine)machine.reset(); closeView(); preHoldTokens.clear(); adoptedToken=null; resetListeners(); currentKey=''; batchSeq=0; releasing=false; lastToggleLogKey=''; initiativeNote=null; keyMemory=createKeyMemory(); }
 
   window.DiceStage=Object.freeze({
+    label:mechanicalLabel,
     build:BUILD,init:init,enabled:enabled,beginRound:beginRound,splitBatch:splitBatch,arm:arm,direct:direct,pressed:pressed,hosts:hosts,jobResult:jobResult,jobDisposed:jobDisposed,
     resultAckAutoMs:resultAckAutoMs,holdsRound:holdsRound,holdsBattleLog:holdsBattleLog,sequenceDone:sequenceDone,
     preHoldNarration:preHoldNarration,postFlipSignal:postFlipSignal,noteBattleLogRow:noteBattleLogRow,release:release,state:state,
@@ -717,6 +742,7 @@
       DICE_PREROLL_AUTO_MS:DICE_PREROLL_AUTO_MS,DICE_HOLD_MAX_MS:DICE_HOLD_MAX_MS,DICE_STAGE_TOTAL_MS:DICE_STAGE_TOTAL_MS,DICE_STAGE_ACK_MIN_MS:DICE_STAGE_ACK_MIN_MS,DICE_STAGE_ACK_MAX_MS:DICE_STAGE_ACK_MAX_MS,DICE_STAGE_INITIATIVE_NOTE_TTL_MS:DICE_STAGE_INITIATIVE_NOTE_TTL_MS,STAGE_Z_INDEX:STAGE_Z_INDEX,REASONS:REASONS,
       DICE_STAGE_RENDER_WATCH_MS:DICE_STAGE_RENDER_WATCH_MS,DICE_STAGE_MAX_OPENS_PER_KEY:DICE_STAGE_MAX_OPENS_PER_KEY,DICE_STAGE_KEY_MEMORY_MAX:DICE_STAGE_KEY_MEMORY_MAX,DICE_STAGE_STORE_KEY:DICE_STAGE_STORE_KEY,SERVER_INITIATIVE_SOURCES:SERVER_INITIATIVE_SOURCES,
       OVERLAY_INLINE_STYLE:OVERLAY_INLINE_STYLE,PANEL_INLINE_STYLE:PANEL_INLINE_STYLE,
+      ROLL_LABELS:ROLL_LABELS,mechanicalLabel:mechanicalLabel,
       FOOTER_W:FOOTER_W,FOOTER_GAP:FOOTER_GAP,FOOTER_CTRL_H:FOOTER_CTRL_H,FOOTER_HINT_PX:FOOTER_HINT_PX,FOOTER_BTN_PX:FOOTER_BTN_PX,FOOTER_HINT_FONT:FOOTER_HINT_FONT,FOOTER_BTN_FONT:FOOTER_BTN_FONT,
       dieKind:dieKind,initiativeLike:initiativeLike,isDirectKey:isDirectKey,stageGlyphs:stageGlyphs,splitStageBatch:splitStageBatch,planStageBatch:planStageBatch,ackBudgetMs:ackBudgetMs,countdownSeconds:countdownSeconds,ownBattleLogRow:ownBattleLogRow,createStageMachine:createStageMachine,glyphPoints:glyphPoints,
       initiativeServerRolled:initiativeServerRolled,createKeyMemory:createKeyMemory,hasStageElement:hasStageElement

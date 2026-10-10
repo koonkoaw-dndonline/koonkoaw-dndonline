@@ -30,7 +30,7 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 <script src="./dice-roll-sound.js?v=0823"></script>
 <script src="./dice-fx.js?v=0903"></script>
 <script src="./dice-canvas.js?v=20260927dicelive01"></script>
-<script src="./dice-stage.js?v=20261009f375"></script>
+<script src="./dice-stage.js?v=20261010c8"></script>
 <script src="./ui-draft-guard.js?v=20261009f375"></script>
 <script src="./music-playback-owner.js?v=847"></script>
 <script src="./music-v2-dark-launch.js?v=20261002q174"></script>
@@ -71,6 +71,7 @@ try{ if((localStorage.getItem('ui_skin')||'paper')==='paper') document.documentE
 }
 .dice-result-rail{display:flex;flex:0 0 auto;width:100%;min-width:0;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:8px;position:relative;z-index:3;pointer-events:none;}
 .dice-result-rail:empty{display:none;}
+html.skin-paper #storyReceiptHud{--dice-summary-bg:#fff6e5;--dice-summary-ink:#33200d;--dice-summary-border:#805a2b;}
 .dice-result-rail>*{pointer-events:auto;}
 .dice-result-summary{width:min(100%,500px);padding:10px 14px;border:2px solid var(--dice-summary-border);border-radius:10px;background:var(--dice-summary-bg);color:var(--dice-summary-ink);font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:var(--fs-md);font-weight:650;line-height:1.5;text-align:center;box-shadow:0 10px 28px rgba(0,0,0,.5);}
 .dice-result-count{display:inline-flex;align-items:center;justify-content:center;min-width:48px;margin-bottom:5px;padding:2px 8px;border:1px solid currentColor;border-radius:999px;font:850 var(--fs-sm)/1.2 system-ui,-apple-system,'Segoe UI',sans-serif;font-variant-numeric:tabular-nums;}
@@ -472,15 +473,16 @@ body.ui-min #worldClock{display:none!important;}
   .panel[data-tab="story"].active{
     display:grid;
     grid-template-columns:minmax(0,1fr) 380px;
-    grid-template-rows:auto auto auto minmax(0,1fr);
+    grid-template-rows:auto auto auto auto minmax(0,1fr);
     gap:0 24px;
     max-width:none;width:100%;
     overflow:hidden;            /* ไม่ให้ทั้ง panel เลื่อน */
   }
   .panel[data-tab="story"].active #worldClock{grid-column:1 / -1;grid-row:1;}
   .panel[data-tab="story"].active #diceStoryResultRail{grid-column:1 / -1;grid-row:2;}
+  .panel[data-tab="story"].active #inventoryReceiptFirst{grid-column:1 / -1;grid-row:3;}
   .panel[data-tab="story"].active #narrFeed{
-    grid-column:1;grid-row:3 / 5;min-width:0;
+    grid-column:1;grid-row:4 / 6;min-width:0;
     overflow-y:auto;max-height:100%;padding-right:8px;   /* แถบ scroll ติดเนื้อเรื่อง */
     scrollbar-width:thin;scrollbar-color:#2a2a2a transparent;
   }
@@ -490,13 +492,14 @@ body.ui-min #worldClock{display:none!important;}
   .panel[data-tab="story"].active #narrFeed::-webkit-scrollbar-thumb{background:#2a2a2a;border:0;border-radius:4px;}
   .panel[data-tab="story"].active #narrFeed::-webkit-scrollbar-thumb:hover{background:#444;}
   .panel[data-tab="story"].active .roundbar{
-    grid-column:2;grid-row:4;align-self:stretch;
+    grid-column:2;grid-row:5;align-self:stretch;min-height:0;
+    background:transparent;box-shadow:none; /* C1010-9: no opaque slab behind the action column. */
     overflow-y:auto;max-height:100%;                       /* ปกติไม่เลื่อน เผื่อยาวมากค่อยเลื่อนเฉพาะกล่องนี้ */
-    border-top:none;border-left:var(--px) solid var(--white);
-    padding:2px 0 80px 18px;margin:0;max-width:none;width:100%;
+    border-top:none;border-left:0;
+    padding:2px 0 80px;margin:0;max-width:none;width:100%;
   }
   .panel[data-tab="story"].active #partyDecisionMount{
-    grid-column:2;grid-row:3;padding:0 0 12px 18px;
+    grid-column:2;grid-row:4;padding:0 0 12px;
   }
 }
 /* ≥1300: World HUD ลอยซ้าย (ตำแหน่งเดิม) → เว้นที่ให้เนื้อเรื่องไม่ทับ */
@@ -1993,29 +1996,43 @@ body{--er-type-micro:var(--er-fs-xs);--er-type-meta:var(--er-fs-sm);--er-type-bo
 :root body :is(.kv,.cc-tag,.bs-ihp){font-variant-numeric:tabular-nums}
 /* D1-384: inline receipt stage; stays in the existing receipt-first slot, never overlays prose. */
 #inventoryReceiptFirst{min-width:0;}
-#inventoryReceiptFirst .story-roll-banner{min-width:0;border:1px solid var(--dice-summary-border);border-radius:10px;background:var(--dice-summary-bg);color:var(--dice-summary-ink);font:400 var(--er-type-body)/1.65 var(--er-body);overflow-wrap:anywhere;}
-#inventoryReceiptFirst .story-roll-head{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;padding:10px 14px;}
-#inventoryReceiptFirst .story-roll-title{flex:1 1 130px;font-size:var(--er-type-body);font-weight:700;line-height:1.6;margin:0;}
-#inventoryReceiptFirst .story-roll-controls{display:flex;gap:6px;flex-wrap:wrap;}
-#inventoryReceiptFirst .story-roll-control{min-height:44px;padding:6px 10px;border:1px solid currentColor;border-radius:5px;background:transparent;color:inherit;font:600 var(--er-type-meta)/1.5 var(--er-body);cursor:pointer;}
-#inventoryReceiptFirst .story-roll-control:focus-visible{outline:3px solid currentColor;outline-offset:3px;}
-#inventoryReceiptFirst .story-roll-body[hidden],#inventoryReceiptFirst .story-roll-banner[hidden]{display:none;}
-#inventoryReceiptFirst .story-roll-card{display:grid;grid-template-columns:90px minmax(0,1fr);gap:14px;padding:16px;border-top:1px solid var(--dice-summary-border);align-items:center;min-width:0;}
-#inventoryReceiptFirst .story-roll-die{position:relative;display:grid;place-items:center;width:88px;height:96px;color:var(--dice-summary-border);flex:none;}
-#inventoryReceiptFirst .story-roll-die svg{position:absolute;inset:0;width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:2;}
-#inventoryReceiptFirst .story-roll-face{font:800 32px/1.2 var(--er-body);color:var(--dice-summary-ink);font-variant-numeric:tabular-nums;}
-#inventoryReceiptFirst .story-roll-kind{position:absolute;bottom:5px;font:600 12px/1.5 var(--er-body);color:var(--dice-summary-ink);}
-#inventoryReceiptFirst .story-roll-info{min-width:0;}
-#inventoryReceiptFirst .story-roll-actor{font-weight:600;line-height:1.65;margin-bottom:4px;}
-#inventoryReceiptFirst .story-roll-equation{font-size:var(--er-type-meta);font-variant-numeric:tabular-nums;line-height:1.65;}
-#inventoryReceiptFirst .story-roll-total{font-size:var(--er-type-title);font-weight:800;}
-#inventoryReceiptFirst .story-roll-outcome{display:block;width:fit-content;max-width:100%;margin-top:8px;padding:5px 10px;border:1px solid currentColor;border-radius:5px;background:var(--dice-neutral-bg);color:var(--dice-neutral-ink);font-weight:700;line-height:1.6;}
-#inventoryReceiptFirst [data-story-roll-tone="success"] .story-roll-outcome{background:var(--dice-success-bg);color:var(--dice-success-ink);}
-#inventoryReceiptFirst [data-story-roll-tone="failure"] .story-roll-outcome{background:var(--dice-failure-bg);color:var(--dice-failure-ink);}
-#inventoryReceiptFirst [data-story-roll-tone="critical"] .story-roll-outcome{background:var(--dice-critical-bg);color:var(--dice-critical-ink);}
-#inventoryReceiptFirst .story-roll-plain{white-space:pre-wrap;padding:10px 0;}
-:root:not(.skin-paper) #inventoryReceiptFirst .story-roll-banner{border-radius:2px;}
-@media(max-width:480px){#inventoryReceiptFirst .story-roll-card{grid-template-columns:68px minmax(0,1fr);gap:10px;padding:12px;}#inventoryReceiptFirst .story-roll-die{width:68px;height:80px;}#inventoryReceiptFirst .story-roll-face{font-size:var(--er-fs-3xl);}#inventoryReceiptFirst .story-roll-head{padding:8px 12px;}}
+:is(#inventoryReceiptFirst,#storyReceiptHud) .story-roll-banner{min-width:0;border:1px solid var(--dice-summary-border);border-radius:10px;background:var(--dice-summary-bg);color:var(--dice-summary-ink);font:400 var(--er-type-body)/1.65 var(--er-body);overflow-wrap:anywhere;}
+:is(#inventoryReceiptFirst,#storyReceiptHud) .story-roll-head{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;padding:10px 14px;}
+:is(#inventoryReceiptFirst,#storyReceiptHud) .story-roll-title{flex:1 1 130px;font-size:var(--er-type-body);font-weight:700;line-height:1.6;margin:0;}
+:is(#inventoryReceiptFirst,#storyReceiptHud) .story-roll-controls{display:flex;gap:6px;flex-wrap:wrap;}
+:is(#inventoryReceiptFirst,#storyReceiptHud) .story-roll-control{min-height:44px;padding:6px 10px;border:1px solid currentColor;border-radius:5px;background:transparent;color:inherit;font:600 var(--er-type-meta)/1.5 var(--er-body);cursor:pointer;}
+:is(#inventoryReceiptFirst,#storyReceiptHud) .story-roll-control:focus-visible{outline:3px solid currentColor;outline-offset:3px;}
+:is(#inventoryReceiptFirst,#storyReceiptHud) .story-roll-body[hidden],:is(#inventoryReceiptFirst,#storyReceiptHud) .story-roll-banner[hidden]{display:none;}
+:is(#inventoryReceiptFirst,#storyReceiptHud) .story-roll-card{display:grid;grid-template-columns:90px minmax(0,1fr);gap:14px;padding:16px;border-top:1px solid var(--dice-summary-border);align-items:center;min-width:0;}
+:is(#inventoryReceiptFirst,#storyReceiptHud) .story-roll-die{position:relative;display:grid;place-items:center;width:88px;height:96px;color:var(--dice-summary-border);flex:none;}
+:is(#inventoryReceiptFirst,#storyReceiptHud) .story-roll-die svg{position:absolute;inset:0;width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:2;}
+:is(#inventoryReceiptFirst,#storyReceiptHud) .story-roll-face{font:800 32px/1.2 var(--er-body);color:var(--dice-summary-ink);font-variant-numeric:tabular-nums;}
+:is(#inventoryReceiptFirst,#storyReceiptHud) .story-roll-kind{position:absolute;bottom:5px;font:600 12px/1.5 var(--er-body);color:var(--dice-summary-ink);}
+:is(#inventoryReceiptFirst,#storyReceiptHud) .story-roll-info{min-width:0;}
+:is(#inventoryReceiptFirst,#storyReceiptHud) .story-roll-actor{font-weight:600;line-height:1.65;margin-bottom:4px;}
+:is(#inventoryReceiptFirst,#storyReceiptHud) .story-roll-equation{font-size:var(--er-type-meta);font-variant-numeric:tabular-nums;line-height:1.65;}
+:is(#inventoryReceiptFirst,#storyReceiptHud) .story-roll-total{font-size:var(--er-type-title);font-weight:800;}
+:is(#inventoryReceiptFirst,#storyReceiptHud) .story-roll-outcome{display:block;width:fit-content;max-width:100%;margin-top:8px;padding:5px 10px;border:1px solid currentColor;border-radius:5px;background:var(--dice-neutral-bg);color:var(--dice-neutral-ink);font-weight:700;line-height:1.6;}
+:is(#inventoryReceiptFirst,#storyReceiptHud) [data-story-roll-tone="success"] .story-roll-outcome{background:var(--dice-success-bg);color:var(--dice-success-ink);}
+:is(#inventoryReceiptFirst,#storyReceiptHud) [data-story-roll-tone="failure"] .story-roll-outcome{background:var(--dice-failure-bg);color:var(--dice-failure-ink);}
+:is(#inventoryReceiptFirst,#storyReceiptHud) [data-story-roll-tone="critical"] .story-roll-outcome{background:var(--dice-critical-bg);color:var(--dice-critical-ink);}
+:is(#inventoryReceiptFirst,#storyReceiptHud) .story-roll-plain{white-space:pre-wrap;padding:10px 0;}
+:root:not(.skin-paper) :is(#inventoryReceiptFirst,#storyReceiptHud) .story-roll-banner{border-radius:2px;}
+@media(max-width:480px){:is(#inventoryReceiptFirst,#storyReceiptHud) .story-roll-card{grid-template-columns:68px minmax(0,1fr);gap:10px;padding:12px;}:is(#inventoryReceiptFirst,#storyReceiptHud) .story-roll-die{width:68px;height:80px;}:is(#inventoryReceiptFirst,#storyReceiptHud) .story-roll-face{font-size:var(--er-fs-3xl);}:is(#inventoryReceiptFirst,#storyReceiptHud) .story-roll-head{padding:8px 12px;}}
+/* C1010-4/10: latest committed roll belongs to the LOCATION HUD, before quest choices. */
+#storyReceiptHud{min-width:0;flex:0 0 auto;--dice-summary-bg:#f3e4c8;--dice-summary-ink:#2b1c0d;--dice-summary-border:#795729;color:var(--dice-summary-ink);text-align:left;}
+#storyReceiptHud>.story-roll-control{background:var(--dice-summary-bg);}
+#storyReceiptHud .story-roll-card{grid-template-columns:56px minmax(0,1fr);gap:10px;padding:10px;align-items:start;}
+#storyReceiptHud .story-roll-die{width:56px;height:68px;}
+#storyReceiptHud .story-roll-face{font-size:var(--er-fs-3xl);}
+#storyReceiptHud .story-roll-kind{bottom:1px;font-size:var(--fs-xs);}
+#storyReceiptHud .story-roll-head{padding:8px 10px;}
+#storyReceiptHud .story-roll-title{flex-basis:100%;}
+#storyReceiptHud .story-roll-total{font-size:var(--er-type-body);}
+#storyReceiptHud .story-roll-outcome{padding:4px 6px;}
+body.ui-min #worldClock.story-receipt-active{display:flex!important;}
+@media(max-width:1299px){#worldClock.story-receipt-active{position:static;}#storyReceiptHud .story-roll-card{grid-template-columns:68px minmax(0,1fr);}#storyReceiptHud .story-roll-die{width:68px;height:80px;}}
+@media(min-width:1300px){#worldClock.story-receipt-active{max-height:calc(100dvh - 166px);overflow-y:auto;scrollbar-width:thin;}}
 </style>
 </head>
 <body>
@@ -2370,7 +2387,7 @@ function edgeFunctionResolverUrl(region){
 let activeEdgeFunctionRegion=EDGE_REGION_DEFAULT;
 let RESOLVE_FN=edgeFunctionResolverUrl(activeEdgeFunctionRegion);
 const PARTY_DECISION_SURFACE_FN=SUPA_URL.replace(/\/$/,'')+'/functions/v1/aux-endpoints/party-decision-surface';
-const FRONTEND_BUILD = 202610101235;
+const FRONTEND_BUILD = 202610101236;
 const FRONTEND_COMPAT_EPOCH = 2;
 
 function actionIngressGroup(round, characterId){
@@ -2502,7 +2519,20 @@ if(typeof window.addEventListener==='function') window.addEventListener('storage
   if(t==='quest'&&typeof renderQuest==='function') renderQuest();
   else if(t==='story'&&typeof renderStory==='function') renderStory();
 }catch(e){} });
-function questAffordancesForUi(){ return Array.isArray(window._questAffordances)?window._questAffordances.slice():[]; }
+// C1010-5: prune only server-confirmed committed identities; never infer rights from titles.
+function questAffordancesAfterCommit(rows,quests,acceptedOfferId){
+  const ended=new Set((Array.isArray(quests)?quests:[]).filter(q=>q&&['completed','failed','merged'].includes(q.status)).map(q=>String(q.id||'')));
+  return (Array.isArray(rows)?rows:[]).filter(aff=>aff&&!(aff.operation==='accept'&&acceptedOfferId&&String(aff.id)===String(acceptedOfferId))&&!(aff.operation==='turn_in'&&ended.has(String(aff.id))));
+}
+function questAffordancesForUi(){
+  const cid=typeof campaign!=='undefined'&&campaign?String(campaign.id||''):'';
+  const bpq=typeof worldState!=='undefined'&&worldState&&String(worldState.campaign_id||'')===cid&&worldState.settings&&worldState.settings.bpq;
+  const accepted=bpq&&bpq.qid&&bpq.offer_id?String(bpq.offer_id):'';
+  const rows=window._questUiCampaign===cid?window._questUiRows:[];
+  const current=Array.isArray(window._questAffordances)?window._questAffordances:[],visible=questAffordancesAfterCommit(current,rows,accepted);
+  if(visible.length!==current.length){window._questAffordances=visible;persistQuestAffordances(visible,window._questAffordanceSurfaceReceipt);}
+  return visible;
+}
 function questAffordanceLabel(affordance){ return questTitleWithoutDifficultyLabel(uiCopy(String(affordance.label_th),String(affordance.label_en))); }
 function questAffordanceIntent(affordance, actorCharacterId){
   return {version:1,kind:'player_quest',operation:affordance.operation,target:{kind:affordance.operation==='accept'?'quest_offer':'active_quest',id:affordance.id},source:{kind:affordance.source_kind,id:affordance.source_id},actor_character_id:String(actorCharacterId)};
@@ -2521,7 +2551,9 @@ async function submitQuestAffordance(affordance){
     if(!saved||!saved.action_id) throw new Error(uiCopy('ตัวเลือกเควสยังไม่มีหลักฐานยืนยัน จึงยังไม่ดำเนินรายการ','The quest choice had no confirmation, so it was not processed.'));
     window._actionEditDraft=''; window._actionRepair=null;
     toast(uiCopy('ส่งตัวเลือกเควสแล้ว ✓','Quest choice submitted ✓'));
-    await loadRound(); renderRoundbar(); window._afterSubmit=true; await resolveRound(false);
+    await loadRound(); renderRoundbar(); window._afterSubmit=true;
+    window._questAffordanceSubmitting=false; const questResolution=resolveRound(false); actionSubmitFeedback();
+    if(activeTab()==='quest') renderQuest(); await questResolution;
   }catch(e){ toast(e.message||uiCopy('ยังยืนยันผลตัวเลือกเควสไม่ได้ โปรดตรวจสถานะล่าสุดก่อนส่งอีกครั้ง','Could not confirm the quest choice. Check the latest status before submitting again.'),true); }
   finally{ window._questAffordanceSubmitting=false; actionSubmitFeedback(); try{ if(activeTab()==='quest') await renderQuest(); else if(activeTab()==='story') renderStory(); }catch(e){} }
 }
@@ -4776,6 +4808,7 @@ async function _refreshAllInner(){
   if(myChar){ try{ const r=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle(); if(r.error) throw r.error; mySheet=r.data?.sheet||{}; mySheetUpdatedAt=r.data?.updated_at||null; cacheSave('sheet_'+myChar.id, mySheet); }catch(e){ const c=cacheLoad('sheet_'+myChar.id); mySheet=c||mySheet||{}; } }
   await Promise.all([updateCombatBadge(), refreshCombatTurn(), refreshInitiativePressPrompt()]);   // W31-S1b: pending initiative prompt is pre-combat UI and must hydrate before battle.active
   partyDecisionHintRefresh('refresh-all');
+  if(activeTab()==='quest') await renderQuest();
   scheduleBattleScene();
 }
 // v739 FZ-2: combat_state ไม่มี group_no โดยตรง จึง scope ผ่าน encounter→initiative เสมอ
@@ -4954,6 +4987,12 @@ function dicePlaybackLog(reason,detail){
 }
 // ── DICE-FE: additive combat_dice union; absent field is a strict no-op ──
 const COMBAT_DICE_RECEIPT_CAP=8;
+// C1010-8: every mechanical key crosses one paired catalog; unavailable means generic copy.
+function diceMechanicalLabel(key,kind){
+  const catalog=window.DiceStage;
+  if(catalog&&typeof catalog.label==='function')return catalog.label(key,kind,uiCopy);
+  return kind==='save'?uiCopy('การเซฟ','Saving throw'):uiCopy('การทดสอบ','Ability check');
+}
 const COMBAT_DICE_UUID_RE=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function combatDiceInteger(value,min,max){ return Number.isInteger(value)&&value>=min&&value<=max?value:null; }
 function combatDiceText(value,nullable){ if(value===null&&nullable)return null; if(typeof value!=='string')return undefined; const text=value.trim(); return text&&text.length<=160?text:undefined; }
@@ -5012,7 +5051,7 @@ function combatDiceSaveFlavor(receipt){const ability=String(receipt&&receipt.abi
 function combatDiceReceiptLabel(receipt){
   const mode=combatDiceModeLabel(receipt.mode),modePart=mode?' · '+mode:'';
   if(receipt.kind==='attack'){const outcome=receipt.crit?uiCopy('คริติคอล','Critical hit'):receipt.hit?uiCopy('โจมตีโดน','Hit'):uiCopy('โจมตีพลาด','Miss');return receipt.who+' · '+uiCopy('โจมตี','Attack')+' '+receipt.target+' · '+receipt.weapon+modePart+' · vs AC '+receipt.ac+' · '+outcome;}
-  if(receipt.kind==='save'){const flavor=combatDiceSaveFlavor(receipt);if(flavor==='initiative')return receipt.who+' · '+combatDiceInitiativeCopy()+modePart+' · '+combatDiceTotalCopy()+receipt.total;const outcome=receipt.pass?uiCopy('ผ่านเซฟ','Save passed'):uiCopy('ไม่ผ่านเซฟ','Save failed'),ability=flavor==='death-save'?combatDiceDeathSaveCopy():(receipt.ability||uiCopy('การเซฟ','Save'));return receipt.who+' · '+ability+modePart+' · DC '+receipt.dc+' · '+outcome;}
+  if(receipt.kind==='save'){const flavor=combatDiceSaveFlavor(receipt);if(flavor==='initiative')return receipt.who+' · '+combatDiceInitiativeCopy()+modePart+' · '+combatDiceTotalCopy()+receipt.total;const outcome=receipt.pass?uiCopy('ผ่านเซฟ','Save passed'):uiCopy('ไม่ผ่านเซฟ','Save failed'),ability=flavor==='death-save'?combatDiceDeathSaveCopy():diceMechanicalLabel(receipt.ability,'save');return receipt.who+' · '+ability+modePart+' · DC '+receipt.dc+' · '+outcome;}
   return receipt.who+' → '+receipt.target+' · '+uiCopy('ดาเมจ','Damage')+' '+receipt.damage+' · '+uiCopy('ค่าดิบ','Raw values');
 }
 function combatDicePlaybackPayload(receipt){
@@ -5090,7 +5129,7 @@ function playRoundDiceMeta(round,character,choreography){
         if(!dicePreferenceEnabled('dice_fx')){emit('fx_disabled_unseen',{receiptIndex:index,receiptWho:receipt.who});return;}
         const diceFx=window.DiceFx;
         if(!diceFx||typeof diceFx.roll!=='function'){burn(receiptKey);emit('dicefx_missing_fail_open',{receiptIndex:index,receiptWho:receipt.who});return;}
-        const isOwn=!!ownName&&diceMetaOwnerKey(receipt.who)===ownName,initiative=/initiative|ลำดับ/i.test(String(receipt.kind||'')+' '+String(receipt.skill||'')),payload={eventId:'dice-meta:'+receiptKey,kind:initiative?'initiative':'check',role:initiative?'initiative':'check',who:String(receipt.who||''),dice:[{die:'d20',value:roll}],flat:Number.isFinite(receipt.bonus)?receipt.bonus:0,total:total,dc:Number.isFinite(receipt.dc)?receipt.dc:null,pass:typeof receipt.pass==='boolean'?receipt.pass:null,tier:typeof receipt.tier==='string'?receipt.tier:'',label:String(receipt.skill||receipt.kind||''),pressToRoll:isOwn,queuePosition:queuePlan.storyPositions[index],queueTotal:queuePlan.total,onRollTrigger:pressed=>emit('roll_triggered',{receiptIndex:index,receiptWho:receipt.who,pressed_by_player:pressed===true})};
+        const isOwn=!!ownName&&diceMetaOwnerKey(receipt.who)===ownName,initiative=/initiative|ลำดับ/i.test(String(receipt.kind||'')+' '+String(receipt.skill||'')),payload={eventId:'dice-meta:'+receiptKey,kind:initiative?'initiative':'check',role:initiative?'initiative':'check',who:String(receipt.who||''),dice:[{die:'d20',value:roll}],flat:Number.isFinite(receipt.bonus)?receipt.bonus:0,total:total,dc:Number.isFinite(receipt.dc)?receipt.dc:null,pass:typeof receipt.pass==='boolean'?receipt.pass:null,tier:typeof receipt.tier==='string'?receipt.tier:'',label:diceMechanicalLabel(receipt.skill||receipt.kind,initiative?'initiative':receipt.kind==='save'?'save':'check'),pressToRoll:isOwn,queuePosition:queuePlan.storyPositions[index],queueTotal:queuePlan.total,onRollTrigger:pressed=>emit('roll_triggered',{receiptIndex:index,receiptWho:receipt.who,pressed_by_player:pressed===true})};
         if(choreography){queued.push({payload:payload,receiptKey:receiptKey,index:index,who:receipt.who});return;}
         inFlight.add(receiptKey);directPending++;
         let receiptDone=false,timer=null;
@@ -7244,17 +7283,18 @@ const _storyReceiptBannerViews=new Map();
 function renderStoryReceiptBanner(rows,box){
   const selected=rows.map(n=>({n:n,text:narrText(n)})).filter(row=>String(row.n&&row.n.source_content||'').startsWith('system:story-check:')&&row.text);
   if(!selected.length)return;
-  const key=String(campaign&&campaign.id||'')+':'+String(curRound&&curRound.id||''),signature=JSON.stringify(selected.map(row=>[row.n.id,row.text]));
+  const key=String(campaign&&campaign.id||'')+':'+JSON.stringify(selected.map(row=>String(row.n.id||row.n.source_content||''))),signature=JSON.stringify(selected.map(row=>[row.n.id,row.text]));
+  const bodyId='storyReceiptBannerBody-'+selected.map(row=>encodeURIComponent(String(row.n.id||row.n.source_content||''))).join('-');
   let state=_storyReceiptBannerViews.get(key);if(!state||state.signature!==signature){state={signature:signature,mode:'open'};_storyReceiptBannerViews.set(key,state);}
   while(_storyReceiptBannerViews.size>20)_storyReceiptBannerViews.delete(_storyReceiptBannerViews.keys().next().value);
   const banner=document.createElement('section');banner.className='story-roll-banner';banner.setAttribute('aria-label',uiCopy('ผลทอยนอกศึก','Story roll results'));
   const head=document.createElement('div');head.className='story-roll-head';
   const title=document.createElement('h3');title.className='story-roll-title';title.textContent=uiCopy('ผลทอยนอกศึก','Story roll results');head.appendChild(title);
   const controls=document.createElement('div');controls.className='story-roll-controls';
-  const toggle=document.createElement('button');toggle.type='button';toggle.className='story-roll-control';toggle.dataset.storyReceiptControl='toggle';toggle.setAttribute('aria-controls','storyReceiptBannerBody');
+  const toggle=document.createElement('button');toggle.type='button';toggle.className='story-roll-control';toggle.dataset.storyReceiptControl='toggle';toggle.setAttribute('aria-controls',bodyId);
   const close=document.createElement('button');close.type='button';close.className='story-roll-control';close.dataset.storyReceiptControl='close';close.textContent=uiCopy('ปิด','Close');close.setAttribute('aria-label',uiCopy('ปิดผลทอยนอกศึก','Close story roll results'));
   controls.appendChild(toggle);controls.appendChild(close);head.appendChild(controls);banner.appendChild(head);
-  const body=document.createElement('div');body.className='story-roll-body';body.id='storyReceiptBannerBody';banner.appendChild(body);
+  const body=document.createElement('div');body.className='story-roll-body';body.id=bodyId;banner.appendChild(body);
   selected.forEach(row=>{
     const models=storyReceiptBannerModels(row.n,row.text);
     if(!models){const plain=document.createElement('div');plain.className='story-roll-card story-roll-plain';plain.style.display='block';plain.textContent=row.text;body.appendChild(plain);return;}
@@ -7277,6 +7317,27 @@ function renderStoryReceiptBanner(rows,box){
   close.onclick=()=>{state.mode='closed';refresh();reopen.focus();};
   reopen.onclick=()=>{state.mode='open';refresh();toggle.focus();};
   refresh();box.appendChild(banner);box.appendChild(reopen);
+}
+// C1010-4: final, unheld receipts from the latest resolved round in this world.
+function latestStoryReceiptRows(rows,currentRound,campaignId){
+  const selected=(Array.isArray(rows)?rows:[]).map((n,i)=>({n:n,i:i})).filter(({n})=>
+    n&&n.status==='final'&&n.round_id&&String(n.campaign_id||'')===String(campaignId||'')&&
+    String(n.source_content||'').startsWith('system:story-check:')&&
+    (String(n.round_id)!==String(currentRound&&currentRound.id||'')||currentRound.phase==='done'));
+  selected.sort((a,b)=>(Date.parse(a.n.created_at)||0)-(Date.parse(b.n.created_at)||0)||a.i-b.i);
+  const latest=selected[selected.length-1];return latest?selected.filter(row=>String(row.n.round_id)===String(latest.n.round_id)).map(row=>row.n):[];
+}
+function renderStoryReceiptHud(){
+  const hud=$('worldClock');if(!hud)return;
+  const previous=$('storyReceiptHud'),focus=previous&&previous.contains(document.activeElement)&&document.activeElement.dataset.storyReceiptControl;
+  if(previous)previous.remove();
+  const rows=latestStoryReceiptRows(narrative.filter(n=>!diceNarrationRowHeld(n)&&!!narrText(n)),curRound,campaign&&campaign.id);
+  hud.classList.toggle('story-receipt-active',rows.length>0);
+  if(!rows.length)return;
+  const box=document.createElement('div');box.id='storyReceiptHud';box.setAttribute('role','status');box.setAttribute('aria-live','polite');
+  hud.classList.remove('hidden');hud.insertBefore(box,hud.querySelector('.quest-affordance-story-signal')||hud.querySelector('#relTopBox'));
+  renderStoryReceiptBanner(rows,box);
+  if(focus){const target=box.querySelector('[data-story-receipt-control="'+focus+'"]');if(target&&!target.hidden)target.focus({preventScroll:true});}
 }
 function renderProgressiveReceipts(rows){
   const box=$('inventoryReceiptFirst'); if(!box) return;
@@ -7334,7 +7395,7 @@ function renderQuestAffordanceStorySignal(feed){
   hud.querySelectorAll('.quest-affordance-story-signal').forEach(node=>node.remove());
   const affordances=questAffordancesForUi();
   hud.classList.toggle('quest-alert-active',affordances.length>0);
-  if(!affordances.length) return;
+  if(!affordances.length){renderStoryReceiptHud();return;}
   hud.classList.remove('hidden');
   const acceptCount=affordances.filter(aff=>aff.operation==='accept').length, turnInCount=affordances.length-acceptCount;
   const card=document.createElement('div'); card.className='whbox quest-affordance-story-signal'; card.style.cssText='width:100%;box-sizing:border-box;text-align:left;overflow-wrap:anywhere';
@@ -7343,37 +7404,41 @@ function renderQuestAffordanceStorySignal(feed){
   detail.textContent=uiCopy('รับได้ '+acceptCount+' · พร้อมส่ง '+turnInCount,'Available '+acceptCount+' · ready to turn in '+turnInCount); card.appendChild(detail);
   const button=document.createElement('button'); button.type='button'; button.className='btn sm'; button.textContent=uiCopy('เปิดแท็บ Quest','Open Quest tab'); button.setAttribute('onclick',"switchTab('quest')"); card.appendChild(button);
   hud.insertBefore(card,hud.querySelector('#relTopBox'));
+  renderStoryReceiptHud();
 }
 async function renderStory(){
   renderClock();
   try{ renderVoteCard(); }catch(e){}
   const isStreaming = n => n.status==='placeholder' && n.content && !/^_/.test(String(n.content).trim());
-  const receiptRows=narrative.filter(n=>n.status!=='placeholder'&&isProgressiveReceiptNarrative(n)&&String(n.round_id||'')===String((curRound&&curRound.id)||'')).filter(n=>!diceNarrationRowHeld(n));
+  const isStoryReceipt=n=>String(n&&n.source_content||'').startsWith('system:story-check:');
+  const receiptRows=narrative.filter(n=>n.status!=='placeholder'&&isProgressiveReceiptNarrative(n)&&!isStoryReceipt(n)&&String(n.round_id||'')===String((curRound&&curRound.id)||'')).filter(n=>!diceNarrationRowHeld(n));
   renderProgressiveReceipts(receiptRows);
   const receiptIds=new Set(receiptRows.map(n=>String(n.id)));
   const shown = narrative.filter(n => (n.status !== 'placeholder' || isStreaming(n))&&!receiptIds.has(String(n.id))&&(isStreaming(n)||!!narrText(n))).filter(n=>!diceNarrationRowHeld(n));
   const feed=$('narrFeed');
   const isig = n => JSON.stringify([n.status,n.author,narrText(n),n.projection_status,n.projection_note,narrativeActionFoldDecision(n,_narrativeActionStates).lifecycleState]);
-  const cdraw = n => isStreaming(n) ? (colorizeNarr(n.content)+'<span class="dots">▌</span>') : narrDraw(n);
+  const cdraw = (element,n) => {
+    element.innerHTML=isStreaming(n)?(colorizeNarr(n.content)+'<span class="dots">▌</span>'):narrDraw(n);applyNarrativeFoldElement(element,n);
+  };
   const existing=[...feed.querySelectorAll('.narr')];
   const sameStruct = shown.length>0 && existing.length===shown.length && shown.every((n,i)=> existing[i] && existing[i].dataset.nid===String(n.id));
   if(sameStruct){
     // อัปเดตเฉพาะกล่องที่เนื้อหาเปลี่ยน (เช่นสตรีม) → ไม่ rebuild ทั้ง feed = ไม่กระพริบ ไม่เด้ง scroll
     let changed=false;
-    shown.forEach((n,i)=>{ if(existing[i].dataset.sig!==isig(n)){ const cd=existing[i].querySelector('.narrc'); if(cd){ cd.innerHTML=cdraw(n); applyNarrativeFoldElement(cd,n); existing[i].dataset.sig=isig(n); changed=true; } } });
+    shown.forEach((n,i)=>{ if(existing[i].dataset.sig!==isig(n)){ const cd=existing[i].querySelector('.narrc'); if(cd){ cdraw(cd,n); existing[i].dataset.sig=isig(n); changed=true; } } });
     if(changed && !_skipAutoScroll){ const sp=$('panel-story'); if(sp && (sp.scrollHeight-sp.scrollTop-sp.clientHeight)<160) sp.scrollTop=sp.scrollHeight; }
     renderRecruitmentAffordance(feed,shown); renderQuestAffordanceStorySignal(feed); _skipAutoScroll=false; renderRoundbar(); return;
   }
   // โครงสร้างเปลี่ยน (entry ใหม่/ลบ/โหลดเก่า) → rebuild ทั้งก้อน
   _lastFeedSig=shown.map(n=>`${n.id}:${isig(n)}`).join('|');
-  // v788: current-round committed facts stay in receipt-first; older receipts return to chronological history.
+  // C1010-4: keep the ordinary chronological receipt in the feed; the latest round's banner lives in the HUD.
   feed.innerHTML='';
   if(narrMore){ const lb=document.createElement('button'); lb.className='btn ghost sm'; lb.style.cssText='align-self:center;margin:2px 0 8px'; lb.textContent=uiCopy('▲ โหลดบทก่อนหน้า','▲ Load earlier story'); lb.title=uiCopy('บทเก่ากว่านี้ดูสรุปได้ในแท็บ Chronicle','Older chapters are summarized in the Chronicle tab'); lb.onclick=loadOlderNarrative; feed.appendChild(lb); }
   if(!shown.length){ feed.innerHTML=uiCopy('<div class="muted">ยังไม่มีเนื้อเรื่อง '+(campaign.host_id===me.id?'— กด "Begin Adventure" ด้านล่าง':'— รอเจ้าของโลกเริ่มเรื่อง')+'</div>','<div class="muted">No story yet '+(campaign.host_id===me.id?'— press "Begin Adventure" below':'— waiting for the host to begin')+'</div>'); }
   shown.forEach((n,i)=>{
     const d=document.createElement('div'); d.className='narr'; d.dataset.nid=String(n.id); d.dataset.sig=isig(n);
     d.innerHTML='<div class="meta">'+narrAuthorLabel(n)+'</div>';
-    const c=document.createElement('div'); c.className='narrc'; c.innerHTML=cdraw(n); applyNarrativeFoldElement(c,n);
+    const c=document.createElement('div'); c.className='narrc'; cdraw(c,n);
     d.appendChild(c); feed.appendChild(d);
   });
   renderRecruitmentAffordance(feed,shown);
@@ -8257,6 +8322,7 @@ function markEconomyFromText(){
 function createDiceRollGateController(deps){
   const d=deps||{}; let active=null; const queued=[];
   const copy=(th,en)=>typeof d.copy==='function'?d.copy(th,en):String(en||th||'');
+  const rollTitle=p=>p&&p.kind==='save'?(typeof d.rollLabel==='function'?d.rollLabel(p.ability,'save'):copy('การเซฟ','Saving throw')):String(p&&p.title||copy('ผลเต๋า','Dice result'));
   const uuid=value=>/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value||''));
   const integer=value=>Number.isSafeInteger(value);
   const STALL_MS=10000,HARD_STALL_MS=30000,STALE_MS=120000;
@@ -8342,7 +8408,7 @@ function createDiceRollGateController(deps){
       for(const value of group.rolls){ if(!integer(value)||value<1||value>max)return null; dice.push({die:die,value:value}); }
     }
     const modifierStage=p.calculation.find(row=>row&&row.stage==='modifiers');
-    return {eventId:'roll-event:'+String(view.id||active.eventId),dice:dice,flat:modifierStage&&Number.isFinite(modifierStage.delta)?modifierStage.delta:0,total:p.result.total,dc:p.result.dc,pass:p.result.pass,label:p.title,kind:p.kind,role:'save',formula:p.formula,onDone:onDone};
+    return {eventId:'roll-event:'+String(view.id||active.eventId),dice:dice,flat:modifierStage&&Number.isFinite(modifierStage.delta)?modifierStage.delta:0,total:p.result.total,dc:p.result.dc,pass:p.result.pass,label:rollTitle(p),kind:p.kind,role:'save',formula:p.formula,onDone:onDone};
   }
   function payloadDetail(view){
     const p=view&&view.payload;if(!p||!Array.isArray(p.groups))return '';
@@ -8360,7 +8426,7 @@ function createDiceRollGateController(deps){
   }
   function showContinue(view,status,disabled){
     if(!active)return; setStage('revealed');
-    paint(Object.assign({title:String(view&&view.payload&&view.payload.title||copy('ผลเต๋า','Dice result')),formula:String(view&&view.payload&&view.payload.formula||''),detail:payloadDetail(view),status:status||copy('ผลพร้อมแล้ว','Result ready.'),primaryLabel:copy('ไปต่อ','Continue'),primaryDisabled:disabled===true,onPrimary:continueRoll},hostModel()));
+    paint(Object.assign({title:rollTitle(view&&view.payload),formula:String(view&&view.payload&&view.payload.formula||''),detail:payloadDetail(view),status:status||copy('ผลพร้อมแล้ว','Result ready.'),primaryLabel:copy('ไปต่อ','Continue'),primaryDisabled:disabled===true,onPrimary:continueRoll},hostModel()));
   }
   function showWaiting(status){
     if(!active)return; setStage('waiting');
@@ -8494,7 +8560,7 @@ let _diceRollGate=null;
 function diceRollGateController(){
   if(_diceRollGate)return _diceRollGate;
   _diceRollGate=createDiceRollGateController({
-    copy:uiCopy,campaignId:()=>campaign&&campaign.id,storage:localStorage,isHost:()=>!!isHost,mount:mountDiceRollGateUi,failPending:failDiceFx,
+    copy:uiCopy,rollLabel:diceMechanicalLabel,campaignId:()=>campaign&&campaign.id,storage:localStorage,isHost:()=>!!isHost,mount:mountDiceRollGateUi,failPending:failDiceFx,
     now:()=>Date.now(),setTimer:(run,delay)=>setTimeout(run,delay),clearTimer:id=>clearTimeout(id),log:row=>{try{console.warn('[diceGate]',row);}catch(_error){}},notice:message=>{try{toast(message);}catch(_error){}},
     rpc:(name,args)=>supa.rpc(name,args),
     animate:envelope=>{ const fx=window.DiceFx; if(!fx||typeof fx.roll!=='function')return false; fx.roll(envelope); return true; },
@@ -8732,7 +8798,7 @@ async function resolveRound(force, mode, recover, fromClick, forceTarget){
   finally{
     if(run===resolveRound.sequence){
     resolveRound.controller=null;
-    resolving=false; setMyThinking(false); await refreshAll(); if(run!==resolveRound.sequence) return; renderStory();
+    resolving=false; setMyThinking(false); actionSubmitFeedback(); if(activeTab()==='quest') renderQuest(); await refreshAll(); if(run!==resolveRound.sequence) return; renderStory();
     if(_again && _autoChain<24){ _autoChain++; _waitRetryChain=0; setTimeout(function(){ if(run===resolveRound.sequence) resolveRound(false); }, 600); }
     else if(_waitRetry && _waitRetryChain<3){ _waitRetryChain++; window._afterSubmit=true; setTimeout(function(){ if(run===resolveRound.sequence) resolveRound(false); }, 1800); }
     else { _autoChain=0; _waitRetryChain=0; }
@@ -9605,9 +9671,9 @@ async function renderQuest(){
   const p=document.createElement('div');p.className='sk-cols';   // F1-375: retain the readable panel until its replacement is complete.
   const FONT="font-family:inherit";   /* v610f: inherit — classic ได้ IBM Plex จาก body เท่าเดิม · สกิน paper cascade Trirong ได้ (เดิม inline ทับทุกสกิน) */
   let quests=[], cls=[], rewardJobs=[];
-  try{ const r=await supa.from('quests').select('*').eq('campaign_id',campaign.id).order('created_at',{ascending:false}); quests=r.data||[]; }catch(e){}
-  try{ const r=await supa.from('clues').select('quest_id,mystery,clue,created_at').eq('campaign_id',campaign.id).order('created_at',{ascending:true}).limit(120); cls=r.data||[]; }catch(e){}
-  try{ const r=await supa.from('quest_reward_jobs').select('id,quest_id,quest_title,state,xp_per_character,gold_per_character,loot_name,planned_recipients,attempt_count,updated_at,completed_at').eq('campaign_id',campaign.id).order('created_at',{ascending:false}).limit(40); if(!r.error) rewardJobs=r.data||[]; }catch(e){}
+  try{ const r=await supa.from('quests').select('*').eq('campaign_id',questContext.campaignId).order('created_at',{ascending:false}); if(r.error) throw r.error; quests=r.data||[]; if(String(campaign&&campaign.id||'')===questContext.campaignId){window._questUiCampaign=questContext.campaignId;window._questUiRows=quests;} }catch(e){}
+  try{ const r=await supa.from('clues').select('quest_id,mystery,clue,created_at').eq('campaign_id',questContext.campaignId).order('created_at',{ascending:true}).limit(120); cls=r.data||[]; }catch(e){}
+  try{ const r=await supa.from('quest_reward_jobs').select('id,quest_id,quest_title,state,xp_per_character,gold_per_character,loot_name,planned_recipients,attempt_count,updated_at,completed_at').eq('campaign_id',questContext.campaignId).order('created_at',{ascending:false}).limit(40); if(!r.error) rewardJobs=r.data||[]; }catch(e){}
   // v772 G4: durable reward state is visible independently from narration.
   // No raw database error is shown; the host gets an explicit idempotent replay action.
   if(rewardJobs.length){
@@ -11899,27 +11965,58 @@ const SPRITE_BASE=(typeof window!=='undefined'&&window._spriteBase)||(SPRITE_ROO
 const NPC_SPRITE_BASE=(typeof window!=='undefined'&&window._npcSpriteBase)||(SPRITE_ROOT+'characters-v1/');   // LOOKFEEL-01: PC/ally stay on V2; hostile registered NPCs explicitly flagged sprite_set:v1 use the retired character pack
 // v418: asset packs — terrain(iso diamond) · object · monster(size-aware) · background · เปิดด้วย window._charSprites เดียวกัน
 const _ASSET={terrain:SPRITE_ROOT+'terrain/', object:SPRITE_ROOT+'objects/', monster:SPRITE_ROOT+'monsters/', bg:SPRITE_ROOT+'backgrounds/'};
-const _OBJ_KEYS=new Set(['pine','tree','cave','rock','table','fireplace','fire','barrel','chest','crate','door','well','tent','torch','grave','statue','crystal','banner','bush','mushroom','stump','log','bridge','stairs','altar','pillar','bones','skull','bookshelf','bed','cauldron','anvil','signpost','coffin','magiccircle','lever','fence','haystack','lantern','web','flower','cactus','wagon','animal_skull','armor_stand','ash_pile','bar_counter','basalt_column','basket','bench','berry_bush','boulder','brazier','broken_pillar','cage','cairn','cart','cattail','chains','chair','chandelier','crates_stack','creek','cupboard','dead_tree','dune','fallen_tree','fern','fire_crystal','fountain','frozen_tree','ice_crystal','ice_shard','icicle','iron_fence','lamppost','lava_floor','lava_pool','lilypad','magma_vent','mangrove','market_stall','mausoleum','mud_mound','oasis','obelisk','obsidian','ore_vein','palm','pond','portcullis','reeds','roots','rubble','rug','sandstone_ruin','sarcophagus','shelf','snowdrift','spike_trap','stalactite','stool','tall_grass','throne','urn','water_grass','weapon_rack']);
+const _OBJ_KEYS=new Set(['pine','tree','cave','rock','table','fireplace','fire','barrel','chest','crate','door','well','tent','torch','grave','statue','crystal','banner','bush','mushroom','stump','log','bridge','stairs','altar','pillar','bones','skull','bookshelf','bed','cauldron','anvil','signpost','coffin','magiccircle','lever','fence','haystack','lantern','web','flower','cactus','wagon','animal_skull','armor_stand','ash_pile','bar_counter','basalt_column','basket','bench','berry_bush','boulder','brazier','broken_pillar','cage','cairn','cart','cattail','chains','chair','chandelier','crates_stack','creek','cupboard','dead_tree','dune','fallen_tree','fern','fire_crystal','fountain','frozen_tree','ice_crystal','ice_shard','icicle','iron_fence','lamppost','lava_floor','lava_pool','lilypad','magma_vent','mangrove','market_stall','mausoleum','mud_mound','oasis','obelisk','obsidian','ore_vein','palm','pond','portcullis','reeds','roots','rubble','rug','sandstone_ruin','sarcophagus','shelf','snowdrift','spike_trap','stalactite','stool','tall_grass','throne','urn','water_grass','weapon_rack',
+  // SCENEART-01 (10-10): ของประดับชุดฉากใหม่ 9 แบบ (objects/<key>/<name>.png · 240×240)
+  'sewer_grate','pipe_outlet','sludge_puddle','brick_rubble','valve_wheel','iron_ladder','notice_board','shop_counter','goods_shelf','writing_desk','sack_pile','hanging_tools','yurt','canvas_tent','bedroll','palisade_stakes','banner_pole','hide_rack','milestone','broken_cart','roadside_shrine','hay_bales','rail_fence','waymarker_post','rock_pillar','bridge_post_rope','cliff_boulder','dry_shrub','cracked_rock','cactus_scrub','sheeted_sofa','candelabra','grandfather_clock','fallen_chandelier','empty_picture_frame','marble_bust_plinth','broken_arch','fallen_column','statue_base_empty','overgrown_wall','cracked_altar','ivy_pillar','mooring_post','rope_coil','rowboat','dock_planks','fishing_net_rack','lobster_traps','water_trough','wood_pile','scarecrow','farm_cart','chicken_coop','beehive_skep']);
 // v485: biome→keys index (tokImgHref เลือก objects/{biome}/{key}.png ก่อน → common → flat)
-const OBJ_INDEX={mountain:new Set(['boulder','bridge','bush','cairn','crystal','pine','rock','rubble']), forest:new Set(['berry_bush','boulder','fern','log','mushroom','pond','roots','stump']), lava:new Set(['animal_skull','ash_pile','basalt_column','fire_crystal','lava_floor','lava_pool','magma_vent','obsidian']), castle:new Set(['armor_stand','banner','brazier','pillar','portcullis','rubble','throne','weapon_rack']), tavern:new Set(['bar_counter','barrel','chair','chandelier','cupboard','rug','shelf','stool']), desert:new Set(['animal_skull','cactus','dune','oasis','palm','rubble','sandstone_ruin','urn']), snow:new Set(['bones','cairn','fallen_tree','frozen_tree','ice_crystal','ice_shard','icicle','snowdrift']), cave:new Set(['boulder','crystal','mushroom','ore_vein','pond','rock','stalactite','table']), plain:new Set(['boulder','bush','creek','fence','flower','haystack','mud_mound','tall_grass']), wetland:new Set(['cattail','fallen_tree','lilypad','mangrove','mud_mound','pond','reeds','water_grass']), graveyard:new Set(['bones','coffin','dead_tree','grave','iron_fence','mausoleum','obelisk','urn']), dungeon:new Set(['brazier','broken_pillar','cage','chains','portcullis','rubble','sarcophagus','spike_trap']), town:new Set(['basket','bench','cart','crates_stack','fountain','lamppost','market_stall','signpost']), common:new Set(['animal_skull','banner','barrel','basket','bench','bones','boulder','brazier','bush','cage','cairn','cart','chains','chair','crates_stack','crystal','fallen_tree','fence','flower','log','mud_mound','mushroom','pillar','pond','portcullis','rock','rubble','signpost','stump','table','urn'])};
+const OBJ_INDEX={mountain:new Set(['boulder','bridge','bush','cairn','crystal','pine','rock','rubble']), forest:new Set(['berry_bush','boulder','fern','log','mushroom','pond','roots','stump']), lava:new Set(['animal_skull','ash_pile','basalt_column','fire_crystal','lava_floor','lava_pool','magma_vent','obsidian']), castle:new Set(['armor_stand','banner','brazier','pillar','portcullis','rubble','throne','weapon_rack']), tavern:new Set(['bar_counter','barrel','chair','chandelier','cupboard','rug','shelf','stool']), desert:new Set(['animal_skull','cactus','dune','oasis','palm','rubble','sandstone_ruin','urn']), snow:new Set(['bones','cairn','fallen_tree','frozen_tree','ice_crystal','ice_shard','icicle','snowdrift']), cave:new Set(['boulder','crystal','mushroom','ore_vein','pond','rock','stalactite','table']), plain:new Set(['boulder','bush','creek','fence','flower','haystack','mud_mound','tall_grass']), wetland:new Set(['cattail','fallen_tree','lilypad','mangrove','mud_mound','pond','reeds','water_grass']), graveyard:new Set(['bones','coffin','dead_tree','grave','iron_fence','mausoleum','obelisk','urn']), dungeon:new Set(['brazier','broken_pillar','cage','chains','portcullis','rubble','sarcophagus','spike_trap']), town:new Set(['basket','bench','cart','crates_stack','fountain','lamppost','market_stall','signpost']), common:new Set(['animal_skull','banner','barrel','basket','bench','bones','boulder','brazier','bush','cage','cairn','cart','chains','chair','crates_stack','crystal','fallen_tree','fence','flower','log','mud_mound','mushroom','pillar','pond','portcullis','rock','rubble','signpost','stump','table','urn']),
+  sewer:new Set(['sewer_grate','pipe_outlet','sludge_puddle','brick_rubble','valve_wheel','iron_ladder']), interior:new Set(['notice_board','shop_counter','goods_shelf','writing_desk','sack_pile','hanging_tools']), camp:new Set(['yurt','canvas_tent','bedroll','palisade_stakes','banner_pole','hide_rack']), road:new Set(['milestone','broken_cart','roadside_shrine','hay_bales','rail_fence','waymarker_post']), canyon:new Set(['rock_pillar','bridge_post_rope','cliff_boulder','dry_shrub','cracked_rock','cactus_scrub']), manor:new Set(['sheeted_sofa','candelabra','grandfather_clock','fallen_chandelier','empty_picture_frame','marble_bust_plinth']), ruins:new Set(['broken_arch','fallen_column','statue_base_empty','overgrown_wall','cracked_altar','ivy_pillar']), waterside:new Set(['mooring_post','rope_coil','rowboat','dock_planks','fishing_net_rack','lobster_traps']), village:new Set(['water_trough','wood_pile','scarecrow','farm_cart','chicken_coop','beehive_skep'])};   // SCENEART-01: ชุดฉากใหม่ (ชื่อไม่ซ้ำข้ามชุด ⇒ ค้นข้าม biome ของ v505 หาเจอเสมอ)
 // (revert) ตาราง _OBJSZ ต่อชนิด ลบแล้ว — object เรนเดอร์ uniform (_SZ.ob=64) · ผู้ใช้คุมสัดส่วนผ่าน PNG เอง
-const _BG_KEYS=new Set(['cave','plain','wetland','graveyard','dungeon','town','forest','lava','castle','tavern','desert','snow','mountain']);
+const _BG_KEYS=new Set(['cave','plain','wetland','graveyard','dungeon','town','forest','lava','castle','tavern','desert','snow','mountain','sewer','interior','road','camp','manor','ruins','canyon','waterside','village']);   // SCENEART-01: +9 ฉากใหม่ (BUGINDEX B-261009-3..12 · ภาพ D:\TTRPG-Backgrounds\v1)
 const _MON_RENDERED=new Set(['aboleth','banshee','beholder','cyclops','water_weird','yeti','acolyte','adult_black_dragon','adult_blue_dragon','adult_brass_dragon','adult_bronze_dragon','adult_copper_dragon','adult_gold_dragon','adult_green_dragon','adult_red_dragon','adult_silver_dragon','adult_white_dragon','air_elemental','ancient_black_dragon','ancient_blue_dragon','ancient_brass_dragon','ancient_bronze_dragon','ancient_copper_dragon','ancient_gold_dragon','ancient_green_dragon','ancient_red_dragon','ancient_silver_dragon','ancient_white_dragon','androsphinx','animated_armor','ankheg','ape','archmage','assassin','awakened_shrub','awakened_tree','axe_beak','azer','baboon','badger','balor','bandit_captain','bandit','barbed_devil','basilisk','bat','bearded_devil','behir','berserker','black_bear','black_dragon_wyrmling','black_pudding','blink_dog','blood_hawk','blue_dragon_wyrmling','boar','bone_devil','brass_dragon_wyrmling','bronze_dragon_wyrmling','brown_bear','bugbear','bulette','camel','carrion_crawler','cat','centaur','chain_devil','chimera','chuul','clay_golem','cloaker','cloud_giant','cockatrice','commoner','constrictor_snake','copper_dragon_wyrmling','couatl','crab','crocodile','cult_fanatic','cultist','darkmantle','death_dog','deep_gnome_svirfneblin','deer','deva','dire_wolf','djinni','doppelganger','draft_horse','dragon_turtle','dretch','drider','drow','druid','dryad','duergar','dust_mephit','eagle','earth_elemental','efreeti','elephant','elk','erinyes','ettercap','ettin','fire_elemental','fire_giant','flesh_golem','flying_snake','flying_sword','frog','frost_giant','gargoyle','gelatinous_cube','ghast','ghost','ghoul','giant_ape','giant_badger','giant_bat','giant_boar','giant_centipede','giant_constrictor_snake','giant_crab','giant_crocodile','giant_eagle','giant_elk','giant_fire_beetle','giant_frog','giant_goat','giant_hyena','giant_lizard','giant_octopus','giant_owl','giant_poisonous_snake','giant_rat_diseased','giant_rat','giant_scorpion','giant_sea_horse','giant_shark','giant_spider','giant_toad','giant_vulture','giant_wasp','giant_weasel','giant_wolf_spider','gibbering_mouther','glabrezu','gladiator','gnoll','goat','goblin','gold_dragon_wyrmling','gorgon','gray_ooze','green_dragon_wyrmling','green_hag','grick','griffon','grimlock','guard','guardian_naga','gynosphinx','half_red_dragon_veteran','harpy','hawk','hell_hound','hezrou','hill_giant','hippogriff','hobgoblin','homunculus','horned_devil','hunter_shark','hydra','hyena','ice_devil','ice_mephit','imp','invisible_stalker','iron_golem','jackal','killer_whale','knight','kobold','kraken','lamia','lemure','lich','lion','lizard','lizardfolk','mage','magma_mephit','magmin','mammoth','manticore','marilith','mastiff','medusa','merfolk','merrow','mimic','minotaur_skeleton','minotaur','mule','mummy_lord','mummy','nalfeshnee','night_hag','nightmare','noble','ochre_jelly','octopus','ogre_zombie','ogre','oni','orc','otyugh','owl','owlbear','panther','pegasus','phase_spider','pit_fiend','planetar','plesiosaurus','poisonous_snake','polar_bear','pony','priest','pseudodragon','purple_worm','quasit','quipper','rakshasa','rat','raven','red_dragon_wyrmling','reef_shark','remorhaz','rhinoceros','riding_horse','roc','roper','rug_of_smothering','rust_monster','saber_toothed_tiger','sahuagin','salamander','satyr','scorpion','scout','sea_hag','sea_horse','shadow','shambling_mound','shield_guardian','shrieker','silver_dragon_wyrmling','skeleton','solar','specter','spider','spirit_naga','sprite','spy','steam_mephit','stirge','stone_giant','stone_golem','storm_giant','succubus_incubus','swarm_of_bats','swarm_of_beetles','swarm_of_centipedes','swarm_of_insects','swarm_of_poisonous_snakes','swarm_of_quippers','swarm_of_rats','swarm_of_ravens','swarm_of_spiders','swarm_of_wasps','tarrasque','thug','tiger','treant','tribal_warrior','triceratops','troll','tyrannosaurus_rex','unicorn','vampire_bat_form','vampire_mist_form','vampire_spawn','vampire_vampire_form','veteran','violet_fungus','vrock','vulture','warhorse_skeleton','warhorse','water_elemental','weasel','werebear_bear_form','werebear_human_form','werebear_hybrid_form','wereboar_boar_form','wereboar_human_form','wereboar_hybrid_form','wererat_human_form','wererat_hybrid_form','wererat_rat_form','weretiger_human_form','weretiger_hybrid_form','weretiger_tiger_form','werewolf_human_form','werewolf_hybrid_form','werewolf_wolf_form','white_dragon_wyrmling','wight','will_o_wisp','winter_wolf','wolf','worg','wraith','wyvern','xorn','young_black_dragon','young_blue_dragon','young_brass_dragon','young_bronze_dragon','young_copper_dragon','young_gold_dragon','young_green_dragon','young_red_dragon','young_silver_dragon','young_white_dragon','zombie']);
 const _MON_BIG={adult_black_dragon:2,adult_blue_dragon:2,adult_brass_dragon:2,adult_bronze_dragon:2,adult_copper_dragon:2,adult_gold_dragon:2,adult_green_dragon:2,adult_red_dragon:2,adult_silver_dragon:2,adult_white_dragon:2,ancient_black_dragon:3,ancient_blue_dragon:3,ancient_brass_dragon:3,ancient_bronze_dragon:3,ancient_copper_dragon:3,ancient_gold_dragon:3,ancient_green_dragon:3,ancient_red_dragon:3,ancient_silver_dragon:3,ancient_white_dragon:3,awakened_tree:2,balor:2,behir:2,cloud_giant:2,dragon_turtle:3,elephant:2,fire_giant:2,frost_giant:2,giant_ape:2,giant_constrictor_snake:2,giant_crocodile:2,giant_elk:2,giant_shark:2,hill_giant:2,hydra:2,killer_whale:2,kraken:3,mammoth:2,purple_worm:3,remorhaz:2,roc:3,stone_giant:2,storm_giant:2,tarrasque:3,treant:2,triceratops:2,tyrannosaurus_rex:2};
 // revert: ขนาดมอน = ×tiles (medium 1 · Large 2 · Huge 3 · Gargantuan 4 ตาม footprint D&D 5e จาก catalog) · ไม่อยู่ในตาราง = 1
 const _MON_TILES={aboleth:2, cyclops:3, water_weird:2, yeti:2, beholder:2, adult_black_dragon:3, adult_blue_dragon:3, adult_brass_dragon:3, adult_bronze_dragon:3, adult_copper_dragon:3, adult_gold_dragon:3, adult_green_dragon:3, adult_red_dragon:3, adult_silver_dragon:3, adult_white_dragon:3, air_elemental:2, ancient_black_dragon:4, ancient_blue_dragon:4, ancient_brass_dragon:4, ancient_bronze_dragon:4, ancient_copper_dragon:4, ancient_gold_dragon:4, ancient_green_dragon:4, ancient_red_dragon:4, ancient_silver_dragon:4, ancient_white_dragon:4, androsphinx:2, ankheg:2, awakened_tree:3, axe_beak:2, balor:3, behir:3, black_pudding:2, bone_devil:2, brown_bear:2, bulette:2, camel:2, carrion_crawler:2, centaur:2, chimera:2, chuul:2, clay_golem:2, cloaker:2, cloud_giant:3, constrictor_snake:2, crocodile:2, dire_wolf:2, djinni:2, draft_horse:2, dragon_turtle:4, drider:2, earth_elemental:2, efreeti:2, elephant:3, elk:2, ettin:2, fire_elemental:2, fire_giant:3, frost_giant:3, gelatinous_cube:2, giant_ape:3, giant_bat:2, giant_boar:2, giant_constrictor_snake:3, giant_crocodile:3, giant_eagle:2, giant_elk:3, giant_goat:2, giant_hyena:2, giant_lizard:2, giant_octopus:2, giant_owl:2, giant_scorpion:2, giant_sea_horse:2, giant_shark:3, giant_spider:2, giant_toad:2, giant_vulture:2, glabrezu:2, gorgon:2, griffon:2, guardian_naga:2, gynosphinx:2, hezrou:2, hill_giant:3, hippogriff:2, horned_devil:2, hydra:3, ice_devil:2, iron_golem:2, killer_whale:3, kraken:4, lamia:2, lion:2, mammoth:3, manticore:2, marilith:2, merrow:2, minotaur:2, minotaur_skeleton:2, nalfeshnee:2, nightmare:2, ochre_jelly:2, ogre:2, ogre_zombie:2, oni:2, otyugh:2, owlbear:2, pegasus:2, phase_spider:2, pit_fiend:2, planetar:2, plesiosaurus:2, polar_bear:2, purple_worm:4, remorhaz:3, rhinoceros:2, riding_horse:2, roc:4, roper:2, rug_of_smothering:2, saber_toothed_tiger:2, salamander:2, shambling_mound:2, shield_guardian:2, solar:2, spirit_naga:2, stone_giant:3, stone_golem:2, storm_giant:3, tarrasque:4, tiger:2, treant:3, triceratops:3, troll:2, tyrannosaurus_rex:3, unicorn:2, vrock:2, warhorse:2, warhorse_skeleton:2, water_elemental:2, winter_wolf:2, worg:2, wyvern:2, young_black_dragon:2, young_blue_dragon:2, young_brass_dragon:2, young_bronze_dragon:2, young_copper_dragon:2, young_gold_dragon:2, young_green_dragon:2, young_red_dragon:2, young_silver_dragon:2, young_white_dragon:2};
 const _MON_ALIAS={werewolf:'werewolf_hybrid_form',wereboar:'wereboar_hybrid_form',wererat:'wererat_hybrid_form',weretiger:'weretiger_hybrid_form',werebear:'werebear_hybrid_form',vampire:'vampire_vampire_form'};   // v638 BUG1: ชื่อ spawn โดด (Werewolf/Vampire) → default form sprite (รูปมีอยู่ใต้ key *_form แต่ generator สร้างชื่อโดด → เดิม pawn แดงทั้งที่ art มี)
 function _monId(t){ const key=String((t&&t.glyph)||'').trim().toLowerCase(); return _MON_RENDERED.has(key)?key:''; }   // C0928-11: server owns catalog/form/type-fallback identity; labels never select art.
-function _biomeKey(bg){ const s=String(bg||'').toLowerCase();
+function _biomeKey(bg){ const s=String(bg||'').toLowerCase().trim();
+  if(_BG_KEYS.has(s)) return s;   // SCENEART-01: key ที่ server เขียนลง battle_grids.background = อำนาจ server ตรงตัว (ไม่ผ่าน regex)
+  // ข้างล่าง = ค่าดิบที่ DM ส่งเอง (เช่น "assets/maps/dockside.webp" · B-261009-10) · ลำดับสำคัญ: ฉากเฉพาะก่อนฉากกว้าง
+  if(/ท่อระบาย|sewer|undercity|ใต้เมือง/.test(s)) return 'sewer';
   if(/ถ้ำ|\bcave\b/.test(s)) return 'cave'; if(/ดันเจ|dungeon|ใต้ดิน|crypt/.test(s)) return 'dungeon';
-  if(/สุสาน|หลุมศพ|grave|tomb|ซาก/.test(s)) return 'graveyard'; if(/ลาวา|lava|ภูเขาไฟ|volcan|นรก/.test(s)) return 'lava';
-  if(/บึง|หนอง|swamp|marsh|wetland/.test(s)) return 'wetland'; if(/ทะเลทราย|desert|ทราย/.test(s)) return 'desert';
+  if(/ซากปรัก|ซากอาคาร|\bruins?\b/.test(s)) return 'ruins';   // SCENEART-01: "ซาก" เดิมตีเป็นสุสาน (server ไม่เคยให้)
+  if(/สุสาน|หลุมศพ|grave|tomb/.test(s)) return 'graveyard'; if(/ลาวา|lava|ภูเขาไฟ|volcan|นรก/.test(s)) return 'lava';
+  if(/บึง|หนอง|swamp|marsh|wetland/.test(s)) return 'wetland';
+  if(/หุบผา|หุบเขา|รอยแยก|canyon|ravine|gorge|chasm/.test(s)) return 'canyon';   // ก่อน desert (หินทราย) และ mountain (ผา)
+  if(/ทะเลทราย|desert|ทราย/.test(s)) return 'desert';
   if(/หิมะ|snow|น้ำแข็ง|\bice\b/.test(s)) return 'snow'; if(/ภูเขา|mountain|ผา|cliff/.test(s)) return 'mountain';
+  if(/ค่าย|กระโจม|เต็นท์|\bcamp|encampment|\byurts?\b/.test(s)) return 'camp';   // ก่อน forest ("Redwood Camp")
+  if(/ท่าเรือ|ท่าน้ำ|แม่น้ำ|สะพาน|ชายฝั่ง|\bdocks?\b|dockside|harbou?r|\bpiers?\b|wharf|\brivers?\b|\bbridges?\b|\bcoast/.test(s)) return 'waterside';
   if(/ป่า|forest|wood|ชายป่า/.test(s)) return 'forest';
+  if(/คฤหาสน์|\bmanor\b|mansion/.test(s)) return 'manor';   // ก่อน castle
   if(/ปราสาท|castle|วิหาร|temple|ป้อม|throne|บัลลังก์/.test(s)) return 'castle'; if(/โรงเตี๊ยม|tavern|ผับ|\binn\b/.test(s)) return 'tavern';
-  if(/เมือง|หมู่บ้าน|town|village|ตลาด|market/.test(s)) return 'town';
+  if(/กิลด์|สมาคม|ร้าน|โกดัง|หอสมุด|\bguild|\bshops?\b|\bstores?\b|warehouse|library|\boffice\b/.test(s)) return 'interior';
+  if(/หมู่บ้าน|village|hamlet/.test(s)) return 'village';
+  if(/เมือง|town|ตลาด|market|\bcity\b/.test(s)) return 'town';
+  if(/ถนน|เส้นทาง|ทางแยก|\broads?\b|\btrail\b|\bpath\b|crossroad/.test(s)) return 'road';
   if(/ทุ่ง|plain|grass|field|เนิน|หญ้า/.test(s)) return 'plain';
   return ''; }
+// SCENEART-01 (10-10): ฉากหลังมีแบบย่อย 5 แบบต่อ key — sprites/backgrounds/<key>/<key>_bg_vNN.webp (bucket · ห้ามเขียนทับ: แก้ภาพ = เลขใหม่)
+//   v00 = sprites/backgrounds/<key>.png ของ 13 key เดิม = ทางสำรองเมื่อโหลดแบบย่อยไม่ได้ · key ใหม่ไม่มี v00 ⇒ โหลดไม่ได้ = ไม่มีฉากหลัง (พฤติกรรมเดิม)
+//   เลือกแบบ: server แช่แข็งใน battle_grids.terrain.bg_variant (ทาง resolver ใหม่) ชนะ · ไม่งั้น 1+hash(grid.id) mod N ⇒ ทุกคนในศึกเห็นภาพเดียวกัน รีเฟรชไม่เปลี่ยน
+//   จำนวนแบบเป็นค่าคงที่ที่ปล่อยพร้อมภาพ (ห้าม probe 404 ทีละไฟล์) · language-impact: none (ไม่มีข้อความ runtime)
+const _BG_V00=new Set(['cave','plain','wetland','graveyard','dungeon','town','forest','lava','castle','tavern','desert','snow','mountain']);
+const _BG_VARIANTS={cave:5,plain:5,wetland:5,graveyard:5,dungeon:5,town:5,forest:5,lava:5,castle:5,tavern:5,desert:5,snow:5,mountain:5,sewer:5,interior:5,road:5,camp:5,manor:5,ruins:5,canyon:5,waterside:5,village:5};
+function _sceneHash(s){ let h=2166136261; s=String(s); for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); } return h>>>0; }
+function _bgVariant(bk,g){ const n=_BG_VARIANTS[bk]|0; if(!n) return 0;
+  const t=g&&g.terrain&&typeof g.terrain==='object'?g.terrain:null, fz=t?Math.floor(+t.bg_variant):NaN;
+  if(fz>=1&&fz<=n) return fz;
+  return 1+(_sceneHash(String((g&&g.id)||'')+'|bg')%n); }
+function _bgFallbackHref(bk){ return _BG_V00.has(bk)?_ASSET.bg+bk+'.png':''; }
+function _bgHref(bk,g){ const v=_bgVariant(bk,g); const fail=(typeof window!=='undefined'&&window._bgFail)||{};
+  const u=v>0?_ASSET.bg+bk+'/'+bk+'_bg_v'+String(v).padStart(2,'0')+'.webp':'';
+  return (u&&!fail[u])?u:_bgFallbackHref(bk); }
+//   พื้นกระดาน = ตารางใส v451 ทุกฉาก (เจ้าของ 10-10: ไม่ใช้ลายพื้น · ไฟล์ terrain/<family>/ ใน bucket ไม่ถูกเรียก)
 function _spriteRaceKey(raw){ const r=String(HD2D.normalizeRace(raw)).toLowerCase();
   if(r.includes('drow')) return 'drow'; if(r.includes('half-elf')) return 'half_elf'; if(r.includes('half-orc')) return 'half_orc';
   if(r.includes('dragonborn')) return 'dragonborn'; if(r.includes('dwarf')) return 'dwarf'; if(r.includes('gnome')) return 'gnome';
@@ -12145,6 +12242,16 @@ async function renderBattleGrid(p){
       desert:['cactus','cactus','rock','rock','bones','skull','stump'],
       snow:['pine','pine','rock','rock','stump','crystal'],
       mountain:['rock','rock','rock','pine','stump','crystal'],
+      // SCENEART-01: ชุดฉากใหม่ (ของจาก objects/<key>/ + ของกลางเดิม) · ในร่ม/ใต้ดิน ไม่มีต้นไม้
+      sewer:['sewer_grate','pipe_outlet','sludge_puddle','sludge_puddle','brick_rubble','valve_wheel','iron_ladder','barrel'],
+      interior:['shop_counter','goods_shelf','writing_desk','sack_pile','sack_pile','hanging_tools','notice_board','crate','barrel'],
+      road:['milestone','broken_cart','roadside_shrine','hay_bales','rail_fence','waymarker_post','rock','bush'],
+      camp:['canvas_tent','canvas_tent','yurt','bedroll','bedroll','palisade_stakes','banner_pole','hide_rack','fire'],
+      manor:['sheeted_sofa','candelabra','grandfather_clock','fallen_chandelier','empty_picture_frame','marble_bust_plinth','bookshelf'],
+      ruins:['broken_arch','fallen_column','fallen_column','statue_base_empty','overgrown_wall','cracked_altar','ivy_pillar','rubble'],
+      canyon:['rock_pillar','cliff_boulder','cliff_boulder','dry_shrub','cracked_rock','cactus_scrub','bridge_post_rope','rock'],
+      waterside:['mooring_post','mooring_post','rope_coil','rowboat','dock_planks','fishing_net_rack','lobster_traps','barrel'],
+      village:['water_trough','wood_pile','scarecrow','farm_cart','chicken_coop','beehive_skep','haystack','fence','flower'],
     };
     const _deco=_DECO_BY_BIOME[_biomeKey(grid.background)]||['tree','pine','bush','flower','rock','stump'];   // default ธรรมชาติ (road/water/ไม่รู้จัก)
     const _occ=new Set(toks.map(t=>rc2cell(t.col,t.row)));
@@ -12176,7 +12283,9 @@ async function renderBattleGrid(p){
     return null;
   }catch(e){ return null; } }
   // v483 proportional sizing: สเกลวัตถุเทียบ "มนุษย์=1.0" (แก้วัตถุขนาดเท่ากันหมด) — คูณ _SZ.ob (PNG) / scale transform (SVG) · ปรับค่าตรงนี้จูนได้
-  const _OBJ_SCALE={pine:1.4,tree:1.35,cave:2.0,rock:0.72,table:0.78,fireplace:1.0,fire:0.55,barrel:0.66,chest:0.55,crate:0.62,door:1.15,well:0.85,tent:1.1,torch:0.5,grave:0.66,statue:1.35,crystal:0.6,banner:1.05,bush:0.62,mushroom:0.4,stump:0.5,log:0.6,bridge:1.2,stairs:0.85,altar:0.95,pillar:1.7,bones:0.4,skull:0.38,bookshelf:1.2,bed:0.6,cauldron:0.66,anvil:0.5,signpost:1.0,coffin:0.6,magiccircle:0.55,lever:0.6,fence:0.7,haystack:0.85,lantern:0.45,web:0.7,flower:0.32,cactus:0.9,wagon:1.7,brazier:0.75,chair:0.6,stool:0.45,rubble:0.5,sack:0.55,animal_skull:0.5,armor_stand:1.1,ash_pile:0.5,bar_counter:0.9,basalt_column:1.7,basket:0.4,bench:0.55,berry_bush:0.6,boulder:1.0,broken_pillar:1.4,cage:1.2,cairn:0.75,cart:1.4,cattail:0.85,chains:0.9,chandelier:0.9,crates_stack:1.0,creek:0.9,cupboard:1.2,dead_tree:1.35,dune:0.9,fallen_tree:0.6,fern:0.5,fire_crystal:0.6,fountain:1.0,frozen_tree:1.35,ice_crystal:0.6,ice_shard:0.85,icicle:0.7,iron_fence:0.9,lamppost:1.8,lava_floor:0.85,lava_pool:0.9,lilypad:0.4,magma_vent:0.75,mangrove:1.3,market_stall:1.3,mausoleum:1.7,mud_mound:0.55,oasis:0.95,obelisk:1.9,obsidian:0.7,ore_vein:1.2,palm:1.35,pond:0.9,portcullis:1.6,reeds:0.85,roots:0.45,rug:0.5,sandstone_ruin:1.5,sarcophagus:0.6,shelf:1.2,snowdrift:0.7,spike_trap:0.4,stalactite:1.3,tall_grass:0.6,throne:1.35,urn:0.6,water_grass:0.6,weapon_rack:1.1};
+  const _OBJ_SCALE={pine:1.4,tree:1.35,cave:2.0,rock:0.72,table:0.78,fireplace:1.0,fire:0.55,barrel:0.66,chest:0.55,crate:0.62,door:1.15,well:0.85,tent:1.1,torch:0.5,grave:0.66,statue:1.35,crystal:0.6,banner:1.05,bush:0.62,mushroom:0.4,stump:0.5,log:0.6,bridge:1.2,stairs:0.85,altar:0.95,pillar:1.7,bones:0.4,skull:0.38,bookshelf:1.2,bed:0.6,cauldron:0.66,anvil:0.5,signpost:1.0,coffin:0.6,magiccircle:0.55,lever:0.6,fence:0.7,haystack:0.85,lantern:0.45,web:0.7,flower:0.32,cactus:0.9,wagon:1.7,brazier:0.75,chair:0.6,stool:0.45,rubble:0.5,sack:0.55,animal_skull:0.5,armor_stand:1.1,ash_pile:0.5,bar_counter:0.9,basalt_column:1.7,basket:0.4,bench:0.55,berry_bush:0.6,boulder:1.0,broken_pillar:1.4,cage:1.2,cairn:0.75,cart:1.4,cattail:0.85,chains:0.9,chandelier:0.9,crates_stack:1.0,creek:0.9,cupboard:1.2,dead_tree:1.35,dune:0.9,fallen_tree:0.6,fern:0.5,fire_crystal:0.6,fountain:1.0,frozen_tree:1.35,ice_crystal:0.6,ice_shard:0.85,icicle:0.7,iron_fence:0.9,lamppost:1.8,lava_floor:0.85,lava_pool:0.9,lilypad:0.4,magma_vent:0.75,mangrove:1.3,market_stall:1.3,mausoleum:1.7,mud_mound:0.55,oasis:0.95,obelisk:1.9,obsidian:0.7,ore_vein:1.2,palm:1.35,pond:0.9,portcullis:1.6,reeds:0.85,roots:0.45,rug:0.5,sandstone_ruin:1.5,sarcophagus:0.6,shelf:1.2,snowdrift:0.7,spike_trap:0.4,stalactite:1.3,tall_grass:0.6,throne:1.35,urn:0.6,water_grass:0.6,weapon_rack:1.1,
+    // SCENEART-01: ของชุดฉากใหม่ (มนุษย์=1.0)
+    sewer_grate:0.7,pipe_outlet:0.9,sludge_puddle:0.7,brick_rubble:0.7,valve_wheel:0.6,iron_ladder:1.3,notice_board:1.1,shop_counter:1.0,goods_shelf:1.2,writing_desk:0.8,sack_pile:0.6,hanging_tools:1.0,yurt:1.6,canvas_tent:1.3,bedroll:0.6,palisade_stakes:1.1,banner_pole:1.3,hide_rack:1.0,milestone:0.6,broken_cart:1.1,roadside_shrine:1.0,hay_bales:0.8,rail_fence:0.9,waymarker_post:1.1,rock_pillar:1.5,bridge_post_rope:1.0,cliff_boulder:1.1,dry_shrub:0.6,cracked_rock:0.7,cactus_scrub:0.7,sheeted_sofa:0.8,candelabra:0.8,grandfather_clock:1.3,fallen_chandelier:0.8,empty_picture_frame:0.8,marble_bust_plinth:1.0,broken_arch:1.6,fallen_column:1.0,statue_base_empty:0.8,overgrown_wall:1.3,cracked_altar:0.9,ivy_pillar:1.6,mooring_post:0.7,rope_coil:0.5,rowboat:1.2,dock_planks:0.9,fishing_net_rack:1.1,lobster_traps:0.6,water_trough:0.8,wood_pile:0.8,scarecrow:1.2,farm_cart:1.1,chicken_coop:1.0,beehive_skep:0.6};
   function objScaleFor(t){ if(!t||t.kind!=='object') return 1; let k=String(t.glyph||'').toLowerCase().trim(); if(!(k in _OBJ_SCALE)){ const a=SPR_ALIAS[k]; if(a&&(a in _OBJ_SCALE)) k=a; else { const lab=String(t.label||'').toLowerCase(); for(const al in SPR_ALIAS){ if(lab.includes(al.toLowerCase())){ const g=SPR_ALIAS[al]; if(g in _OBJ_SCALE){ k=g; break; } } } } } return (k in _OBJ_SCALE)?_OBJ_SCALE[k]:0.85; }
   // v531 obj-fill normalize: PNG วัตถุแต่ละชุดมีขอบโปร่งใสไม่เท่ากัน — scale คูณที่ "กรอบ" อย่างเดียวทำให้สัดส่วนจริงเพี้ยน
   //   เคสจริง 07-05: barrel (common/ 240px เนื้อ 82%) vs wagon (ไฟล์แบนเก่า 128px เนื้อ 43%) → ถังใหญ่เกวียนเล็กบนจอ
@@ -12289,7 +12398,10 @@ async function renderBattleGrid(p){
   if(ISO){
     // iso: tile + token interleave ตาม depth (c+r) — กำแพง/ช่องหน้าบัง token หลัง
     let _bg='', _fg='';   // v560 DoF: bg (backdrop+พื้น+วัตถุ/decor) หรี่รวมกลุ่มเดียว · fg (ตัวละคร/ศัตรู) ไม่หรี่
-    if(window._charSprites===true){ const _bk=_biomeKey(grid.background); if(_bk&&_BG_KEYS.has(_bk)) _bg+=`<image href="${_ASSET.bg+_bk+'.png'}" x="0" y="0" width="${IVW}" height="${IVH}" preserveAspectRatio="xMidYMid slice" opacity="1"/>`; }   // v451 backdrop biome (เด่นขึ้น รับเลย์เอาต์ฉาก 2/3)
+    if(window._charSprites===true){ const _bk=_biomeKey(grid.background); if(_bk&&_BG_KEYS.has(_bk)){ const _bh=_bgHref(_bk,grid), _bfb=_bgFallbackHref(_bk);
+      // SCENEART-01: แบบย่อยโหลดไม่ได้ → จำ URL ที่ล้ม (ไม่ยิงซ้ำทุก render) แล้วสลับเป็น v00 · ไม่มี v00 = ถอดภาพทิ้ง
+      const _bon=`(window._bgFail=window._bgFail||{})[this.getAttribute('href')]=1;this.onerror=null;`+((_bfb&&_bfb!==_bh)?`this.setAttribute('href','${_bfb}')`:`this.remove()`);
+      if(_bh) _bg+=`<image href="${_bh}" x="0" y="0" width="${IVW}" height="${IVH}" preserveAspectRatio="xMidYMid slice" opacity="1" onerror="${_bon}"/>`; } }   // v451 backdrop biome (เด่นขึ้น รับเลย์เอาต์ฉาก 2/3)
     // ── v451: พื้น = ตารางหมากรุก iso จาง (ตัด terrain texture ออกหมด — ไม่พึ่งรูปใน Supabase) ──
     //   ช่องปกติ = หมากรุก ~7% + เส้น grid ~22% · กำแพง = บล็อกนูน · น้ำ = overlay
     const _isoTile=(c,r)=>{ const cell=rc2cell(c,r), isW=walls.has(cell), wet=WATER.has(cell), x=isx(c,r), y=isy(c,r), eh=isW?IWALL:IEH;
@@ -13557,11 +13669,11 @@ function subscribeRealtime(){
     .on('postgres_changes',{event:'*',schema:'public',table:'npcs',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ rtLastSyncTs=Date.now(); await triggerFreshnessReconcile({kind:'npcs_realtime',payload:payload,campaign_id:String(campaign&&campaign.id||'')}); })
     .on('postgres_changes',{event:'*',schema:'public',table:'quests',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='quest') renderQuest(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'quest_reward_jobs',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='quest') renderQuest(); })
-    .on('postgres_changes',{event:'*',schema:'public',table:'rounds',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ rtLastSyncTs=Date.now(); try{const row=payload&&payload.new,receipts=row&&row.meta&&Array.isArray(row.meta.dice)?row.meta.dice:[];dicePlaybackLog('rounds_realtime_event',{roundId:String(row&&row.id||''),receiptCount:receipts.length,campaignId:String(campaign&&campaign.id||''),source:String(payload&&payload.eventType||'unknown').toLowerCase()});}catch(_roundsRealtimeLogError){} await loadRound('realtime'); await refreshPublishedCombatUi(); const _narrTailChanged=await reconcileNarrativeTail(); if(activeTab()==='story'&&!_narrTailChanged) renderStory(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'rounds',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ rtLastSyncTs=Date.now(); try{const row=payload&&payload.new,receipts=row&&row.meta&&Array.isArray(row.meta.dice)?row.meta.dice:[];dicePlaybackLog('rounds_realtime_event',{roundId:String(row&&row.id||''),receiptCount:receipts.length,campaignId:String(campaign&&campaign.id||''),source:String(payload&&payload.eventType||'unknown').toLowerCase()});}catch(_roundsRealtimeLogError){} await loadRound('realtime'); await refreshPublishedCombatUi(); const _narrTailChanged=await reconcileNarrativeTail(); if(activeTab()==='story'&&!_narrTailChanged) renderStory(); if(activeTab()==='quest') renderQuest(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'actions',filter:'campaign_id=eq.'+campaign.id}, async()=>{ rtLastSyncTs=Date.now(); await loadNarrativeActionStates(narrative); if(activeTab()==='story'){ renderRoundbar(); renderStory(); } })
     .on('postgres_changes',{event:'*',schema:'public',table:'character_sheets',filter:'character_id=eq.'+((myChar&&myChar.id)||'00000000-0000-0000-0000-000000000000')}, async()=>{ rtLastSyncTs=Date.now(); await reloadMySheet(); await refreshCombatTurn(); if(activeTab()==='story') renderRoundbar(); if(activeTab()==='me') renderMe(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'characters',filter:'campaign_id=eq.'+campaign.id}, async()=>{ var _oldGroup=terminalGroupForUi(); await loadCharacters(); myChar=characters.find(c=>c.user_id===me.id)||null; if(_oldGroup!==terminalGroupForUi()){ window._combatActive=undefined; window.gEncId=null; await Promise.all([loadRound(),loadNarrative(),updateCombatBadge(),refreshCombatTurn()]); } partyDecisionHintRefresh('characters-realtime'); if(activeTab()==='party') renderParty(); if(typeof scheduleBattleScene==='function') scheduleBattleScene(); })   // v739 FZ-2: group move rebinds scoped round/story/combat before render
-    .on('postgres_changes',{event:'*',schema:'public',table:'campaign_state',filter:'campaign_id=eq.'+campaign.id}, async()=>{ var _vaWasFin=!!(currentTerminalGate()&&currentTerminalGate().active); await loadState(); /* v739 FZ-2: reload sheet only when this character's group gate clears */ if(_vaWasFin && !(currentTerminalGate()&&currentTerminalGate().active) && myChar){ try{ var _sr=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle(); if(!_sr.error){ mySheet=_sr.data?.sheet||{}; mySheetUpdatedAt=_sr.data?.updated_at||null; cacheSave('sheet_'+myChar.id, mySheet); } }catch(e){} } partyDecisionHintRefresh('campaign-state-hint'); applyMood(); refreshSelectionGate(); if(activeTab()==='story'){ renderClock(); renderRoundbar(); } if(activeTab()==='map') renderMap(); const _lu=worldState&&worldState.level_up; if(activeTab()==='me'){ const md=_lu&&_lu.active&&(_lu.done||[]).includes(myChar&&myChar.id); if(!_lu||!_lu.active||md) renderMe(); } else if(worldState&&worldState.settings&&worldState.settings.prepare_due&&Array.isArray(worldState.settings.prepare_due.ids)&&worldState.settings.prepare_due.ids.includes(myChar&&myChar.id)){ /* เตรียมเวทค้าง: ปล่อยให้ blink เตือน */ } })
+    .on('postgres_changes',{event:'*',schema:'public',table:'campaign_state',filter:'campaign_id=eq.'+campaign.id}, async()=>{ var _vaWasFin=!!(currentTerminalGate()&&currentTerminalGate().active); await loadState(); /* v739 FZ-2: reload sheet only when this character's group gate clears */ if(_vaWasFin && !(currentTerminalGate()&&currentTerminalGate().active) && myChar){ try{ var _sr=await supa.from('character_sheets').select('sheet, updated_at').eq('character_id',myChar.id).maybeSingle(); if(!_sr.error){ mySheet=_sr.data?.sheet||{}; mySheetUpdatedAt=_sr.data?.updated_at||null; cacheSave('sheet_'+myChar.id, mySheet); } }catch(e){} } partyDecisionHintRefresh('campaign-state-hint'); if(activeTab()==='quest') renderQuest(); applyMood(); refreshSelectionGate(); if(activeTab()==='story'){ renderClock(); renderRoundbar(); } if(activeTab()==='map') renderMap(); const _lu=worldState&&worldState.level_up; if(activeTab()==='me'){ const md=_lu&&_lu.active&&(_lu.done||[]).includes(myChar&&myChar.id); if(!_lu||!_lu.active||md) renderMe(); } else if(worldState&&worldState.settings&&worldState.settings.prepare_due&&Array.isArray(worldState.settings.prepare_due.ids)&&worldState.settings.prepare_due.ids.includes(myChar&&myChar.id)){ /* เตรียมเวทค้าง: ปล่อยให้ blink เตือน */ } })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_messages',filter:'campaign_id=eq.'+campaign.id}, async(payload)=>{ const row=payload.new; if(row&&row.id&&!chatMsgs.some(m=>m.id===row.id)){ chatMsgs.push(row); if(chatMsgs.length>300) chatMsgs=chatMsgs.slice(-300); cacheSave('chat',chatMsgs); } if(_bsShown){ try{ renderBattleChat(); }catch(e){} } if(activeTab()==='party'){ renderChatList(); } else if(row && row.user_id!==me.id){ const t=document.querySelector('.tab[data-tab="party"]'); if(t) t.classList.add('blink'); if(_bsShown){ const mb=document.querySelector('#bsMobBar button[data-sheet="chat"]'); if(mb) mb.classList.add('blink'); } } })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'chronicles',filter:'campaign_id=eq.'+campaign.id}, async()=>{ if(activeTab()==='chron'){ renderChronicle(); } else { const t=document.querySelector('.tab[data-tab="chron"]'); if(t) t.classList.add('blink'); } })
     .on('postgres_changes',{event:'*',schema:'public',table:'music_tracks',filter:'campaign_id=eq.'+campaign.id}, async()=>{ await loadMusicLibrary(); if(activeTab()==='files') renderFiles(); })
@@ -13627,6 +13739,7 @@ async function resyncAll(force,narrativeTailOnly){
     else if(t==='party'){ if(changed) renderParty(); }
     else if(t==='map'){ if(changed){ try{applyMood();}catch(e){} renderMap(); } }
     else if(t==='mon'){ renderCombat(); }
+    else if(t==='quest'){ await renderQuest(); }   // C1010-5: reconcile rewards even when narrative/round signatures are unchanged.
   }catch(e){}
   finally{
     _rsRunning=false;
